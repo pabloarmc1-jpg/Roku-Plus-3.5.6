@@ -551,7 +551,8 @@ sub onPulse()
                 m.notice = "El destino no se confirmó. Puedes seguir reproduciendo o volver."
                 m.noticeUntil = now + 6000
                 m.ticket = invalid
-                m.pendingSeek = invalid
+                ' A newer remote seek may be queued behind this timed-out seek.
+                ' Keep that explicit user intent and let dispatchPendingSeek run it.
             end if
         end if
     end if
