@@ -129,6 +129,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     for i = 0 to count-1
         embedIndex = (i+embedOffset) mod count
         embed = embeds[embedIndex]
+        ' The HLS host may validate the page that embeds its player.
+        ' Use the exact validated embed page as Referer instead of a fixed site root.
+        mediaReferer = embed.url
         answer.embedAttempts++
         rpHdTaskBeginSlice(count-i)
         response = fetcher(embed.url,"embed",embedReferer)
@@ -176,6 +179,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             answer.height = selected.height
                             answer.codecs = selected.codecs
                             answer.seekSupport = "native-hls"
+                            print "[RokuPlus resolve] provider="; provider; " format=hls embedHost="; rpHdTaskSafeHost(embed.url); " mediaHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " validation=avc-aac-ts"
                             answer.attemptUsed = embedIndex+variantIndex*count
                             answer.ok = true
                             answer.message = ""
@@ -190,6 +194,14 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     m.hdProviderDeadline = 0
     answer.message = "No hay una fuente H.264 en español compatible disponible para este título. Prueba otra opción de la misma película."
     return answer
+end function
+
+' Return only a host for diagnostics; never print media URLs, paths, or tokens.
+function rpHdTaskSafeHost(value as dynamic) as string
+    url = orbitText(value,4096)
+    match = CreateObject("roRegex","^https://([^/?#]+)","i").match(url)
+    if match.count() < 2 then return "unknown"
+    return lcase(match[1])
 end function
 
 function rpHdTaskStableVariants(master as object, decoderAccept as dynamic) as object
