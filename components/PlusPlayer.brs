@@ -355,10 +355,11 @@ sub applyResumeSeek()
         return
     end if
     currentPosition = plusClockValue(m.decoder.position)
-    ' If playback has already advanced, do not seek late to an old bookmark.
-    if currentPosition <> invalid and currentPosition > 15
+    ' If the native clock is already at the saved point, avoid an unnecessary seek.
+    ' Do not discard the bookmark merely because metadata arrived after playback began.
+    if currentPosition <> invalid and abs(currentPosition-resumeAt) <= 1.25
         m.resumePending = invalid
-        emitDiagnostic("resume_skipped_playing")
+        emitDiagnostic("resume_already_at_target")
         return
     end if
     m.resumePending = invalid
