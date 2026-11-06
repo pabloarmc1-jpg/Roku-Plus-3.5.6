@@ -606,6 +606,7 @@ sub skipIntro()
     if startAt = invalid or endAt = invalid or currentAt = invalid or endAt <= startAt then return
     if currentAt < startAt or currentAt >= endAt then return
     if m.failed then return
+    cancelPendingResumeForUserSeek()
     m.pendingSeek = {target:endAt,dueAt:m.monotonic.totalMilliseconds()+100}
     m.notice = "Saltando introducción…"
     m.noticeUntil = m.monotonic.totalMilliseconds()+4000
@@ -638,6 +639,7 @@ sub shiftTen(backwards as boolean)
     target = plusShiftDestination(base, m.decoder.duration, backwards)
     if target = invalid then return
     if abs(target - base) < 0.05 then return
+    cancelPendingResumeForUserSeek()
     now = m.monotonic.totalMilliseconds()
     ' Collapse a short burst into one absolute destination and serialize it
     ' behind the decoder's existing request. No overlapping decoder.seek calls.
@@ -648,6 +650,19 @@ sub shiftTen(backwards as boolean)
     m.notice = "Ir a " + plusClockText(target)
     m.noticeUntil = now + 6000
     drawTransport()
+end sub
+
+sub cancelPendingResumeForUserSeek()
+    m.resumePending = invalid
+    if m.pendingSeek <> invalid
+        if m.pendingSeek.doesExist("isResume") and m.pendingSeek.isResume = true then m.pendingSeek = invalid
+    end if
+    if m.ticket <> invalid
+        if m.ticket.doesExist("isResume") and m.ticket.isResume = true then m.ticket.isResume = false
+    end if
+    m.resumeFailed = false
+    m.resumeFailedPosition = invalid
+    m.resumeFailedAt = 0
 end sub
 
 sub dispatchPendingSeek()
