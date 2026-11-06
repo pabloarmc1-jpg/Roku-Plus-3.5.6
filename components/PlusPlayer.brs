@@ -190,6 +190,7 @@ sub openRequest()
     m.lastProgressAt = -1000
     m.phase = "opening"
     m.resumePending = invalid
+    m.resumeStartedAt = m.monotonic.totalMilliseconds()
     m.resumeAttempts = 0
     m.resumeFailed = false
     m.resumeFailedPosition = invalid
@@ -354,10 +355,11 @@ sub applyResumeSeek()
         return
     end if
     currentPosition = plusClockValue(m.decoder.position)
-    ' If playback has already advanced, do not seek late to an old bookmark.
-    if currentPosition <> invalid and currentPosition > 15
+    ' If the native clock is already at the saved point, avoid an unnecessary seek.
+    ' Do not discard the bookmark merely because metadata arrived after playback began.
+    if currentPosition <> invalid and abs(currentPosition-resumeAt) <= 1.25
         m.resumePending = invalid
-        emitDiagnostic("resume_skipped_playing")
+        emitDiagnostic("resume_already_at_target")
         return
     end if
     m.resumePending = invalid
@@ -537,6 +539,13 @@ sub onPulse()
     if not m.mediaOpen then return
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
+    if m.resumePending <> invalid and now - m.resumeStartedAt >= 15000
+        m.resumePending = invalid
+        m.resumeFailed = true
+        m.resumeFailedPosition = plusClockValue(m.decoder.position)
+        m.resumeFailedAt = now
+        emitDiagnostic("resume_metadata_timeout")
+    end if
     if m.ticket <> invalid
         if now - m.ticket.issuedAt >= 12000
             isResumeSeek = false
@@ -551,7 +560,8 @@ sub onPulse()
                 m.notice = "El destino no se confirmó. Puedes seguir reproduciendo o volver."
                 m.noticeUntil = now + 6000
                 m.ticket = invalid
-                m.pendingSeek = invalid
+                ' A newer remote seek may be queued behind this timed-out seek.
+                ' Keep that explicit user intent and let dispatchPendingSeek run it.
             end if
         end if
     end if
@@ -606,6 +616,7 @@ sub skipIntro()
     if startAt = invalid or endAt = invalid or currentAt = invalid or endAt <= startAt then return
     if currentAt < startAt or currentAt >= endAt then return
     if m.failed then return
+    cancelPendingResumeForUserSeek()
     m.pendingSeek = {target:endAt,dueAt:m.monotonic.totalMilliseconds()+100}
     m.notice = "Saltando introducción…"
     m.noticeUntil = m.monotonic.totalMilliseconds()+4000
@@ -638,6 +649,7 @@ sub shiftTen(backwards as boolean)
     target = plusShiftDestination(base, m.decoder.duration, backwards)
     if target = invalid then return
     if abs(target - base) < 0.05 then return
+    cancelPendingResumeForUserSeek()
     now = m.monotonic.totalMilliseconds()
     ' Collapse a short burst into one absolute destination and serialize it
     ' behind the decoder's existing request. No overlapping decoder.seek calls.
@@ -648,6 +660,19 @@ sub shiftTen(backwards as boolean)
     m.notice = "Ir a " + plusClockText(target)
     m.noticeUntil = now + 6000
     drawTransport()
+end sub
+
+sub cancelPendingResumeForUserSeek()
+    m.resumePending = invalid
+    if m.pendingSeek <> invalid
+        if m.pendingSeek.doesExist("isResume") and m.pendingSeek.isResume = true then m.pendingSeek = invalid
+    end if
+    if m.ticket <> invalid
+        if m.ticket.doesExist("isResume") and m.ticket.isResume = true then m.ticket.isResume = false
+    end if
+    m.resumeFailed = false
+    m.resumeFailedPosition = invalid
+    m.resumeFailedAt = 0
 end sub
 
 sub dispatchPendingSeek()
