@@ -190,6 +190,7 @@ sub openRequest()
     m.lastProgressAt = -1000
     m.phase = "opening"
     m.resumePending = invalid
+    m.resumeStartedAt = m.monotonic.totalMilliseconds()
     m.resumeAttempts = 0
     m.resumeFailed = false
     m.resumeFailedPosition = invalid
@@ -537,6 +538,13 @@ sub onPulse()
     if not m.mediaOpen then return
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
+    if m.resumePending <> invalid and now - m.resumeStartedAt >= 15000
+        m.resumePending = invalid
+        m.resumeFailed = true
+        m.resumeFailedPosition = plusClockValue(m.decoder.position)
+        m.resumeFailedAt = now
+        emitDiagnostic("resume_metadata_timeout")
+    end if
     if m.ticket <> invalid
         if now - m.ticket.issuedAt >= 12000
             isResumeSeek = false
