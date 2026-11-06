@@ -99,6 +99,15 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
         end if
     end if
     if item.doesExist("providerSlug") then record.providerSlug = orbitText(item.providerSlug,200)
+    if record.provider = "lamovie"
+        slugPresent = false
+        slugValue = ""
+        if item.doesExist("providerSlug")
+            slugValue = orbitText(item.providerSlug,200)
+            slugPresent = slugValue <> ""
+        end if
+        print "[RokuPlus identity] watch-record id="; record.id; " providerId="; orbitText(record.providerId,40); " slugPresent="; slugPresent; " slug="; slugValue
+    end if
     ' CineHax requires these two source-specific identity fields to rebuild
     ' its resolver request after Continue Watching restores a saved record.
     if item.doesExist("providerTmdbId") then record.providerTmdbId = orbitText(item.providerTmdbId,40)
