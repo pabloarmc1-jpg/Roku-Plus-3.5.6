@@ -1,0 +1,14 @@
+Roku Plus 2.5.0 - Rediseño completo del reproductor
+
+- Se reconstruyó desde cero la composición visual del panel de reproducción.
+- Panel inferior cinematográfico de ancho completo con fondo oscuro translúcido.
+- Jerarquía visual nueva para estado, título y metadatos.
+- Línea de progreso roja de estilo streaming, con tiempos a ambos extremos.
+- Controles centrales de retroceso, pausa/reproducción y avance.
+- Indicaciones del control remoto y mensajes de estado integrados en el panel.
+- Se conserva el componente Video nativo, el control de reproducción, la gestión de pausa,
+  los saltos de 10 segundos, el salto de introducción, reintentos, progreso y watchdog.
+- Se ajustó el cálculo de la barra y del indicador al nuevo ancho visual.
+
+Validación realizada: sintaxis XML y estructura ZIP. Pendiente compilación con Roku SDK
+y prueba funcional en hardware Roku.

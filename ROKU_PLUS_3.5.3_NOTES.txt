@@ -1,0 +1,7 @@
+Roku Plus 3.5.3
+
+- Construye los encabezados HTTP en un array local redimensionable y los asigna al ContentNode al final.
+- Evita modificar media.httpHeaders después de asignarlo al nodo, lo que podía producir Push/SetEntry ignorados en Roku.
+- Conserva los campos de identidad HD introducidos en 3.5.2.
+
+Nota: requiere prueba en el dispositivo; no se garantiza que resuelva errores de reproducción de origen (errcode 2) sin validar la fuente de video.

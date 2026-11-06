@@ -1,0 +1,14 @@
+Roku Plus 2.3.0
+
+Novedades:
+- Filtro local por género en las páginas de películas y series mediante OPTIONS.
+- El selector solo muestra géneros detectados en la página cargada.
+- Opción Todos para quitar el filtro.
+- Conserva búsqueda de texto y navegación por páginas del catálogo.
+- La pantalla indica el filtro activo y explica cuando no hay coincidencias.
+
+Alcance del filtro:
+El filtro se aplica a los títulos de la página del catálogo actualmente cargada; no altera el proveedor ni consulta una API adicional.
+
+Validación pendiente:
+Verificar compilación con BrightScript/SceneGraph SDK oficial y probar el selector con el control remoto en Roku físico.

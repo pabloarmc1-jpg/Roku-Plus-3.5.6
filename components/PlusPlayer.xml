@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="PlusPlayer" extends="Group">
+  <interface>
+    <field id="active" type="boolean" value="false" onChange="onActiveChanged" />
+    <field id="request" type="assocarray" onChange="openRequest" />
+    <field id="closed" type="boolean" alwaysNotify="true" />
+    <field id="closedRequest" type="assocarray" alwaysNotify="true" />
+    <field id="diagnostics" type="assocarray" alwaysNotify="true" />
+    <field id="progress" type="assocarray" alwaysNotify="true" />
+    <field id="retryRequested" type="assocarray" alwaysNotify="true" />
+    <field id="presentation" type="string" value="fullscreen" onChange="onPresentationChanged" />
+    <field id="previewRect" type="floatarray" value="[294,206,1016,572]" onChange="onPreviewRectChanged" />
+    <field id="allowPreviewReturn" type="boolean" value="false" />
+    <field id="previewReturned" type="boolean" alwaysNotify="true" />
+    <field id="theme" type="string" value="glass" onChange="applyPlayerTheme" />
+    <function name="closePlayback" />
+    <function name="applyPresentation" />
+    <function name="applyPlayerTheme" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/source/SeekClock.brs" />
+  <script type="text/brightscript" uri="pkg:/source/PlaybackWatchdog.brs" />
+  <script type="text/brightscript" uri="PlusPlayer.brs" />
+  <children>
+    <Rectangle id="backdrop" width="1920" height="1080" color="0x000000FF" />
+    <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
+    <Poster id="previewMask" translation="[294,206]" width="1016" height="572" uri="pkg:/images/ui/live-preview-mask.png" loadDisplayMode="scaleToFit" visible="false" />
+
+    <!-- Clean glass transport: lightweight translucent controls over the video. -->
+    <Group id="transport" translation="[0,704]" visible="false">
+      <Rectangle id="panelBackdrop" width="1920" height="376" color="0x080A0F66" />
+      <Rectangle id="topRule" translation="[96,0]" width="1728" height="1" color="0xFFFFFF10" />
+
+      <Label id="modeText" translation="[112,28]" width="500" height="28" font="font:SmallSystemFont" color="0xE50914FF" />
+      <Label id="titleText" translation="[108,58]" width="1680" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="metaText" translation="[112,119]" width="1680" height="32" font="font:SmallSystemFont" color="0xE4E7EDFF" />
+
+      <Label id="clockText" translation="[112,174]" width="160" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" />
+      <Label id="durationText" translation="[1648,174]" width="160" height="30" font="font:SmallSystemFont" color="0xE4E7EDFF" horizAlign="right" />
+      <Rectangle id="timeTrack" translation="[286,185]" width="1348" height="4" color="0xFFFFFF66" visible="false" />
+      <Rectangle id="timeFill" translation="[286,185]" width="0" height="4" color="0xE50914FF" visible="false" />
+      <Poster id="timeThumb" translation="[280,178]" width="18" height="18" uri="pkg:/images/newplayer-thumb.png" visible="false" />
+
+      <Group id="rewindControl" translation="[730,222]">
+        <Poster id="rewindSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
+        <Poster translation="[4,4]" width="64" height="64" uri="pkg:/images/newplayer-rewind.png" />
+      </Group>
+      <Poster id="centerSurface" translation="[920,214]" width="88" height="88" uri="pkg:/images/newplayer-control-focus.png" />
+      <Poster id="playGlyph" translation="[932,226]" width="64" height="64" uri="pkg:/images/newplayer-play.png" visible="false" />
+      <Poster id="pauseGlyph" translation="[932,226]" width="64" height="64" uri="pkg:/images/newplayer-pause.png" />
+      <Group id="forwardControl" translation="[1126,222]">
+        <Poster id="forwardSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
+        <Poster translation="[4,4]" width="64" height="64" uri="pkg:/images/newplayer-forward.png" />
+      </Group>
+
+      <Label id="keyText" translation="[112,316]" width="760" height="30" font="font:SmallSystemFont" color="0xD7D9E0FF" />
+      <Label id="pauseText" translation="[1000,316]" width="808" height="30" font="font:SmallSystemFont" color="0xD7D9E0FF" horizAlign="right" />
+      <Label id="noticeText" translation="[112,0]" width="1696" height="32" font="font:SmallSystemFont" color="0xFFFFFFFF" />
+    </Group>
+    <Timer id="uiPulse" duration="0.25" repeat="true" />
+  </children>
+</component>

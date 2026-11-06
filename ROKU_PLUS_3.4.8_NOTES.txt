@@ -1,0 +1,5 @@
+Roku Plus 3.4.8
+
+Correccion del cierre de 3.4.7: PlusScene ahora incluye HdOnlineData.brs en su propio ambito de componente, donde fetch() utiliza rpHdOnlineProvider(). Esto evita el error func_name_resolver al iniciar la reproduccion de titulos HD. No se modifico la interfaz.
+
+Validacion: integridad ZIP y sintaxis XML de PlusScene.xml. No compilado con Roku SDK ni probado en un televisor fisico.

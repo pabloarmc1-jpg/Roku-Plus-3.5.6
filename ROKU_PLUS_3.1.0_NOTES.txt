@@ -1,0 +1,8 @@
+Roku Plus 3.1.0 — Resolución adaptativa y diagnóstico de pantalla
+
+- Conserva ui_resolutions=fhd: Roku SceneGraph mantiene un lienzo de diseño FHD y escala automáticamente los elementos a pantallas HD compatibles.
+- Amplía el perfil del dispositivo con GetDisplaySize(), GetVideoMode() y GetUIResolution().
+- Añade en Configuración una línea de diagnóstico que muestra la resolución de salida detectada, el modo de video y la resolución de interfaz reportada por Roku.
+- Mantiene el reproductor, el historial, los perfiles, la caché y las fuentes existentes.
+
+Validación local: ZIP íntegro y XML parseados. No se ha compilado con el SDK oficial ni probado en un televisor físico.

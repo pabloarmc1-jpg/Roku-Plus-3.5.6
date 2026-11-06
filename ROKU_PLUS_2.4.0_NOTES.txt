@@ -1,0 +1,11 @@
+Roku Plus 2.4.0 - Reproductor renovado
+
+- Panel inferior con jerarquia visual reforzada y acento rojo cinematografico.
+- Titulo de mayor presencia y linea secundaria de metadatos opcionales (ano,
+  calidad y episodio), solo cuando el catalogo entrega esos campos.
+- Barra de progreso mas visible y control de posicion con mayor contraste.
+- Se conservan el decoder Video nativo, las operaciones de seek, pausa,
+  reanudacion, salto de introduccion, preview y retorno al reproductor.
+
+Validacion realizada: estructura ZIP, sintaxis XML y referencias locales.
+Pendiente: compilacion con Roku SDK y prueba en dispositivo Roku real.

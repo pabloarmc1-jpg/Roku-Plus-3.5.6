@@ -1,0 +1,15 @@
+ROKU PLUS 3.4.1
+
+Correcciones enfocadas en los bloqueos reportados en Hisense Roku TV / Roku OS 16.
+
+1. Reanudar desde Continuar viendo ahora usa el descriptor persistido y solicita
+   directamente la resolución de la fuente, evitando una consulta de metadatos
+   intermedia que podía dejar la acción sin avance en proveedores con IDs especiales.
+2. Se valida y prepara el contexto de reproducción antes de iniciar la resolución.
+3. El botón BACK de los diálogos de teclado ahora se gestiona explícitamente en
+   PlusScene, se cierra el diálogo una sola vez y se restaura la pantalla/foco.
+4. Cancelar conserva su flujo anterior.
+5. Se conserva el cambio de avatar con PLAY/PAUSE.
+
+Validación estática: revisar XML y estructura ZIP. Esta versión no ha sido compilada
+con el SDK oficial ni probada físicamente en Roku; requiere verificación en el equipo.

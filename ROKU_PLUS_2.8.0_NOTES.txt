@@ -1,0 +1,11 @@
+ROKU PLUS 2.8.0
+
+Correcciones de robustez:
+- Servidor LAN de compatibilidad configurable desde Configuración.
+- Validación de origen HTTP, host y puerto; las rutas se construyen internamente.
+- Watchdog más tolerante a buffering y relojes de reproducción ausentes; evita falsos positivos cuando el decoder no expone una posición fiable.
+- Diagnósticos nativos ampliados con texto limitado y redacción de URLs/posibles parámetros sensibles.
+- Guardado de progreso más frecuente (cada 5 segundos) y al cerrar el reproductor.
+- Reinicio del último estado de reproducción al abrir un nuevo título.
+
+La compilación con Roku SDK y las pruebas en dispositivo físico siguen pendientes.

@@ -1,0 +1,15 @@
+Roku Plus 3.0.0 - Rendimiento y reutilización de catálogo
+
+Cambios:
+- Añadida caché de sesión para las dos filas principales del inicio (películas y series), separada por modo de catálogo y proveedor.
+- La caché solo se considera válida cuando ambas respuestas se han recibido correctamente.
+- La caché caduca a los cinco minutos y evita repetir las consultas al volver rápidamente a Inicio.
+- Se conserva la limpieza de posters de eraseScreen() y la cancelación/observación de tareas existente.
+
+Validación:
+- Integridad del ZIP y validación XML.
+- Revisión estática del flujo de caché y de las claves por proveedor/modo.
+
+Pendiente:
+- Compilación con Roku SDK y pruebas en Roku físico.
+- Medición real de memoria y tiempos de carga; no se afirma una mejora cuantificada sin mediciones.

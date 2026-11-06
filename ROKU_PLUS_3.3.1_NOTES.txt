@@ -1,0 +1,16 @@
+Roku Plus 3.3.1 - correcciones de estabilidad
+
+Cambios:
+- Cierre de StandardKeyboardDialog separado entre cierre iniciado por la app y cierre ya realizado por Roku. Los callbacks wasClosed ya no vuelven a ejecutar close=true.
+- Recuperacion defensiva de elementos de Continuar viendo: valida tipo de registro, id, imdbId, titulo y datos de temporada/episodio antes de iniciar la consulta de reproduccion.
+- Para registros con imdbId ausente, se intenta recuperar el identificador desde el id si tiene formato IMDb valido.
+- En Perfiles, PLAY/PAUSE cambia el avatar; OPTIONS sigue editando el nombre. Se elimina la dependencia de INFO.
+- Texto de ayuda actualizado para el mando.
+
+Pruebas estaticas:
+- Validacion de integridad ZIP.
+- Validacion XML de todos los componentes XML.
+- Revision estatica de los callbacks de teclado y ramas de mando.
+
+Pendiente:
+- Compilacion con BrightScript/SceneGraph SDK y pruebas en Roku fisico. Los nombres de tecla pueden variar por modelo de mando; se aceptan play, playpause y pause.

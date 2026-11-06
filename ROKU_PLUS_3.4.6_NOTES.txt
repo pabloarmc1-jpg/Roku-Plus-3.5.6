@@ -1,0 +1,10 @@
+Roku Plus 3.4.6
+
+Continue Watching source identity fix:
+- Persist CineHax providerTmdbId and providerKind, both required by its adapter.
+- Preserve string providerId values for CineCalidad slugs as well as numeric IDs.
+- Restore CineCalidad providerId from providerSlug for older records where possible.
+- Restore the added CineHax identity fields when resuming playback.
+
+This patch targets titles that still showed the invalid HD identifier message after 3.4.5.
+ZIP/XML integrity checks are not a substitute for Roku SDK compilation or device testing.

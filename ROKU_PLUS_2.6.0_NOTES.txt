@@ -1,0 +1,10 @@
+Roku Plus 2.6.0 — Reproductor Glass
+
+- Panel inferior mucho más transparente para mantener visible el video.
+- Se elimina el aspecto de bloque oscuro pesado.
+- Línea superior casi imperceptible.
+- Metadatos con contraste suave y limpio.
+- Barra de progreso más fina y discreta con acento rojo.
+- Se conserva el motor Video nativo y la lógica de controles existente.
+
+Pendiente: compilar con el SDK oficial de Roku y probar en hardware real.

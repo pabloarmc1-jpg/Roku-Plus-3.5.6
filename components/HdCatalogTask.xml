@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="HdCatalogTask" extends="Task">
+    <interface>
+        <field id="operation" type="string" value="catalog" />
+        <field id="kind" type="string" value="movie" />
+        <field id="provider" type="string" value="all" />
+        <field id="query" type="string" value="" />
+        <field id="skip" type="integer" value="0" />
+        <field id="item" type="assocarray" />
+        <field id="season" type="integer" value="1" />
+        <field id="attempt" type="integer" value="0" />
+        <field id="requestId" type="string" value="" />
+        <field id="cancelRequested" type="boolean" value="false" />
+        <field id="result" type="assocarray" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/source/CatalogData.brs" />
+    <script type="text/brightscript" uri="pkg:/source/HdOnlineData.brs" />
+    <script type="text/brightscript" uri="pkg:/source/HdCinehaxData.brs" />
+    <script type="text/brightscript" uri="pkg:/source/HdSeriesmetroData.brs" />
+    <script type="text/brightscript" uri="pkg:/source/HdCinecalidadData.brs" />
+    <script type="text/brightscript" uri="HdCinehaxTask.brs" />
+    <script type="text/brightscript" uri="HdSeriesmetroTask.brs" />
+    <script type="text/brightscript" uri="HdCinecalidadTask.brs" />
+    <script type="text/brightscript" uri="HdCatalogTask.brs" />
+</component>

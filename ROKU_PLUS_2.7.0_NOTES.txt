@@ -1,0 +1,11 @@
+Roku Plus 2.7.0
+
+Reproductor:
+- Los controles se ocultan automáticamente tras 6 segundos mientras el video está reproduciéndose.
+- Al pulsar Play o OK, los controles vuelven a mostrarse y se reinicia el contador de ocultación.
+- Las teclas de avance y retroceso muestran el panel y reinician el contador.
+- El panel permanece visible cuando el video está pausado, cargando o en un estado de error.
+
+Validación:
+- ZIP íntegro y XML validado estructuralmente.
+- No se ha compilado con el SDK oficial de Roku ni probado en un dispositivo físico.

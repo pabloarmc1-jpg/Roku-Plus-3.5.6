@@ -1,0 +1,13 @@
+Roku Plus 2.2.0
+
+Mejoras de esta versión:
+- Ficha de películas, series y episodios reorganizada para facilitar la lectura.
+- Presentación más clara de año, duración y géneros cuando el catálogo proporciona esos datos.
+- Indicadores visibles de visto, Mi lista y posición de reanudación.
+- Barra visual del progreso de reproducción cuando existe una posición guardada.
+- Ayuda en pantalla para los atajos del control remoto: OPTIONS/* para marcar como vista e INFO para Mi lista.
+- Avatares de perfiles identificados como P1, P2, P3 y P4.
+
+Compatibilidad y pruebas:
+- Basada en Roku Plus 2.1.0.
+- Revisar compilación con el SDK oficial de Roku y probar navegación/reproducción en dispositivo real antes de distribuir.

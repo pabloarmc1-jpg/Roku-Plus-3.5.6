@@ -1,0 +1,15 @@
+Roku Plus 2.9.0 - Rendimiento y robustez
+
+Cambios:
+- Normalización centralizada del identificador de perfil al seleccionar el espacio de registro del historial.
+- Limpieza defensiva de registros antiguos o malformados al cargar el historial.
+- Validación de relojes de posición/duración para impedir comparaciones con valores no numéricos, negativos o fuera de rango.
+- Acceso seguro al identificador y al estado visto al buscar y construir la fila Continuar viendo.
+- Se conservan el reproductor nativo, el diseño Glass, el servidor configurable y las funciones existentes.
+
+Validación realizada:
+- Integridad del ZIP.
+- Análisis XML de todos los archivos XML.
+- Revisión estática de cambios.
+
+Pendiente: compilación con Roku SDK y pruebas en dispositivo físico; no se afirma compatibilidad de ejecución sin esas pruebas.

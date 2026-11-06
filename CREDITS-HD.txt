@@ -1,0 +1,82 @@
+ROKU PLUS — CATÁLOGO HD: CORTOS Y DOCUMENTALES
+
+Esta selección reúne cuatro cortos de animación y ocho cápsulas documentales
+del archivo de NASA en español. No representa un catálogo comercial ni una
+oferta de películas dobladas al español. Las cápsulas NASA son de 2023;
+no se presentan como noticias actuales.
+
+BLENDER STUDIO / BLENDER INSTITUTE
+Las páginas oficiales de los archivos seleccionados indican Creative Commons
+Attribution 4.0 (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+Se enlazan las películas oficiales completas, sin editar el vídeo ni el audio.
+Se conservan los créditos originales de las películas. Los resúmenes en español
+de esta aplicación son propios.
+
+- Caminandes: Llama Drama (2013).
+  Blender Institute / equipo de Caminandes.
+  https://studio.blender.org/projects/caminandes-2/
+  Archivo y licencia: https://studio.blender.org/projects/api/assets/2362/?site_context=featured_artwork
+
+- Caminandes: Gran Dillama (2013).
+  Blender Institute / equipo de Caminandes.
+  https://studio.blender.org/projects/caminandes-2/
+  Archivo y licencia: https://studio.blender.org/projects/api/assets/2363/?site_context=featured_artwork
+
+- Caminandes: Llamigos (2016).
+  Blender Institute / equipo de Caminandes.
+  https://studio.blender.org/projects/caminandes-3/
+  Archivo y licencia: https://studio.blender.org/projects/api/assets/2417/?site_context=featured_artwork
+
+- Glass Half (2015).
+  Dirección y guion: Beorn Leonard. Diseño: Sarah Laufer.
+  Producción: Blender Institute / Ton Roosendaal y equipo.
+  https://studio.blender.org/projects/glass-half/
+  Archivo y licencia: https://studio.blender.org/projects/api/assets/141/?site_context=featured_artwork
+  Comedia visual con voces estilizadas; no se anuncia doblaje español.
+
+Los pósteres y fondos corresponden a las miniaturas de los propios archivos
+oficiales de Blender Studio. No se han modificado.
+
+NASA EN ESPAÑOL — ARCHIVO 2023
+Fuente: NASA / Goddard Space Flight Center.
+Se enlazan ocho cápsulas informativas oficiales en español, con título, año y
+miniatura de cada vídeo. La agrupación en una temporada es editorial de Roku Plus;
+no implica que NASA la haya publicado como una serie de ficción.
+
+Condiciones oficiales de uso de imágenes y medios:
+https://www.nasa.gov/nasa-brand-center/images-and-media/
+Documentación de la API pública:
+https://images.nasa.gov/docs/images.nasa.gov_api_docs.pdf
+
+La fuente se reconoce como NASA. Sus condiciones contienen excepciones para
+material de terceros y otras restricciones de uso; esta aplicación no declara
+que todo el material de NASA sea CC ni de dominio público universal. El enlace
+a los vídeos no implica respaldo o asociación de NASA con esta aplicación.
+
+Cápsulas seleccionadas:
+- ¡Bienvenida a casa, Orion! (2023).
+  https://images.nasa.gov/details/2023_0106_Recientemente
+- En honor de nuestros héroes caídos (2023).
+  https://images.nasa.gov/details/20230127Recientemente
+- Tripulación de vuelo lista (2023).
+  https://images.nasa.gov/details/20230224_Recientemente
+- El presidente solicita presupuesto para la NASA (2023).
+  https://images.nasa.gov/details/20230317_recientemente
+- Astronautas de la NASA comparten su experiencia en la estación espacial (2023).
+  https://images.nasa.gov/details/20230331_Recientemente
+- Una nave cambia de puerto de atraque en la estación espacial (2023).
+  https://images.nasa.gov/details/20230512_Recientemente
+- La tripulación de la misión Artemis II visita Washington D.C. (2023).
+  https://images.nasa.gov/details/20230519_Recientemente
+- Otra caminata para renovar el suministro de electricidad en la estación espacial (2023).
+  https://images.nasa.gov/details/20230609_Recientemente
+
+REPRODUCCIÓN
+Se comprobaron metadatos y cabeceras acotadas de los MP4 públicos:
+vídeo AVC/H.264 y audio AAC-LC. Una muestra de Llama Drama se comprobó además
+decodificando un solo fotograma localmente. No se convirtió ni se descargó
+una película completa.
+La reproducción en cada modelo de Roku HD debe comprobarse por separado.
+

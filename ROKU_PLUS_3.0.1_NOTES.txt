@@ -1,0 +1,6 @@
+Roku Plus 3.0.1 — QA readiness
+
+- Añadida matriz de pruebas para Roku Express/HD, Streaming Stick, Roku Ultra y Roku TV.
+- Incluye escenarios para caché, carga de imágenes, memoria, reproducción, buffering, historial, perfiles, siguiente episodio y servidor PC.
+- Documenta explícitamente que HD debe validarse: el manifiesto declara ui_resolutions=fhd y el layout usa coordenadas 1920x1080.
+- No se afirma que la app haya sido compilada ni ejecutada en hardware.

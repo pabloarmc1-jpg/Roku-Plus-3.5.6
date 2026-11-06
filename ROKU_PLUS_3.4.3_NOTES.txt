@@ -1,0 +1,12 @@
+Roku Plus 3.4.3
+
+Crash fix based on the user's Roku BrightScript Micro Debugger trace:
+- PlusSceneViews.brs detailScreen() no longer compares an absent/non-numeric item.runtime directly to zero. It normalizes the optional runtime with rpWatchNumber() before rendering.
+- The Continue Watching rail also normalizes optional duration and position values before calculating progress, preventing malformed or incomplete watch-state values from crashing the render thread.
+- The existing visual design and navigation behavior are otherwise unchanged.
+
+Validation performed:
+- ZIP integrity check and XML parsing of packaged component files.
+- Not compiled with Roku SDK and not physically tested on a Roku device.
+
+Keyboard Back issue remains under investigation and needs its own debugger trace after reproducing the keyboard close behavior.

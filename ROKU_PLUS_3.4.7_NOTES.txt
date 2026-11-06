@@ -1,0 +1,5 @@
+Roku Plus 3.4.7
+
+Fix: online HD metadata and playback requests for saved Continue Watching items now use the provider identity attached to the item, rather than the currently selected HD provider. This is important when the watch list contains titles from multiple providers or the user changes the selected source after saving progress.
+
+Validation: ZIP integrity and XML parsing checked. Not compiled with the Roku SDK and not physically tested on a Roku device.

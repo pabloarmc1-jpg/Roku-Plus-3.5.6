@@ -1,0 +1,9 @@
+Roku Plus 3.3.0 — Correcciones funcionales
+
+- Continuar viendo e Historial restauran metadatos de episodio y proveedor guardados.
+- El cierre de diálogos de teclado ahora libera el nodo de diálogo, restaura el foco y evita callbacks repetidos.
+- Los perfiles permiten cambiar el nombre con OPTIONS y alternar el avatar con INFO. Los cambios se guardan por perfil.
+- Se eliminan duplicados de películas y series por identidad o título/año/tipo; los episodios conservan su identidad individual.
+- Se mantiene el diseño visual aprobado y el reproductor Glass.
+
+Validación local: integridad ZIP y parseo XML. No se dispone de compilación Roku SDK ni prueba física automatizada.

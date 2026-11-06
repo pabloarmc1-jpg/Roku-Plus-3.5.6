@@ -1,0 +1,17 @@
+Roku Plus 2.0.0 - Inicio cinematográfico dinámico
+
+- El banner principal rota automáticamente entre las películas destacadas cada 8 segundos.
+- El banner muestra la posición de la selección y utiliza el título/fondo de la película activa.
+- OK sobre el banner abre los detalles del título destacado actual.
+- La fila principal de recomendaciones ahora admite cuatro tarjetas compactas en una sola línea.
+- Conserva navegación por control remoto, historial, Mi lista, perfiles y reproducción.
+
+Verificación realizada:
+- ZIP de origen extraído y paquete regenerado.
+- XML SceneGraph validado con parser XML.
+- Referencias pkg:/ locales comprobadas contra los archivos incluidos.
+- Revisión estática de las nuevas referencias al temporizador y al índice del destacado.
+
+Pendiente antes de distribuir:
+- Compilar con BrightScript/SceneGraph en el SDK oficial de Roku.
+- Probar rotación del banner, foco, navegación y reproducción en Roku HD y FHD.

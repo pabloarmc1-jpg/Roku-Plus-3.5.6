@@ -1,0 +1,8 @@
+Roku Plus 3.4.5
+
+Fix: restore online HD provider identity when resuming playback from Continue Watching.
+- Watch history now preserves providerId and providerSlug.
+- Existing records without providerId recover the numeric ID only when the saved public ID exactly matches hdo-<provider>-<number>.
+- The restored item is passed through the normal metadata/resolution flow.
+
+Validation: ZIP integrity and XML parsing checked. Not compiled with Roku SDK or tested on a physical Roku device.

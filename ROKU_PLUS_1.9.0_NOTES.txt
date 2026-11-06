@@ -1,0 +1,17 @@
+Roku Plus 1.9.0 - Catálogo visual tipo Netflix
+
+- Rediseña Películas y Series como una cuadrícula de pósteres verticales en cinco columnas y dos filas.
+- Muestra diez títulos por ventana de navegación, manteniendo la paginación del proveedor de veinte resultados.
+- Navegación optimizada para control remoto: izquierda/derecha por columna, arriba/abajo por fila y desplazamiento por ventanas.
+- Mantiene etiquetas de visto, Mi lista y progreso de reanudación sobre cada tarjeta.
+- Conserva las fichas, reproductor, historial, perfiles, fuentes y datos persistentes existentes.
+
+Verificación realizada:
+- ZIP de entrada extraído correctamente y paquete final regenerado.
+- XML SceneGraph validado con parser XML.
+- Referencias pkg:/ locales comprobadas contra los archivos incluidos.
+- Revisión estática de los cambios de navegación y límites de la cuadrícula.
+
+Pendiente antes de distribuir:
+- Compilar con BrightScript/SceneGraph en el SDK oficial de Roku.
+- Probar foco, scroll, búsqueda, paginación y reproducción en Roku HD y FHD.

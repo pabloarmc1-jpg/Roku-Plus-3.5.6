@@ -1,0 +1,9 @@
+Roku Plus 1.6.0 - Viewing state update
+
+Added: local watch-state registry (last position, watched flag, My List flag), Continue Watching home row with progress bars, detail-screen quick actions (OPTIONS=mark watched/unwatched; INFO=toggle My List), and watched badges in episode lists.
+
+Playback progress is stored locally for on-demand content only. Live channels are excluded. Registry records intentionally omit stream URLs, HTTP headers, and provider credentials.
+
+Automatic next episode: attempts to advance to the next episode already present in the loaded season/series data after a natural playback completion. It cannot fetch an unavailable next-season episode until that season's episode list is loaded.
+
+Important: build and test with Roku SceneGraph/BrightScript tooling on a Roku device. This package has not been certified by Roku.

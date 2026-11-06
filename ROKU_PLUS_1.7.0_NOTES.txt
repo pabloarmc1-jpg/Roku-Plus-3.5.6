@@ -1,0 +1,15 @@
+Roku Plus 1.7.0 - Perfiles y administración de actividad
+
+- Añade cuatro perfiles locales independientes. Cada perfil dispone de su propio historial, progreso, marcas de visto y Mi lista.
+- Permite cambiar de perfil desde la navegación lateral. El perfil activo se conserva entre sesiones.
+- Añade eliminación individual de títulos del historial o Mi lista mediante OPTIONS.
+- Conserva la reproducción y el progreso de 1.6.0, incluido el avance automático al siguiente episodio disponible en los datos cargados.
+
+Notas y limitaciones:
+- Los perfiles son locales a este dispositivo Roku; no sincronizan entre televisores y no tienen PIN ni cuentas en la nube.
+- Los cuatro perfiles tienen nombres predefinidos para evitar depender de una entrada de teclado no verificada.
+- Saltar introducción requiere marcas de tiempo de intro proporcionadas por cada fuente; la mayoría de las fuentes actuales no las entregan. No se simula un botón que no pueda funcionar.
+- La cuenta regresiva del siguiente episodio requiere una interfaz de reproducción compatible con eventos y temporizadores; la versión actual conserva el avance automático inmediato al finalizar el episodio cuando el siguiente está disponible.
+- Las recomendaciones personalizadas requieren metadatos de género consistentes en el catálogo; se mantienen las filas de catálogo existentes mientras no haya metadatos fiables.
+- Las recomendaciones personalizadas por género no se activan en fuentes que no entreguen metadatos de género consistentes; no se inventan afinidades.
+- Debe compilarse y probarse en Roku SceneGraph/BrightScript en un dispositivo real antes de distribuirse.

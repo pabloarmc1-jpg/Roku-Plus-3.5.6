@@ -1,0 +1,12 @@
+ROKU PLUS 3.2.0
+
+Enfoque: refinamiento visual de la pantalla de detalles para Roku TV HD (720p).
+
+Cambios:
+- Aumenta ligeramente la legibilidad del título, metadatos y descripción.
+- Mejora el contraste de los metadatos y las ayudas inferiores.
+- Añade truncado explícito con puntos suspensivos para descripciones largas.
+- Ajusta la posición y tamaño de los botones de detalle, con texto más legible y área de foco más amplia.
+- Conserva el diseño de Inicio, el reproductor Glass, la navegación y el escalado FHD de SceneGraph.
+
+Validación local: ZIP íntegro y XML parseados. No se ejecutó compilación BrightScript con el SDK oficial ni prueba automatizada en dispositivo físico.

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="CatalogTask" extends="Task">
+    <interface>
+        <field id="operation" type="string" value="catalog" />
+        <field id="kind" type="string" value="movie" />
+        <field id="countryCode" type="string" value="mx" />
+        <field id="query" type="string" value="" />
+        <field id="skip" type="integer" value="0" />
+        <field id="imdbId" type="string" value="" />
+        <field id="season" type="integer" value="0" />
+        <field id="episode" type="integer" value="0" />
+        <field id="requestId" type="string" value="" />
+        <field id="cancelRequested" type="boolean" value="false" />
+        <field id="result" type="assocarray" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/source/CountryData.brs" />
+    <script type="text/brightscript" uri="pkg:/source/CatalogData.brs" />
+    <script type="text/brightscript" uri="pkg:/source/LivePresentationData.brs" />
+    <script type="text/brightscript" uri="CatalogTask.brs" />
+</component>

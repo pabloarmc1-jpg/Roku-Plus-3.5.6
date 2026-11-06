@@ -1,0 +1,8 @@
+Roku Plus 3.4.2
+
+Targeted fixes based on Hisense Roku TV user testing:
+- Continue Watching now re-enters the standard detail/metadata flow before playback, instead of resolving from a partial history record. This restores provider-specific metadata and episode context where required.
+- Back is no longer manually intercepted while StandardKeyboardDialog is active. Roku owns dialog dismissal; wasClosed observers perform cleanup and focus restoration once. This avoids racing the native dialog and the scene's manual close path.
+- Profile name/avatar behavior is unchanged.
+
+Validation: package integrity and XML parsing only. Not compiled with Roku SDK or tested on physical hardware in this build environment.

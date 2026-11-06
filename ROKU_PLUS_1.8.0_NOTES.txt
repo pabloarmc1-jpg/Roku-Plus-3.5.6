@@ -1,0 +1,16 @@
+Roku Plus 1.8.0 - Rediseño completo de interfaz inspirado en Netflix
+
+- Sustituye la navegación lateral por una barra horizontal superior con estado activo rojo y perfil visible.
+- Rediseña Inicio con fondo oscuro, imagen destacada a pantalla ancha, acciones claras y carruseles de póster.
+- Reorganiza Películas y Series en tarjetas oscuras con póster vertical, título, año y acceso a detalles.
+- Rediseña la ficha del contenido con imagen de fondo, póster, descripción y botones de reproducción.
+- Unifica Historial, Mi lista, Perfiles, Ajustes, Apariencia, fuentes HD y episodios con paneles oscuros y tipografía clara.
+- Simplifica botones y tarjetas, elimina el tratamiento de cristal de las portadas y adopta el rojo como color de acento.
+- Conserva las funciones de reproducción, perfiles, progreso, historial y lista de la versión 1.7.0.
+- La pantalla de TV en vivo utiliza una barra superior compacta para no cubrir la vista previa del reproductor.
+
+Compatibilidad y verificación:
+- Proyecto Roku nativo BrightScript / SceneGraph.
+- Se verificó la integridad del ZIP y el XML de los componentes.
+- No se dispone de un compilador Roku ni de un dispositivo físico en esta sesión; es necesario instalar y probar en Roku antes de distribuir.
+- La apariencia es una inspiración visual en Netflix, no una copia de sus marcas, recursos ni interfaz propietaria.

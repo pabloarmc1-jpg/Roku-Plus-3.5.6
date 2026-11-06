@@ -1,0 +1,15 @@
+Roku Plus 2.1.0
+
+Novedad:
+- El carrusel de destacados de Inicio ahora también se puede controlar manualmente con los botones REWIND y FAST FORWARD del control remoto.
+- Al cambiar manualmente de destacado, el temporizador automático vuelve a comenzar para evitar un cambio inmediato inesperado.
+- Se muestra una indicación en pantalla para descubrir el control manual.
+
+Se conserva:
+- Carrusel automático cada 8 segundos.
+- Acciones Reproducir y Más información.
+- Perfiles, historial, Continuar viendo, Mi lista y navegación existente.
+
+Validación:
+- Revisar sintaxis XML y estructura del ZIP.
+- No se dispone del compilador oficial BrightScript (bsc) ni de un dispositivo Roku para una prueba de ejecución en esta sesión.

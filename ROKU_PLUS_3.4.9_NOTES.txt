@@ -1,0 +1,9 @@
+Roku Plus 3.4.9
+
+Corrección de restauración de Continuar viendo tras reiniciar la app.
+- Recupera el proveedor HD desde el identificador canónico hdo-{proveedor}-{id} cuando el registro antiguo guarda provider="all" o no conserva el proveedor.
+- Reconstruye el identificador numérico o slug para Lamovie, AllCalidad y CineCalidad.
+- Evita depender de rpHdOnlineProvider desde el ámbito de PlusScene al seleccionar el proveedor de una operación de detalle/reproducción.
+- Mantiene la interfaz y los cambios previos.
+
+No se ha compilado con el SDK oficial de Roku ni probado en un televisor físico.

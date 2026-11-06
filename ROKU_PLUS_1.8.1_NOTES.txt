@@ -1,0 +1,16 @@
+Roku Plus 1.8.1 - Refinamiento visual de la experiencia tipo Netflix
+
+- Reorganiza Inicio en un hero cinematográfico a todo lo ancho y dos filas horizontales de contenido.
+- La fila Populares en Roku Plus presenta pósteres, título y metadatos en tarjetas uniformes.
+- Continuar viendo ocupa una fila independiente de tarjetas apaisadas con progreso rojo y posición reproducida.
+- Cuando no existe progreso, Inicio presenta una fila de series para descubrir.
+- Mejora las etiquetas de estado en el catálogo: vista, Mi lista y continuar viendo.
+- La ficha de cada título muestra estados de visto, Mi lista y posición de reanudación.
+- Perfiles muestran avatares numerados con colores diferenciados y estado activo.
+- Mantiene navegación con control remoto, fuentes, reproducción y persistencia existentes.
+
+Verificación:
+- Integridad del ZIP original y del paquete final.
+- XML SceneGraph parseado correctamente.
+- Referencias a recursos locales comprobadas.
+- No se dispone de compilador Roku ni dispositivo físico en esta sesión; instalar y probar antes de distribuir.

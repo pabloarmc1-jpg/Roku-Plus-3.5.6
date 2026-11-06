@@ -1,0 +1,10 @@
+ROKU PLUS 3.5.0
+
+Continue Watching / playback-state reliability update
+
+- Preserve provider identity fields when progress updates arrive with a reduced or incomplete item object.
+- Preserve previously saved provider, providerId, providerSlug, providerTmdbId, providerKind, episode/season identity, IMDb ID, and display metadata during record updates.
+- This is intended to prevent CineHax and SeriesMetro restore metadata from being erased during playback progress updates, and to protect CineCalidad slug identity.
+- No interface redesign or player layout changes.
+
+Validation note: source-level changes only; not compiled with the Roku SDK or tested on a physical Roku device in this environment.

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="CompatTask" extends="Task">
+    <interface>
+        <field id="operation" type="string" value="prepare" />
+        <field id="jobid" type="string" value="" />
+        <field id="helperBase" type="string" value="http://192.168.1.17:8099" />
+        <field id="itemId" type="string" value="" />
+        <field id="kind" type="string" value="movie" />
+        <field id="season" type="integer" value="0" />
+        <field id="episode" type="integer" value="0" />
+        <field id="requestId" type="string" value="" />
+        <field id="cancelRequested" type="boolean" value="false" />
+        <field id="result" type="assocarray" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="CompatTask.brs" />
+</component>

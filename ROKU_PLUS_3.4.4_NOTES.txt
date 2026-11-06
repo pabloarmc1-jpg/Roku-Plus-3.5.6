@@ -1,0 +1,8 @@
+Roku Plus 3.4.4
+
+Defensive handling for incomplete provider metadata in the details screen:
+- Normalize optional description, poster, background, title and source fields before using them as strings.
+- Prevent Invalid description values from reaching left()/len().
+- Preserve existing layout and playback flow.
+
+Validation performed: ZIP integrity and XML parsing. Not compiled with the Roku SDK and not physically tested on a Roku device.
