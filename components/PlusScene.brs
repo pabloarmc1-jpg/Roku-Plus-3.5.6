@@ -387,6 +387,9 @@ sub launchVideo(item as object, url as string, format as string)
     m.view = "player"
     m.player.visible = true
     descriptor = {title:item.title,url:url,streamFormat:format,kind:item.kind,itemId:item.id,provider:orbitText(item.provider,32),direct:m.playbackMode="direct",poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),year:orbitText(item.year,20)}
+    if descriptor.provider = "lamovie"
+        print "[RokuPlus identity] launch id="; descriptor.itemId; " providerId="; orbitText(item.providerId,40); " slugPresent="; item.doesExist("providerSlug"); " slug="; orbitText(item.providerSlug,200)
+    end if
     if item.doesExist("season") then descriptor.season = item.season
     if item.doesExist("episode") then descriptor.episode = item.episode
     if item.doesExist("introStart") then descriptor.introStart = item.introStart
