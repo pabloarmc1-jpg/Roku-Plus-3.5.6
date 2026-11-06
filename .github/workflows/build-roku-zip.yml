@@ -1,0 +1,25 @@
+name: Build Roku Plus ZIP
+on:
+  push:
+    branches:
+      - fix/lamovie-source-referer-diagnostics-3.5.7
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Create source package
+        run: |
+          zip -qr Roku-Plus-3.5.7.zip . -x '.git/*' '.github/*'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Roku-Plus-3.5.7
+          path: Roku-Plus-3.5.7.zip
+          if-no-files-found: error
+          retention-days: 7
