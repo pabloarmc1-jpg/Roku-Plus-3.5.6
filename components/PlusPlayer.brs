@@ -192,6 +192,8 @@ sub openRequest()
     m.resumePending = invalid
     m.resumeAttempts = 0
     m.resumeFailed = false
+    m.resumeFailedPosition = invalid
+    m.resumeFailedAt = 0
     resumeValue = plusClockValue(supplied.resumePosition)
     if not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
@@ -346,7 +348,11 @@ sub applyResumeSeek()
     duration = plusClockValue(m.decoder.duration)
     if duration = invalid or duration <= 0 then return
     resumeAt = m.resumePending
-    if duration <= resumeAt + 20 then return
+    if duration <= resumeAt + 20
+        m.resumePending = invalid
+        emitDiagnostic("resume_out_of_range")
+        return
+    end if
     currentPosition = plusClockValue(m.decoder.position)
     ' If playback has already advanced, do not seek late to an old bookmark.
     if currentPosition <> invalid and currentPosition > 15
@@ -420,13 +426,23 @@ sub publishProgress(force = false as boolean)
     nativePosition = plusClockValue(m.decoder.position)
     nativeDuration = plusClockValue(m.decoder.duration)
     resumeInFlight = m.resumePending <> invalid
-    if m.pendingSeek <> invalid and m.pendingSeek.doesExist("isResume") then resumeInFlight = resumeInFlight or m.pendingSeek.isResume = true
-    if m.ticket <> invalid and m.ticket.doesExist("isResume") then resumeInFlight = resumeInFlight or m.ticket.isResume = true
+    if m.pendingSeek <> invalid
+        if m.pendingSeek.doesExist("isResume") and m.pendingSeek.isResume = true then resumeInFlight = true
+    end if
+    if m.ticket <> invalid
+        if m.ticket.doesExist("isResume") and m.ticket.isResume = true then resumeInFlight = true
+    end if
     ' Do not let startup zeroes or stale positionInfo overwrite the saved bookmark.
     if resumeInFlight then return
     if m.resumeFailed
         if nativePosition = invalid or nativePosition <= 15 then return
+        if m.resumeFailedPosition <> invalid
+            if nativePosition <= m.resumeFailedPosition + 1 then return
+        end if
+        if now - m.resumeFailedAt < 1000 then return
         m.resumeFailed = false
+        m.resumeFailedPosition = invalid
+        m.resumeFailedAt = 0
     end if
     rendered = renderedFields()
     renderedPosition = invalid
@@ -705,6 +721,8 @@ sub scheduleResumeRetry(target as dynamic, reason as string)
         emitDiagnostic("resume_retry")
     else
         m.resumeFailed = true
+        m.resumeFailedPosition = plusClockValue(m.decoder.position)
+        m.resumeFailedAt = m.monotonic.totalMilliseconds()
         m.pendingSeek = invalid
         m.notice = "No se pudo recuperar la posición guardada. La reproducción continuará desde el inicio."
         m.noticeUntil = m.monotonic.totalMilliseconds()+6000
