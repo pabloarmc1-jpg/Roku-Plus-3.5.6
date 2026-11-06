@@ -190,8 +190,12 @@ sub openRequest()
     m.lastProgressAt = -1000
     m.phase = "opening"
     m.resumePending = invalid
-    if not m.live and GetInterface(supplied.resumePosition,"ifFloat") <> invalid and supplied.resumePosition > 15 and supplied.resumePosition < 172800 then m.resumePending = supplied.resumePosition
-    if not m.live and GetInterface(supplied.resumePosition,"ifInt") <> invalid and supplied.resumePosition > 15 and supplied.resumePosition < 172800 then m.resumePending = supplied.resumePosition
+    m.resumeAttempts = 0
+    m.resumeFailed = false
+    m.resumeFailedPosition = invalid
+    m.resumeFailedAt = 0
+    resumeValue = plusClockValue(supplied.resumePosition)
+    if not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
     ' Compact metadata row: only display values supplied by the catalogue.
@@ -336,13 +340,30 @@ sub onDecoderState()
 end sub
 
 sub applyResumeSeek()
-    if m.resumePending = invalid or not m.mediaOpen then return
+    if m.resumePending = invalid or not m.mediaOpen or m.failed or m.live then return
+    state = m.decoder.state
+    if state <> "playing" and state <> "paused" then return
+    if state = "paused" and not m.wantPaused then return
+    if m.ticket <> invalid or m.pendingSeek <> invalid then return
     duration = plusClockValue(m.decoder.duration)
-    if duration = invalid then return
-    if duration <= m.resumePending + 20 then return
+    if duration = invalid or duration <= 0 then return
     resumeAt = m.resumePending
+    if duration <= resumeAt + 20
+        m.resumePending = invalid
+        emitDiagnostic("resume_out_of_range")
+        return
+    end if
+    currentPosition = plusClockValue(m.decoder.position)
+    ' If playback has already advanced, do not seek late to an old bookmark.
+    if currentPosition <> invalid and currentPosition > 15
+        m.resumePending = invalid
+        emitDiagnostic("resume_skipped_playing")
+        return
+    end if
     m.resumePending = invalid
-    m.decoder.seek = resumeAt
+    m.resumeAttempts = 1
+    m.pendingSeek = {target:resumeAt,dueAt:m.monotonic.totalMilliseconds()+150,isResume:true}
+    emitDiagnostic("resume_queued")
 end sub
 
 sub onNativePosition()
@@ -404,6 +425,25 @@ sub publishProgress(force = false as boolean)
     if isPreviewPresentation() then presentation = "preview"
     nativePosition = plusClockValue(m.decoder.position)
     nativeDuration = plusClockValue(m.decoder.duration)
+    resumeInFlight = m.resumePending <> invalid
+    if m.pendingSeek <> invalid
+        if m.pendingSeek.doesExist("isResume") and m.pendingSeek.isResume = true then resumeInFlight = true
+    end if
+    if m.ticket <> invalid
+        if m.ticket.doesExist("isResume") and m.ticket.isResume = true then resumeInFlight = true
+    end if
+    ' Do not let startup zeroes or stale positionInfo overwrite the saved bookmark.
+    if resumeInFlight then return
+    if m.resumeFailed
+        if nativePosition = invalid or nativePosition <= 15 then return
+        if m.resumeFailedPosition <> invalid
+            if nativePosition <= m.resumeFailedPosition + 1 then return
+        end if
+        if now - m.resumeFailedAt < 1000 then return
+        m.resumeFailed = false
+        m.resumeFailedPosition = invalid
+        m.resumeFailedAt = 0
+    end if
     rendered = renderedFields()
     renderedPosition = invalid
     if rendered.doesExist("video") then renderedPosition = plusClockValue(rendered.video)
@@ -499,11 +539,20 @@ sub onPulse()
     now = m.monotonic.totalMilliseconds()
     if m.ticket <> invalid
         if now - m.ticket.issuedAt >= 12000
-            emitDiagnostic("seek_timeout")
-            m.notice = "El destino no se confirmó. Puedes seguir reproduciendo o volver."
-            m.noticeUntil = now + 6000
-            m.ticket = invalid
-            m.pendingSeek = invalid
+            isResumeSeek = false
+            resumeTarget = m.ticket.target
+            if m.ticket.doesExist("isResume") then isResumeSeek = m.ticket.isResume = true
+            if isResumeSeek
+                emitDiagnostic("resume_seek_timeout")
+                m.ticket = invalid
+                scheduleResumeRetry(resumeTarget,"timeout")
+            else
+                emitDiagnostic("seek_timeout")
+                m.notice = "El destino no se confirmó. Puedes seguir reproduciendo o volver."
+                m.noticeUntil = now + 6000
+                m.ticket = invalid
+                m.pendingSeek = invalid
+            end if
         end if
     end if
     dispatchPendingSeek()
@@ -609,14 +658,23 @@ sub dispatchPendingSeek()
     origin = plusClockValue(m.decoder.position)
     if origin = invalid then return
     target = m.pendingSeek.target
+    isResumeSeek = false
+    if m.pendingSeek.doesExist("isResume") then isResumeSeek = m.pendingSeek.isResume = true
     m.pendingSeek = invalid
-    if abs(target-origin) < 0.05 then return
+    if abs(target-origin) < 0.05
+        if isResumeSeek
+            m.resumeFailed = false
+            emitDiagnostic("resume_already_at_target")
+            publishProgress(true)
+        end if
+        return
+    end if
     m.sequence++
     sample = renderedFields()
     v = plusClockValue(sample.video)
     verifyRendered = false
     if v <> invalid then verifyRendered = abs(v-origin) <= 2
-    m.ticket = {id:m.sequence,origin:origin,target:target,paused:m.wantPaused,issuedPaused:state="paused",issuedAt:m.monotonic.totalMilliseconds(),sawBuffering:false,logs:0,verifyRendered:verifyRendered,landingAt:invalid,landingPosition:invalid,sawClockJump:false}
+    m.ticket = {id:m.sequence,origin:origin,target:target,paused:m.wantPaused,issuedPaused:state="paused",issuedAt:m.monotonic.totalMilliseconds(),sawBuffering:false,logs:0,verifyRendered:verifyRendered,landingAt:invalid,landingPosition:invalid,sawClockJump:false,isResume:isResumeSeek}
     m.decoder.autoplayAfterSeek = not m.wantPaused
     emitDiagnostic("seek_request")
     m.decoder.seek = target
@@ -638,11 +696,37 @@ sub verifySeekResult()
     result = {id: m.ticket.id, requested: m.ticket.target, observed: p, difference: p - m.ticket.target, pauseRequested: m.ticket.paused, state: state}
     result.withinOneSecond = abs(result.difference) <= 1
     m.ticket.result = result
+    isResumeSeek = false
+    resumeTarget = m.ticket.target
+    if m.ticket.doesExist("isResume") then isResumeSeek = m.ticket.isResume = true
     emitDiagnostic("seek_result")
     m.ticket = invalid
-    if not result.withinOneSecond
+    if isResumeSeek
+        if result.withinOneSecond
+            m.resumeFailed = false
+            emitDiagnostic("resume_seek_confirmed")
+        else
+            scheduleResumeRetry(resumeTarget,"landing_mismatch")
+        end if
+    else if not result.withinOneSecond
         m.notice = "La fuente ajustó el salto a " + plusClockText(p)
         m.noticeUntil = now + 5000
+    end if
+end sub
+
+sub scheduleResumeRetry(target as dynamic, reason as string)
+    if m.resumeAttempts < 2 and not m.failed and m.mediaOpen
+        m.resumeAttempts = m.resumeAttempts + 1
+        m.pendingSeek = {target:target,dueAt:m.monotonic.totalMilliseconds()+700,isResume:true}
+        emitDiagnostic("resume_retry")
+    else
+        m.resumeFailed = true
+        m.resumeFailedPosition = plusClockValue(m.decoder.position)
+        m.resumeFailedAt = m.monotonic.totalMilliseconds()
+        m.pendingSeek = invalid
+        m.notice = "No se pudo recuperar la posición guardada. La reproducción continuará desde el inicio."
+        m.noticeUntil = m.monotonic.totalMilliseconds()+6000
+        emitDiagnostic("resume_failed")
     end if
 end sub
 
