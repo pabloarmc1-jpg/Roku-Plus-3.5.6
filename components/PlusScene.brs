@@ -376,6 +376,24 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
 end sub
 
 sub launchVideo(item as object, url as string, format as string)
+    ' Recover LaMovie numeric identity from the canonical HD id when a
+    ' catalog item arrives with its slug but without providerId.
+    itemProvider = lcase(orbitText(item.provider,32))
+    if itemProvider = "lamovie"
+        currentProviderId = ""
+        if item.doesExist("providerId") then currentProviderId = orbitText(item.providerId,40)
+        if currentProviderId = ""
+            providerPrefix = "hdo-lamovie-"
+            canonicalId = orbitText(item.id,200)
+            if left(canonicalId,len(providerPrefix)) = providerPrefix
+                providerIdText = mid(canonicalId,len(providerPrefix)+1)
+                providerIdNumber = orbitInteger(providerIdText,999999999)
+                if providerIdNumber > 0 and providerIdNumber.toStr() = providerIdText
+                    item.providerId = providerIdNumber
+                end if
+            end if
+        end if
+    end if
     stopLivePreview()
     m.player.theme = m.theme
     m.player.allowPreviewReturn = false
@@ -387,6 +405,9 @@ sub launchVideo(item as object, url as string, format as string)
     m.view = "player"
     m.player.visible = true
     descriptor = {title:item.title,url:url,streamFormat:format,kind:item.kind,itemId:item.id,provider:orbitText(item.provider,32),direct:m.playbackMode="direct",poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),year:orbitText(item.year,20)}
+    if descriptor.provider = "lamovie"
+        print "[RokuPlus identity] launch id="; descriptor.itemId; " providerId="; orbitText(item.providerId,40); " slugPresent="; item.doesExist("providerSlug"); " slug="; orbitText(item.providerSlug,200)
+    end if
     if item.doesExist("season") then descriptor.season = item.season
     if item.doesExist("episode") then descriptor.episode = item.episode
     if item.doesExist("introStart") then descriptor.introStart = item.introStart
