@@ -396,6 +396,10 @@ sub launchVideo(item as object, url as string, format as string)
         descriptor.resumePosition = savedProgress.position
     end if
     if item.doesExist("mediaHeaders") then descriptor.mediaHeaders = item.mediaHeaders
+    ' Tag every playback request so delayed progress from an earlier decoder
+    ' generation cannot overwrite the currently selected title's watch state.
+    descriptor.requestId = CreateObject("roDeviceInfo").getRandomUUID()
+    m.activePlaybackRequestId = descriptor.requestId
     m.lastPlaybackProgress = invalid
     m.player.request = descriptor
     if m.activeJobId <> "" then m.lease.control = "start"
@@ -434,6 +438,12 @@ sub playerProgress(event as object)
     if type(sample) <> "roAssociativeArray"
         if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=sample-type"
         return
+    end if
+    if m.activePlaybackRequestId <> invalid
+        if sample.requestId <> m.activePlaybackRequestId
+            if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=request-mismatch sample="; orbitText(sample.requestId,80); " active="; orbitText(m.activePlaybackRequestId,80)
+            return
+        end if
     end if
     if sample.live = true
         if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=live"
