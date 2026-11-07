@@ -207,28 +207,27 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             playbackStreamFormat = "hls"
                             answer.url = selected.url
                             answer.streamFormat = playbackStreamFormat
-                                answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                                answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
-                                answer.language = embed.language
-                                answer.width = selected.width
-                                answer.height = selected.height
-                                answer.codecs = selected.codecs
-                                answer.seekSupport = "native-hls"
-                                audioMode = "embedded"
-                                if selected.audioGroup <> "" then audioMode = "master-audio-group"
-                                matchingAudioTracks = 0
-                                for each audioTrack in master.audioTracks
-                                    if audioTrack.group = selected.audioGroup then matchingAudioTracks = matchingAudioTracks + 1
-                                end for
-                                print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
-                                print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
-                                print "[RokuPlus hls-test] nativePlaylist=passed-to-roku"
-                                answer.attemptUsed = embedIndex+variantIndex*count
-                                answer.ok = true
-                                answer.message = ""
-                                m.hdProviderDeadline = 0
-                                return answer
-                            end if
+                            answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                            answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
+                            answer.language = embed.language
+                            answer.width = selected.width
+                            answer.height = selected.height
+                            answer.codecs = selected.codecs
+                            answer.seekSupport = "native-hls"
+                            audioMode = "embedded"
+                            if selected.audioGroup <> "" then audioMode = "master-audio-group"
+                            matchingAudioTracks = 0
+                            for each audioTrack in master.audioTracks
+                                if audioTrack.group = selected.audioGroup then matchingAudioTracks = matchingAudioTracks + 1
+                            end for
+                            print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
+                            print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
+                            print "[RokuPlus hls-test] nativePlaylist=passed-to-roku"
+                            answer.attemptUsed = embedIndex+variantIndex*count
+                            answer.ok = true
+                            answer.message = ""
+                            m.hdProviderDeadline = 0
+                            return answer
                         end if
                     end for
                 end if
