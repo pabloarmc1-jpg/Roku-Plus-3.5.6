@@ -3,6 +3,7 @@ sub init()
     m.top.focusable = true
     m.top.visible = false
     m.decoder = m.top.findNode("decoder")
+    if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
     m.panel = m.top.findNode("transport")
@@ -421,6 +422,10 @@ sub onBufferDetails()
                 m.ticket.actualStartAt = sample.observedAtMs
             end if
         end if
+    else
+        ' Roku clears bufferingStatus when startup/rebuffering completes.
+        ' Do not report the last percentage as if it were still current.
+        m.lastBuffer = invalid
     end if
     emitDiagnostic("buffering_status")
 end sub
@@ -438,6 +443,9 @@ function nativeStreamSnapshot() as object
     ' Report field support separately from populated values.
     snapshot.errorCodeSupported = m.decoder.hasField("errorCode")
     snapshot.errorInfoSupported = m.decoder.hasField("errorInfo")
+    snapshot.completedStreamInfoSupported = m.decoder.hasField("completedStreamInfo")
+    snapshot.decoderStatsSupported = m.decoder.hasField("decoderStats")
+    snapshot.audioFormatSupported = m.decoder.hasField("audioFormat")
     snapshot.playStartInfoSupported = m.decoder.hasField("playStartInfo")
     snapshot.streamingSegmentSupported = m.decoder.hasField("streamingSegment")
     snapshot.downloadedSegmentSupported = m.decoder.hasField("downloadedSegment")
@@ -506,6 +514,30 @@ function nativeStreamSnapshot() as object
     if m.decoder.hasField("videoFormat")
         value = m.decoder.videoFormat
         if GetInterface(value,"ifString") <> invalid and value <> "" then snapshot.videoFormat = value
+    end if
+    if m.decoder.hasField("audioFormat")
+        value = m.decoder.audioFormat
+        if GetInterface(value,"ifString") <> invalid and value <> "" then snapshot.audioFormat = value
+    end if
+    if m.decoder.hasField("decoderStats")
+        stats = m.decoder.decoderStats
+        if type(stats) = "roAssociativeArray"
+            sample = {}
+            for each field in ["frameDropCount","renderCount","repeatCount","streamErrorCount"]
+                if stats[field] <> invalid then sample[field] = stats[field]
+            end for
+            if sample.count() > 0 then snapshot.decoderStats = sample
+        end if
+    end if
+    if m.decoder.hasField("completedStreamInfo")
+        info = m.decoder.completedStreamInfo
+        if type(info) = "roAssociativeArray"
+            completed = {}
+            for each field in ["isFullResult","isUnderrun","isResume","measuredBItrate","streamBitrate"]
+                if info[field] <> invalid then completed[field] = info[field]
+            end for
+            if completed.count() > 0 then snapshot.completedStreamInfo = completed
+        end if
     end if
     if m.decoder.hasField("timeToStartStreaming")
         value = m.decoder.timeToStartStreaming
