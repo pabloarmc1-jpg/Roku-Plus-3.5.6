@@ -201,24 +201,17 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            ' Keep the master when an external audio rendition must be synchronized.
-                            ' For muxed audio with no EXT-X-MEDIA group, pass the validated child
-                            ' playlist so the diagnostic variant selection is actually enforced.
+                            ' Keep the master only when an external audio rendition must be synchronized.
+                            ' For muxed audio, pass the selected media playlist as one HLS item.
+                            ' Roku then advances its TS segments inside the same native decoder session.
                             playbackPlaylistUrl = masterUrl
                             playbackPlaylistKind = "master"
                             playbackStreamFormat = "hls"
                             if selected.audioGroup = ""
-                                ' Diagnostic isolation: test three consecutive TS segments
-                                ' as a native Video playlist, bypassing Roku's failing HLS parser.
-                                playlistSegments = rpHdTaskTsPlaylistSegments(child.body,selected.url,3)
-                                playbackPlaylistUrl = segmentUrl
-                                playbackPlaylistKind = "direct-ts"
-                                playbackStreamFormat = "ts"
-                                if playlistSegments.count() >= 2
-                                    answer.playlistSegments = playlistSegments
-                                    playbackPlaylistKind = "ts-playlist"
-                                end if
-                                print "[RokuPlus ts-playlist] segmentCount="; playlistSegments.count()
+                                playbackPlaylistUrl = selected.url
+                                playbackPlaylistKind = "media"
+                                playbackStreamFormat = "hls"
+                                print "[RokuPlus hls] playback=single-media-playlist"
                             end if
                             answer.url = playbackPlaylistUrl
                             answer.streamFormat = playbackStreamFormat
