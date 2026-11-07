@@ -208,11 +208,17 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             playbackPlaylistKind = "master"
                             playbackStreamFormat = "hls"
                             if selected.audioGroup = ""
-                                ' Diagnostic isolation: decode one validated TS segment directly,
-                                ' bypassing Roku's HLS playlist handling for this test build.
+                                ' Diagnostic isolation: test three consecutive TS segments
+                                ' as a native Video playlist, bypassing Roku's failing HLS parser.
+                                playlistSegments = rpHdTaskTsPlaylistSegments(child.body,selected.url,3)
                                 playbackPlaylistUrl = segmentUrl
                                 playbackPlaylistKind = "direct-ts"
                                 playbackStreamFormat = "ts"
+                                if playlistSegments.count() >= 2
+                                    answer.playlistSegments = playlistSegments
+                                    playbackPlaylistKind = "ts-playlist"
+                                end if
+                                print "[RokuPlus ts-playlist] segmentCount="; playlistSegments.count()
                             end if
                             answer.url = playbackPlaylistUrl
                             answer.streamFormat = playbackStreamFormat
@@ -654,6 +660,33 @@ function rpHdTaskExternalAudio(master as object, variant as object) as boolean
         if track.group = variant.audioGroup and track.url <> "" then return true
     end for
     return false
+end function
+
+' Build a short diagnostic Video playlist from consecutive TS URLs in the child manifest.
+' Keep signed query strings in memory; never print these URLs.
+function rpHdTaskTsPlaylistSegments(body as dynamic, baseUrl as string, maximum = 3 as integer) as object
+    segments = []
+    if maximum < 2 then return segments
+    if maximum > 3 then maximum = 3
+    pendingDuration = 0
+    for each raw in orbitText(body,2097153).split(chr(10))
+        line = raw.trim()
+        if left(line,8) = "#EXTINF:"
+            comma = instr(1,line,",")
+            if comma > 9
+                parsed = Val(mid(line,9,comma-9))
+                if parsed > 0 and parsed <= 60 then pendingDuration = int(parsed+0.5)
+            end if
+        else if line <> "" and left(line,1) <> "#"
+            segmentUrl = rpHdOnlineJoin(baseUrl,line)
+            if rpHdTaskTsSegment(segmentUrl)
+                segments.push({url:segmentUrl,duration:pendingDuration})
+                pendingDuration = 0
+                if segments.count() >= maximum then exit for
+            end if
+        end if
+    end for
+    return segments
 end function
 
 function rpHdTaskFirstSegment(body as string, baseUrl as string) as string
