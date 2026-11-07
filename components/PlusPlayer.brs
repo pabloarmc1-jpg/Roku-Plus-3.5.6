@@ -275,7 +275,13 @@ sub openRequest()
     ' The resolver caps this diagnostic list at three items; signed URLs remain in memory only.
     playbackContent = media
     segments = supplied.playlistSegments
-    if m.decoder.hasField("contentIsPlaylist") and type(segments) = "roArray" and segments.count() >= 2 and segments.count() <= 3
+    useNativePlaylist = false
+    if m.decoder.hasField("contentIsPlaylist")
+        if type(segments) = "roArray"
+            if segments.count() >= 2 and segments.count() <= 3 then useNativePlaylist = true
+        end if
+    end if
+    if useNativePlaylist
         playlistContent = CreateObject("roSGNode","ContentNode")
         playlistValid = true
         playlistIndex = 0
