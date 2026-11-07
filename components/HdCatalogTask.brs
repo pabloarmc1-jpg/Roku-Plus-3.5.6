@@ -156,9 +156,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                     end for
                     print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
                     choices = rpHdTaskStableVariants(candidates,decoderAccept)
-                    ' Diagnostic build 3.5.21: isolate the 480-line variant for first-frame testing.
-                    ' The comparison build will change this target to 528.
-                    diagnosticHeight = 480
+                    ' Diagnostic build 3.5.24: test native HLS with the 528-line child playlist.
+                    ' Build 3.5.23 confirmed that the first segment of the 480-line variant renders as direct TS.
+                    diagnosticHeight = 528
                     diagnosticChoices = []
                     for each diagnosticChoice in choices
                         if diagnosticChoice.height = diagnosticHeight then diagnosticChoices.push(diagnosticChoice)
@@ -202,17 +202,15 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
                             ' Keep the master when an external audio rendition must be synchronized.
-                            ' For muxed audio with no EXT-X-MEDIA group, pass the validated child
-                            ' playlist so the diagnostic variant selection is actually enforced.
+                            ' For muxed audio with no external rendition, test Roku's native HLS
+                            ' path using the exact child playlist whose first TS segment was validated.
                             playbackPlaylistUrl = masterUrl
                             playbackPlaylistKind = "master"
                             playbackStreamFormat = "hls"
                             if master.audioTracks.count() = 0 and selected.audioGroup = ""
-                                ' Diagnostic isolation: decode one validated TS segment directly,
-                                ' bypassing Roku's HLS playlist handling for this test build.
-                                playbackPlaylistUrl = segmentUrl
-                                playbackPlaylistKind = "direct-ts"
-                                playbackStreamFormat = "ts"
+                                playbackPlaylistUrl = selected.url
+                                playbackPlaylistKind = "variant"
+                                playbackStreamFormat = "hls"
                             end if
                             answer.url = playbackPlaylistUrl
                             answer.streamFormat = playbackStreamFormat
