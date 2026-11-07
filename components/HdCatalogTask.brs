@@ -171,6 +171,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if rpHdTaskSliceExpired() then exit for
                         variantIndex = (qualityAttempt+variantOffset) mod choices.count()
                         selected = choices[variantIndex]
+                        print "[RokuPlus hls-test] selectedPlaylist="; rpHdTaskSafeUrl(selected.url)
                         answer.variantAttempts++
                         child = fetcher(selected.url,"media",mediaReferer)
                         if child.cancelled then return rpHdTaskFailure(answer,child)
@@ -251,6 +252,18 @@ function rpHdTaskSafeHost(value as dynamic) as string
     match = CreateObject("roRegex","^https://([^/?#]+)","i").match(url)
     if match.count() < 2 then return "unknown"
     return lcase(match[1])
+end function
+
+' Diagnostic URL: omit query strings and fragments so signed CDN tokens are not printed.
+function rpHdTaskSafeUrl(value as dynamic) as string
+    url = orbitText(value,4096)
+    queryAt = instr(1,url,"?")
+    fragmentAt = instr(1,url,"#")
+    cutAt = 0
+    if queryAt > 0 then cutAt = queryAt
+    if fragmentAt > 0 and (cutAt = 0 or fragmentAt < cutAt) then cutAt = fragmentAt
+    if cutAt > 0 then url = left(url,cutAt-1)
+    return url
 end function
 
 function rpHdTaskStableVariants(master as object, decoderAccept as dynamic) as object
