@@ -429,6 +429,13 @@ end sub
 function nativeStreamSnapshot() as object
     snapshot = {}
     if m.decoder = invalid then return snapshot
+    ' Record field availability even before Roku populates the native values.
+    ' This distinguishes unsupported Video fields from supported fields that
+    ' simply never emit a change during a failed startup.
+    snapshot.errorCodeSupported = m.decoder.hasField("errorCode")
+    snapshot.errorInfoSupported = m.decoder.hasField("errorInfo")
+    snapshot.playStartInfoSupported = m.decoder.hasField("playStartInfo")
+    snapshot.streamingSegmentSupported = m.decoder.hasField("streamingSegment")
     if m.decoder.hasField("errorCode")
         value = m.decoder.errorCode
         if value <> invalid then snapshot.errorCode = value
