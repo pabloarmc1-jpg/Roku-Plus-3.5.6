@@ -677,3 +677,88 @@ function rpHdOnlineMuxedAvcAac(data as dynamic) as boolean
     end for
     return videoPes and audioLc
 end function
+
+' Inspect the beginning of an HLS TS segment to determine whether the
+' video elementary stream exposes SPS/PPS and an IDR frame near startup.
+function rpHdOnlineTsStartupProfile(data as dynamic) as object
+    profile = {valid:false,sampleBytes:0,pat:false,pmt:false,videoPid:-1,audioPid:-1,firstVideoPesByte:-1,firstNalType:0,firstVclType:0,idrPresent:false,idrByte:-1,spsPresent:false,ppsPresent:false}
+    if type(data) <> "roByteArray" and type(data) <> "roArray" then return profile
+    if data.count() < 188*4 or data.count() > 131072 then return profile
+    profile.sampleBytes = data.count()
+    if data[0] <> 71 or data[188] <> 71 or data[376] <> 71 then return profile
+    pat = rpHdOnlineTsSection(data,0,0)
+    if pat = invalid then return profile
+    if pat.count() < 16 or (pat[5] mod 2) <> 1 then return profile
+    profile.pat = true
+    program = 0
+    pmtPid = -1
+    cursor = 8
+    while cursor+4 <= pat.count()-4
+        number = pat[cursor]*256+pat[cursor+1]
+        if number > 0 and pmtPid < 0
+            program = number
+            pmtPid = (pat[cursor+2] mod 32)*256+pat[cursor+3]
+        end if
+        cursor += 4
+    end while
+    if pmtPid < 1 then return profile
+    pmt = rpHdOnlineTsSection(data,pmtPid,2)
+    if pmt = invalid then return profile
+    if pmt.count() < 16 or (pmt[5] mod 2) <> 1 then return profile
+    if pmt[3]*256+pmt[4] <> program then return profile
+    profile.pmt = true
+    cursor = 12+(pmt[10] mod 16)*256+pmt[11]
+    videoPid = -1
+    audioPid = -1
+    while cursor+5 <= pmt.count()-4
+        streamType = pmt[cursor]
+        streamPid = (pmt[cursor+1] mod 32)*256+pmt[cursor+2]
+        esLength = (pmt[cursor+3] mod 16)*256+pmt[cursor+4]
+        if cursor+5+esLength > pmt.count()-4 then return profile
+        if streamType = 27 and videoPid < 0 then videoPid = streamPid
+        if streamType = 15 and audioPid < 0 then audioPid = streamPid
+        cursor += 5+esLength
+    end while
+    profile.videoPid = videoPid
+    profile.audioPid = audioPid
+    if videoPid < 1 then return profile
+    for offset = 0 to data.count()-188 step 188
+        packet = rpHdOnlineTsPacket(data,offset)
+        if packet <> invalid
+            if packet.pid = videoPid and not packet.scrambled
+                start = packet.payloadAt
+                if packet.pusi and profile.firstVideoPesByte < 0
+                    if start+4 < packet.endAt
+                        if data[start] = 0 and data[start+1] = 0 and data[start+2] = 1 and data[start+3] >= 224 and data[start+3] <= 239
+                            profile.firstVideoPesByte = start
+                        end if
+                    end if
+                end if
+                cursor = packet.payloadAt
+                while cursor+4 < packet.endAt
+                    nalAt = -1
+                    if data[cursor] = 0 and data[cursor+1] = 0 and data[cursor+2] = 1
+                        nalAt = cursor+3
+                    else if data[cursor] = 0 and data[cursor+1] = 0 and data[cursor+2] = 0 and data[cursor+3] = 1
+                        nalAt = cursor+4
+                    end if
+                    if nalAt >= 0
+                        nalType = data[nalAt] mod 32
+                        if nalType = 7 then profile.spsPresent = true
+                        if nalType = 8 then profile.ppsPresent = true
+                        if (nalType = 1 or nalType = 5) and profile.firstVclType = 0 then profile.firstVclType = nalType
+                        if nalType = 5 and not profile.idrPresent
+                            profile.idrPresent = true
+                            profile.idrByte = offset+nalAt
+                        end if
+                        cursor = nalAt+1
+                    else
+                        cursor++
+                    end if
+                end while
+            end if
+        end if
+    end for
+    profile.valid = true
+    return profile
+end function
