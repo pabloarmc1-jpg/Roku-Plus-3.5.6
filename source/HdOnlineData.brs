@@ -677,3 +677,142 @@ function rpHdOnlineMuxedAvcAac(data as dynamic) as boolean
     end for
     return videoPes and audioLc
 end function
+
+
+function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPid as integer) as object
+    result = {videoPackets:0,audioPackets:0,videoContinuityErrors:0,audioContinuityErrors:0,videoPesStarts:0,audioPesStarts:0,videoPtsCount:0,audioPtsCount:0,videoDtsCount:0,audioDtsCount:0,pcrCount:0,discontinuityFlags:0}
+    if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
+    if data.count() < 188*4 or data.count() > 131072 then return result
+    previousVideo = -1
+    previousAudio = -1
+    for offset = 0 to data.count()-188 step 188
+        if data[offset] <> 71 then return result
+        b1 = orbitInteger(data[offset+1],255,-1)
+        b2 = orbitInteger(data[offset+2],255,-1)
+        b3 = orbitInteger(data[offset+3],255,-1)
+        if b1 < 0 or b2 < 0 or b3 < 0 then return result
+        pid = (b1 mod 32)*256+b2
+        pusi = ((b1 \ 64) mod 2) = 1
+        control = (b3 \ 16) mod 4
+        cc = b3 mod 16
+        if control = 0 then return result
+        adaptationLength = 0
+        flags = 0
+        if control = 2 or control = 3
+            adaptationLength = orbitInteger(data[offset+4],183,-1)
+            if adaptationLength < 0 then return result
+            if adaptationLength > 0 then flags = orbitInteger(data[offset+5],255,0)
+            if adaptationLength > 0 and (flags mod 32) >= 16 and (flags mod 32) < 32 then result.pcrCount++
+            if adaptationLength > 0 and (flags mod 2) = 1 then result.discontinuityFlags++
+        end if
+        if pid = videoPid or pid = audioPid
+            if control = 1 or control = 3
+                if pid = videoPid
+                    result.videoPackets++
+                    if previousVideo >= 0 and cc <> ((previousVideo+1) mod 16) and not (adaptationLength > 0 and (flags mod 2) = 1) then result.videoContinuityErrors++
+                    previousVideo = cc
+                else
+                    result.audioPackets++
+                    if previousAudio >= 0 and cc <> ((previousAudio+1) mod 16) and not (adaptationLength > 0 and (flags mod 2) = 1) then result.audioContinuityErrors++
+                    previousAudio = cc
+                end if
+                payloadAt = offset+4
+                if control = 3 then payloadAt += 1+adaptationLength
+                if pusi and payloadAt+13 < offset+188 and data[payloadAt] = 0 and data[payloadAt+1] = 0 and data[payloadAt+2] = 1
+                    if pid = videoPid then result.videoPesStarts++ else result.audioPesStarts++
+                    flagsByte = orbitInteger(data[payloadAt+7],255,0)
+                    if (flagsByte \ 128) mod 2 = 1
+                        if pid = videoPid then result.videoPtsCount++ else result.audioPtsCount++
+                    end if
+                    if (flagsByte \ 64) mod 2 = 1
+                        if pid = videoPid then result.videoDtsCount++ else result.audioDtsCount++
+                    end if
+                end if
+            end if
+        end if
+    end for
+    return result
+end function
+
+function rpHdOnlineTsStartupProfile(data as dynamic) as object
+    profile = {valid:false,sampleBytes:0,pat:false,pmt:false,videoPid:-1,audioPid:-1,firstVideoPesByte:-1,firstNalType:0,firstVclType:0,idrPresent:false,idrByte:-1,spsPresent:false,ppsPresent:false}
+    if type(data) <> "roByteArray" and type(data) <> "roArray" then return profile
+    if data.count() < 188*4 or data.count() > 131072 then return profile
+    profile.sampleBytes = data.count()
+    if data[0] <> 71 or data[188] <> 71 or data[376] <> 71 then return profile
+    pat = rpHdOnlineTsSection(data,0,0)
+    if pat = invalid then return profile
+    if pat.count() < 16 or (pat[5] mod 2) <> 1 then return profile
+    profile.pat = true
+    program = 0
+    pmtPid = -1
+    cursor = 8
+    while cursor+4 <= pat.count()-4
+        number = pat[cursor]*256+pat[cursor+1]
+        if number > 0 and pmtPid < 0
+            program = number
+            pmtPid = (pat[cursor+2] mod 32)*256+pat[cursor+3]
+        end if
+        cursor += 4
+    end while
+    if pmtPid < 1 then return profile
+    pmt = rpHdOnlineTsSection(data,pmtPid,2)
+    if pmt = invalid then return profile
+    if pmt.count() < 16 or (pmt[5] mod 2) <> 1 then return profile
+    if pmt[3]*256+pmt[4] <> program then return profile
+    profile.pmt = true
+    cursor = 12+(pmt[10] mod 16)*256+pmt[11]
+    videoPid = -1
+    audioPid = -1
+    while cursor+5 <= pmt.count()-4
+        streamType = pmt[cursor]
+        streamPid = (pmt[cursor+1] mod 32)*256+pmt[cursor+2]
+        esLength = (pmt[cursor+3] mod 16)*256+pmt[cursor+4]
+        if cursor+5+esLength > pmt.count()-4 then return profile
+        if streamType = 27 and videoPid < 0 then videoPid = streamPid
+        if streamType = 15 and audioPid < 0 then audioPid = streamPid
+        cursor += 5+esLength
+    end while
+    profile.videoPid = videoPid
+    profile.audioPid = audioPid
+    if videoPid < 1 then return profile
+    for offset = 0 to data.count()-188 step 188
+        packet = rpHdOnlineTsPacket(data,offset)
+        if packet <> invalid
+            if packet.pid = videoPid and not packet.scrambled
+                start = packet.payloadAt
+                if packet.pusi and profile.firstVideoPesByte < 0
+                    if start+4 < packet.endAt
+                        if data[start] = 0 and data[start+1] = 0 and data[start+2] = 1 and data[start+3] >= 224 and data[start+3] <= 239
+                            profile.firstVideoPesByte = start
+                        end if
+                    end if
+                end if
+                cursor = packet.payloadAt
+                while cursor+4 < packet.endAt
+                    nalAt = -1
+                    if data[cursor] = 0 and data[cursor+1] = 0 and data[cursor+2] = 1
+                        nalAt = cursor+3
+                    else if data[cursor] = 0 and data[cursor+1] = 0 and data[cursor+2] = 0 and data[cursor+3] = 1
+                        nalAt = cursor+4
+                    end if
+                    if nalAt >= 0
+                        nalType = data[nalAt] mod 32
+                        if nalType = 7 then profile.spsPresent = true
+                        if nalType = 8 then profile.ppsPresent = true
+                        if (nalType = 1 or nalType = 5) and profile.firstVclType = 0 then profile.firstVclType = nalType
+                        if nalType = 5 and not profile.idrPresent
+                            profile.idrPresent = true
+                            profile.idrByte = offset+nalAt
+                        end if
+                        cursor = nalAt+1
+                    else
+                        cursor++
+                    end if
+                end while
+            end if
+        end if
+    end for
+    profile.valid = true
+    return profile
+end function
