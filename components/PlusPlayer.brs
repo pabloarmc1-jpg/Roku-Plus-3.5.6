@@ -56,6 +56,10 @@ sub init()
     m.closing = false
     m.alreadyClosed = true
     m.current = invalid
+    m.playlistActive = false
+    m.playlistCount = 0
+    m.playlistDurations = []
+    m.playlistTotalDuration = 0
     m.ticket = invalid
     m.pendingSeek = invalid
     m.actionUntil = 0
@@ -187,10 +191,15 @@ sub openRequest()
     m.pulse.control = "stop"
     m.decoder.visible = false
     m.decoder.control = "stop"
+    if m.decoder.hasField("contentIsPlaylist") then m.decoder.contentIsPlaylist = false
     m.decoder.content = invalid
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    m.playlistActive = false
+    m.playlistCount = 0
+    m.playlistDurations = []
+    m.playlistTotalDuration = 0
     m.ticket = invalid
     m.pendingSeek = invalid
     m.actionUntil = 0
@@ -261,6 +270,63 @@ sub openRequest()
         end if
     end if
     media.httpHeaders = requestHeaders
+
+    ' Test native sequential playback with a short playlist of independently decodable TS segments.
+    ' The resolver caps this diagnostic list at three items; signed URLs remain in memory only.
+    playbackContent = media
+    segments = supplied.playlistSegments
+    if m.decoder.hasField("contentIsPlaylist") and type(segments) = "roArray" and segments.count() >= 2 and segments.count() <= 3
+        playlistContent = CreateObject("roSGNode","ContentNode")
+        playlistValid = true
+        playlistIndex = 0
+        for each segment in segments
+            if type(segment) <> "roAssociativeArray"
+                playlistValid = false
+                exit for
+            end if
+            segmentUrl = segment.url
+            if GetInterface(segmentUrl,"ifString") = invalid or len(segmentUrl) > 4096
+                playlistValid = false
+                exit for
+            end if
+            if not CreateObject("roRegex","^https://([a-z0-9-]+\\.)?vimeos\\.(net|zip)/[^?#]+\\.ts(\\?[^#]*)?$","i").isMatch(segmentUrl)
+                playlistValid = false
+                exit for
+            end if
+            if playlistIndex = 0 and segmentUrl <> supplied.url
+                playlistValid = false
+                exit for
+            end if
+            child = CreateObject("roSGNode","ContentNode")
+            child.url = segmentUrl
+            child.title = m.titleText.text
+            child.streamFormat = "ts"
+            child.live = false
+            child.httpCertificatesFile = "common:/certs/ca-bundle.crt"
+            child.httpHeaders = requestHeaders
+            duration = orbitInteger(segment.duration,60,0)
+            if duration > 0 then child.length = duration
+            playlistContent.appendChild(child)
+            m.playlistDurations.push(duration)
+            m.playlistTotalDuration += duration
+            playlistIndex++
+        end for
+        if playlistValid and playlistIndex >= 2
+            playbackContent = playlistContent
+            m.playlistActive = true
+            m.playlistCount = playlistIndex
+            m.resumePending = invalid
+            print "[RokuPlus ts-playlist] nativePlaylist=true segments="; m.playlistCount; " approxDuration="; m.playlistTotalDuration
+        else
+            m.playlistDurations = []
+            m.playlistTotalDuration = 0
+            print "[RokuPlus ts-playlist] nativePlaylist=false reason=invalid_segment_list"
+        end if
+    else
+        if type(segments) = "roArray" and segments.count() > 0 then print "[RokuPlus ts-playlist] nativePlaylist=false reason=unsupported_or_short"
+    end if
+
+    if m.decoder.hasField("contentIsPlaylist") then m.decoder.contentIsPlaylist = m.playlistActive
     m.decoder.enableUI = false
     m.decoder.enableTrickPlay = false
     m.decoder.notificationInterval = 0.5
@@ -270,7 +336,7 @@ sub openRequest()
         m.decoder.seekMode = "accurate"
         m.accuracyMode = m.decoder.seekMode
     end if
-    m.decoder.content = media
+    m.decoder.content = playbackContent
     m.mediaOpen = true
     m.top.visible = true
     m.top.active = true
