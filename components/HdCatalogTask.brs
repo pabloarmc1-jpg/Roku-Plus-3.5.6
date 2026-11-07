@@ -195,6 +195,30 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                         playable = rpHdOnlineMuxedAvcAac(sample.bytes)
                                         candidateStage = "sample_rejected"
                                         if playable then candidateStage = "accepted"
+
+                                        ' Diagnostic 3.5.32: compare TS startup and timing at the first segment boundary.
+                                        ' This does not change stream selection or playback acceptance.
+                                        boundarySegments = rpHdTaskSegmentList(child.body,selected.url)
+                                        if boundarySegments.count() > 1
+                                            secondSample = fetcher(boundarySegments[1],"sample",mediaReferer)
+                                            if secondSample.cancelled then return rpHdTaskFailure(answer,secondSample)
+                                            if secondSample.ok
+                                                firstProfile = rpHdOnlineTsStartupProfile(sample.bytes)
+                                                secondProfile = rpHdOnlineTsStartupProfile(secondSample.bytes)
+                                                print "[RokuPlus ts-boundary] first valid="; firstProfile.valid; " videoPid="; firstProfile.videoPid; " audioPid="; firstProfile.audioPid; " idr="; firstProfile.idrPresent; " sps="; firstProfile.spsPresent; " pps="; firstProfile.ppsPresent
+                                                print "[RokuPlus ts-boundary] second valid="; secondProfile.valid; " videoPid="; secondProfile.videoPid; " audioPid="; secondProfile.audioPid; " idr="; secondProfile.idrPresent; " sps="; secondProfile.spsPresent; " pps="; secondProfile.ppsPresent
+                                                if firstProfile.videoPid > 0 and firstProfile.audioPid > 0
+                                                    firstTiming = rpHdOnlineTsTimingProfile(sample.bytes,firstProfile.videoPid,firstProfile.audioPid)
+                                                    secondTiming = rpHdOnlineTsTimingProfile(secondSample.bytes,firstProfile.videoPid,firstProfile.audioPid)
+                                                    print "[RokuPlus ts-boundary] first videoPackets="; firstTiming.videoPackets; " audioPackets="; firstTiming.audioPackets; " videoCCErrors="; firstTiming.videoContinuityErrors; " audioCCErrors="; firstTiming.audioContinuityErrors; " videoPES="; firstTiming.videoPesStarts; " audioPES="; firstTiming.audioPesStarts; " videoPTS="; firstTiming.videoPtsCount; " audioPTS="; firstTiming.audioPtsCount; " videoDTS="; firstTiming.videoDtsCount; " audioDTS="; firstTiming.audioDtsCount; " PCR="; firstTiming.pcrCount; " discontinuities="; firstTiming.discontinuityFlags
+                                                    print "[RokuPlus ts-boundary] second videoPackets="; secondTiming.videoPackets; " audioPackets="; secondTiming.audioPackets; " videoCCErrors="; secondTiming.videoContinuityErrors; " audioCCErrors="; secondTiming.audioContinuityErrors; " videoPES="; secondTiming.videoPesStarts; " audioPES="; secondTiming.audioPesStarts; " videoPTS="; secondTiming.videoPtsCount; " audioPTS="; secondTiming.audioPtsCount; " videoDTS="; secondTiming.videoDtsCount; " audioDTS="; secondTiming.audioDtsCount; " PCR="; secondTiming.pcrCount; " discontinuities="; secondTiming.discontinuityFlags
+                                                end if
+                                            else
+                                                print "[RokuPlus ts-boundary] second_sample=unavailable"
+                                            end if
+                                        else
+                                            print "[RokuPlus ts-boundary] second_segment=missing"
+                                        end if
                                     end if
                                 end if
                             end if
