@@ -209,6 +209,12 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                                 secondProfile = rpHdOnlineTsStartupProfile(secondSample.bytes)
                                                 print "[RokuPlus ts-boundary] first valid="; firstProfile.valid; " videoPid="; firstProfile.videoPid; " audioPid="; firstProfile.audioPid
                                                 print "[RokuPlus ts-boundary] second valid="; secondProfile.valid; " videoPid="; secondProfile.videoPid; " audioPid="; secondProfile.audioPid
+                                                print "[RokuPlus ts-idr] first firstVclType="; firstProfile.firstVclType
+                                                print "[RokuPlus ts-idr] first idr="; firstProfile.idrPresent; " idrByte="; firstProfile.idrByte
+                                                print "[RokuPlus ts-idr] first sps="; firstProfile.spsPresent; " pps="; firstProfile.ppsPresent
+                                                print "[RokuPlus ts-idr] second firstVclType="; secondProfile.firstVclType
+                                                print "[RokuPlus ts-idr] second idr="; secondProfile.idrPresent; " idrByte="; secondProfile.idrByte
+                                                print "[RokuPlus ts-idr] second sps="; secondProfile.spsPresent; " pps="; secondProfile.ppsPresent
                                                 if firstProfile.videoPid > 0 and firstProfile.audioPid > 0
                                                     tailTiming = rpHdOnlineTsTimingProfile(tailSample.bytes,firstProfile.videoPid,firstProfile.audioPid)
                                                     headTiming = rpHdOnlineTsTimingProfile(secondSample.bytes,firstProfile.videoPid,firstProfile.audioPid)
