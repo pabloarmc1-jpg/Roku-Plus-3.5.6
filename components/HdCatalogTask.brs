@@ -198,6 +198,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                         startupProfile = rpHdOnlineTsStartupProfile(sample.bytes)
                                         print "[RokuPlus ts-startup] sampleBytes="; startupProfile.sampleBytes; " pat="; startupProfile.pat; " pmt="; startupProfile.pmt; " videoPid="; startupProfile.videoPid; " audioPid="; startupProfile.audioPid; " videoPesByte="; startupProfile.firstVideoPesByte
                                         print "[RokuPlus ts-startup] firstVclType="; startupProfile.firstVclType; " sps="; startupProfile.spsPresent; " pps="; startupProfile.ppsPresent; " idr="; startupProfile.idrPresent; " idrByte="; startupProfile.idrByte
+                                        timingProfile = rpHdOnlineTsTimingProfile(sample.bytes,startupProfile.videoPid,startupProfile.audioPid)
+                                        print "[RokuPlus ts-timing] videoPackets="; timingProfile.videoPackets; " videoCCErrors="; timingProfile.videoContinuityErrors; " videoPTS="; timingProfile.videoPtsCount; " audioPackets="; timingProfile.audioPackets; " audioCCErrors="; timingProfile.audioContinuityErrors; " audioPTS="; timingProfile.audioPtsCount
+                                        print "[RokuPlus ts-timing] PCR="; timingProfile.pcrCount; " discontinuityFlags="; timingProfile.discontinuityFlags
                                     end if
                                 end if
                             end if
