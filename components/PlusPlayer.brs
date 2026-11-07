@@ -31,6 +31,8 @@ sub init()
     m.decoder.observeField("position", "onNativePosition")
     m.decoder.observeField("positionInfo", "onRenderedPosition")
     m.decoder.observeField("bufferingStatus", "onBufferDetails")
+    if m.decoder.hasField("streamingSegment") then m.decoder.observeField("streamingSegment", "onNativeStreamDetails")
+    if m.decoder.hasField("playStartInfo") then m.decoder.observeField("playStartInfo", "onNativeStreamDetails")
     m.pulse.observeField("fire", "onPulse")
     m.monotonic = CreateObject("roTimespan")
     m.monotonic.mark()
@@ -416,6 +418,47 @@ sub onBufferDetails()
     end if
     emitDiagnostic("buffering_status")
 end sub
+
+' Roku exposes per-segment download results and startup timing on Video.
+' Keep this event compact and never print segment URLs or query tokens.
+sub onNativeStreamDetails()
+    if not m.mediaOpen or m.closing then return
+    emitDiagnostic("native_stream_details")
+end sub
+
+function nativeStreamSnapshot() as object
+    snapshot = {}
+    if m.decoder = invalid then return snapshot
+    if m.decoder.hasField("errorCode")
+        value = m.decoder.errorCode
+        if value <> invalid then snapshot.errorCode = value
+    end if
+    if m.decoder.hasField("errorInfo")
+        value = m.decoder.errorInfo
+        if GetInterface(value,"ifString") <> invalid then snapshot.errorInfo = left(value,240)
+    end if
+    if m.decoder.hasField("playStartInfo")
+        info = m.decoder.playStartInfo
+        if type(info) = "roAssociativeArray"
+            startup = {}
+            for each field in ["total_dur","manifest_dur","prebuf_dur","first_seg_dur","all_manifest_dur","stream_segment_dur"]
+                if info[field] <> invalid then startup[field] = info[field]
+            end for
+            if startup.count() > 0 then snapshot.playStartInfo = startup
+        end if
+    end if
+    if m.decoder.hasField("streamingSegment")
+        segment = m.decoder.streamingSegment
+        if type(segment) = "roAssociativeArray"
+            sample = {}
+            for each field in ["Status","SegSequence","DownloadDuration","SegSize","SegType","BitrateBPS","SegStart","SegDuration","Width","Height"]
+                if segment[field] <> invalid then sample[field] = segment[field]
+            end for
+            if sample.count() > 0 then snapshot.streamingSegment = sample
+        end if
+    end if
+    return snapshot
+end function
 
 sub publishProgress(force = false as boolean)
     now = m.monotonic.totalMilliseconds()
@@ -843,6 +886,8 @@ sub emitDiagnostic(reason as string)
     if itemId <> "" then entry.itemId = itemId
     if provider <> "" then entry.provider = provider
     if m.decoder.state = "error" then entry.nativeError = plusSafeNativeError(m.decoder.errorCode,m.decoder.errorInfo)
+    nativeDetails = nativeStreamSnapshot()
+    if nativeDetails.count() > 0 then entry.native = nativeDetails
     if m.firstNative <> invalid then entry.firstNativePosition = m.firstNative
     if m.firstRendered <> invalid then entry.firstRenderedVideo = m.firstRendered
     if m.lastBuffer <> invalid then entry.buffer = m.lastBuffer
