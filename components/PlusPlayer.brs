@@ -227,7 +227,7 @@ sub openRequest()
     m.resumeFailedPosition = invalid
     m.resumeFailedAt = 0
     resumeValue = plusClockValue(supplied.resumePosition)
-    if not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
+    if not m.segmentMode and not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
     ' Compact metadata row: only display values supplied by the catalogue.
@@ -360,6 +360,7 @@ sub advanceSequentialSegment() as boolean
     m.lastBuffer = invalid
     m.bufferSince = 0
     m.decoder.visible = true
+    m.decoder.control = "stop"
     m.decoder.content = media
     m.decoder.control = "play"
     print "[RokuPlus segment] advance index=";m.segmentIndex+1;" total=";m.segmentUrls.count()
