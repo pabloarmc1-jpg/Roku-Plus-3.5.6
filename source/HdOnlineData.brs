@@ -684,7 +684,7 @@ end function
 ' Inspect MPEG-TS continuity and clock markers in the initial sample.
 ' This is diagnostic only: it does not change stream acceptance or playback.
 function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPid as integer) as object
-    result = {videoPackets:0,audioPackets:0,videoContinuityErrors:0,audioContinuityErrors:0,videoPtsCount:0,audioPtsCount:0,pcrCount:0,videoFirstPts:false,audioFirstPts:false,discontinuityFlags:0}
+    result = {videoPackets:0,audioPackets:0,videoContinuityErrors:0,audioContinuityErrors:0,videoPesStarts:0,audioPesStarts:0,videoPtsCount:0,audioPtsCount:0,videoDtsCount:0,audioDtsCount:0,pcrCount:0,discontinuityFlags:0}
     if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
     if data.count() < 188*4 or data.count() > 131072 then return result
     previousVideo = -1
@@ -696,6 +696,7 @@ function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPi
         b3 = orbitInteger(data[offset+3],255,-1)
         if b1 < 0 or b2 < 0 or b3 < 0 then return result
         pid = (b1 mod 32)*256+b2
+        pusi = ((b1 \ 64) mod 2) = 1
         control = (b3 \ 16) mod 4
         cc = b3 mod 16
         if control = 0 then return result
@@ -721,18 +722,14 @@ function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPi
                 end if
                 payloadAt = offset+4
                 if control = 3 then payloadAt += 1+adaptationLength
-                if payloadAt+9 < offset+188 and data[payloadAt] = 0 and data[payloadAt+1] = 0 and data[payloadAt+2] = 1
-                    if data[payloadAt+7] >= 128
-                        ptsFlag = (data[payloadAt+7] \ 128) mod 2
-                        if ptsFlag = 1
-                            if pid = videoPid
-                                result.videoPtsCount++
-                                if not result.videoFirstPts then result.videoFirstPts = true
-                            else
-                                result.audioPtsCount++
-                                if not result.audioFirstPts then result.audioFirstPts = true
-                            end if
-                        end if
+                if pusi and payloadAt+13 < offset+188 and data[payloadAt] = 0 and data[payloadAt+1] = 0 and data[payloadAt+2] = 1
+                    if pid = videoPid then result.videoPesStarts++ else result.audioPesStarts++
+                    flagsByte = orbitInteger(data[payloadAt+7],255,0)
+                    if (flagsByte \ 128) mod 2 = 1
+                        if pid = videoPid then result.videoPtsCount++ else result.audioPtsCount++
+                    end if
+                    if (flagsByte \ 64) mod 2 = 1
+                        if pid = videoPid then result.videoDtsCount++ else result.audioDtsCount++
                     end if
                 end if
             end if
