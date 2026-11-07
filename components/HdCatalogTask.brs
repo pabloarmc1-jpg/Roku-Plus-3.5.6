@@ -182,7 +182,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            answer.url = selected.url
+                            ' Pass the master playlist so Roku can resolve and synchronize
+                            ' the external audio rendition declared by EXT-X-MEDIA.
+                            answer.url = masterUrl
                             answer.streamFormat = "hls"
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
@@ -191,7 +193,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             answer.height = selected.height
                             answer.codecs = selected.codecs
                             answer.seekSupport = "native-hls"
-                            print "[RokuPlus resolve] provider="; provider; " format=hls embedHost="; rpHdTaskSafeHost(embed.url); " mediaHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " validation=avc-aac-ts"
+                            audioMode = "embedded"
+                            if selected.audioGroup <> "" then audioMode = "master-audio-group"
+                            print "[RokuPlus resolve] provider="; provider; " format=hls playlist=master embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
                             answer.attemptUsed = embedIndex+variantIndex*count
                             answer.ok = true
                             answer.message = ""
