@@ -179,7 +179,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 end if
                             end if
                         end if
-                        print "[RokuPlus candidate] provider="; provider; " mediaHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " bandwidth="; selected.bandwidth; " codecs="; rpHdTaskSafeLabel(selected.codecs); " manifestBytes="; child.body.len(); " result="; candidateStage
+                        print "[RokuPlus candidate] provider="; provider; " mediaHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " bandwidth="; selected.bandwidth; " manifestBytes="; child.body.len(); " result="; candidateStage
                         if playable
                             answer.url = selected.url
                             answer.streamFormat = "hls"
