@@ -25,3 +25,5 @@ jobs:
           path: Roku-Plus-3.5.23.zip
           if-no-files-found: error
           retention-days: 7
+
+# Rebuild package for the HLS playlist diagnostic update.
