@@ -246,42 +246,76 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     return answer
 end function
 
-' Log manifest structure and first resolved segment without signed query strings.
+' Summarize the complete media playlist without printing signed query strings.
+' The segment count, total duration and VOD terminator are required to diagnose HLS startup.
 sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
     print "[RokuPlus hls-manifest] begin"
     lineCount = 0
-    segmentLogged = false
+    segmentCount = 0
+    totalDuration = 0.0
+    pendingDuration = 0.0
+    firstSegment = ""
+    secondSegment = ""
+    lastSegment = ""
+    hasEndList = false
+    hasIndependent = false
+    hasMap = false
+    hasByteRange = false
+    discontinuities = 0
+    keyCount = 0
+    encrypted = false
+    targetDuration = 0
+    playlistType = "unspecified"
+    version = 0
     for each raw in orbitText(body,2097153).split(chr(10))
         line = raw.trim()
-        if line <> ""
-            lineCount++
-            if left(line,1) = "#"
-                if left(line,8) = "#EXTINF:"
-                    print "[RokuPlus hls-manifest] extinf="; left(line,120)
-                else if left(line,11) = "#EXT-X-KEY"
-                    print "[RokuPlus hls-manifest] tag=EXT-X-KEY (attributes hidden)"
-                else if left(line,11) = "#EXT-X-MAP"
-                    print "[RokuPlus hls-manifest] tag=EXT-X-MAP (URI hidden)"
-                else if left(line,7) = "#EXTM3U"
-                    print "[RokuPlus hls-manifest] tag=EXTM3U"
-                else if left(line,14) = "#EXT-X-ENDLIST"
-                    print "[RokuPlus hls-manifest] tag=EXT-X-ENDLIST"
-                else if left(line,19) = "#EXT-X-TARGETDURATION"
-                    print "[RokuPlus hls-manifest] tag="; left(line,80)
-                else if left(line,14) = "#EXT-X-VERSION"
-                    print "[RokuPlus hls-manifest] tag="; left(line,80)
-                else if left(line,18) = "#EXT-X-STREAM-INF:"
-                    print "[RokuPlus hls-manifest] ERROR nested master playlist"
-                end if
-            else if not segmentLogged
-                resolved = rpHdOnlineJoin(baseUrl,line)
-                print "[RokuPlus hls-manifest] firstSegment="; rpHdTaskSafeUrl(resolved)
-                segmentLogged = true
+        if line = "" then continue
+        lineCount++
+        if left(line,8) = "#EXTINF:"
+            comma = instr(1,line,",")
+            durationText = mid(line,9)
+            if comma > 9 then durationText = mid(line,9,comma-9)
+            pendingDuration = Val(durationText)
+            if pendingDuration < 0 then pendingDuration = 0
+        else if left(line,22) = "#EXT-X-TARGETDURATION:"
+            targetDuration = Val(mid(line,23))
+        else if left(line,18) = "#EXT-X-PLAYLIST-TYPE:"
+            playlistType = lcase(mid(line,19))
+        else if left(line,14) = "#EXT-X-VERSION:"
+            version = Val(mid(line,15))
+        else if left(line,14) = "#EXT-X-ENDLIST"
+            hasEndList = true
+        else if left(line,27) = "#EXT-X-INDEPENDENT-SEGMENTS"
+            hasIndependent = true
+        else if left(line,11) = "#EXT-X-MAP:"
+            hasMap = true
+        else if left(line,17) = "#EXT-X-BYTERANGE:"
+            hasByteRange = true
+        else if left(line,20) = "#EXT-X-DISCONTINUITY"
+            discontinuities++
+        else if left(line,11) = "#EXT-X-KEY:"
+            keyCount++
+            attrs = rpHdOnlineAttributes(line)
+            if lcase(orbitText(attrs.METHOD,20)) <> "none" then encrypted = true
+        else if left(line,18) = "#EXT-X-STREAM-INF:"
+            print "[RokuPlus hls-manifest] ERROR nested master playlist"
+        else if left(line,1) <> "#"
+            resolved = rpHdOnlineJoin(baseUrl,line)
+            if resolved <> ""
+                segmentCount++
+                totalDuration += pendingDuration
+                if firstSegment = "" then firstSegment = rpHdTaskSafeUrl(resolved)
+                if segmentCount = 2 then secondSegment = rpHdTaskSafeUrl(resolved)
+                lastSegment = rpHdTaskSafeUrl(resolved)
             end if
-            if lineCount >= 16 or segmentLogged then exit for
+            pendingDuration = 0
         end if
     end for
-    print "[RokuPlus hls-manifest] lines="; lineCount; " firstSegmentPresent="; segmentLogged
+    print "[RokuPlus hls-manifest] lines="; lineCount; " segments="; segmentCount; " totalDuration="; totalDuration; " targetDuration="; targetDuration; " playlistType="; playlistType; " version="; version
+    print "[RokuPlus hls-manifest] endList="; hasEndList; " independent="; hasIndependent; " map="; hasMap; " byteRange="; hasByteRange; " discontinuities="; discontinuities; " keyCount="; keyCount; " encrypted="; encrypted
+    if firstSegment <> "" then print "[RokuPlus hls-manifest] firstSegment="; firstSegment
+    if secondSegment <> "" then print "[RokuPlus hls-manifest] secondSegment="; secondSegment
+    if lastSegment <> "" then print "[RokuPlus hls-manifest] lastSegment="; lastSegment
 end sub
 
 ' Return only a host for diagnostics; never print media URLs, paths, or tokens.
