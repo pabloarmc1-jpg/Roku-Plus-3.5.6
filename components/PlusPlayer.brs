@@ -374,7 +374,12 @@ sub closePlayback()
     m.top.visible = false
     m.pulse.control = "stop"
     m.decoder.control = "stop"
+    if m.decoder.hasField("contentIsPlaylist") then m.decoder.contentIsPlaylist = false
     m.decoder.content = invalid
+    m.playlistActive = false
+    m.playlistCount = 0
+    m.playlistDurations = []
+    m.playlistTotalDuration = 0
     m.current = invalid
     m.top.request = invalid
     m.top.active = false
@@ -558,6 +563,16 @@ function nativeStreamSnapshot() as object
     snapshot.streamInfoSupported = m.decoder.hasField("streamInfo")
     snapshot.videoFormatSupported = m.decoder.hasField("videoFormat")
     snapshot.timeToStartStreamingSupported = m.decoder.hasField("timeToStartStreaming")
+    snapshot.contentIsPlaylistSupported = m.decoder.hasField("contentIsPlaylist")
+    snapshot.contentIndexSupported = m.decoder.hasField("contentIndex")
+    if m.playlistActive
+        snapshot.playlistActive = true
+        snapshot.playlistSegmentCount = m.playlistCount
+        if m.decoder.hasField("contentIndex")
+            currentIndex = m.decoder.contentIndex
+            if currentIndex <> invalid then snapshot.contentIndex = currentIndex
+        end if
+    end if
 
     if m.decoder.hasField("errorCode")
         value = m.decoder.errorCode
@@ -699,6 +714,24 @@ sub publishProgress(force = false as boolean)
     if isPreviewPresentation() then presentation = "preview"
     nativePosition = plusClockValue(m.decoder.position)
     nativeDuration = plusClockValue(m.decoder.duration)
+    if m.playlistActive
+        playlistOffset = 0
+        currentIndex = 0
+        if m.decoder.hasField("contentIndex")
+            indexValue = m.decoder.contentIndex
+            if GetInterface(indexValue,"ifInt") <> invalid then currentIndex = indexValue
+            if GetInterface(indexValue,"ifLongInt") <> invalid then currentIndex = int(indexValue)
+        end if
+        if currentIndex > 0
+            lastIndex = currentIndex-1
+            if lastIndex >= m.playlistDurations.count() then lastIndex = m.playlistDurations.count()-1
+            for durationIndex = 0 to lastIndex
+                playlistOffset += m.playlistDurations[durationIndex]
+            end for
+        end if
+        if nativePosition <> invalid then nativePosition += playlistOffset
+        nativeDuration = m.playlistTotalDuration
+    end if
     resumeInFlight = m.resumePending <> invalid
     if m.pendingSeek <> invalid
         if m.pendingSeek.doesExist("isResume") and m.pendingSeek.isResume = true then resumeInFlight = true
@@ -721,6 +754,17 @@ sub publishProgress(force = false as boolean)
     rendered = renderedFields()
     renderedPosition = invalid
     if rendered.doesExist("video") then renderedPosition = plusClockValue(rendered.video)
+    if m.playlistActive and renderedPosition <> invalid
+        playlistRenderedOffset = 0
+        if m.decoder.hasField("contentIndex") and currentIndex > 0
+            lastRenderedIndex = currentIndex-1
+            if lastRenderedIndex >= m.playlistDurations.count() then lastRenderedIndex = m.playlistDurations.count()-1
+            for durationIndex = 0 to lastRenderedIndex
+                playlistRenderedOffset += m.playlistDurations[durationIndex]
+            end for
+        end if
+        renderedPosition += playlistRenderedOffset
+    end if
     ' Prefer the native clock; use the rendered video timestamp only when the
     ' native clock is absent or stuck at zero while rendered playback advances.
     position = nativePosition
@@ -1128,6 +1172,14 @@ sub emitDiagnostic(reason as string)
     if itemId <> "" then entry.itemId = itemId
     if provider <> "" then entry.provider = provider
     entry.failed = m.failed
+    if m.playlistActive
+        playlistInfo = {active:true,segmentCount:m.playlistCount,totalDuration:m.playlistTotalDuration}
+        if m.decoder.hasField("contentIndex")
+            currentIndex = m.decoder.contentIndex
+            if currentIndex <> invalid then playlistInfo.contentIndex = currentIndex
+        end if
+        entry.playlist = playlistInfo
+    end if
     if m.watchdogReason <> "" then entry.watchdogReason = m.watchdogReason
     if m.decoder.state = "error" then entry.nativeError = plusSafeNativeError(m.decoder.errorCode,m.decoder.errorInfo)
     nativeDetails = nativeStreamSnapshot()
