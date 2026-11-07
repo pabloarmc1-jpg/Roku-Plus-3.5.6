@@ -17,13 +17,13 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.25.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.25.zip .
+          zip -qr /tmp/Roku-Plus-3.5.26.zip . -x './.git/*' './.github/*' '*.zip'
+          mv /tmp/Roku-Plus-3.5.26.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.25
-          path: Roku-Plus-3.5.25.zip
+          name: Roku-Plus-3.5.26
+          path: Roku-Plus-3.5.26.zip
           if-no-files-found: error
           retention-days: 7
 
-# Rebuild package for the HLS TS timing diagnostic update.
+# Rebuild package for the HLS PES timestamp diagnostic update.
