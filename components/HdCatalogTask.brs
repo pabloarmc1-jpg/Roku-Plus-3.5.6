@@ -156,15 +156,26 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                     end for
                     print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
                     choices = rpHdTaskStableVariants(candidates,decoderAccept)
+                    ' Diagnostic build 3.5.21: isolate the 480-line variant for first-frame testing.
+                    ' The comparison build will change this target to 528.
+                    diagnosticHeight = 480
+                    diagnosticChoices = []
+                    for each diagnosticChoice in choices
+                        if diagnosticChoice.height = diagnosticHeight then diagnosticChoices.push(diagnosticChoice)
+                    end for
+                    choices = diagnosticChoices
+                    print "[RokuPlus hls-test] targetHeight="; diagnosticHeight; " eligibleVariants="; choices.count()
                     variantOffset = 0
                     if choices.count() > 0 then variantOffset = (retry \ count) mod choices.count()
                     for qualityAttempt = 0 to choices.count()-1
                         if rpHdTaskSliceExpired() then exit for
                         variantIndex = (qualityAttempt+variantOffset) mod choices.count()
                         selected = choices[variantIndex]
+                        print "[RokuPlus hls-test] selectedPlaylist="; rpHdTaskSafeUrl(selected.url)
                         answer.variantAttempts++
                         child = fetcher(selected.url,"media",mediaReferer)
                         if child.cancelled then return rpHdTaskFailure(answer,child)
+                        if child.ok then rpHdTaskLogManifest(child.body,selected.url)
                         playable = child.ok and rpHdTaskMediaManifest(child.body,selected.url)
                         segmentUrl = ""
                         candidateStage = "child_fetch_failed"
@@ -190,10 +201,21 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            ' Pass the master playlist so Roku can resolve and synchronize
-                            ' the external audio rendition declared by EXT-X-MEDIA.
-                            answer.url = masterUrl
-                            answer.streamFormat = "hls"
+                            ' Keep the master when an external audio rendition must be synchronized.
+                            ' For muxed audio with no EXT-X-MEDIA group, pass the validated child
+                            ' playlist so the diagnostic variant selection is actually enforced.
+                            playbackPlaylistUrl = masterUrl
+                            playbackPlaylistKind = "master"
+                            playbackStreamFormat = "hls"
+                            if master.audioTracks.count() = 0 and selected.audioGroup = ""
+                                ' Diagnostic isolation: decode one validated TS segment directly,
+                                ' bypassing Roku's HLS playlist handling for this test build.
+                                playbackPlaylistUrl = segmentUrl
+                                playbackPlaylistKind = "direct-ts"
+                                playbackStreamFormat = "ts"
+                            end if
+                            answer.url = playbackPlaylistUrl
+                            answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
                             answer.language = embed.language
@@ -208,7 +230,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 if audioTrack.group = selected.audioGroup then matchingAudioTracks = matchingAudioTracks + 1
                             end for
                             print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
-                            print "[RokuPlus resolve] provider="; provider; " format=hls playlist=master embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
+                            print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
                             answer.attemptUsed = embedIndex+variantIndex*count
                             answer.ok = true
                             answer.message = ""
@@ -225,12 +247,62 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     return answer
 end function
 
+' Log manifest structure and first resolved segment without signed query strings.
+sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
+    print "[RokuPlus hls-manifest] begin"
+    lineCount = 0
+    segmentLogged = false
+    for each raw in orbitText(body,2097153).split(chr(10))
+        line = raw.trim()
+        if line <> ""
+            lineCount++
+            if left(line,1) = "#"
+                if left(line,8) = "#EXTINF:"
+                    print "[RokuPlus hls-manifest] extinf="; left(line,120)
+                else if left(line,11) = "#EXT-X-KEY"
+                    print "[RokuPlus hls-manifest] tag=EXT-X-KEY (attributes hidden)"
+                else if left(line,11) = "#EXT-X-MAP"
+                    print "[RokuPlus hls-manifest] tag=EXT-X-MAP (URI hidden)"
+                else if left(line,7) = "#EXTM3U"
+                    print "[RokuPlus hls-manifest] tag=EXTM3U"
+                else if left(line,14) = "#EXT-X-ENDLIST"
+                    print "[RokuPlus hls-manifest] tag=EXT-X-ENDLIST"
+                else if left(line,19) = "#EXT-X-TARGETDURATION"
+                    print "[RokuPlus hls-manifest] tag="; left(line,80)
+                else if left(line,14) = "#EXT-X-VERSION"
+                    print "[RokuPlus hls-manifest] tag="; left(line,80)
+                else if left(line,18) = "#EXT-X-STREAM-INF:"
+                    print "[RokuPlus hls-manifest] ERROR nested master playlist"
+                end if
+            else if not segmentLogged
+                resolved = rpHdOnlineJoin(baseUrl,line)
+                print "[RokuPlus hls-manifest] firstSegment="; rpHdTaskSafeUrl(resolved)
+                segmentLogged = true
+            end if
+            if lineCount >= 16 or segmentLogged then exit for
+        end if
+    end for
+    print "[RokuPlus hls-manifest] lines="; lineCount; " firstSegmentPresent="; segmentLogged
+end sub
+
 ' Return only a host for diagnostics; never print media URLs, paths, or tokens.
 function rpHdTaskSafeHost(value as dynamic) as string
     url = orbitText(value,4096)
     match = CreateObject("roRegex","^https://([^/?#]+)","i").match(url)
     if match.count() < 2 then return "unknown"
     return lcase(match[1])
+end function
+
+' Diagnostic URL: omit query strings and fragments so signed CDN tokens are not printed.
+function rpHdTaskSafeUrl(value as dynamic) as string
+    url = orbitText(value,4096)
+    queryAt = instr(1,url,"?")
+    fragmentAt = instr(1,url,"#")
+    cutAt = 0
+    if queryAt > 0 then cutAt = queryAt
+    if fragmentAt > 0 and (cutAt = 0 or fragmentAt < cutAt) then cutAt = fragmentAt
+    if cutAt > 0 then url = left(url,cutAt-1)
+    return url
 end function
 
 function rpHdTaskStableVariants(master as object, decoderAccept as dynamic) as object
