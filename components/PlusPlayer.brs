@@ -1162,9 +1162,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
             revealTransport()
         end if
     else if key = "left" or key = "rewind" or key = "replay"
-        shiftTen(true)
+        if m.segmentMode
+            revealTransport()
+        else
+            shiftTen(true)
+        end if
     else if key = "right" or key = "fastforward"
-        shiftTen(false)
+        if m.segmentMode
+            revealTransport()
+        else
+            shiftTen(false)
+        end if
     else
         revealTransport()
     end if
