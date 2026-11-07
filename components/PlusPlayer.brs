@@ -32,7 +32,9 @@ sub init()
     m.decoder.observeField("positionInfo", "onRenderedPosition")
     m.decoder.observeField("bufferingStatus", "onBufferDetails")
     if m.decoder.hasField("streamingSegment") then m.decoder.observeField("streamingSegment", "onNativeStreamDetails")
+    if m.decoder.hasField("downloadedSegment") then m.decoder.observeField("downloadedSegment", "onNativeStreamDetails")
     if m.decoder.hasField("playStartInfo") then m.decoder.observeField("playStartInfo", "onNativeStreamDetails")
+    if m.decoder.hasField("errorInfo") then m.decoder.observeField("errorInfo", "onNativeStreamDetails")
     m.pulse.observeField("fire", "onPulse")
     m.monotonic = CreateObject("roTimespan")
     m.monotonic.mark()
@@ -433,26 +435,39 @@ end sub
 function nativeStreamSnapshot() as object
     snapshot = {}
     if m.decoder = invalid then return snapshot
-    ' Record field availability even before Roku populates the native values.
-    ' This distinguishes unsupported Video fields from supported fields that
-    ' simply never emit a change during a failed startup.
+    ' Report field support separately from populated values.
     snapshot.errorCodeSupported = m.decoder.hasField("errorCode")
     snapshot.errorInfoSupported = m.decoder.hasField("errorInfo")
     snapshot.playStartInfoSupported = m.decoder.hasField("playStartInfo")
     snapshot.streamingSegmentSupported = m.decoder.hasField("streamingSegment")
+    snapshot.downloadedSegmentSupported = m.decoder.hasField("downloadedSegment")
+    snapshot.streamInfoSupported = m.decoder.hasField("streamInfo")
+    snapshot.videoFormatSupported = m.decoder.hasField("videoFormat")
+    snapshot.timeToStartStreamingSupported = m.decoder.hasField("timeToStartStreaming")
+
     if m.decoder.hasField("errorCode")
         value = m.decoder.errorCode
         if value <> invalid then snapshot.errorCode = value
     end if
     if m.decoder.hasField("errorInfo")
-        value = m.decoder.errorInfo
-        if GetInterface(value,"ifString") <> invalid then snapshot.errorInfo = left(value,240)
+        info = m.decoder.errorInfo
+        if type(info) = "roAssociativeArray"
+            error = {}
+            for each field in ["category","clipId","ignored","source","errcode","drmerrcode"]
+                if info[field] <> invalid then error[field] = info[field]
+            end for
+            if GetInterface(info.dbgmsg,"ifString") <> invalid
+                ' Do not expose a URL or token if Roku includes one in debug text.
+                if instr(1,lcase(info.dbgmsg),"http") = 0 then error.dbgmsg = left(info.dbgmsg,240)
+            end if
+            if error.count() > 0 then snapshot.errorInfo = error
+        end if
     end if
     if m.decoder.hasField("playStartInfo")
         info = m.decoder.playStartInfo
         if type(info) = "roAssociativeArray"
             startup = {}
-            for each field in ["total_dur","manifest_dur","prebuf_dur","first_seg_dur","all_manifest_dur","stream_segment_dur"]
+            for each field in ["total_dur","manifest_dur","drm_load_dur","drm_lic_acq_dur","prebuf_dur","manifest_start","drm_load_start","drm_lic_acq_start","prebuf_start"]
                 if info[field] <> invalid then startup[field] = info[field]
             end for
             if startup.count() > 0 then snapshot.playStartInfo = startup
@@ -462,11 +477,39 @@ function nativeStreamSnapshot() as object
         segment = m.decoder.streamingSegment
         if type(segment) = "roAssociativeArray"
             sample = {}
-            for each field in ["Status","SegSequence","DownloadDuration","SegSize","SegType","BitrateBPS","SegStart","SegDuration","Width","Height"]
+            for each field in ["hdrModeStr","segBitrateBps","segSequence","segStart","segType","segTypeStr","latency","width","height"]
                 if segment[field] <> invalid then sample[field] = segment[field]
             end for
             if sample.count() > 0 then snapshot.streamingSegment = sample
         end if
+    end if
+    if m.decoder.hasField("downloadedSegment")
+        segment = m.decoder.downloadedSegment
+        if type(segment) = "roAssociativeArray"
+            sample = {}
+            for each field in ["Status","SegSequence","DownloadDuration","SegSize","SegType","BitrateBPS","SegStart","SegDuration","Width","Height"]
+                if segment[field] <> invalid then sample[field] = segment[field]
+            end for
+            if sample.count() > 0 then snapshot.downloadedSegment = sample
+        end if
+    end if
+    if m.decoder.hasField("streamInfo")
+        info = m.decoder.streamInfo
+        if type(info) = "roAssociativeArray"
+            stream = {}
+            for each field in ["isUnderrun","isResume","measuredBItrate","streamBitrate"]
+                if info[field] <> invalid then stream[field] = info[field]
+            end for
+            if stream.count() > 0 then snapshot.streamInfo = stream
+        end if
+    end if
+    if m.decoder.hasField("videoFormat")
+        value = m.decoder.videoFormat
+        if GetInterface(value,"ifString") <> invalid and value <> "" then snapshot.videoFormat = value
+    end if
+    if m.decoder.hasField("timeToStartStreaming")
+        value = m.decoder.timeToStartStreaming
+        if value <> invalid and value > 0 then snapshot.timeToStartStreaming = value
     end if
     return snapshot
 end function
