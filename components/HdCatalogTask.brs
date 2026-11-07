@@ -204,12 +204,16 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             ' playlist so the diagnostic variant selection is actually enforced.
                             playbackPlaylistUrl = masterUrl
                             playbackPlaylistKind = "master"
+                            playbackStreamFormat = "hls"
                             if master.audioTracks.count() = 0 and selected.audioGroup = ""
-                                playbackPlaylistUrl = selected.url
-                                playbackPlaylistKind = "variant"
+                                ' Diagnostic isolation: decode one validated TS segment directly,
+                                ' bypassing Roku's HLS playlist handling for this test build.
+                                playbackPlaylistUrl = segmentUrl
+                                playbackPlaylistKind = "direct-ts"
+                                playbackStreamFormat = "ts"
                             end if
                             answer.url = playbackPlaylistUrl
-                            answer.streamFormat = "hls"
+                            answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
                             answer.language = embed.language
@@ -224,7 +228,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 if audioTrack.group = selected.audioGroup then matchingAudioTracks = matchingAudioTracks + 1
                             end for
                             print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
-                            print "[RokuPlus resolve] provider="; provider; " format=hls playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
+                            print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
                             answer.attemptUsed = embedIndex+variantIndex*count
                             answer.ok = true
                             answer.message = ""
