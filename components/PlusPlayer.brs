@@ -193,6 +193,7 @@ sub openRequest()
     m.current = supplied
     m.segmentUrls = invalid
     m.segmentIndex = 0
+    m.segmentTransitioning = false
     m.segmentMode = false
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
@@ -324,6 +325,7 @@ end sub
 
 function advanceSequentialSegment() as boolean
     if not m.segmentMode or type(m.segmentUrls) <> "roArray" then return false
+    if m.segmentTransitioning then return true
     nextIndex = m.segmentIndex + 1
     if nextIndex >= m.segmentUrls.count() then return false
     nextUrl = m.segmentUrls[nextIndex]
@@ -350,6 +352,7 @@ function advanceSequentialSegment() as boolean
     end if
     media.httpHeaders = requestHeaders
     m.segmentIndex = nextIndex
+    m.segmentTransitioning = true
     m.phase = "segment_transition"
     m.failed = false
     m.ticket = invalid
@@ -378,6 +381,7 @@ sub onDecoderState()
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
+        m.segmentTransitioning = false
         m.bufferSince = invalid
         applyResumeSeek()
         ' Desired pause is persistent across rebuffering. A user Play clears
