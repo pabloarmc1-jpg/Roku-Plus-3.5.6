@@ -205,9 +205,14 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             print "[RokuPlus hls-test] validatedFirstSegmentUrl="; segmentUrl
                             ' Diagnostic 3.5.27: play only the first TS segment already validated above.
                             ' This isolates the Roku TS decoder from the native HLS playlist pipeline.
-                            playbackPlaylistUrl = segmentUrl
-                            playbackPlaylistKind = "first-segment"
-                            playbackStreamFormat = "ts"
+                            segmentUrls = rpHdTaskSegmentList(child.body,selected.url)
+                            if segmentUrls.count() = 0 then playable = false
+                            if playable
+                                playbackPlaylistUrl = segmentUrls[0]
+                                playbackPlaylistKind = "sequential-ts"
+                                playbackStreamFormat = "ts"
+                                answer.segmentUrls = segmentUrls
+                            end if
                             answer.url = playbackPlaylistUrl
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
@@ -648,6 +653,20 @@ function rpHdTaskExternalAudio(master as object, variant as object) as boolean
         if track.group = variant.audioGroup and track.url <> "" then return true
     end for
     return false
+end function
+
+function rpHdTaskSegmentList(body as string, baseUrl as string) as object
+    segments = []
+    for each raw in body.split(chr(10))
+        line = raw.trim()
+        if line <> "" and left(line,1) <> "#"
+            url = rpHdOnlineJoin(baseUrl,line)
+            if url = "" then return []
+            segments.push(url)
+            if segments.count() > 2000 then return []
+        end if
+    end for
+    return segments
 end function
 
 function rpHdTaskFirstSegment(body as string, baseUrl as string) as string
