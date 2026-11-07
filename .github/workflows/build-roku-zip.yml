@@ -12,6 +12,7 @@ on:
       - test/hls-master-playlist-3.5.31
       - test/hls-segment-boundary-3.5.32
       - test/hls-timestamp-boundary-3.5.33
+      - test/hls-second-segment-ts-3.5.34
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,8 +26,8 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.33.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.33.zip .
+          zip -qr /tmp/Roku-Plus-3.5.34.zip . -x './.git/*' './.github/*' '*.zip'
+          mv /tmp/Roku-Plus-3.5.34.zip .
       - uses: actions/upload-artifact@v4
         with:
           name: Roku-Plus-3.5.33
