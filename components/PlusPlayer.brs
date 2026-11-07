@@ -47,6 +47,10 @@ sub init()
     if m.decoder.hasField("downloadedSegment") then m.decoder.observeField("downloadedSegment", "onNativeStreamDetails")
     if m.decoder.hasField("playStartInfo") then m.decoder.observeField("playStartInfo", "onNativeStreamDetails")
     if m.decoder.hasField("errorInfo") then m.decoder.observeField("errorInfo", "onNativeStreamDetails")
+    ' Capture native HLS startup/error fields at the instant Roku changes them.
+    for each field in ["errorCode","errorMsg","errorStr","streamInfo","videoFormat","audioFormat","timeToStartStreaming","contentIndex"]
+        if m.decoder.hasField(field) then m.decoder.observeField(field, "onNativeStreamDetails")
+    end for
     m.pulse.observeField("fire", "onPulse")
     m.monotonic = CreateObject("roTimespan")
     m.monotonic.mark()
@@ -316,6 +320,9 @@ sub openRequest()
     end if
 
     m.decoder.contentIsPlaylist = m.nativePlaylistMode
+    if format = "hls"
+        print "[RokuPlus hls-config] format="; media.streamFormat; " live="; media.live; " contentIsPlaylist="; m.decoder.contentIsPlaylist; " headers="; media.httpHeaders.count()
+    end if
     m.decoder.enableUI = false
     m.decoder.enableTrickPlay = false
     m.decoder.notificationInterval = 0.5
