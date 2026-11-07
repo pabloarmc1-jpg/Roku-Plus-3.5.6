@@ -230,12 +230,17 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            ' 3.5.31 diagnostic: pass the validated MASTER playlist to Roku.
-                            ' 3.5.29 tested the selected child media playlist; 3.5.30 proved
-                            ' the first TS segment decodes. This isolates master-vs-child HLS.
-                            playbackPlaylistKind = "native-master-playlist"
-                            playbackStreamFormat = "hls"
-                            answer.url = masterUrl
+                            ' Diagnostic 3.5.34: bypass HLS and open segment 2 as a standalone TS.
+                            ' Segment 1 was already proven to render; this checks whether segment 2
+                            ' can initialize the decoder independently, without a playlist transition.
+                            playbackPlaylistKind = "direct-second-segment-ts"
+                            playbackStreamFormat = "ts"
+                            if type(boundarySegments) = "roArray" and boundarySegments.count() > 1
+                                answer.url = boundarySegments[1]
+                            else
+                                answer.url = segmentUrl
+                                playbackPlaylistKind = "direct-first-segment-fallback"
+                            end if
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
@@ -243,7 +248,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             answer.width = selected.width
                             answer.height = selected.height
                             answer.codecs = selected.codecs
-                            answer.seekSupport = "native-hls"
+                            answer.seekSupport = "none"
                             audioMode = "embedded"
                             if selected.audioGroup <> "" then audioMode = "master-audio-group"
                             matchingAudioTracks = 0
@@ -252,7 +257,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             end for
                             print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
                             print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
-                            print "[RokuPlus hls-test] diagnostic=master-playlist passed-to-roku"
+                            print "[RokuPlus ts-test] diagnostic="; playbackPlaylistKind; " format="; playbackStreamFormat; " targetHost="; rpHdTaskSafeHost(answer.url)
                             answer.attemptUsed = embedIndex+variantIndex*count
                             answer.ok = true
                             answer.message = ""
