@@ -289,7 +289,7 @@ sub openRequest()
                 playlistValid = false
                 exit for
             end if
-            if not CreateObject("roRegex","^https://([a-z0-9-]+\\.)?vimeos\\.(net|zip)/[^?#]+\\.ts(\\?[^#]*)?$","i").isMatch(segmentUrl)
+            if not CreateObject("roRegex","^https://([a-z0-9-]+\.)?vimeos\.(net|zip)/[^?#]+\.ts(\?[^#]*)?$","i").isMatch(segmentUrl)
                 playlistValid = false
                 exit for
             end if
@@ -304,7 +304,10 @@ sub openRequest()
             child.live = false
             child.httpCertificatesFile = "common:/certs/ca-bundle.crt"
             child.httpHeaders = requestHeaders
-            duration = orbitInteger(segment.duration,60,0)
+            duration = 0
+            if plusNativeNumeric(segment.duration)
+                if segment.duration > 0 and segment.duration <= 60 then duration = int(segment.duration)
+            end if
             if duration > 0 then child.length = duration
             playlistContent.appendChild(child)
             m.playlistDurations.push(duration)
