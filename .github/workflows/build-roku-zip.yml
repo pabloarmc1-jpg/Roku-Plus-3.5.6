@@ -2,7 +2,7 @@ name: Build Roku Plus ZIP
 on:
   push:
     branches:
-      - fix/hls-audio-diagnostics-3.5.19
+      - fix/hls-native-startup-diagnostics-3.5.20
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,11 +16,11 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.19.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.19.zip .
+          zip -qr /tmp/Roku-Plus-3.5.20.zip . -x './.git/*' './.github/*' '*.zip'
+          mv /tmp/Roku-Plus-3.5.20.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.19
-          path: Roku-Plus-3.5.19.zip
+          name: Roku-Plus-3.5.20
+          path: Roku-Plus-3.5.20.zip
           if-no-files-found: error
           retention-days: 7

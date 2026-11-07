@@ -143,7 +143,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 if response.cancelled then return rpHdTaskFailure(answer,response)
                 if response.ok
                     master = rpHdOnlineMaster(response.body,masterUrl)
-                    print "[RokuPlus hls] master variants="; master.variants.count(); " audioTracks="; master.audioTracks.count(); " encrypted="; master.encrypted
+                    print "[RokuPlus hls] master variants="; master.variants.count(); " audioTracks="; master.audioTracks.count(); " mediaTags="; master.mediaTagCount; " audioMediaTags="; master.audioMediaTagCount; " audioGroups="; master.audioGroupCount; " variantAudioGroups="; master.variantAudioGroupCount; " encrypted="; master.encrypted
                     for each audioTrack in master.audioTracks
                         uriState = "missing"
                         if audioTrack.url <> "" then uriState = "present"

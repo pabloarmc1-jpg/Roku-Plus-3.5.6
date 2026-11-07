@@ -3,7 +3,11 @@
 ' No network, provider resolution, registry, player or SceneGraph operations.
 
 function rpHdLibrary() as object
-    return rpHdLibraryFromText(ReadAsciiFile("pkg:/data/hd-library.json"))
+    path = "pkg:/data/hd-library.json"
+    files = CreateObject("roFileSystem")
+    if not files.exists(path) then return rpHdLibraryFromText(invalid)
+    body = ReadAsciiFile(path)
+    return rpHdLibraryFromText(body)
 end function
 
 function rpHdLibraryFromText(body as dynamic) as object
