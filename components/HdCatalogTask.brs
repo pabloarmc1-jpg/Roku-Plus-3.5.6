@@ -156,6 +156,15 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                     end for
                     print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
                     choices = rpHdTaskStableVariants(candidates,decoderAccept)
+                    ' Diagnostic build 3.5.21: isolate the 480-line variant for first-frame testing.
+                    ' The comparison build will change this target to 528.
+                    diagnosticHeight = 480
+                    diagnosticChoices = []
+                    for each diagnosticChoice in choices
+                        if diagnosticChoice.height = diagnosticHeight then diagnosticChoices.push(diagnosticChoice)
+                    end for
+                    choices = diagnosticChoices
+                    print "[RokuPlus hls-test] targetHeight="; diagnosticHeight; " eligibleVariants="; choices.count()
                     variantOffset = 0
                     if choices.count() > 0 then variantOffset = (retry \ count) mod choices.count()
                     for qualityAttempt = 0 to choices.count()-1
