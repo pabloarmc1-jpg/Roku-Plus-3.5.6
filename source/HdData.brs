@@ -4,8 +4,7 @@
 
 function rpHdLibrary() as object
     path = "pkg:/data/hd-library.json"
-    files = CreateObject("roFileSystem")
-    if not files.exists(path) then return rpHdLibraryFromText(invalid)
+    ' Do not create roFileSystem here: this function can run on the RENDER thread.
     body = ReadAsciiFile(path)
     return rpHdLibraryFromText(body)
 end function
