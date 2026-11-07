@@ -680,6 +680,67 @@ end function
 
 ' Inspect the beginning of an HLS TS segment to determine whether the
 ' video elementary stream exposes SPS/PPS and an IDR frame near startup.
+
+' Inspect MPEG-TS continuity and clock markers in the initial sample.
+' This is diagnostic only: it does not change stream acceptance or playback.
+function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPid as integer) as object
+    result = {videoPackets:0,audioPackets:0,videoContinuityErrors:0,audioContinuityErrors:0,videoPtsCount:0,audioPtsCount:0,pcrCount:0,videoFirstPts:false,audioFirstPts:false,discontinuityFlags:0}
+    if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
+    if data.count() < 188*4 or data.count() > 131072 then return result
+    previousVideo = -1
+    previousAudio = -1
+    for offset = 0 to data.count()-188 step 188
+        if data[offset] <> 71 then return result
+        b1 = orbitInteger(data[offset+1],255,-1)
+        b2 = orbitInteger(data[offset+2],255,-1)
+        b3 = orbitInteger(data[offset+3],255,-1)
+        if b1 < 0 or b2 < 0 or b3 < 0 then return result
+        pid = (b1 mod 32)*256+b2
+        control = (b3 \ 16) mod 4
+        cc = b3 mod 16
+        if control = 0 then return result
+        adaptationLength = 0
+        flags = 0
+        if control = 2 or control = 3
+            adaptationLength = orbitInteger(data[offset+4],183,-1)
+            if adaptationLength < 0 then return result
+            if adaptationLength > 0 then flags = orbitInteger(data[offset+5],255,0)
+            if adaptationLength > 0 and (flags mod 32) >= 16 and (flags mod 32) < 32 then result.pcrCount++
+            if adaptationLength > 0 and (flags mod 2) = 1 then result.discontinuityFlags++
+        end if
+        if pid = videoPid or pid = audioPid
+            if control = 1 or control = 3
+                if pid = videoPid
+                    result.videoPackets++
+                    if previousVideo >= 0 and cc <> ((previousVideo+1) mod 16) and not (adaptationLength > 0 and (flags mod 2) = 1) then result.videoContinuityErrors++
+                    previousVideo = cc
+                else
+                    result.audioPackets++
+                    if previousAudio >= 0 and cc <> ((previousAudio+1) mod 16) and not (adaptationLength > 0 and (flags mod 2) = 1) then result.audioContinuityErrors++
+                    previousAudio = cc
+                end if
+                payloadAt = offset+4
+                if control = 3 then payloadAt += 1+adaptationLength
+                if payloadAt+9 < offset+188 and data[payloadAt] = 0 and data[payloadAt+1] = 0 and data[payloadAt+2] = 1
+                    if data[payloadAt+7] >= 128
+                        ptsFlag = (data[payloadAt+7] \ 128) mod 2
+                        if ptsFlag = 1
+                            if pid = videoPid
+                                result.videoPtsCount++
+                                if not result.videoFirstPts then result.videoFirstPts = true
+                            else
+                                result.audioPtsCount++
+                                if not result.audioFirstPts then result.audioFirstPts = true
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end for
+    return result
+end function
+
 function rpHdOnlineTsStartupProfile(data as dynamic) as object
     profile = {valid:false,sampleBytes:0,pat:false,pmt:false,videoPid:-1,audioPid:-1,firstVideoPesByte:-1,firstNalType:0,firstVclType:0,idrPresent:false,idrByte:-1,spsPresent:false,ppsPresent:false}
     if type(data) <> "roByteArray" and type(data) <> "roArray" then return profile
