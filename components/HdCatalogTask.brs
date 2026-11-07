@@ -201,11 +201,12 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            ' Native HLS experiment: pass the validated media playlist itself
-                            ' to Roku Video so the HLS engine owns all segment transitions.
-                            playbackPlaylistKind = "native-hls"
-                            playbackStreamFormat = "hls"
-                            answer.url = selected.url
+                            ' 3.5.30 diagnostic: play the exact first TS segment from the
+                            ' selected media playlist. This isolates TS decoding from HLS startup.
+                            ' It is intentionally a one-segment test, not continuous playback.
+                            playbackPlaylistKind = "first-segment-ts-diagnostic"
+                            playbackStreamFormat = "ts"
+                            answer.url = segmentUrl
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
@@ -222,7 +223,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             end for
                             print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
                             print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
-                            print "[RokuPlus hls-test] nativePlaylist=passed-to-roku"
+                            print "[RokuPlus hls-test] diagnostic=first-segment-ts passed-to-roku"
                             answer.attemptUsed = embedIndex+variantIndex*count
                             answer.ok = true
                             answer.message = ""
