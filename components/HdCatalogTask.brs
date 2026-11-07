@@ -923,9 +923,9 @@ function rpHdTaskRangeResponse(headers as dynamic, bytes as integer) as boolean
     end for
     range = CreateObject("roRegex","^bytes 0-([0-9]+)/([0-9]+|\*)$","i").match(value.trim())
     if range.count() < 3 then return false
-    lastByte = orbitInteger(range[1],65535,-1)
+    lastByte = orbitInteger(range[1],131071,-1)
     if lastByte < 0 or bytes <> lastByte+1 then return false
-    return bytes > 0 and bytes <= 65536
+    return bytes > 0 and bytes <= 131072
 end function
 
 function rpHdTaskFileSize(info as dynamic) as integer
