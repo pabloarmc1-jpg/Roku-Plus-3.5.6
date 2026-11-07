@@ -32,11 +32,11 @@ jobs:
       - name: Create source package
         run: |
           zip -qr /tmp/Roku-Plus-3.5.39.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.38.zip .
+          mv /tmp/Roku-Plus-3.5.39.zip .
       - uses: actions/upload-artifact@v4
         with:
           name: Roku-Plus-3.5.39
-          path: Roku-Plus-3.5.38.zip
+          path: Roku-Plus-3.5.39.zip
           if-no-files-found: error
           retention-days: 7
 
