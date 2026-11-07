@@ -3,6 +3,7 @@ sub init()
     m.top.focusable = true
     m.top.visible = false
     m.decoder = m.top.findNode("decoder")
+    if m.decoder.hasField("decoderStats") then m.decoder.observeField("decoderStats", "onNativeDecoderStats")
     if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
@@ -52,6 +53,7 @@ sub init()
     m.firstNative = invalid
     m.firstRendered = invalid
     m.lastBuffer = invalid
+    m.watchdogReason = ""
     m.nativePollAt = -1000
     m.nativePollSignature = ""
     m.watch = invalid
@@ -186,6 +188,7 @@ sub openRequest()
     m.nativePollSignature = ""
     m.firstNative = invalid
     m.firstRendered = invalid
+    m.watchdogReason = ""
     m.failed = false
     m.closing = false
     m.alreadyClosed = false
@@ -437,12 +440,19 @@ sub onNativeStreamDetails()
     emitDiagnostic("native_stream_details")
 end sub
 
+sub onNativeDecoderStats()
+    if not m.mediaOpen or m.closing then return
+    emitDiagnostic("decoder_stats")
+end sub
+
 function nativeStreamSnapshot() as object
     snapshot = {}
     if m.decoder = invalid then return snapshot
     ' Report field support separately from populated values.
     snapshot.errorCodeSupported = m.decoder.hasField("errorCode")
     snapshot.errorInfoSupported = m.decoder.hasField("errorInfo")
+    snapshot.errorMsgSupported = m.decoder.hasField("errorMsg")
+    snapshot.errorStrSupported = m.decoder.hasField("errorStr")
     snapshot.completedStreamInfoSupported = m.decoder.hasField("completedStreamInfo")
     snapshot.decoderStatsSupported = m.decoder.hasField("decoderStats")
     snapshot.audioFormatSupported = m.decoder.hasField("audioFormat")
@@ -456,6 +466,14 @@ function nativeStreamSnapshot() as object
     if m.decoder.hasField("errorCode")
         value = m.decoder.errorCode
         if value <> invalid then snapshot.errorCode = value
+    end if
+    if m.decoder.hasField("errorMsg")
+        value = plusSafeNativeText(m.decoder.errorMsg)
+        if value <> "" then snapshot.errorMsg = value
+    end if
+    if m.decoder.hasField("errorStr")
+        value = plusSafeNativeText(m.decoder.errorStr)
+        if value <> "" then snapshot.errorStr = value
     end if
     if m.decoder.hasField("errorInfo")
         info = m.decoder.errorInfo
@@ -521,6 +539,7 @@ function nativeStreamSnapshot() as object
     end if
     if m.decoder.hasField("decoderStats")
         stats = m.decoder.decoderStats
+        snapshot.decoderStatsType = type(stats)
         if type(stats) = "roAssociativeArray"
             sample = {}
             for each field in ["frameDropCount","renderCount","repeatCount","streamErrorCount"]
@@ -709,6 +728,7 @@ sub onPulse()
         sample = renderedFields()
         reason = plusWatchdogObserve(m.watch,m.decoder.state,m.decoder.position,sample.video,m.wantPaused,m.ticket <> invalid,now)
         if reason <> ""
+            m.watchdogReason = reason
             m.failed = true
             m.ticket = invalid
             m.pendingSeek = invalid
@@ -981,6 +1001,8 @@ sub emitDiagnostic(reason as string)
     provider = plusSafePlaybackIdentity(m.current.provider,true)
     if itemId <> "" then entry.itemId = itemId
     if provider <> "" then entry.provider = provider
+    entry.failed = m.failed
+    if m.watchdogReason <> "" then entry.watchdogReason = m.watchdogReason
     if m.decoder.state = "error" then entry.nativeError = plusSafeNativeError(m.decoder.errorCode,m.decoder.errorInfo)
     nativeDetails = nativeStreamSnapshot()
     if nativeDetails.count() > 0 then entry.native = nativeDetails
