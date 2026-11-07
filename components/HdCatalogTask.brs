@@ -203,17 +203,11 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if playable
                             ' Local Roku debug log: expose validated TS segment for external Stream Tester comparison.
                             print "[RokuPlus hls-test] validatedFirstSegmentUrl="; segmentUrl
-                            ' Keep the master when an external audio rendition must be synchronized.
-                            ' For muxed audio with no external rendition, test Roku's native HLS
-                            ' path using the exact child playlist whose first TS segment was validated.
-                            playbackPlaylistUrl = masterUrl
-                            playbackPlaylistKind = "direct-ts"
+                            ' Diagnostic 3.5.27: play only the first TS segment already validated above.
+                            ' This isolates the Roku TS decoder from the native HLS playlist pipeline.
+                            playbackPlaylistUrl = segmentUrl
+                            playbackPlaylistKind = "first-segment"
                             playbackStreamFormat = "ts"
-                            if master.audioTracks.count() = 0 and selected.audioGroup = ""
-                                playbackPlaylistUrl = selected.url
-                                playbackPlaylistKind = "variant"
-                                playbackStreamFormat = "hls"
-                            end if
                             answer.url = playbackPlaylistUrl
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
