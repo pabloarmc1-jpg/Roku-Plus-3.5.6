@@ -279,10 +279,10 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
                 if pendingDuration < 0 then pendingDuration = 0
             else if left(line,22) = "#EXT-X-TARGETDURATION:"
                 targetDuration = Val(mid(line,23))
-                else if left(line,21) = "#EXT-X-PLAYLIST-TYPE:"
-                    playlistType = lcase(mid(line,22))
-                else if left(line,15) = "#EXT-X-VERSION:"
-                    version = Val(mid(line,16))
+            else if left(line,21) = "#EXT-X-PLAYLIST-TYPE:"
+                playlistType = lcase(mid(line,22))
+            else if left(line,15) = "#EXT-X-VERSION:"
+                version = Val(mid(line,16))
             else if left(line,14) = "#EXT-X-ENDLIST"
                 hasEndList = true
             else if left(line,27) = "#EXT-X-INDEPENDENT-SEGMENTS"
@@ -310,12 +310,13 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
                 end if
                 pendingDuration = 0
             end if
-        end for
-        print "[RokuPlus hls-manifest] lines="; lineCount; " segments="; segmentCount; " totalDuration="; totalDuration; " targetDuration="; targetDuration; " playlistType="; playlistType; " version="; version
-        print "[RokuPlus hls-manifest] endList="; hasEndList; " independent="; hasIndependent; " map="; hasMap; " byteRange="; hasByteRange; " discontinuities="; discontinuities; " keyCount="; keyCount; " encrypted="; encrypted
-        if firstSegment <> "" then print "[RokuPlus hls-manifest] firstSegment="; firstSegment
-        if secondSegment <> "" then print "[RokuPlus hls-manifest] secondSegment="; secondSegment
-        if lastSegment <> "" then print "[RokuPlus hls-manifest] lastSegment="; lastSegment
+        end if
+    end for
+    print "[RokuPlus hls-manifest] lines="; lineCount; " segments="; segmentCount; " totalDuration="; totalDuration; " targetDuration="; targetDuration; " playlistType="; playlistType; " version="; version
+    print "[RokuPlus hls-manifest] endList="; hasEndList; " independent="; hasIndependent; " map="; hasMap; " byteRange="; hasByteRange; " discontinuities="; discontinuities; " keyCount="; keyCount; " encrypted="; encrypted
+    if firstSegment <> "" then print "[RokuPlus hls-manifest] firstSegment="; firstSegment
+    if secondSegment <> "" then print "[RokuPlus hls-manifest] secondSegment="; secondSegment
+    if lastSegment <> "" then print "[RokuPlus hls-manifest] lastSegment="; lastSegment
 end sub
 
 ' Return only a host for diagnostics; never print media URLs, paths, or tokens.
