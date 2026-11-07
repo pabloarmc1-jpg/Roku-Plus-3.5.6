@@ -195,6 +195,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                         playable = rpHdOnlineMuxedAvcAac(sample.bytes)
                                         candidateStage = "sample_rejected"
                                         if playable then candidateStage = "accepted"
+                                        startupProfile = rpHdOnlineTsStartupProfile(sample.bytes)
+                                        print "[RokuPlus ts-startup] sampleBytes="; startupProfile.sampleBytes; " pat="; startupProfile.pat; " pmt="; startupProfile.pmt; " videoPid="; startupProfile.videoPid; " audioPid="; startupProfile.audioPid; " videoPesByte="; startupProfile.firstVideoPesByte
+                                        print "[RokuPlus ts-startup] firstVclType="; startupProfile.firstVclType; " sps="; startupProfile.spsPresent; " pps="; startupProfile.ppsPresent; " idr="; startupProfile.idrPresent; " idrByte="; startupProfile.idrByte
                                     end if
                                 end if
                             end if
