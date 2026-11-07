@@ -680,7 +680,7 @@ end function
 
 
 function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPid as integer) as object
-    result = {videoPackets:0,audioPackets:0,videoContinuityErrors:0,audioContinuityErrors:0,videoPesStarts:0,audioPesStarts:0,videoPtsCount:0,audioPtsCount:0,videoDtsCount:0,audioDtsCount:0,pcrCount:0,discontinuityFlags:0}
+    result = {videoPackets:0,audioPackets:0,videoContinuityErrors:0,audioContinuityErrors:0,videoPesStarts:0,audioPesStarts:0,videoPtsCount:0,audioPtsCount:0,videoDtsCount:0,audioDtsCount:0,pcrCount:0,discontinuityFlags:0,firstVideoPts:-1,lastVideoPts:-1,firstAudioPts:-1,lastAudioPts:-1,firstPcr:-1,lastPcr:-1}
     if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
     if data.count() < 188*4 or data.count() > 131072 then return result
     previousVideo = -1
@@ -702,7 +702,12 @@ function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPi
             adaptationLength = orbitInteger(data[offset+4],183,-1)
             if adaptationLength < 0 then return result
             if adaptationLength > 0 then flags = orbitInteger(data[offset+5],255,0)
-            if adaptationLength > 0 and (flags mod 32) >= 16 and (flags mod 32) < 32 then result.pcrCount++
+            if adaptationLength >= 7 and (flags mod 32) >= 16 and (flags mod 32) < 32
+                pcrBase = data[offset+6]*33554432 + data[offset+7]*131072 + data[offset+8]*512 + data[offset+9]*2 + (data[offset+10] \ 128)
+                result.pcrCount++
+                if result.firstPcr < 0 then result.firstPcr = pcrBase
+                result.lastPcr = pcrBase
+            end if
             if adaptationLength > 0 and (flags mod 2) = 1 then result.discontinuityFlags++
         end if
         if pid = videoPid or pid = audioPid
@@ -722,7 +727,21 @@ function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPi
                     if pid = videoPid then result.videoPesStarts++ else result.audioPesStarts++
                     flagsByte = orbitInteger(data[payloadAt+7],255,0)
                     if (flagsByte \ 128) mod 2 = 1
-                        if pid = videoPid then result.videoPtsCount++ else result.audioPtsCount++
+                        pts0 = data[payloadAt+9]
+                        pts1 = data[payloadAt+10]
+                        pts2 = data[payloadAt+11]
+                        pts3 = data[payloadAt+12]
+                        pts4 = data[payloadAt+13]
+                        ptsValue = ((pts0 \ 2) mod 8)*1073741824 + pts1*4194304 + ((pts2 \ 2) mod 128)*32768 + pts3*128 + ((pts4 \ 2) mod 128)
+                        if pid = videoPid
+                            result.videoPtsCount++
+                            if result.firstVideoPts < 0 then result.firstVideoPts = ptsValue
+                            result.lastVideoPts = ptsValue
+                        else
+                            result.audioPtsCount++
+                            if result.firstAudioPts < 0 then result.firstAudioPts = ptsValue
+                            result.lastAudioPts = ptsValue
+                        end if
                     end if
                     if (flagsByte \ 64) mod 2 = 1
                         if pid = videoPid then result.videoDtsCount++ else result.audioDtsCount++
