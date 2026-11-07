@@ -158,7 +158,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                     choices = rpHdTaskStableVariants(candidates,decoderAccept)
                     ' Diagnostic build 3.5.24: test native HLS with the 528-line child playlist.
                     ' Build 3.5.23 confirmed that the first segment of the 480-line variant renders as direct TS.
-                    diagnosticHeight = 528
+                    diagnosticHeight = 480
                     diagnosticChoices = []
                     for each diagnosticChoice in choices
                         if diagnosticChoice.height = diagnosticHeight then diagnosticChoices.push(diagnosticChoice)
@@ -207,8 +207,8 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             ' For muxed audio with no external rendition, test Roku's native HLS
                             ' path using the exact child playlist whose first TS segment was validated.
                             playbackPlaylistUrl = masterUrl
-                            playbackPlaylistKind = "master"
-                            playbackStreamFormat = "hls"
+                            playbackPlaylistKind = "direct-ts"
+                            playbackStreamFormat = "ts"
                             if master.audioTracks.count() = 0 and selected.audioGroup = ""
                                 playbackPlaylistUrl = selected.url
                                 playbackPlaylistKind = "variant"
