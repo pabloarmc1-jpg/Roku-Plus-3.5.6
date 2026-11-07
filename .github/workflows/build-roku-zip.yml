@@ -2,7 +2,7 @@ name: Build Roku Plus ZIP
 on:
   push:
     branches:
-      - fix/decoder-stats-order-3.5.17
+      - fix/hls-master-audio-selection-3.5.18
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,10 +16,11 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr Roku-Plus-3.5.17.zip . -x '.git/*' '.github/*' 'Roku-Plus-3.5.17.zip'
+          zip -qr /tmp/Roku-Plus-3.5.18.zip . -x './.git/*' './.github/*' '*.zip'
+          mv /tmp/Roku-Plus-3.5.18.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.17
-          path: Roku-Plus-3.5.17.zip
+          name: Roku-Plus-3.5.18
+          path: Roku-Plus-3.5.18.zip
           if-no-files-found: error
           retention-days: 7
