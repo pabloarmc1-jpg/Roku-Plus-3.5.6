@@ -524,8 +524,8 @@ function rpHdTaskFailure(answer as object, response as object) as object
     return answer
 end function
 
-' The sampled Vimeos variants mux Spanish AAC; when external audio is declared,
-' require a Spanish default for the selected group as an additional guard.
+' A master playlist may link each video variant to an external audio group.
+' Only accept a variant when that linked group declares Spanish as its default.
 function rpHdTaskSpanishAudio(master as object, variant as object) as boolean
     if variant.audioGroup = "" then return true
     for each track in master.audioTracks
