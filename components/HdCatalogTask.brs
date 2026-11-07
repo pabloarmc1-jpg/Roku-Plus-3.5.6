@@ -196,33 +196,30 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                         candidateStage = "sample_rejected"
                                         if playable then candidateStage = "accepted"
 
-                                        ' Diagnostic 3.5.32: compare TS startup and timing at the first segment boundary.
-                                        ' This does not change stream selection or playback acceptance.
+                                        ' Diagnostic 3.5.33: compare the final TS packets of segment 1 with the first packets of segment 2.
+                                        ' This remains read-only and does not alter playback selection.
                                         boundarySegments = rpHdTaskSegmentList(child.body,selected.url)
                                         if boundarySegments.count() > 1
                                             secondSample = fetcher(boundarySegments[1],"sample",mediaReferer)
+                                            tailSample = fetcher(segmentUrl,"sample-tail",mediaReferer)
                                             if secondSample.cancelled then return rpHdTaskFailure(answer,secondSample)
-                                            if secondSample.ok
+                                            if tailSample.cancelled then return rpHdTaskFailure(answer,tailSample)
+                                            if secondSample.ok and tailSample.ok
                                                 firstProfile = rpHdOnlineTsStartupProfile(sample.bytes)
                                                 secondProfile = rpHdOnlineTsStartupProfile(secondSample.bytes)
-                                                print "[RokuPlus ts-boundary] first valid="; firstProfile.valid; " videoPid="; firstProfile.videoPid; " audioPid="; firstProfile.audioPid; " idr="; firstProfile.idrPresent; " sps="; firstProfile.spsPresent; " pps="; firstProfile.ppsPresent
-                                                print "[RokuPlus ts-boundary] second valid="; secondProfile.valid; " videoPid="; secondProfile.videoPid; " audioPid="; secondProfile.audioPid; " idr="; secondProfile.idrPresent; " sps="; secondProfile.spsPresent; " pps="; secondProfile.ppsPresent
+                                                print "[RokuPlus ts-boundary] first valid="; firstProfile.valid; " videoPid="; firstProfile.videoPid; " audioPid="; firstProfile.audioPid
+                                                print "[RokuPlus ts-boundary] second valid="; secondProfile.valid; " videoPid="; secondProfile.videoPid; " audioPid="; secondProfile.audioPid
                                                 if firstProfile.videoPid > 0 and firstProfile.audioPid > 0
-                                                    firstTiming = rpHdOnlineTsTimingProfile(sample.bytes,firstProfile.videoPid,firstProfile.audioPid)
-                                                    secondTiming = rpHdOnlineTsTimingProfile(secondSample.bytes,firstProfile.videoPid,firstProfile.audioPid)
-                                                    print "[RokuPlus ts-boundary] first packets video="; firstTiming.videoPackets; " audio="; firstTiming.audioPackets
-                                                    print "[RokuPlus ts-boundary] first CC errors video="; firstTiming.videoContinuityErrors; " audio="; firstTiming.audioContinuityErrors
-                                                    print "[RokuPlus ts-boundary] first PES video="; firstTiming.videoPesStarts; " audio="; firstTiming.audioPesStarts
-                                                    print "[RokuPlus ts-boundary] first timestamps PTS video="; firstTiming.videoPtsCount; " audio="; firstTiming.audioPtsCount; " DTS video="; firstTiming.videoDtsCount; " audio="; firstTiming.audioDtsCount
-                                                    print "[RokuPlus ts-boundary] first PCR="; firstTiming.pcrCount; " discontinuities="; firstTiming.discontinuityFlags
-                                                    print "[RokuPlus ts-boundary] second packets video="; secondTiming.videoPackets; " audio="; secondTiming.audioPackets
-                                                    print "[RokuPlus ts-boundary] second CC errors video="; secondTiming.videoContinuityErrors; " audio="; secondTiming.audioContinuityErrors
-                                                    print "[RokuPlus ts-boundary] second PES video="; secondTiming.videoPesStarts; " audio="; secondTiming.audioPesStarts
-                                                    print "[RokuPlus ts-boundary] second timestamps PTS video="; secondTiming.videoPtsCount; " audio="; secondTiming.audioPtsCount; " DTS video="; secondTiming.videoDtsCount; " audio="; secondTiming.audioDtsCount
-                                                    print "[RokuPlus ts-boundary] second PCR="; secondTiming.pcrCount; " discontinuities="; secondTiming.discontinuityFlags
+                                                    tailTiming = rpHdOnlineTsTimingProfile(tailSample.bytes,firstProfile.videoPid,firstProfile.audioPid)
+                                                    headTiming = rpHdOnlineTsTimingProfile(secondSample.bytes,firstProfile.videoPid,firstProfile.audioPid)
+                                                    print "[RokuPlus ts-boundary] tail PTS video first="; tailTiming.firstVideoPts; " last="; tailTiming.lastVideoPts; " audio first="; tailTiming.firstAudioPts; " last="; tailTiming.lastAudioPts
+                                                    print "[RokuPlus ts-boundary] head PTS video first="; headTiming.firstVideoPts; " last="; headTiming.lastVideoPts; " audio first="; headTiming.firstAudioPts; " last="; headTiming.lastAudioPts
+                                                    print "[RokuPlus ts-boundary] tail PCR first="; tailTiming.firstPcr; " last="; tailTiming.lastPcr; " count="; tailTiming.pcrCount
+                                                    print "[RokuPlus ts-boundary] head PCR first="; headTiming.firstPcr; " last="; headTiming.lastPcr; " count="; headTiming.pcrCount
+                                                    print "[RokuPlus ts-boundary] tail packet-errors video="; tailTiming.videoContinuityErrors; " audio="; tailTiming.audioContinuityErrors; " head packet-errors video="; headTiming.videoContinuityErrors; " audio="; headTiming.audioContinuityErrors
                                                 end if
                                             else
-                                                print "[RokuPlus ts-boundary] second_sample=unavailable"
+                                                print "[RokuPlus ts-boundary] boundary_samples tailOk="; tailSample.ok; " headOk="; secondSample.ok; " tailMessage="; tailSample.message
                                             end if
                                         else
                                             print "[RokuPlus ts-boundary] second_segment=missing"
@@ -769,7 +766,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
         if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","").isMatch(endpoint) then return true
         return CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","").isMatch(endpoint)
     end if
-    if role = "media" or role = "sample" then return rpHdOnlineCdn(endpoint) <> ""
+    if role = "media" or role = "sample" or role = "sample-tail" then return rpHdOnlineCdn(endpoint) <> ""
     return false
 end function
 
@@ -812,6 +809,9 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     if role = "sample"
         transfer.addHeader("Range","bytes=0-65535")
         limit = 131072
+    else if role = "sample-tail"
+        transfer.addHeader("Range","bytes=-65612")
+        limit = 65612
     end if
     transfer.enableEncodings(true)
     transfer.setUrl(endpoint)
@@ -866,12 +866,14 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     end while
     if not finished then transfer.asyncCancel()
     successCode = code = 200
-    if role = "sample" then successCode = code = 206
+    if role = "sample" or role = "sample-tail" then successCode = code = 206
     if finished and successCode and not m.top.cancelRequested
         bytes = rpHdTaskFileSize(files.stat(filename))
         if bytes > 0 and bytes <= limit
-            if role = "sample"
-                if rpHdTaskRangeResponse(responseHeaders,bytes)
+            if role = "sample" or role = "sample-tail"
+                rangeOk = rpHdTaskRangeResponse(responseHeaders,bytes)
+                if role = "sample-tail" then rangeOk = rpHdTaskTailRangeResponse(responseHeaders,bytes)
+                if rangeOk
                     binary = CreateObject("roByteArray")
                     if binary.readFile(filename)
                         answer.bytes = binary
@@ -901,6 +903,23 @@ function rpHdTaskRangeResponse(headers as dynamic, bytes as integer) as boolean
     lastByte = orbitInteger(range[1],65535,-1)
     if lastByte < 0 or bytes <> lastByte+1 then return false
     return bytes > 0 and bytes <= 65536
+end function
+
+function rpHdTaskTailRangeResponse(headers as dynamic, bytes as integer) as boolean
+    if type(headers) <> "roAssociativeArray" then return false
+    value = ""
+    for each name in headers
+        if lcase(name) = "content-range" then value = orbitText(headers[name],120)
+    end for
+    range = CreateObject("roRegex","^bytes ([0-9]+)-([0-9]+)/([0-9]+)$","i").match(value.trim())
+    if range.count() < 4 then return false
+    firstByte = orbitInteger(range[1],2147483647,-1)
+    lastByte = orbitInteger(range[2],2147483647,-1)
+    totalBytes = orbitInteger(range[3],2147483647,-1)
+    if firstByte < 0 or lastByte < firstByte or totalBytes <= lastByte then return false
+    if bytes <> lastByte-firstByte+1 or bytes <> 65612 then return false
+    if (firstByte mod 188) <> 0 or (totalBytes mod 188) <> 0 then return false
+    return true
 end function
 
 function rpHdTaskFileSize(info as dynamic) as integer
