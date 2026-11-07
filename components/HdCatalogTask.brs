@@ -157,18 +157,36 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         answer.variantAttempts++
                         child = fetcher(selected.url,"media",mediaReferer)
                         if child.cancelled then return rpHdTaskFailure(answer,child)
+                        manifestInfo = {segmentCount:0,targetDuration:0,mediaSequence:0,firstSegmentDuration:0,discontinuities:0,hasMap:false,encrypted:false,endList:false}
+                        if child.ok then manifestInfo = rpHdTaskMediaManifestInfo(child.body,selected.url)
                         playable = child.ok and rpHdTaskMediaManifest(child.body,selected.url)
-                        if playable
-                            segmentUrl = rpHdTaskFirstSegment(child.body,selected.url)
-                            ' Only this tested TS path has an AVC/AAC byte validator.
-                            ' Codec labels alone must not send a dead or silent stream to Video.
-                            playable = rpHdTaskTsSegment(segmentUrl)
+                        segmentUrl = ""
+                        sampleBytes = 0
+                        sampleValid = false
+                        candidateStage = "child_fetch_failed"
+                        if child.ok
+                            candidateStage = "manifest_rejected"
                             if playable
-                                sample = fetcher(segmentUrl,"sample",mediaReferer)
-                                if sample.cancelled then return rpHdTaskFailure(answer,sample)
-                                playable = sample.ok and rpHdOnlineMuxedAvcAac(sample.bytes)
+                                candidateStage = "segment_not_ts"
+                                segmentUrl = rpHdTaskFirstSegment(child.body,selected.url)
+                                ' Only this tested TS path has an AVC/AAC byte validator.
+                                ' Codec labels alone must not send a dead or silent stream to Video.
+                                playable = rpHdTaskTsSegment(segmentUrl)
+                                if playable
+                                    candidateStage = "sample_fetch_failed"
+                                    sample = fetcher(segmentUrl,"sample",mediaReferer)
+                                    if sample.cancelled then return rpHdTaskFailure(answer,sample)
+                                    if sample.ok
+                                        if type(sample.bytes) = "roByteArray" or type(sample.bytes) = "roArray" then sampleBytes = sample.bytes.count()
+                                        sampleValid = rpHdOnlineMuxedAvcAac(sample.bytes)
+                                        playable = sampleValid
+                                        candidateStage = "sample_rejected"
+                                        if playable then candidateStage = "accepted"
+                                    end if
+                                end if
                             end if
                         end if
+                        print "[RokuPlus candidate] provider="; provider; " embedHost="; rpHdTaskSafeHost(embed.url); " mediaHost="; rpHdTaskSafeHost(selected.url); " width="; selected.width; " height="; selected.height; " bandwidth="; selected.bandwidth; " fps="; selected.fps; " codecs="; rpHdTaskSafeLabel(selected.codecs); " segments="; manifestInfo.segmentCount; " target="; manifestInfo.targetDuration; " mediaSeq="; manifestInfo.mediaSequence; " firstDur="; manifestInfo.firstSegmentDuration; " discontinuities="; manifestInfo.discontinuities; " map="; manifestInfo.hasMap; " encrypted="; manifestInfo.encrypted; " endList="; manifestInfo.endList; " sampleBytes="; sampleBytes; " sampleValid="; sampleValid; " result="; candidateStage
                         if playable
                             answer.url = selected.url
                             answer.streamFormat = "hls"
@@ -194,6 +212,56 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     m.hdProviderDeadline = 0
     answer.message = "No hay una fuente H.264 en español compatible disponible para este título. Prueba otra opción de la misma película."
     return answer
+end function
+
+' Summarize a media playlist without retaining or printing URLs.
+' This is diagnostic only; the existing validator remains authoritative.
+function rpHdTaskMediaManifestInfo(body as dynamic, baseUrl as string) as object
+    answer = {segmentCount:0,targetDuration:0,mediaSequence:0,firstSegmentDuration:0,discontinuities:0,hasMap:false,encrypted:false,endList:false}
+    text = orbitText(body,2097153)
+    if len(text) > 2097152 or left(text,7) <> "#EXTM3U" then return answer
+    if rpHdOnlineCdn(baseUrl) = "" then return answer
+    pendingDuration = invalid
+    for each raw in text.split(chr(10))
+        line = raw.trim()
+        if left(line,22) = "#EXT-X-TARGETDURATION:"
+            answer.targetDuration = orbitInteger(mid(line,23),86400)
+        else if left(line,22) = "#EXT-X-MEDIA-SEQUENCE:"
+            answer.mediaSequence = orbitInteger(mid(line,23),2147483647)
+        else if left(line,8) = "#EXTINF:"
+            durationText = mid(line,9)
+            comma = instr(1,durationText,",")
+            if comma > 0 then durationText = left(durationText,comma-1)
+            if CreateObject("roRegex","^[0-9]+(\.[0-9]+)?$","").isMatch(durationText)
+                pendingDuration = durationText.toFloat()
+            else
+                pendingDuration = invalid
+            end if
+        else if line = "#EXT-X-DISCONTINUITY"
+            answer.discontinuities++
+        else if left(line,11) = "#EXT-X-MAP:"
+            attrs = rpHdOnlineAttributes(line)
+            answer.hasMap = true
+            if rpHdOnlineJoin(baseUrl,orbitText(attrs.URI,4096)) = "" then return answer
+        else if left(line,11) = "#EXT-X-KEY:"
+            attrs = rpHdOnlineAttributes(line)
+            if attrs.METHOD <> "NONE" then answer.encrypted = true
+        else if line = "#EXT-X-ENDLIST"
+            answer.endList = true
+        else if line <> "" and left(line,1) <> "#"
+            if rpHdOnlineJoin(baseUrl,line) = "" then return answer
+            answer.segmentCount++
+            if answer.segmentCount = 1 and pendingDuration <> invalid then answer.firstSegmentDuration = pendingDuration
+            pendingDuration = invalid
+        end if
+    end for
+    return answer
+end function
+
+function rpHdTaskSafeLabel(value as dynamic) as string
+    clean = orbitText(value,120)
+    clean = CreateObject("roRegex","[^A-Za-z0-9.,_-]","").replaceAll(clean,"_")
+    return left(clean,80)
 end function
 
 ' Return only a host for diagnostics; never print media URLs, paths, or tokens.
