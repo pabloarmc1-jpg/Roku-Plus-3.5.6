@@ -191,6 +191,13 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    m.segmentUrls = invalid
+    m.segmentIndex = 0
+    m.segmentMode = false
+    if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
+        m.segmentUrls = supplied.segmentUrls
+        m.segmentMode = true
+    end if
     m.ticket = invalid
     m.pendingSeek = invalid
     m.actionUntil = 0
@@ -315,6 +322,51 @@ sub closePlayback()
     m.top.closed = true
 end sub
 
+sub advanceSequentialSegment() as boolean
+    if not m.segmentMode or type(m.segmentUrls) <> "roArray" then return false
+    nextIndex = m.segmentIndex + 1
+    if nextIndex >= m.segmentUrls.count() then return false
+    nextUrl = m.segmentUrls[nextIndex]
+    if GetInterface(nextUrl,"ifString") = invalid or left(nextUrl,8) <> "https://" then return false
+    media = CreateObject("roSGNode","ContentNode")
+    media.url = nextUrl
+    media.title = m.titleText.text
+    media.streamFormat = "ts"
+    media.live = false
+    media.httpCertificatesFile = "common:/certs/ca-bundle.crt"
+    requestHeaders = CreateObject("roArray",2,true)
+    requestHeaders.push("User-Agent: RokuPlus/1.0")
+    if type(m.current) = "roAssociativeArray" and type(m.current.mediaHeaders) = "roAssociativeArray"
+        agent = m.current.mediaHeaders["User-Agent"]
+        if GetInterface(agent,"ifString") <> invalid
+            if len(agent) > 0 and len(agent) <= 512 and instr(1,agent,chr(13)) = 0 and instr(1,agent,chr(10)) = 0 then requestHeaders[0] = "User-Agent: "+agent
+        end if
+        referer = m.current.mediaHeaders["Referer"]
+        if GetInterface(referer,"ifString") <> invalid
+            if len(referer) <= 2048 and instr(1,referer,chr(13)) = 0 and instr(1,referer,chr(10)) = 0
+                if left(referer,7) = "http://" or left(referer,8) = "https://" then requestHeaders.push("Referer: "+referer)
+            end if
+        end if
+    end if
+    media.httpHeaders = requestHeaders
+    m.segmentIndex = nextIndex
+    m.phase = "segment_transition"
+    m.failed = false
+    m.ticket = invalid
+    m.pendingSeek = invalid
+    m.resumePending = invalid
+    m.wantPaused = false
+    m.lastProgressAt = -1000
+    m.lastBuffer = invalid
+    m.bufferSince = 0
+    m.decoder.visible = true
+    m.decoder.content = media
+    m.decoder.control = "play"
+    print "[RokuPlus segment] advance index=";m.segmentIndex+1;" total=";m.segmentUrls.count()
+    emitDiagnostic("segment_advance")
+    return true
+end sub
+
 sub onDecoderState()
     if not m.mediaOpen or m.closing then return
     m.phase = m.decoder.state
@@ -355,6 +407,7 @@ sub onDecoderState()
         if m.failed
             revealTransport()
         else
+            if advanceSequentialSegment() then return
             publishProgress(true)
             closePlayback()
             return
@@ -621,6 +674,7 @@ function nativeStreamSnapshot() as object
 end function
 
 sub publishProgress(force = false as boolean)
+    if m.segmentMode and m.segmentIndex < m.segmentUrls.count()-1 then return
     now = m.monotonic.totalMilliseconds()
     if not force and now - m.lastProgressAt < 500 then return
     m.lastProgressAt = now
