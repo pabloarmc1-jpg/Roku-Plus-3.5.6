@@ -14,6 +14,7 @@ on:
       - test/hls-timestamp-boundary-3.5.33
       - test/hls-second-segment-ts-3.5.34
       - test/hls-sequential-ts-3.5.35
+      - test/hls-native-playlist-ts-3.5.36
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,11 +28,11 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.35.zip . -x './.git/*' './.github/*' '*.zip'
+          zip -qr /tmp/Roku-Plus-3.5.36.zip . -x './.git/*' './.github/*' '*.zip'
           mv /tmp/Roku-Plus-3.5.35.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.35
+          name: Roku-Plus-3.5.36
           path: Roku-Plus-3.5.35.zip
           if-no-files-found: error
           retention-days: 7
