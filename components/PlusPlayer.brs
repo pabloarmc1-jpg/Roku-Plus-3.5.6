@@ -542,9 +542,26 @@ sub onNativeAudioTrackDetails()
     emitDiagnostic("native_audio_tracks")
 end sub
 
+function plusNativeUrlHost(value as dynamic) as string
+    if GetInterface(value,"ifString") = invalid then return ""
+    if len(value) = 0 or len(value) > 4096 then return ""
+    match = CreateObject("roRegex","^https?://([^/:?#]+)","i").match(value)
+    if match.count() < 2 then return ""
+    host = lcase(match[1])
+    if len(host) > 128 then return ""
+    return host
+end function
+
 function nativeStreamSnapshot() as object
     snapshot = {}
     if m.decoder = invalid then return snapshot
+    ' The requested source is described without logging its URL or signed query.
+    if type(m.current) = "roAssociativeArray"
+        sourceFormat = m.current.streamFormat
+        if GetInterface(sourceFormat,"ifString") <> invalid then snapshot.requestedFormat = sourceFormat
+        sourceHost = plusNativeUrlHost(m.current.url)
+        if sourceHost <> "" then snapshot.requestedHost = sourceHost
+    end if
     ' Report field support separately from populated values.
     snapshot.errorCodeSupported = m.decoder.hasField("errorCode")
     snapshot.errorInfoSupported = m.decoder.hasField("errorInfo")
@@ -622,9 +639,11 @@ function nativeStreamSnapshot() as object
         snapshot.streamingSegmentPresent = type(segment) = "roAssociativeArray" and segment.count() > 0
         if type(segment) = "roAssociativeArray"
             sample = {}
-            for each field in ["hdrModeStr","segBitrateBps","segSequence","segStart","segType","segTypeStr","latency","width","height"]
+            for each field in ["hdrModeStr","segBitrateBps","segSequence","segStart","segType","segTypeStr","latency","width","height","path"]
                 if segment[field] <> invalid then sample[field] = segment[field]
             end for
+            segmentHost = plusNativeUrlHost(segment.segUrl)
+            if segmentHost <> "" then sample.segUrlHost = segmentHost
             if sample.count() > 0 then snapshot.streamingSegment = sample
         end if
     end if
@@ -636,6 +655,8 @@ function nativeStreamSnapshot() as object
             for each field in ["Status","SegSequence","DownloadDuration","SegSize","SegType","BitrateBPS","SegStart","SegDuration","Width","Height"]
                 if segment[field] <> invalid then sample[field] = segment[field]
             end for
+            segmentHost = plusNativeUrlHost(segment.SegUrl)
+            if segmentHost <> "" then sample.SegUrlHost = segmentHost
             if sample.count() > 0 then snapshot.downloadedSegment = sample
         end if
     end if
@@ -646,6 +667,8 @@ function nativeStreamSnapshot() as object
             for each field in ["isUnderrun","isResume","measuredBItrate","streamBitrate"]
                 if info[field] <> invalid then stream[field] = info[field]
             end for
+            streamHost = plusNativeUrlHost(info.streamUrl)
+            if streamHost <> "" then stream.streamUrlHost = streamHost
             if stream.count() > 0 then snapshot.streamInfo = stream
         end if
     end if
@@ -700,6 +723,8 @@ function nativeStreamSnapshot() as object
             for each field in ["isFullResult","isUnderrun","isResume","measuredBItrate","streamBitrate"]
                 if info[field] <> invalid then completed[field] = info[field]
             end for
+            completedHost = plusNativeUrlHost(info.streamUrl)
+            if completedHost <> "" then completed.streamUrlHost = completedHost
             if completed.count() > 0 then snapshot.completedStreamInfo = completed
         end if
     end if
