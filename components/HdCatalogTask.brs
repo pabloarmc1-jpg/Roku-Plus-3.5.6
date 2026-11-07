@@ -233,15 +233,6 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             end if
                         end if
                     end for
-                            print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
-                            print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
-                            answer.attemptUsed = embedIndex+variantIndex*count
-                            answer.ok = true
-                            answer.message = ""
-                            m.hdProviderDeadline = 0
-                            return answer
-                        end if
-                    end for
                 end if
             end if
         end if
