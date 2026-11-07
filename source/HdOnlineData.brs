@@ -440,7 +440,7 @@ function rpHdOnlineAttributes(line as string) as object
     for each part in parts
         separatorAt = instr(1,part,"=")
         if separatorAt > 1
-            key = left(part,separatorAt-1).trim()
+            key = ucase(left(part,separatorAt-1).trim())
             value = mid(part,separatorAt+1).trim()
             if left(value,1) = chr(34) and right(value,1) = chr(34) then value = mid(value,2,len(value)-2)
             answer[key] = value
@@ -450,7 +450,7 @@ function rpHdOnlineAttributes(line as string) as object
 end function
 
 function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
-    answer = {variants:[],audioTracks:[],encrypted:false}
+    answer = {variants:[],audioTracks:[],encrypted:false,mediaTagCount:0,audioMediaTagCount:0,audioGroupCount:0,variantAudioGroupCount:0}
     text = orbitText(body,1048577)
     if len(text) > 1048576 or rpHdOnlineCdn(baseUrl) = "" then return answer
     if left(text,7) <> "#EXTM3U" then return answer
@@ -458,15 +458,20 @@ function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
     pending = invalid
     for each rawLine in lines
         line = rawLine.trim()
-        if left(line,11) = "#EXT-X-KEY:"
+        if left(lcase(line),11) = "#ext-x-key:"
             attrs = rpHdOnlineAttributes(line)
             if attrs.METHOD <> "NONE" then answer.encrypted = true
-        else if left(line,13) = "#EXT-X-MEDIA:"
+        else if left(lcase(line),13) = "#ext-x-media:"
+            answer.mediaTagCount++
             attrs = rpHdOnlineAttributes(line)
-            if attrs.TYPE = "AUDIO"
-                answer.audioTracks.push({group:orbitText(attrs["GROUP-ID"],100),name:orbitText(attrs.NAME,80),language:orbitText(attrs.LANGUAGE,20),default:attrs.DEFAULT = "YES",url:rpHdOnlineJoin(baseUrl,orbitText(attrs.URI,4096))})
+            mediaType = lcase(orbitText(attrs.TYPE,20))
+            if mediaType = "audio"
+                answer.audioMediaTagCount++
+                groupId = orbitText(attrs["GROUP-ID"],100)
+                if groupId <> "" then answer.audioGroupCount++
+                answer.audioTracks.push({group:groupId,name:orbitText(attrs.NAME,80),language:orbitText(attrs.LANGUAGE,20),default:lcase(orbitText(attrs.DEFAULT,10)) = "yes",url:rpHdOnlineJoin(baseUrl,orbitText(attrs.URI,4096))})
             end if
-        else if left(line,18) = "#EXT-X-STREAM-INF:"
+        else if left(lcase(line),18) = "#ext-x-stream-inf:"
             pending = rpHdOnlineAttributes(line)
         else if line <> "" and left(line,1) <> "#" and pending <> invalid
             dims = orbitText(pending.RESOLUTION,32).split("x")
@@ -479,6 +484,7 @@ function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
             url = rpHdOnlineJoin(baseUrl,line)
             if url <> ""
                 answer.variants.push({url:url,codecs:orbitText(pending.CODECS,200),width:width,height:height,fps:orbitText(pending["FRAME-RATE"],32).toFloat(),bandwidth:orbitInteger(pending.BANDWIDTH,100000000),audioGroup:orbitText(pending.AUDIO,100)})
+                if orbitText(pending.AUDIO,100) <> "" then answer.variantAudioGroupCount++
             end if
             pending = invalid
         end if
