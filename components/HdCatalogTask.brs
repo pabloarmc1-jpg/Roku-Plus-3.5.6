@@ -236,28 +236,20 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            ' Diagnostic 3.5.35: feed the complete validated media playlist as sequential TS URLs.
-                            ' The first and second segments have both rendered independently; timestamp
-                            ' continuity was verified at their boundary. Keep one Video node and advance
-                            ' only after Roku reports finished for the current TS.
-                            segmentUrls = rpHdTaskSegmentList(child.body,selected.url)
-                            if segmentUrls.count() > 1
-                                playbackPlaylistKind = "sequential-ts"
-                                playbackStreamFormat = "ts"
-                                answer.segmentUrls = segmentUrls
-                                answer.url = segmentUrls[0]
-                                answer.streamFormat = playbackStreamFormat
-                                answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                                answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
-                                answer.language = embed.language
-                                answer.width = selected.width
-                                answer.height = selected.height
-                                answer.codecs = selected.codecs
-                                answer.seekSupport = "none"
-                            else
-                                print "[RokuPlus ts-sequence] rejected segmentCount=";segmentUrls.count()
-                                playable = false
-                            end if
+                            ' Diagnostic 3.5.38: return the selected child HLS manifest as one native stream.
+                            ' The TS playlist path was confirmed to create visible clip boundaries.
+                            ' Isolate Roku HLS audio selection while preserving the validated variant.
+                            playbackPlaylistKind = "native-child-hls-audio-isolation"
+                            playbackStreamFormat = "hls"
+                            answer.url = selected.url
+                            answer.streamFormat = playbackStreamFormat
+                            answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                            answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
+                            answer.language = embed.language
+                            answer.width = selected.width
+                            answer.height = selected.height
+                            answer.codecs = selected.codecs
+                            answer.seekSupport = "native-hls"
                             audioMode = "embedded"
                             if selected.audioGroup <> "" then audioMode = "master-audio-group"
                             matchingAudioTracks = 0
