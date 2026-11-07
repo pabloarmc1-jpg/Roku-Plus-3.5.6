@@ -8,6 +8,7 @@ on:
       - test/hls-segment-url-3.5.27
       - test/hls-direct-ts-3.5.27
       - test/hls-sequential-ts-3.5.28
+      - test/hls-first-segment-ts-3.5.30
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,7 +22,7 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.28.zip . -x './.git/*' './.github/*' '*.zip'
+          zip -qr /tmp/Roku-Plus-3.5.30.zip . -x './.git/*' './.github/*' '*.zip'
           mv /tmp/Roku-Plus-3.5.28.zip .
       - uses: actions/upload-artifact@v4
         with:
@@ -30,4 +31,4 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-# Rebuild package for the sequential TS segment playback test.
+# Package the first-segment TS diagnostic build.
