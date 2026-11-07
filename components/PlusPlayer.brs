@@ -1187,7 +1187,7 @@ sub emitDiagnostic(reason as string)
     provider = plusSafePlaybackIdentity(m.current.provider,true)
     if itemId <> "" then entry.itemId = itemId
     if provider <> "" then entry.provider = provider
-    if type(m.current.streamFormat) = "roString" then entry.streamFormat = lcase(m.current.streamFormat)
+    if GetInterface(m.current.streamFormat,"ifString") <> invalid then entry.streamFormat = lcase(m.current.streamFormat)
     entry.failed = m.failed
     if m.watchdogReason <> "" then entry.watchdogReason = m.watchdogReason
     if m.decoder.state = "error" then entry.nativeError = plusSafeNativeError(m.decoder.errorCode,m.decoder.errorInfo)
