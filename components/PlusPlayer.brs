@@ -437,6 +437,8 @@ function nativeStreamSnapshot() as object
     if m.decoder = invalid then return snapshot
     ' Report field support separately from populated values.
     snapshot.errorCodeSupported = m.decoder.hasField("errorCode")
+    snapshot.errorMsgSupported = m.decoder.hasField("errorMsg")
+    snapshot.errorStrSupported = m.decoder.hasField("errorStr")
     snapshot.errorInfoSupported = m.decoder.hasField("errorInfo")
     snapshot.playStartInfoSupported = m.decoder.hasField("playStartInfo")
     snapshot.streamingSegmentSupported = m.decoder.hasField("streamingSegment")
@@ -449,6 +451,14 @@ function nativeStreamSnapshot() as object
         value = m.decoder.errorCode
         if value <> invalid then snapshot.errorCode = value
     end if
+    if m.decoder.hasField("errorMsg")
+        safeMessage = plusSafeNativeText(m.decoder.errorMsg)
+        if safeMessage <> "" then snapshot.errorMsg = safeMessage
+    end if
+    if m.decoder.hasField("errorStr")
+        safeDescription = plusSafeNativeText(m.decoder.errorStr)
+        if safeDescription <> "" then snapshot.errorStr = safeDescription
+    end if
     if m.decoder.hasField("errorInfo")
         info = m.decoder.errorInfo
         if type(info) = "roAssociativeArray"
@@ -457,8 +467,8 @@ function nativeStreamSnapshot() as object
                 if info[field] <> invalid then error[field] = info[field]
             end for
             if GetInterface(info.dbgmsg,"ifString") <> invalid
-                ' Do not expose a URL or token if Roku includes one in debug text.
-                if instr(1,lcase(info.dbgmsg),"http") = 0 then error.dbgmsg = left(info.dbgmsg,240)
+                safeDebug = plusSafeNativeText(info.dbgmsg)
+                if safeDebug <> "" then error.dbgmsg = safeDebug
             end if
             if error.count() > 0 then snapshot.errorInfo = error
         end if
