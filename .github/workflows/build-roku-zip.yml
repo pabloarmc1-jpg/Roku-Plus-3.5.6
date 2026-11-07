@@ -31,7 +31,7 @@ jobs:
       - name: Create source package
         run: |
           zip -qr /tmp/Roku-Plus-3.5.38.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.37.zip .
+          mv /tmp/Roku-Plus-3.5.38.zip .
       - uses: actions/upload-artifact@v4
         with:
           name: Roku-Plus-3.5.38
