@@ -177,7 +177,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                     sample = fetcher(segmentUrl,"sample",mediaReferer)
                                     if sample.cancelled then return rpHdTaskFailure(answer,sample)
                                     if sample.ok
-                                        sampleBytes = sample.bytes.count()
+                                        if type(sample.bytes) = "roByteArray" or type(sample.bytes) = "roArray" then sampleBytes = sample.bytes.count()
                                         sampleValid = rpHdOnlineMuxedAvcAac(sample.bytes)
                                         playable = sampleValid
                                         candidateStage = "sample_rejected"
@@ -237,7 +237,7 @@ function rpHdTaskMediaManifestInfo(body as dynamic, baseUrl as string) as object
             else
                 pendingDuration = invalid
             end if
-        else if left(line,21) = "#EXT-X-DISCONTINUITY"
+        else if line = "#EXT-X-DISCONTINUITY"
             answer.discontinuities++
         else if left(line,11) = "#EXT-X-MAP:"
             attrs = rpHdOnlineAttributes(line)
