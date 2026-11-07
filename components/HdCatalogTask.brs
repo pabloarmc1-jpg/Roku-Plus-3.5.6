@@ -835,7 +835,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     if referer <> "" then transfer.addHeader("Referer",referer)
     limit = 2097152
     if role = "sample"
-        transfer.addHeader("Range","bytes=0-65535")
+        transfer.addHeader("Range","bytes=0-131071")
         limit = 131072
     end if
     transfer.enableEncodings(true)
