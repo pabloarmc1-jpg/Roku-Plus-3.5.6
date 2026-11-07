@@ -322,7 +322,7 @@ sub closePlayback()
     m.top.closed = true
 end sub
 
-sub advanceSequentialSegment() as boolean
+function advanceSequentialSegment() as boolean
     if not m.segmentMode or type(m.segmentUrls) <> "roArray" then return false
     nextIndex = m.segmentIndex + 1
     if nextIndex >= m.segmentUrls.count() then return false
@@ -366,7 +366,7 @@ sub advanceSequentialSegment() as boolean
     print "[RokuPlus segment] advance index=";m.segmentIndex+1;" total=";m.segmentUrls.count()
     emitDiagnostic("segment_advance")
     return true
-end sub
+end function
 
 sub onDecoderState()
     if not m.mediaOpen or m.closing then return
