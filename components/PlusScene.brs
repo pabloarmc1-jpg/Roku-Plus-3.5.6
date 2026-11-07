@@ -309,9 +309,8 @@ sub fetched(event as object)
     else if context.operation = "resolve"
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
-        playlistSegments = invalid
-        if answer.doesExist("playlistSegments") and type(answer.playlistSegments) = "roArray" then playlistSegments = answer.playlistSegments
-        launchVideo(m.detail,answer.url,answer.streamFormat,playlistSegments)
+        ' Keep the film in one native HLS session; never split TS media segments into separate videos.
+        launchVideo(m.detail,answer.url,answer.streamFormat)
         return
     else if context.operation = "episodes"
         if m.series = invalid or context.item.id <> m.series.id then return
@@ -377,7 +376,7 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
     end if
 end sub
 
-sub launchVideo(item as object, url as string, format as string, playlistSegments = invalid as dynamic)
+sub launchVideo(item as object, url as string, format as string)
     ' Recover LaMovie numeric identity from the canonical HD id when a
     ' catalog item arrives with its slug but without providerId.
     itemProvider = lcase(orbitText(item.provider,32))
@@ -407,7 +406,6 @@ sub launchVideo(item as object, url as string, format as string, playlistSegment
     m.view = "player"
     m.player.visible = true
     descriptor = {title:item.title,url:url,streamFormat:format,kind:item.kind,itemId:item.id,provider:orbitText(item.provider,32),direct:m.playbackMode="direct",poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),year:orbitText(item.year,20)}
-    if type(playlistSegments) = "roArray" and playlistSegments.count() >= 2 then descriptor.playlistSegments = playlistSegments
     if descriptor.provider = "lamovie"
         print "[RokuPlus identity] launch id="; descriptor.itemId; " providerId="; orbitText(item.providerId,40); " slugPresent="; item.doesExist("providerSlug"); " slug="; orbitText(item.providerSlug,200)
     end if
