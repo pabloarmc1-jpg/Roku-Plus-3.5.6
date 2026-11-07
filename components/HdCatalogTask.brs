@@ -230,25 +230,28 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            ' Diagnostic 3.5.34: bypass HLS and open segment 2 as a standalone TS.
-                            ' Segment 1 was already proven to render; this checks whether segment 2
-                            ' can initialize the decoder independently, without a playlist transition.
-                            playbackPlaylistKind = "direct-second-segment-ts"
-                            playbackStreamFormat = "ts"
-                            if type(boundarySegments) = "roArray" and boundarySegments.count() > 1
-                                answer.url = boundarySegments[1]
+                            ' Diagnostic 3.5.35: feed the complete validated media playlist as sequential TS URLs.
+                            ' The first and second segments have both rendered independently; timestamp
+                            ' continuity was verified at their boundary. Keep one Video node and advance
+                            ' only after Roku reports finished for the current TS.
+                            segmentUrls = rpHdTaskSegmentList(child.body,selected.url)
+                            if segmentUrls.count() > 1
+                                playbackPlaylistKind = "sequential-ts"
+                                playbackStreamFormat = "ts"
+                                answer.segmentUrls = segmentUrls
+                                answer.url = segmentUrls[0]
+                                answer.streamFormat = playbackStreamFormat
+                                answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                                answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
+                                answer.language = embed.language
+                                answer.width = selected.width
+                                answer.height = selected.height
+                                answer.codecs = selected.codecs
+                                answer.seekSupport = "none"
                             else
-                                answer.url = segmentUrl
-                                playbackPlaylistKind = "direct-first-segment-fallback"
+                                print "[RokuPlus ts-sequence] rejected segmentCount=";segmentUrls.count()
+                                playable = false
                             end if
-                            answer.streamFormat = playbackStreamFormat
-                            answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                            answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
-                            answer.language = embed.language
-                            answer.width = selected.width
-                            answer.height = selected.height
-                            answer.codecs = selected.codecs
-                            answer.seekSupport = "none"
                             audioMode = "embedded"
                             if selected.audioGroup <> "" then audioMode = "master-audio-group"
                             matchingAudioTracks = 0
