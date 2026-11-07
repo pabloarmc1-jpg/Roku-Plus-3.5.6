@@ -207,7 +207,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             playbackPlaylistUrl = masterUrl
                             playbackPlaylistKind = "master"
                             playbackStreamFormat = "hls"
-                            if master.audioTracks.count() = 0 and selected.audioGroup = ""
+                            if selected.audioGroup = ""
                                 ' Diagnostic isolation: decode one validated TS segment directly,
                                 ' bypassing Roku's HLS playlist handling for this test build.
                                 playbackPlaylistUrl = segmentUrl
