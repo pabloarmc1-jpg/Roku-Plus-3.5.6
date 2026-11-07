@@ -201,33 +201,38 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            ' Local Roku debug log: expose validated TS segment for external Stream Tester comparison.
-                            print "[RokuPlus hls-test] validatedFirstSegmentUrl="; segmentUrl
-                            ' Diagnostic 3.5.27: play only the first TS segment already validated above.
-                            ' This isolates the Roku TS decoder from the native HLS playlist pipeline.
                             segmentUrls = rpHdTaskSegmentList(child.body,selected.url)
-                            if segmentUrls.count() = 0 then playable = false
-                            if playable
+                            if segmentUrls.count() > 0
                                 playbackPlaylistUrl = segmentUrls[0]
                                 playbackPlaylistKind = "sequential-ts"
                                 playbackStreamFormat = "ts"
                                 answer.segmentUrls = segmentUrls
+                                answer.url = playbackPlaylistUrl
+                                answer.streamFormat = playbackStreamFormat
+                                answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                                answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
+                                answer.language = embed.language
+                                answer.width = selected.width
+                                answer.height = selected.height
+                                answer.codecs = selected.codecs
+                                answer.seekSupport = "native-hls"
+                                audioMode = "embedded"
+                                if selected.audioGroup <> "" then audioMode = "master-audio-group"
+                                matchingAudioTracks = 0
+                                for each audioTrack in master.audioTracks
+                                    if audioTrack.group = selected.audioGroup then matchingAudioTracks = matchingAudioTracks + 1
+                                end for
+                                print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
+                                print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
+                                print "[RokuPlus hls-test] validatedSegments="; segmentUrls.count()
+                                answer.attemptUsed = embedIndex+variantIndex*count
+                                answer.ok = true
+                                answer.message = ""
+                                m.hdProviderDeadline = 0
+                                return answer
                             end if
-                            answer.url = playbackPlaylistUrl
-                            answer.streamFormat = playbackStreamFormat
-                            answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                            answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
-                            answer.language = embed.language
-                            answer.width = selected.width
-                            answer.height = selected.height
-                            answer.codecs = selected.codecs
-                            answer.seekSupport = "native-hls"
-                            audioMode = "embedded"
-                            if selected.audioGroup <> "" then audioMode = "master-audio-group"
-                            matchingAudioTracks = 0
-                            for each audioTrack in master.audioTracks
-                                if audioTrack.group = selected.audioGroup then matchingAudioTracks = matchingAudioTracks + 1
-                            end for
+                        end if
+                    end for
                             print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
                             print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
                             answer.attemptUsed = embedIndex+variantIndex*count
