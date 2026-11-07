@@ -3,8 +3,11 @@ sub init()
     m.top.focusable = true
     m.top.visible = false
     m.decoder = m.top.findNode("decoder")
+    if m.decoder.hasField("enableDecoderStats")
+        m.decoder.enableDecoderStats = true
+        print "[RokuPlus decoder] enableDecoderStats="; m.decoder.enableDecoderStats
+    end if
     if m.decoder.hasField("decoderStats") then m.decoder.observeField("decoderStats", "onNativeDecoderStats")
-    if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
     m.panel = m.top.findNode("transport")
@@ -455,6 +458,8 @@ function nativeStreamSnapshot() as object
     snapshot.errorStrSupported = m.decoder.hasField("errorStr")
     snapshot.completedStreamInfoSupported = m.decoder.hasField("completedStreamInfo")
     snapshot.decoderStatsSupported = m.decoder.hasField("decoderStats")
+    snapshot.decoderStatsEnabledSupported = m.decoder.hasField("enableDecoderStats")
+    if m.decoder.hasField("enableDecoderStats") then snapshot.decoderStatsEnabled = m.decoder.enableDecoderStats
     snapshot.audioFormatSupported = m.decoder.hasField("audioFormat")
     snapshot.playStartInfoSupported = m.decoder.hasField("playStartInfo")
     snapshot.streamingSegmentSupported = m.decoder.hasField("streamingSegment")
