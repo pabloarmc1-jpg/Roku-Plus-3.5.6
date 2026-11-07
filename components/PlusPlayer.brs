@@ -9,10 +9,9 @@ sub init()
     end if
     if m.decoder.hasField("decoderStats") then m.decoder.observeField("decoderStats", "onNativeDecoderStats")
     m.audioSelectionPreferenceSet = false
-    if m.decoder.hasField("audioSelectionPreferences")
-        m.decoder.audioSelectionPreferences = {values: [{language: ["es", "es-*"]}], overrideSystem: true}
-        m.audioSelectionPreferenceSet = true
-        print "[RokuPlus decoder] audioSelectionPreferences=es"
+    if m.decoder.hasField("seamlessAudioTrackSelection")
+        m.decoder.seamlessAudioTrackSelection = true
+        print "[RokuPlus decoder] seamlessAudioTrackSelection=true"
     end if
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
@@ -251,6 +250,19 @@ sub openRequest()
     if GetInterface(supplied.streamFormat, "ifString") <> invalid then format = lcase(supplied.streamFormat)
     if format = "mpegts" then format = "ts"
     if format = "m3u8" then format = "hls"
+    ' HLS isolation test: do not force an app-selected audio language over the
+    ' Roku system preference. Enable seamless HLS audio-track changes from init.
+    if m.decoder.hasField("audioSelectionPreferences")
+        if format = "hls"
+            m.decoder.audioSelectionPreferences = {values: [], overrideSystem: false}
+            m.audioSelectionPreferenceSet = false
+            print "[RokuPlus decoder] hlsAudioSelection=system-default"
+        else
+            m.decoder.audioSelectionPreferences = {values: [{language: ["es", "es-*"]}], overrideSystem: true}
+            m.audioSelectionPreferenceSet = true
+            print "[RokuPlus decoder] audioSelectionPreferences=es"
+        end if
+    end if
     media = CreateObject("roSGNode", "ContentNode")
     media.url = supplied.url
     media.title = m.titleText.text
@@ -572,6 +584,8 @@ function nativeStreamSnapshot() as object
     snapshot.audioFormatSupported = m.decoder.hasField("audioFormat")
     snapshot.audioSelectionPreferencesSupported = m.decoder.hasField("audioSelectionPreferences")
     snapshot.audioSelectionPreferencesSet = m.audioSelectionPreferenceSet
+    snapshot.seamlessAudioTrackSelectionSupported = m.decoder.hasField("seamlessAudioTrackSelection")
+    if m.decoder.hasField("seamlessAudioTrackSelection") then snapshot.seamlessAudioTrackSelection = m.decoder.seamlessAudioTrackSelection
     snapshot.availableAudioTracksSupported = m.decoder.hasField("availableAudioTracks")
     snapshot.availableAudioTrackCount = -1
     snapshot.currentAudioTrackPresent = false
@@ -1173,6 +1187,7 @@ sub emitDiagnostic(reason as string)
     provider = plusSafePlaybackIdentity(m.current.provider,true)
     if itemId <> "" then entry.itemId = itemId
     if provider <> "" then entry.provider = provider
+    if type(m.current.streamFormat) = "roString" then entry.streamFormat = lcase(m.current.streamFormat)
     entry.failed = m.failed
     if m.watchdogReason <> "" then entry.watchdogReason = m.watchdogReason
     if m.decoder.state = "error" then entry.nativeError = plusSafeNativeError(m.decoder.errorCode,m.decoder.errorInfo)
