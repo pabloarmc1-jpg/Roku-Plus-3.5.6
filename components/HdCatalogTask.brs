@@ -311,8 +311,8 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
                 targetDuration = mid(line,23)
             else if left(line,15) = "#EXT-X-VERSION:"
                 version = mid(line,16)
-            else if left(line,21) = "#EXT-X-MEDIA-SEQUENCE:"
-                mediaSequence = mid(line,22)
+            else if left(line,22) = "#EXT-X-MEDIA-SEQUENCE:"
+                mediaSequence = mid(line,23)
             else if left(line,21) = "#EXT-X-PLAYLIST-TYPE:"
                 playlistType = mid(line,22)
             else if left(line,14) = "#EXT-X-ENDLIST"
@@ -323,9 +323,9 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
                 keyMethod = orbitText(attrs.METHOD,40)
             else if left(line,11) = "#EXT-X-MAP:"
                 mapCount++
-            else if left(line,22) = "#EXT-X-DISCONTINUITY"
+            else if left(line,20) = "#EXT-X-DISCONTINUITY"
                 discontinuityCount++
-            else if left(line,16) = "#EXT-X-BYTERANGE:"
+            else if left(line,17) = "#EXT-X-BYTERANGE:"
                 byteRangeCount++
             else if left(line,1) <> "#"
                 segmentCount++
