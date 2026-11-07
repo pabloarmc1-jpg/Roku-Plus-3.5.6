@@ -199,6 +199,8 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
+                            ' Local Roku debug log: expose validated TS segment for external Stream Tester comparison.
+                            print "[RokuPlus hls-test] validatedFirstSegmentUrl="; segmentUrl
                             ' Keep the master when an external audio rendition must be synchronized.
                             ' For muxed audio with no external rendition, test Roku's native HLS
                             ' path using the exact child playlist whose first TS segment was validated.
