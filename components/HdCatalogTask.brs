@@ -143,10 +143,18 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 if response.cancelled then return rpHdTaskFailure(answer,response)
                 if response.ok
                     master = rpHdOnlineMaster(response.body,masterUrl)
+                    print "[RokuPlus hls] master variants="; master.variants.count(); " audioTracks="; master.audioTracks.count(); " encrypted="; master.encrypted
+                    for each audioTrack in master.audioTracks
+                        uriState = "missing"
+                        if audioTrack.url <> "" then uriState = "present"
+                        print "[RokuPlus hls] audio group="; audioTrack.group; " language="; audioTrack.language; " name="; audioTrack.name; " default="; audioTrack.default; " uri="; uriState
+                    end for
                     candidates = {variants:[],audioTracks:master.audioTracks,encrypted:master.encrypted}
                     for each variant in master.variants
+                        print "[RokuPlus hls] variant group="; variant.audioGroup; " resolution="; variant.width; "x"; variant.height; " codecs="; variant.codecs
                         if rpHdTaskSpanishAudio(master,variant) then candidates.variants.push(variant)
                     end for
+                    print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
                     choices = rpHdTaskStableVariants(candidates,decoderAccept)
                     variantOffset = 0
                     if choices.count() > 0 then variantOffset = (retry \ count) mod choices.count()
@@ -195,6 +203,11 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             answer.seekSupport = "native-hls"
                             audioMode = "embedded"
                             if selected.audioGroup <> "" then audioMode = "master-audio-group"
+                            matchingAudioTracks = 0
+                            for each audioTrack in master.audioTracks
+                                if audioTrack.group = selected.audioGroup then matchingAudioTracks = matchingAudioTracks + 1
+                            end for
+                            print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
                             print "[RokuPlus resolve] provider="; provider; " format=hls playlist=master embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
                             answer.attemptUsed = embedIndex+variantIndex*count
                             answer.ok = true
