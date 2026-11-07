@@ -49,6 +49,8 @@ sub init()
     m.firstNative = invalid
     m.firstRendered = invalid
     m.lastBuffer = invalid
+    m.nativePollAt = -1000
+    m.nativePollSignature = ""
     m.watch = invalid
     applyPlayerTheme()
 end sub
@@ -177,6 +179,8 @@ sub openRequest()
     m.actionUntil = 0
     m.actionDirection = ""
     m.lastBuffer = invalid
+    m.nativePollAt = -1000
+    m.nativePollSignature = ""
     m.firstNative = invalid
     m.firstRendered = invalid
     m.failed = false
@@ -589,6 +593,16 @@ sub onPulse()
     if not m.mediaOpen then return
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
+    ' Sample native Video fields even when Roku does not emit observer notifications.
+    if now - m.nativePollAt >= 1000
+        m.nativePollAt = now
+        nativeSample = nativeStreamSnapshot()
+        nativeSignature = FormatJson(nativeSample)
+        if nativeSignature <> m.nativePollSignature
+            m.nativePollSignature = nativeSignature
+            emitDiagnostic("native_poll")
+        end if
+    end if
     if m.resumePending <> invalid and now - m.resumeStartedAt >= 15000
         m.resumePending = invalid
         m.resumeFailed = true
