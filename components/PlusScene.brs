@@ -309,6 +309,7 @@ sub fetched(event as object)
     else if context.operation = "resolve"
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
+        m.pendingSegmentUrls = answer.segmentUrls
         launchVideo(m.detail,answer.url,answer.streamFormat)
         return
     else if context.operation = "episodes"
@@ -417,6 +418,10 @@ sub launchVideo(item as object, url as string, format as string)
         descriptor.resumePosition = savedProgress.position
     end if
     if item.doesExist("mediaHeaders") then descriptor.mediaHeaders = item.mediaHeaders
+    if type(m.pendingSegmentUrls) = "roArray"
+        descriptor.segmentUrls = m.pendingSegmentUrls
+        m.pendingSegmentUrls = invalid
+    end if
     ' Tag every playback request so delayed progress from an earlier decoder
     ' generation cannot overwrite the currently selected title's watch state.
     descriptor.requestId = CreateObject("roDeviceInfo").getRandomUUID()
