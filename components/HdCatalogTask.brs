@@ -201,12 +201,12 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            ' 3.5.30 diagnostic: play the exact first TS segment from the
-                            ' selected media playlist. This isolates TS decoding from HLS startup.
-                            ' It is intentionally a one-segment test, not continuous playback.
-                            playbackPlaylistKind = "first-segment-ts-diagnostic"
-                            playbackStreamFormat = "ts"
-                            answer.url = segmentUrl
+                            ' 3.5.31 diagnostic: pass the validated MASTER playlist to Roku.
+                            ' 3.5.29 tested the selected child media playlist; 3.5.30 proved
+                            ' the first TS segment decodes. This isolates master-vs-child HLS.
+                            playbackPlaylistKind = "native-master-playlist"
+                            playbackStreamFormat = "hls"
+                            answer.url = masterUrl
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
@@ -223,7 +223,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             end for
                             print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
                             print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
-                            print "[RokuPlus hls-test] diagnostic=first-segment-ts passed-to-roku"
+                            print "[RokuPlus hls-test] diagnostic=master-playlist passed-to-roku"
                             answer.attemptUsed = embedIndex+variantIndex*count
                             answer.ok = true
                             answer.message = ""
