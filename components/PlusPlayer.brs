@@ -194,6 +194,9 @@ sub openRequest()
     m.segmentUrls = invalid
     m.segmentIndex = 0
     m.segmentTransitioning = false
+    m.segmentRestartStage = 0
+    m.segmentPendingContent = invalid
+    m.segmentRestartAt = 0
     m.segmentMode = false
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
@@ -363,10 +366,11 @@ function advanceSequentialSegment() as boolean
     m.lastBuffer = invalid
     m.bufferSince = 0
     m.decoder.visible = true
+    m.segmentPendingContent = media
+    m.segmentRestartStage = 1
+    m.segmentRestartAt = 0
     m.decoder.control = "stop"
-    m.decoder.content = media
-    m.decoder.control = "play"
-    print "[RokuPlus segment] advance index=";m.segmentIndex+1;" total=";m.segmentUrls.count()
+    print "[RokuPlus segment] queued index=";m.segmentIndex+1;" total=";m.segmentUrls.count()
     emitDiagnostic("segment_advance")
     return true
 end function
@@ -798,10 +802,29 @@ sub drawTransport()
     if m.monotonic.totalMilliseconds() < m.noticeUntil then m.noticeText.text = m.notice
 end sub
 
+sub advanceSegmentRestart(now as integer)
+    if m.segmentRestartStage = 1
+        if m.decoder.state = "stopped"
+            m.decoder.content = m.segmentPendingContent
+            m.segmentRestartStage = 2
+            m.segmentRestartAt = now
+            emitDiagnostic("segment_content_set")
+        end if
+    else if m.segmentRestartStage = 2
+        if now - m.segmentRestartAt >= 300
+            m.decoder.control = "play"
+            m.segmentPendingContent = invalid
+            m.segmentRestartStage = 0
+            emitDiagnostic("segment_play")
+        end if
+    end if
+end sub
+
 sub onPulse()
     if not m.mediaOpen then return
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
+    advanceSegmentRestart(now)
     ' Sample native Video fields even when Roku does not emit observer notifications.
     if now - m.nativePollAt >= 1000
         m.nativePollAt = now
