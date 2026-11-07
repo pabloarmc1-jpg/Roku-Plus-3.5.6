@@ -201,14 +201,12 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            segmentUrls = rpHdTaskSegmentList(child.body,selected.url)
-                            if segmentUrls.count() > 0
-                                playbackPlaylistUrl = segmentUrls[0]
-                                playbackPlaylistKind = "sequential-ts"
-                                playbackStreamFormat = "ts"
-                                answer.segmentUrls = segmentUrls
-                                answer.url = playbackPlaylistUrl
-                                answer.streamFormat = playbackStreamFormat
+                            ' Native HLS experiment: pass the validated media playlist itself
+                            ' to Roku Video so the HLS engine owns all segment transitions.
+                            playbackPlaylistKind = "native-hls"
+                            playbackStreamFormat = "hls"
+                            answer.url = selected.url
+                            answer.streamFormat = playbackStreamFormat
                                 answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                                 answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
                                 answer.language = embed.language
@@ -224,7 +222,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 end for
                                 print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
                                 print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
-                                print "[RokuPlus hls-test] validatedSegments="; segmentUrls.count()
+                                print "[RokuPlus hls-test] nativePlaylist=passed-to-roku"
                                 answer.attemptUsed = embedIndex+variantIndex*count
                                 answer.ok = true
                                 answer.message = ""
