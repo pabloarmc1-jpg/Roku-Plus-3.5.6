@@ -70,6 +70,7 @@ sub init()
     m.watchdogReason = ""
     m.nativePollAt = -1000
     m.nativePollSignature = ""
+    m.hlsStartupIsolation = false
     m.lastTransportDrawAt = -1000
     m.watch = invalid
     applyPlayerTheme()
@@ -146,7 +147,11 @@ sub applyPresentation()
         m.decoder.width = 1920
         m.decoder.height = 1080
         if m.mediaOpen
-            revealTransport()
+            if m.hlsStartupIsolation
+                m.panel.visible = false
+            else
+                revealTransport()
+            end if
             m.top.setFocus(true)
         end if
     end if
@@ -254,6 +259,8 @@ sub openRequest()
     if GetInterface(supplied.streamFormat, "ifString") <> invalid then format = lcase(supplied.streamFormat)
     if format = "mpegts" then format = "ts"
     if format = "m3u8" then format = "hls"
+    m.hlsStartupIsolation = format = "hls"
+    if m.hlsStartupIsolation then print "[RokuPlus hls-ui] startup isolation enabled"
     ' HLS isolation test: do not force an app-selected audio language over the
     ' Roku system preference. Enable seamless HLS audio-track changes from init.
     if m.decoder.hasField("audioSelectionPreferences")
@@ -340,7 +347,7 @@ sub openRequest()
     m.decoder.control = "play"
     m.pulse.control = "start"
     emitDiagnostic("open")
-    drawTransport()
+    if not m.hlsStartupIsolation then drawTransport()
 end sub
 
 sub closePlayback()
@@ -433,10 +440,15 @@ sub onDecoderState()
     if m.phase = "buffering"
         m.bufferSince = m.monotonic.totalMilliseconds()
         if m.ticket <> invalid then m.ticket.sawBuffering = true
-        revealTransport()
+        if not m.hlsStartupIsolation then revealTransport()
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
+        if m.hlsStartupIsolation
+            m.hlsStartupIsolation = false
+            revealTransport()
+            print "[RokuPlus hls-ui] startup isolation released: playing"
+        end if
         m.segmentTransitioning = false
         m.bufferSince = invalid
         applyResumeSeek()
@@ -455,6 +467,7 @@ sub onDecoderState()
         end if
         revealTransport()
     else if m.phase = "error"
+        m.hlsStartupIsolation = false
         m.failed = true
         m.ticket = invalid
         m.pendingSeek = invalid
@@ -921,6 +934,7 @@ sub onPulse()
         reason = plusWatchdogObserve(m.watch,m.decoder.state,m.decoder.position,sample.video,m.wantPaused,m.ticket <> invalid,now)
         if reason <> ""
             m.watchdogReason = reason
+            m.hlsStartupIsolation = false
             m.failed = true
             m.ticket = invalid
             m.pendingSeek = invalid
@@ -936,7 +950,9 @@ sub onPulse()
     end if
     if not m.failed and m.ticket = invalid and m.pendingSeek = invalid and m.decoder.state = "playing" and now >= m.panelUntil then m.panel.visible = false
     ' During initial buffering, avoid redrawing the full transport at 4 Hz.
-    if m.decoder.state <> "buffering" or now - m.lastTransportDrawAt >= 1000 then drawTransport()
+    if not m.hlsStartupIsolation
+        if m.decoder.state <> "buffering" or now - m.lastTransportDrawAt >= 1000 then drawTransport()
+    end if
     publishProgress()
 end sub
 
