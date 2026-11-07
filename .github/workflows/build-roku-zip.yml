@@ -17,12 +17,12 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.23.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.23.zip .
+          zip -qr /tmp/Roku-Plus-3.5.24.zip . -x './.git/*' './.github/*' '*.zip'
+          mv /tmp/Roku-Plus-3.5.24.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.23
-          path: Roku-Plus-3.5.23.zip
+          name: Roku-Plus-3.5.24
+          path: Roku-Plus-3.5.24.zip
           if-no-files-found: error
           retention-days: 7
 
