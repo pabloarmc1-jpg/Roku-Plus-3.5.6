@@ -21,7 +21,7 @@ jobs:
           mv /tmp/Roku-Plus-3.5.21.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.20
-          path: Roku-Plus-3.5.20.zip
+          name: Roku-Plus-3.5.21
+          path: Roku-Plus-3.5.21.zip
           if-no-files-found: error
           retention-days: 7
