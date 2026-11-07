@@ -198,9 +198,11 @@ sub openRequest()
     m.segmentPendingContent = invalid
     m.segmentRestartAt = 0
     m.segmentMode = false
+    m.nativePlaylistMode = false
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
         m.segmentMode = true
+        m.nativePlaylistMode = true
     end if
     m.ticket = invalid
     m.pendingSeek = invalid
@@ -272,6 +274,36 @@ sub openRequest()
         end if
     end if
     media.httpHeaders = requestHeaders
+
+    ' Use Roku's native Video playlist for sequential TS items. This lets the
+    ' Video node own segment transitions instead of stopping/replacing content
+    ' in BrightScript after every ~10-second segment.
+    if m.nativePlaylistMode
+        playlist = CreateObject("roSGNode", "ContentNode")
+        playlistCount = 0
+        for each segmentUrl in m.segmentUrls
+            if GetInterface(segmentUrl,"ifString") <> invalid and left(segmentUrl,8) = "https://"
+                child = CreateObject("roSGNode", "ContentNode")
+                child.url = segmentUrl
+                child.title = m.titleText.text
+                child.streamFormat = "ts"
+                child.live = false
+                child.httpCertificatesFile = "common:/certs/ca-bundle.crt"
+                child.httpHeaders = requestHeaders
+                playlist.appendChild(child)
+                playlistCount++
+            end if
+        end for
+        if playlistCount > 1
+            media = playlist
+            print "[RokuPlus playlist] native=true children=";playlistCount
+        else
+            m.nativePlaylistMode = false
+            print "[RokuPlus playlist] fallback=single-segment children=";playlistCount
+        end if
+    end if
+
+    m.decoder.contentIsPlaylist = m.nativePlaylistMode
     m.decoder.enableUI = false
     m.decoder.enableTrickPlay = false
     m.decoder.notificationInterval = 0.5
@@ -327,6 +359,7 @@ sub closePlayback()
 end sub
 
 function advanceSequentialSegment() as boolean
+    if m.nativePlaylistMode then return false
     if not m.segmentMode or type(m.segmentUrls) <> "roArray" then return false
     if m.segmentTransitioning then return true
     nextIndex = m.segmentIndex + 1
@@ -416,7 +449,7 @@ sub onDecoderState()
         if m.failed
             revealTransport()
         else
-            if advanceSequentialSegment() then return
+            if not m.nativePlaylistMode and advanceSequentialSegment() then return
             publishProgress(true)
             closePlayback()
             return
