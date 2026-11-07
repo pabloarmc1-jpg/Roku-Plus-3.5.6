@@ -477,10 +477,14 @@ function nativeStreamSnapshot() as object
     snapshot.audioSelectionPreferencesSupported = m.decoder.hasField("audioSelectionPreferences")
     snapshot.audioSelectionPreferencesSet = m.audioSelectionPreferenceSet
     snapshot.availableAudioTracksSupported = m.decoder.hasField("availableAudioTracks")
+    snapshot.availableAudioTrackCount = -1
+    snapshot.currentAudioTrackPresent = false
     snapshot.currentAudioTrackSupported = m.decoder.hasField("currentAudioTrack")
     snapshot.playStartInfoSupported = m.decoder.hasField("playStartInfo")
     snapshot.streamingSegmentSupported = m.decoder.hasField("streamingSegment")
+    snapshot.streamingSegmentPresent = false
     snapshot.downloadedSegmentSupported = m.decoder.hasField("downloadedSegment")
+    snapshot.downloadedSegmentPresent = false
     snapshot.streamInfoSupported = m.decoder.hasField("streamInfo")
     snapshot.videoFormatSupported = m.decoder.hasField("videoFormat")
     snapshot.timeToStartStreamingSupported = m.decoder.hasField("timeToStartStreaming")
@@ -513,6 +517,7 @@ function nativeStreamSnapshot() as object
     end if
     if m.decoder.hasField("playStartInfo")
         info = m.decoder.playStartInfo
+        snapshot.playStartInfoPresent = type(info) = "roAssociativeArray" and info.count() > 0
         if type(info) = "roAssociativeArray"
             startup = {}
             for each field in ["total_dur","manifest_dur","drm_load_dur","drm_lic_acq_dur","prebuf_dur","manifest_start","drm_load_start","drm_lic_acq_start","prebuf_start"]
@@ -523,6 +528,7 @@ function nativeStreamSnapshot() as object
     end if
     if m.decoder.hasField("streamingSegment")
         segment = m.decoder.streamingSegment
+        snapshot.streamingSegmentPresent = type(segment) = "roAssociativeArray" and segment.count() > 0
         if type(segment) = "roAssociativeArray"
             sample = {}
             for each field in ["hdrModeStr","segBitrateBps","segSequence","segStart","segType","segTypeStr","latency","width","height"]
@@ -533,6 +539,7 @@ function nativeStreamSnapshot() as object
     end if
     if m.decoder.hasField("downloadedSegment")
         segment = m.decoder.downloadedSegment
+        snapshot.downloadedSegmentPresent = type(segment) = "roAssociativeArray" and segment.count() > 0
         if type(segment) = "roAssociativeArray"
             sample = {}
             for each field in ["Status","SegSequence","DownloadDuration","SegSize","SegType","BitrateBPS","SegStart","SegDuration","Width","Height"]
@@ -561,11 +568,15 @@ function nativeStreamSnapshot() as object
     end if
     if m.decoder.hasField("currentAudioTrack")
         value = m.decoder.currentAudioTrack
-        if GetInterface(value,"ifString") <> invalid and value <> "" then snapshot.currentAudioTrack = left(value,120)
+        if GetInterface(value,"ifString") <> invalid and value <> ""
+            snapshot.currentAudioTrack = left(value,120)
+            snapshot.currentAudioTrackPresent = true
+        end if
     end if
     if m.decoder.hasField("availableAudioTracks")
         tracks = m.decoder.availableAudioTracks
         if type(tracks) = "roArray"
+            snapshot.availableAudioTrackCount = tracks.count()
             audioTracks = []
             for each track in tracks
                 if type(track) = "roAssociativeArray"
