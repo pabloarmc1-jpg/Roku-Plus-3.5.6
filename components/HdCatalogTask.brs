@@ -278,6 +278,7 @@ end function
 ' Log manifest structure and first resolved segment without signed query strings.
 sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
     ' Audit the complete child playlist, not just its first media segment.
+    ' Diagnostic revision: 3.5.39 full playlist metadata summary.
     ' Keep signed URLs and query tokens out of diagnostics.
     rawBody = orbitText(body,2097153)
     lineCount = 0
