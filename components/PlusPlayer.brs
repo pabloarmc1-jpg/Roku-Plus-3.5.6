@@ -8,6 +8,12 @@ sub init()
         print "[RokuPlus decoder] enableDecoderStats="; m.decoder.enableDecoderStats
     end if
     if m.decoder.hasField("decoderStats") then m.decoder.observeField("decoderStats", "onNativeDecoderStats")
+    m.audioSelectionPreferenceSet = false
+    if m.decoder.hasField("audioSelectionPreferences")
+        m.decoder.audioSelectionPreferences = {values: [{language: ["es", "es-*"]}], overrideSystem: true}
+        m.audioSelectionPreferenceSet = true
+        print "[RokuPlus decoder] audioSelectionPreferences=es"
+    end if
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
     m.panel = m.top.findNode("transport")
@@ -36,6 +42,8 @@ sub init()
     m.decoder.observeField("position", "onNativePosition")
     m.decoder.observeField("positionInfo", "onRenderedPosition")
     m.decoder.observeField("bufferingStatus", "onBufferDetails")
+    if m.decoder.hasField("availableAudioTracks") then m.decoder.observeField("availableAudioTracks", "onNativeAudioTrackDetails")
+    if m.decoder.hasField("currentAudioTrack") then m.decoder.observeField("currentAudioTrack", "onNativeAudioTrackDetails")
     if m.decoder.hasField("streamingSegment") then m.decoder.observeField("streamingSegment", "onNativeStreamDetails")
     if m.decoder.hasField("downloadedSegment") then m.decoder.observeField("downloadedSegment", "onNativeStreamDetails")
     if m.decoder.hasField("playStartInfo") then m.decoder.observeField("playStartInfo", "onNativeStreamDetails")
@@ -448,6 +456,11 @@ sub onNativeDecoderStats()
     emitDiagnostic("decoder_stats")
 end sub
 
+sub onNativeAudioTrackDetails()
+    if not m.mediaOpen or m.closing then return
+    emitDiagnostic("native_audio_tracks")
+end sub
+
 function nativeStreamSnapshot() as object
     snapshot = {}
     if m.decoder = invalid then return snapshot
@@ -461,6 +474,10 @@ function nativeStreamSnapshot() as object
     snapshot.decoderStatsEnabledSupported = m.decoder.hasField("enableDecoderStats")
     if m.decoder.hasField("enableDecoderStats") then snapshot.decoderStatsEnabled = m.decoder.enableDecoderStats
     snapshot.audioFormatSupported = m.decoder.hasField("audioFormat")
+    snapshot.audioSelectionPreferencesSupported = m.decoder.hasField("audioSelectionPreferences")
+    snapshot.audioSelectionPreferencesSet = m.audioSelectionPreferenceSet
+    snapshot.availableAudioTracksSupported = m.decoder.hasField("availableAudioTracks")
+    snapshot.currentAudioTrackSupported = m.decoder.hasField("currentAudioTrack")
     snapshot.playStartInfoSupported = m.decoder.hasField("playStartInfo")
     snapshot.streamingSegmentSupported = m.decoder.hasField("streamingSegment")
     snapshot.downloadedSegmentSupported = m.decoder.hasField("downloadedSegment")
@@ -541,6 +558,27 @@ function nativeStreamSnapshot() as object
     if m.decoder.hasField("audioFormat")
         value = m.decoder.audioFormat
         if GetInterface(value,"ifString") <> invalid and value <> "" then snapshot.audioFormat = value
+    end if
+    if m.decoder.hasField("currentAudioTrack")
+        value = m.decoder.currentAudioTrack
+        if GetInterface(value,"ifString") <> invalid and value <> "" then snapshot.currentAudioTrack = left(value,120)
+    end if
+    if m.decoder.hasField("availableAudioTracks")
+        tracks = m.decoder.availableAudioTracks
+        if type(tracks) = "roArray"
+            audioTracks = []
+            for each track in tracks
+                if type(track) = "roAssociativeArray"
+                    audioTrack = {}
+                    for each field in ["Language","Name","Track"]
+                        value = track[field]
+                        if GetInterface(value,"ifString") <> invalid and value <> "" then audioTrack[field] = left(value,120)
+                    end for
+                    if audioTrack.count() > 0 then audioTracks.push(audioTrack)
+                end if
+            end for
+            if audioTracks.count() > 0 then snapshot.availableAudioTracks = audioTracks
+        end if
     end if
     if m.decoder.hasField("decoderStats")
         stats = m.decoder.decoderStats
