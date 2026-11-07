@@ -67,6 +67,7 @@ sub init()
     m.watchdogReason = ""
     m.nativePollAt = -1000
     m.nativePollSignature = ""
+    m.lastTransportDrawAt = -1000
     m.watch = invalid
     applyPlayerTheme()
 end sub
@@ -262,7 +263,7 @@ sub openRequest()
     media.httpHeaders = requestHeaders
     m.decoder.enableUI = false
     m.decoder.enableTrickPlay = false
-    m.decoder.notificationInterval = 0.1
+    m.decoder.notificationInterval = 0.5
     m.decoder.autoplayAfterSeek = true
     m.accuracyMode = "unavailable"
     if m.decoder.hasField("seekMode")
@@ -682,6 +683,7 @@ end sub
 
 sub drawTransport()
     if not m.mediaOpen then return
+    m.lastTransportDrawAt = m.monotonic.totalMilliseconds()
     state = m.decoder.state
     mode = "Reproduciendo"
     if state = "paused" then mode = "En pausa"
@@ -797,7 +799,8 @@ sub onPulse()
         end if
     end if
     if not m.failed and m.ticket = invalid and m.pendingSeek = invalid and m.decoder.state = "playing" and now >= m.panelUntil then m.panel.visible = false
-    drawTransport()
+    ' During initial buffering, avoid redrawing the full transport at 4 Hz.
+    if m.decoder.state <> "buffering" or now - m.lastTransportDrawAt >= 1000 then drawTransport()
     publishProgress()
 end sub
 
