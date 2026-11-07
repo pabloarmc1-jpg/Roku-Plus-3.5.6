@@ -2,7 +2,7 @@ name: Build Roku Plus ZIP
 on:
   push:
     branches:
-      - fix/hdcatalogtask-clean-3.5.14
+      - fix/hls-decoder-diagnostics-3.5.15
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,10 +16,10 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr Roku-Plus-3.5.14.zip . -x '.git/*' '.github/*' 'Roku-Plus-3.5.14.zip'
+          zip -qr Roku-Plus-3.5.15.zip . -x '.git/*' '.github/*' 'Roku-Plus-3.5.15.zip'
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.14
-          path: Roku-Plus-3.5.14.zip
+          name: Roku-Plus-3.5.15
+          path: Roku-Plus-3.5.15.zip
           if-no-files-found: error
           retention-days: 7
