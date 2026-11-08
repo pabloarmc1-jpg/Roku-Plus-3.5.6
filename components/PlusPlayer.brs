@@ -327,9 +327,17 @@ sub openRequest()
     media = CreateObject("roSGNode", "ContentNode")
     ' 3.5.50: restore the provider's validated HLS URL for the 480p variant test.
     playbackUrl = supplied.url
-    referenceHlsTest = diagnosticTs
-    if diagnosticTs then playbackUrl = diagnosticUrl
-    if format = "hls"
+    ' 3.5.55 isolates native HLS media-playlist handling from master-playlist selection.
+    ' This public Mux rendition is a single-variant MPEG-TS HLS media playlist.
+    referenceHlsMediaPlaylistTest = format = "hls" and not diagnosticTs
+    referenceHlsTest = diagnosticTs or referenceHlsMediaPlaylistTest
+    if diagnosticTs
+        playbackUrl = diagnosticUrl
+    else if referenceHlsMediaPlaylistTest
+        playbackUrl = "https://test-streams.mux.dev/x36xhzz/url_6/193039199_mp4_h264_aac_hq_7.m3u8"
+        print "[RokuPlus hls-test] source=mux-direct-media-playlist"
+    end if
+    if format = "hls" and not referenceHlsMediaPlaylistTest
         print "[RokuPlus hls-test] source=provider-native variant=480p"
     end if
     media.url = playbackUrl
@@ -1043,18 +1051,15 @@ sub onPulse()
     now = m.monotonic.totalMilliseconds()
     advanceSegmentRestart(now)
     advanceHlsSoftRestart(now)
-    ' Sample native Video fields even when Roku does not emit observer notifications.
-    ' Defer the diagnostic snapshot while HLS is trying to acquire its first frame.
-    ' This avoids repeatedly traversing decoder fields during the sensitive startup window.
-    if not m.hlsStartupIsolation
-        if now - m.nativePollAt >= 1000
-            m.nativePollAt = now
-            nativeSample = nativeStreamSnapshot()
-            nativeSignature = FormatJson(nativeSample)
-            if nativeSignature <> m.nativePollSignature
-                m.nativePollSignature = nativeSignature
-                emitDiagnostic("native_poll")
-            end if
+    ' 3.5.55: sample native Video fields during HLS startup as well as normal playback.
+    ' This diagnostic build intentionally trades a small amount of polling work for visibility.
+    if now - m.nativePollAt >= 1000
+        m.nativePollAt = now
+        nativeSample = nativeStreamSnapshot()
+        nativeSignature = FormatJson(nativeSample)
+        if nativeSignature <> m.nativePollSignature
+            m.nativePollSignature = nativeSignature
+            emitDiagnostic("native_poll")
         end if
     end if
     if m.resumePending <> invalid and now - m.resumeStartedAt >= 15000
