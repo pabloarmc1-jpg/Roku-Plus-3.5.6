@@ -146,7 +146,7 @@ sub rpTsRelayServe(connection as object, server as object)
     connection.close()
 end sub
 
-function rpTsRelaySendString(connection, value)
+function rpTsRelaySendString(connection as object, value as string) as Boolean
     offset = 0
     success = true
     while offset < len(value)
@@ -160,7 +160,7 @@ function rpTsRelaySendString(connection, value)
     return success
 end function
 
-function rpTsRelaySendBytes(connection, value)
+function rpTsRelaySendBytes(connection as object, value as object) as Boolean
     offset = 0
     total = value.Count()
     success = true
