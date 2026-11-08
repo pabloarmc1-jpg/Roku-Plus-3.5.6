@@ -312,7 +312,8 @@ sub fetched(event as object)
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSegmentUrls = answer.segmentUrls
-        m.pendingTsRelay = answer.tsRelayEnabled = true
+        m.pendingTsRelay = false
+        if answer.tsRelayEnabled = true then m.pendingTsRelay = true
         launchVideo(m.detail,answer.url,answer.streamFormat)
         return
     else if context.operation = "episodes"
