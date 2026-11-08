@@ -45,6 +45,9 @@ sub init()
     m.localHlsStartedAt = 0
     m.localHlsUse = false
     m.localHlsHost = ""
+    m.localHlsAttachPending = false
+    m.localHlsAttachAt = 0
+    m.localHlsFreshMedia = invalid
     m.decoder.observeField("state", "onDecoderState")
     m.decoder.observeField("position", "onNativePosition")
     m.decoder.observeField("positionInfo", "onRenderedPosition")
@@ -228,6 +231,9 @@ sub openRequest()
     m.nativePlaylistMode = false
     m.localHlsPending = false
     m.localHlsUse = false
+    m.localHlsAttachPending = false
+    m.localHlsAttachAt = 0
+    m.localHlsFreshMedia = invalid
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
         m.segmentMode = true
@@ -1107,6 +1113,20 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
+    if m.localHlsAttachPending
+        nowAttach = m.monotonic.totalMilliseconds()
+        if nowAttach >= m.localHlsAttachAt
+            m.localHlsAttachPending = false
+            m.mediaNode = m.localHlsFreshMedia
+            m.localHlsFreshMedia = invalid
+            m.decoder.contentIsPlaylist = false
+            m.decoder.content = m.mediaNode
+            m.decoder.control = "prebuffer"
+            print "[RokuPlus local-hls] action=fresh_content_attached format=hls headers="; m.mediaNode.httpHeaders.count()
+            emitDiagnostic("local_hls_fresh_content_attached")
+        end if
+        return
+    end if
     if m.localHlsProbePending
         probeStatus = m.localHlsProbe.status
         nowProbe = m.monotonic.totalMilliseconds()
@@ -1116,11 +1136,28 @@ sub onPulse()
             probeBytes = m.localHlsProbe.bodyLength
             print "[RokuPlus local-hls-probe] result code="; probeCode; " bytes="; probeBytes; " failure="; m.localHlsProbe.failureReason
             if probeCode = 200 and probeBytes > 0
-                m.mediaNode.url = "http://" + m.localHlsHost + ":49321/index.m3u8"
-                m.decoder.content = m.mediaNode
-                m.decoder.control = "prebuffer"
-                print "[RokuPlus local-hls] video_url=lan host="; m.localHlsHost; " manifest=attached"
-                emitDiagnostic("local_hls_ready")
+                ' Build a completely fresh ContentNode for native Video. Do not
+                ' mutate/reuse the node that was prepared with the provider URL.
+                freshMedia = CreateObject("roSGNode", "ContentNode")
+                freshMedia.url = "http://" + m.localHlsHost + ":49321/index.m3u8"
+                freshMedia.title = m.mediaNode.title
+                freshMedia.streamFormat = "hls"
+                freshMedia.live = false
+                freshMedia.httpCertificatesFile = "common:/certs/ca-bundle.crt"
+                freshHeaders = CreateObject("roArray", 2, true)
+                if type(m.mediaNode.httpHeaders) = "roArray"
+                    for each header in m.mediaNode.httpHeaders
+                        freshHeaders.push(header)
+                    end for
+                end if
+                freshMedia.httpHeaders = freshHeaders
+                m.localHlsFreshMedia = freshMedia
+                m.localHlsAttachPending = true
+                m.localHlsAttachAt = nowProbe + 300
+                m.decoder.control = "stop"
+                m.decoder.content = invalid
+                print "[RokuPlus local-hls] video_url=lan host="; m.localHlsHost; " action=detach_then_fresh_attach"
+                emitDiagnostic("local_hls_detached")
             else
                 m.hlsStartupIsolation = false
                 m.pulse.duration = 0.25
