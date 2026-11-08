@@ -84,3 +84,5 @@ jobs:
           retention-days: 7
 
 # Package the native HLS reference-stream isolation test.
+
+# Package the local HLS HTTP reachability probe test.
