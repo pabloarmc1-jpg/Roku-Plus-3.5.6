@@ -325,20 +325,15 @@ sub openRequest()
         end if
     end if
     media = CreateObject("roSGNode", "ContentNode")
-    ' 3.5.50: restore the provider's validated HLS URL for the 480p variant test.
+    ' 3.5.56: restore the real provider URL after the successful Mux media-playlist control test.
+    ' Keep native startup polling and all HLS isolation diagnostics enabled.
     playbackUrl = supplied.url
-    ' 3.5.55 isolates native HLS media-playlist handling from master-playlist selection.
-    ' This public Mux rendition is a single-variant MPEG-TS HLS media playlist.
-    referenceHlsMediaPlaylistTest = format = "hls" and not diagnosticTs
-    referenceHlsTest = diagnosticTs or referenceHlsMediaPlaylistTest
+    referenceHlsTest = diagnosticTs
     if diagnosticTs
         playbackUrl = diagnosticUrl
-    else if referenceHlsMediaPlaylistTest
-        playbackUrl = "https://test-streams.mux.dev/x36xhzz/url_6/193039199_mp4_h264_aac_hq_7.m3u8"
-        print "[RokuPlus hls-test] source=mux-direct-media-playlist"
     end if
-    if format = "hls" and not referenceHlsMediaPlaylistTest
-        print "[RokuPlus hls-test] source=provider-native variant=480p"
+    if format = "hls" and not diagnosticTs
+        print "[RokuPlus hls-test] source=provider-native"
     end if
     media.url = playbackUrl
     media.title = m.titleText.text
