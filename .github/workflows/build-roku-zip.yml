@@ -30,6 +30,7 @@ on:
       - test/hls-clean-playlist-tool-3.5.52
       - test/hls-manifest-audit-3.5.53
       - test/hls-native-segment-trace-3.5.54
+      - test/hls-direct-media-playlist-3.5.55
   workflow_dispatch:
 permissions:
   contents: read
