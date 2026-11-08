@@ -563,7 +563,7 @@ function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
             end if
             url = rpHdOnlineJoin(baseUrl,line)
             if url <> ""
-                answer.variants.push({url:url,codecs:orbitText(pending.CODECS,200),width:width,height:height,fps:orbitText(pending["FRAME-RATE"],32).toFloat(),bandwidth:orbitInteger(pending.BANDWIDTH,100000000),audioGroup:orbitText(pending.AUDIO,100)})
+                answer.variants.push({url:url,codecs:orbitText(pending.CODECS,200),width:width,height:height,fps:orbitText(pending["FRAME-RATE"],32).toFloat(),bandwidth:orbitInteger(pending.BANDWIDTH,100000000),averageBandwidth:orbitInteger(pending["AVERAGE-BANDWIDTH"],100000000),videoRange:orbitText(pending["VIDEO-RANGE"],20),hdcpLevel:orbitText(pending["HDCP-LEVEL"],20),audioGroup:orbitText(pending.AUDIO,100)})
                 if orbitText(pending.AUDIO,100) <> "" then answer.variantAudioGroupCount++
             end if
             pending = invalid
@@ -760,17 +760,25 @@ end function
 
 
 function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPid as integer) as object
-    result = {videoPackets:0,audioPackets:0,videoContinuityErrors:0,audioContinuityErrors:0,videoPesStarts:0,audioPesStarts:0,videoPtsCount:0,audioPtsCount:0,videoDtsCount:0,audioDtsCount:0,pcrCount:0,discontinuityFlags:0,firstVideoPts:-1,lastVideoPts:-1,firstAudioPts:-1,lastAudioPts:-1,firstPcr:-1,lastPcr:-1}
+    result = {videoPackets:0,audioPackets:0,videoContinuityErrors:0,audioContinuityErrors:0,videoPesStarts:0,audioPesStarts:0,videoPtsCount:0,audioPtsCount:0,videoDtsCount:0,audioDtsCount:0,pcrCount:0,discontinuityFlags:0,firstVideoPts:-1,lastVideoPts:-1,firstAudioPts:-1,lastAudioPts:-1,firstPcr:-1,lastPcr:-1,invalidPackets:0,transportErrors:0,scrambledPackets:0}
     if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
-    if data.count() < 188*4 or data.count() > 131072 then return result
+    if data.count() < 188*4 or data.count() > 2097152 then return result
     previousVideo = -1
     previousAudio = -1
     for offset = 0 to data.count()-188 step 188
-        if data[offset] <> 71 then return result
+        if data[offset] <> 71
+            result.invalidPackets++
+            return result
+        end if
         b1 = orbitInteger(data[offset+1],255,-1)
         b2 = orbitInteger(data[offset+2],255,-1)
         b3 = orbitInteger(data[offset+3],255,-1)
-        if b1 < 0 or b2 < 0 or b3 < 0 then return result
+        if b1 < 0 or b2 < 0 or b3 < 0
+            result.invalidPackets++
+            return result
+        end if
+        if (b1 \\ 128) = 1 then result.transportErrors++
+        if (b3 \\ 64) mod 2 = 1 then result.scrambledPackets++
         pid = (b1 mod 32)*256+b2
         pusi = ((b1 \ 64) mod 2) = 1
         control = (b3 \ 16) mod 4
@@ -834,7 +842,7 @@ function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPi
 end function
 
 function rpHdOnlineTsStartupProfile(data as dynamic) as object
-    profile = {valid:false,sampleBytes:0,pat:false,pmt:false,videoPid:-1,audioPid:-1,firstVideoPesByte:-1,firstNalType:0,firstVclType:0,idrPresent:false,idrByte:-1,spsPresent:false,ppsPresent:false}
+    profile = {valid:false,sampleBytes:0,pat:false,pmt:false,videoPid:-1,audioPid:-1,firstVideoPesByte:-1,firstNalType:0,firstVclType:0,idrPresent:false,idrByte:-1,spsPresent:false,ppsPresent:false,spsProfileIdc:-1,spsConstraints:-1,spsLevelIdc:-1}
     if type(data) <> "roByteArray" and type(data) <> "roArray" then return profile
     if data.count() < 188*4 or data.count() > 131072 then return profile
     profile.sampleBytes = data.count()
@@ -897,7 +905,14 @@ function rpHdOnlineTsStartupProfile(data as dynamic) as object
                     end if
                     if nalAt >= 0
                         nalType = data[nalAt] mod 32
-                        if nalType = 7 then profile.spsPresent = true
+                        if nalType = 7
+                            profile.spsPresent = true
+                            if nalAt+3 < packet.endAt
+                                profile.spsProfileIdc = data[nalAt+1]
+                                profile.spsConstraints = data[nalAt+2]
+                                profile.spsLevelIdc = data[nalAt+3]
+                            end if
+                        end if
                         if nalType = 8 then profile.ppsPresent = true
                         if (nalType = 1 or nalType = 5) and profile.firstVclType = 0 then profile.firstVclType = nalType
                         if nalType = 5 and not profile.idrPresent
