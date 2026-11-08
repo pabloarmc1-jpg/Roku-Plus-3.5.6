@@ -47,6 +47,7 @@ on:
       - test/hls-local-m3u8-server-3.5.69
       - test/hls-local-m3u8-server-3.5.70
       - test/hls-lan-m3u8-server-3.5.71
+      - test/hls-lan-http-probe-3.5.72
   workflow_dispatch:
 permissions:
   contents: read
