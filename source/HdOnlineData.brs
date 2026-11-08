@@ -332,7 +332,7 @@ end function
 function rpHdOnlineUnpack(html as dynamic) as string
     text = orbitText(html,524289)
     if text = "" or len(text) > 524288 then return ""
-    pattern = "}\s*\(\s*'((?:\\.|[^'\\])*)'\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*'((?:\\.|[^'\\])*)'\.split\('\|'\)"
+    pattern = "}\s*\(\s*'((?:\.|[^'\])*)'\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*'((?:\.|[^'\])*)'\.split\('\|'\)"
     parts = CreateObject("roRegex",pattern,"s").match(text)
     if parts.count() < 5 then return text
     radix = orbitInteger(parts[2],62)
@@ -926,16 +926,16 @@ function rpHdOnlineTsAdtsHeader(data as dynamic, offset as integer) as object
     b4 = orbitInteger(data[offset+4],255,-1)
     b5 = orbitInteger(data[offset+5],255,-1)
     if b0 <> 255 or b1 < 0 or b2 < 0 or b3 < 0 or b4 < 0 or b5 < 0 then return result
-    if b1 < 240 or ((b1 \\ 2) mod 4) <> 0 then return result
-    rateIndex = (b2 \\ 2) mod 16
-    channels = (b2 mod 2)*4+(b3 \\ 64)
-    frameLength = (b3 mod 4)*2048+b4*8+(b5 \\ 32)
+    if b1 < 240 or ((b1 \ 2) mod 4) <> 0 then return result
+    rateIndex = (b2 \ 2) mod 16
+    channels = (b2 mod 2)*4+(b3 \ 64)
+    frameLength = (b3 mod 4)*2048+b4*8+(b5 \ 32)
     headerLength = 7
     if (b1 mod 2) = 0 then headerLength = 9
     if rateIndex > 12 or frameLength < headerLength then return result
     result.valid = true
     result.length = frameLength
-    result.profile = b2 \\ 64
+    result.profile = b2 \ 64
     result.rateIndex = rateIndex
     result.channels = channels
     return result
