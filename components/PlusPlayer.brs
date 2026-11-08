@@ -71,6 +71,10 @@ sub init()
     m.nativePollAt = -1000
     m.nativePollSignature = ""
     m.hlsStartupIsolation = false
+    m.mediaNode = invalid
+    m.hlsRetryCount = 0
+    m.hlsRestartStage = 0
+    m.hlsRestartAt = 0
     m.lastTransportDrawAt = -1000
     m.watch = invalid
     applyPlayerTheme()
@@ -199,6 +203,10 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    m.mediaNode = invalid
+    m.hlsRetryCount = 0
+    m.hlsRestartStage = 0
+    m.hlsRestartAt = 0
     m.segmentUrls = invalid
     m.segmentIndex = 0
     m.segmentTransitioning = false
@@ -355,6 +363,7 @@ sub openRequest()
         m.decoder.seekMode = "accurate"
         m.accuracyMode = m.decoder.seekMode
     end if
+    m.mediaNode = media
     m.decoder.content = media
     m.mediaOpen = true
     m.top.visible = true
@@ -391,6 +400,8 @@ sub closePlayback()
     m.pulse.control = "stop"
     m.decoder.control = "stop"
     m.decoder.content = invalid
+    m.mediaNode = invalid
+    m.hlsRestartStage = 0
     m.current = invalid
     m.top.request = invalid
     m.top.active = false
@@ -903,11 +914,69 @@ sub advanceSegmentRestart(now as integer)
     end if
 end sub
 
+' Retry one stalled native HLS startup by fully detaching and reattaching
+' the same ContentNode to the Video node. This is deliberately limited to one
+' retry per request; the second timeout returns to the normal error surface.
+sub beginHlsSoftRestart(now as integer)
+    if m.mediaNode = invalid
+        m.hlsStartupIsolation = false
+        m.failed = true
+        m.watchdogReason = "hls_restart_missing_content"
+        m.notice = "No se pudo reiniciar la fuente. Atrás para volver."
+        m.noticeUntil = 2147483647
+        revealTransport()
+        emitDiagnostic("hls_soft_restart_missing_content")
+        return
+    end if
+    m.hlsRetryCount++
+    m.hlsRestartStage = 1
+    m.hlsRestartAt = now
+    m.watch = plusWatchdogCreate(now)
+    m.lastBuffer = invalid
+    m.nativePollAt = -1000
+    m.nativePollSignature = ""
+    m.decoder.visible = false
+    m.decoder.control = "stop"
+    m.decoder.content = invalid
+    print "[RokuPlus hls-retry] attempt="; m.hlsRetryCount; " action=detach"
+    emitDiagnostic("hls_soft_restart_begin")
+end sub
+
+sub advanceHlsSoftRestart(now as integer)
+    if m.hlsRestartStage = 0 or not m.mediaOpen then return
+    if m.hlsRestartStage = 1
+        if m.decoder.state = "stopped"
+            m.decoder.content = m.mediaNode
+            m.hlsRestartStage = 2
+            m.hlsRestartAt = now
+            emitDiagnostic("hls_soft_restart_content")
+        else if now - m.hlsRestartAt >= 5000
+            m.hlsRestartStage = 0
+            m.hlsStartupIsolation = false
+            m.failed = true
+            m.watchdogReason = "hls_restart_stop_timeout"
+            m.notice = "No se pudo reiniciar el reproductor. Atrás para volver."
+            m.noticeUntil = 2147483647
+            revealTransport()
+            emitDiagnostic("hls_soft_restart_stop_timeout")
+        end if
+    else if m.hlsRestartStage = 2 and now - m.hlsRestartAt >= 500
+        m.decoder.visible = true
+        m.decoder.control = "play"
+        m.hlsRestartStage = 0
+        m.hlsRestartAt = 0
+        m.watch = plusWatchdogCreate(now)
+        print "[RokuPlus hls-retry] attempt="; m.hlsRetryCount; " action=reattach-play"
+        emitDiagnostic("hls_soft_restart_play")
+    end if
+end sub
+
 sub onPulse()
     if not m.mediaOpen then return
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
     advanceSegmentRestart(now)
+    advanceHlsSoftRestart(now)
     ' Sample native Video fields even when Roku does not emit observer notifications.
     ' Defer the diagnostic snapshot while HLS is trying to acquire its first frame.
     ' This avoids repeatedly traversing decoder fields during the sensitive startup window.
@@ -949,23 +1018,27 @@ sub onPulse()
         end if
     end if
     dispatchPendingSeek()
-    if not m.failed and m.watch <> invalid
+    if not m.failed and m.watch <> invalid and m.hlsRestartStage = 0
         sample = renderedFields()
         reason = plusWatchdogObserve(m.watch,m.decoder.state,m.decoder.position,sample.video,m.wantPaused,m.ticket <> invalid,now)
         if reason <> ""
-            m.watchdogReason = reason
-            m.hlsStartupIsolation = false
-            m.failed = true
-            m.ticket = invalid
-            m.pendingSeek = invalid
-            m.decoder.visible = false
-            m.notice = "La fuente dejó de avanzar. OK para reintentar; Atrás para elegir otra."
-            if reason = "loading_timeout" then m.notice = "La fuente tardó demasiado. OK para reintentar; Atrás para elegir otra."
-            m.noticeUntil = 2147483647
-            revealTransport()
-            emitDiagnostic(reason)
-            publishProgress(true)
-            m.decoder.control = "stop"
+            if reason = "loading_timeout" and m.hlsStartupIsolation and m.hlsRetryCount < 1
+                beginHlsSoftRestart(now)
+            else
+                m.watchdogReason = reason
+                m.hlsStartupIsolation = false
+                m.failed = true
+                m.ticket = invalid
+                m.pendingSeek = invalid
+                m.decoder.visible = false
+                m.notice = "La fuente dejó de avanzar. OK para reintentar; Atrás para elegir otra."
+                if reason = "loading_timeout" then m.notice = "La fuente tardó demasiado. OK para reintentar; Atrás para elegir otra."
+                m.noticeUntil = 2147483647
+                revealTransport()
+                emitDiagnostic(reason)
+                publishProgress(true)
+                m.decoder.control = "stop"
+            end if
         end if
     end if
     if not m.failed and m.ticket = invalid and m.pendingSeek = invalid and m.decoder.state = "playing" and now >= m.panelUntil then m.panel.visible = false
