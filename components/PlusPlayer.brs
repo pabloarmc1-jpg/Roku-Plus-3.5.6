@@ -693,6 +693,23 @@ function nativeStreamSnapshot() as object
     snapshot.streamInfoSupported = m.decoder.hasField("streamInfo")
     snapshot.videoFormatSupported = m.decoder.hasField("videoFormat")
     snapshot.timeToStartStreamingSupported = m.decoder.hasField("timeToStartStreaming")
+    snapshot.maxVideoDecodeResolutionSupported = m.decoder.hasField("maxVideoDecodeResolution")
+    snapshot.enableUiSupported = m.decoder.hasField("enableUI")
+    snapshot.enableTrickPlaySupported = m.decoder.hasField("enableTrickPlay")
+    snapshot.seekModeSupported = m.decoder.hasField("seekMode")
+    snapshot.notificationIntervalSupported = m.decoder.hasField("notificationInterval")
+    snapshot.autoplayAfterSeekSupported = m.decoder.hasField("autoplayAfterSeek")
+    if m.decoder.hasField("maxVideoDecodeResolution")
+        resolution = m.decoder.maxVideoDecodeResolution
+        if type(resolution) = "roArray" and resolution.count() >= 2
+            snapshot.maxVideoDecodeResolution = [resolution[0],resolution[1]]
+        end if
+    end if
+    if m.decoder.hasField("enableUI") then snapshot.enableUI = m.decoder.enableUI
+    if m.decoder.hasField("enableTrickPlay") then snapshot.enableTrickPlay = m.decoder.enableTrickPlay
+    if m.decoder.hasField("seekMode") then snapshot.seekMode = m.decoder.seekMode
+    if m.decoder.hasField("notificationInterval") then snapshot.notificationInterval = m.decoder.notificationInterval
+    if m.decoder.hasField("autoplayAfterSeek") then snapshot.autoplayAfterSeek = m.decoder.autoplayAfterSeek
 
     if m.decoder.hasField("errorCode")
         value = m.decoder.errorCode
@@ -1375,6 +1392,18 @@ sub emitDiagnostic(reason as string)
     end if
     if m.effectiveStreamFormat <> "" then entry.effectiveStreamFormat = m.effectiveStreamFormat
     entry.diagnosticTsActive = m.diagnosticTsActive
+    entry.playerVisible = m.top.visible
+    entry.decoderVisible = m.decoder.visible
+    entry.transportVisible = m.panel.visible
+    entry.phase = m.phase
+    entry.hlsStartupIsolation = m.hlsStartupIsolation
+    entry.hlsRetryCount = m.hlsRetryCount
+    entry.hlsRestartStage = m.hlsRestartStage
+    if m.mediaNode <> invalid
+        entry.mediaStreamFormat = m.mediaNode.streamFormat
+        entry.mediaLive = m.mediaNode.live
+        if type(m.mediaNode.httpHeaders) = "roArray" then entry.mediaHeaderCount = m.mediaNode.httpHeaders.count()
+    end if
     if m.decoder.hasField("contentIsPlaylist") then entry.contentIsPlaylist = m.decoder.contentIsPlaylist
     entry.failed = m.failed
     if m.watchdogReason <> "" then entry.watchdogReason = m.watchdogReason
