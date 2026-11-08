@@ -190,6 +190,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             if playable
                                 candidateStage = "segment_not_ts"
                                 segmentUrl = rpHdTaskFirstSegment(child.body,selected.url)
+                                print "[RokuPlus DEBUG] firstSegment="; segmentUrl
                                 ' Only this tested TS path has an AVC/AAC byte validator.
                                 ' Codec labels alone must not send a dead or silent stream to Video.
                                 playable = rpHdTaskTsSegment(segmentUrl)
