@@ -163,15 +163,18 @@ sub rpTsRelaySendString(connection as object, value as string, server as object,
     server.sendOk = true
     while offset < len(value)
         count = connection.sendStr(mid(value,offset+1))
-        if count <= 0
-            if count = 0 and rpTsRelayWaitWritable(connection,port)
-                ' The non-blocking socket is temporarily full. Retry this offset.
-            else
+        if count > 0
+            offset += count
+        else if count < 0 and (connection.eAgain() or connection.eWouldBlock())
+            if not rpTsRelayWaitWritable(connection,port)
+                print "[RokuPlus ts-relay] send_wait_failed kind=string offset="; offset; " status="; connection.status()
                 server.sendOk = false
                 exit while
             end if
         else
-            offset += count
+            print "[RokuPlus ts-relay] send_failed kind=string count="; count; " offset="; offset; " status="; connection.status(); " eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock()
+            server.sendOk = false
+            exit while
         end if
     end while
 end sub
@@ -182,25 +185,31 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
     server.sendOk = true
     while offset < total
         count = connection.send(value,offset,total-offset)
-        if count <= 0
-            if count = 0 and rpTsRelayWaitWritable(connection,port)
-                ' Wait for writable before retrying the unsent bytes.
-            else
+        if count > 0
+            offset += count
+        else if count < 0 and (connection.eAgain() or connection.eWouldBlock())
+            if not rpTsRelayWaitWritable(connection,port)
+                print "[RokuPlus ts-relay] send_wait_failed kind=bytes offset="; offset; " total="; total; " status="; connection.status()
                 server.sendOk = false
                 exit while
             end if
         else
-            offset += count
+            print "[RokuPlus ts-relay] send_failed kind=bytes count="; count; " offset="; offset; " total="; total; " status="; connection.status(); " eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock()
+            server.sendOk = false
+            exit while
         end if
     end while
 end sub
 
 function rpTsRelayWaitWritable(connection as object, port as object) as boolean
-    if connection.isWritable() then return true
-    event = wait(5000,port)
-    if event = invalid then return false
-    if connection.isException() then return false
-    return connection.isWritable()
+    timer = CreateObject("roTimespan")
+    timer.Mark()
+    while timer.TotalMilliseconds() < 10000
+        if connection.isException() then return false
+        if connection.isWritable() then return true
+        wait(250,port)
+    end while
+    return false
 end function
 
 function rpTsRelayHex(value as integer) as string
