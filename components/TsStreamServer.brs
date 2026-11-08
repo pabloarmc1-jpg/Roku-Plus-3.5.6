@@ -76,9 +76,11 @@ sub rpTsRelayServe(connection as object, server as object)
     header += "Transfer-Encoding: chunked"+chr(13)+chr(10)
     header += "Cache-Control: no-store"+chr(13)+chr(10)
     header += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
-    if not rpTsRelaySendString(connection,header)
+    rpTsRelaySendString(connection,header,server)
+    if not server.sendOk
         connection.close()
         return
+    end if
     segments = server.segments
     headers = server.mediaHeaders
     sentSegments = 0
