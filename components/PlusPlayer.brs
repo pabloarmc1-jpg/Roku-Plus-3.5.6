@@ -38,6 +38,9 @@ sub init()
     m.forwardSurface = m.top.findNode("forwardSurface")
     m.pulse = m.top.findNode("uiPulse")
     m.localHlsServer = m.top.findNode("localHlsServer")
+    m.localHlsProbe = m.top.findNode("localHlsProbe")
+    m.localHlsProbePending = false
+    m.localHlsProbeStartedAt = 0
     m.localHlsPending = false
     m.localHlsStartedAt = 0
     m.localHlsUse = false
@@ -1104,6 +1107,47 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
+    if m.localHlsProbePending
+        probeStatus = m.localHlsProbe.status
+        nowProbe = m.monotonic.totalMilliseconds()
+        if probeStatus = "complete"
+            m.localHlsProbePending = false
+            probeCode = m.localHlsProbe.responseCode
+            probeBytes = m.localHlsProbe.bodyLength
+            print "[RokuPlus local-hls-probe] result code="; probeCode; " bytes="; probeBytes; " failure="; m.localHlsProbe.failureReason
+            if probeCode = 200 and probeBytes > 0
+                m.mediaNode.url = "http://" + m.localHlsHost + ":49321/index.m3u8"
+                m.decoder.content = m.mediaNode
+                m.decoder.control = "prebuffer"
+                print "[RokuPlus local-hls] video_url=lan host="; m.localHlsHost; " manifest=attached"
+                emitDiagnostic("local_hls_ready")
+            else
+                m.hlsStartupIsolation = false
+                m.pulse.duration = 0.25
+                m.failed = true
+                m.watchdogReason = "local_hls_probe_failed"
+                m.notice = "No se pudo leer la lista HLS local. OK para volver."
+                m.noticeUntil = 2147483647
+                m.decoder.visible = false
+                revealTransport()
+                print "[RokuPlus local-hls-probe] failed code="; probeCode; " bytes="; probeBytes
+                emitDiagnostic("local_hls_probe_failed")
+            end if
+        else if probeStatus = "timeout" or nowProbe - m.localHlsProbeStartedAt >= 8000
+            m.localHlsProbePending = false
+            m.hlsStartupIsolation = false
+            m.pulse.duration = 0.25
+            m.failed = true
+            m.watchdogReason = "local_hls_probe_timeout"
+            m.notice = "La prueba de conexión HLS local agotó el tiempo."
+            m.noticeUntil = 2147483647
+            m.decoder.visible = false
+            revealTransport()
+            print "[RokuPlus local-hls-probe] failed timeout status="; probeStatus
+            emitDiagnostic("local_hls_probe_timeout")
+        end if
+        return
+    end if
     if m.localHlsPending
         localStatus = m.localHlsServer.status
         nowLocal = m.monotonic.totalMilliseconds()
@@ -1130,11 +1174,16 @@ sub onPulse()
                 return
             end if
             m.localHlsHost = localIp
-            m.mediaNode.url = "http://" + localIp + ":49321/index.m3u8"
-            m.decoder.content = m.mediaNode
-            m.decoder.control = "prebuffer"
-            print "[RokuPlus local-hls] video_url=lan host="; localIp; " manifest=attached"
-            emitDiagnostic("local_hls_ready")
+            m.localHlsProbe.url = "http://" + localIp + ":49321/index.m3u8"
+            m.localHlsProbe.status = "starting"
+            m.localHlsProbe.responseCode = -999
+            m.localHlsProbe.bodyLength = 0
+            m.localHlsProbe.failureReason = ""
+            m.localHlsProbeStartedAt = nowLocal
+            m.localHlsProbePending = true
+            m.localHlsProbe.control = "RUN"
+            print "[RokuPlus local-hls-probe] started host="; localIp; " port=49321"
+            emitDiagnostic("local_hls_probe_started")
         else if localStatus = "address_error" or localStatus = "bind_error" or localStatus = "listen_error" or nowLocal - m.localHlsStartedAt >= 10000
             m.localHlsPending = false
             m.hlsStartupIsolation = false
