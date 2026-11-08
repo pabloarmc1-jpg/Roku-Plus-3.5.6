@@ -330,6 +330,17 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             answer.url = selected.url
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                            ' Diagnostic 3.5.70: serve a rewritten LaMovie media playlist from loopback.
+                            ' Segment URLs remain absolute HTTPS URLs; no TS clip sequencing is introduced.
+                            if provider = "lamovie"
+                                localManifest = rpHdTaskLocalPlaylist(child.body,selected.url)
+                                if localManifest <> ""
+                                    answer.localHlsManifest = localManifest
+                                    print "[RokuPlus local-hls] manifest=ready bytes="; len(localManifest)
+                                else
+                                    print "[RokuPlus local-hls] manifest=not_rewritable fallback=provider"
+                                end if
+                            end if
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
                             answer.language = embed.language
                             answer.width = selected.width
@@ -363,6 +374,40 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     m.hdProviderDeadline = 0
     answer.message = "No hay una fuente H.264 en español compatible disponible para este título. Prueba otra opción de la misma película."
     return answer
+end function
+
+' Convert a VOD media playlist to absolute segment URLs for the loopback HTTP server.
+' Reject constructs that would need URI rewriting beyond ordinary TS segment lines.
+function rpHdTaskLocalPlaylist(body as dynamic, baseUrl as string) as string
+    text = orbitText(body,2097152)
+    if len(text) = 0 or left(text,7) <> "#EXTM3U" then return ""
+    if rpHdOnlineCdn(baseUrl) = "" then return ""
+    output = ""
+    segments = 0
+    for each raw in text.split(chr(10))
+        line = raw.trim()
+        if line <> ""
+            if left(line,11) = "#EXT-X-MAP:"
+                return ""
+            else if left(line,11) = "#EXT-X-KEY:"
+                attrs = rpHdOnlineAttributes(line)
+                if attrs.METHOD <> "NONE" then return ""
+            else if left(line,18) = "#EXT-X-STREAM-INF:"
+                return ""
+            else if left(line,1) = "#"
+                output += line + chr(10)
+            else
+                segmentUrl = rpHdOnlineJoin(baseUrl,line)
+                if segmentUrl = "" or left(segmentUrl,8) <> "https://" then return ""
+                output += segmentUrl + chr(10)
+                segments++
+                if segments > 2000 then return ""
+            end if
+        end if
+        if len(output) > 2097152 then return ""
+    end for
+    if segments = 0 or instr(1,output,"#EXT-X-ENDLIST") = 0 then return ""
+    return output
 end function
 
 ' Audit the complete child playlist without printing signed segment URLs or query tokens.
