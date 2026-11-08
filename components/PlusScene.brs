@@ -308,6 +308,11 @@ sub fetched(event as object)
         end if
     else if context.operation = "resolve"
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
+        if GetInterface(answer.localHlsManifest,"ifString") <> invalid
+            m.detail.localHlsManifest = answer.localHlsManifest
+        else
+            m.detail.localHlsManifest = invalid
+        end if
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSegmentUrls = answer.segmentUrls
         launchVideo(m.detail,answer.url,answer.streamFormat)
@@ -418,6 +423,10 @@ sub launchVideo(item as object, url as string, format as string)
         descriptor.resumePosition = savedProgress.position
     end if
     if item.doesExist("mediaHeaders") then descriptor.mediaHeaders = item.mediaHeaders
+    if item.doesExist("localHlsManifest") and GetInterface(item.localHlsManifest,"ifString") <> invalid
+        descriptor.localHlsManifest = item.localHlsManifest
+        item.localHlsManifest = invalid
+    end if
     if type(m.pendingSegmentUrls) = "roArray"
         descriptor.segmentUrls = m.pendingSegmentUrls
         m.pendingSegmentUrls = invalid
