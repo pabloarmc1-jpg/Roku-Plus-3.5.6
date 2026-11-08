@@ -74,7 +74,6 @@ sub init()
     m.hlsPrebufferPending = false
     m.mediaNode = invalid
     m.hlsRetryCount = 0
-    m.hlsPrebufferPending = false
     m.hlsRestartStage = 0
     m.hlsRestartAt = 0
     m.lastTransportDrawAt = -1000
@@ -207,6 +206,7 @@ sub openRequest()
     m.current = supplied
     m.mediaNode = invalid
     m.hlsRetryCount = 0
+    m.hlsPrebufferPending = false
     m.hlsRestartStage = 0
     m.hlsRestartAt = 0
     m.segmentUrls = invalid
@@ -1002,7 +1002,7 @@ sub advanceHlsSoftRestart(now as integer)
         m.hlsRestartStage = 0
         m.hlsRestartAt = 0
         m.watch = plusWatchdogCreate(now)
-        print "[RokuPlus hls-retry] attempt="; m.hlsRetryCount; " action=reattach-play"
+        print "[RokuPlus hls-retry] attempt="; m.hlsRetryCount; " action=reattach-prebuffer"
         emitDiagnostic("hls_soft_restart_play")
     end if
 end sub
