@@ -1002,16 +1002,16 @@ function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) a
     confirmedBytes = 0
     while cursor+7 <= audio.count()
         frame = rpHdOnlineTsAdtsHeader(audio,cursor)
-        if frame.valid
+        if frame.valid and cursor+frame.length <= audio.count()
             result.adtsCandidates++
             nextOffset = cursor+frame.length
             nextFrame = rpHdOnlineTsAdtsHeader(audio,nextOffset)
-            if nextFrame.valid and nextFrame.profile = frame.profile and nextFrame.rateIndex = frame.rateIndex and nextFrame.channels = frame.channels
+            if nextFrame.valid and nextOffset+nextFrame.length <= audio.count() and nextFrame.profile = frame.profile and nextFrame.rateIndex = frame.rateIndex and nextFrame.channels = frame.channels
                 runFrames = 2
                 runEnd = nextOffset+nextFrame.length
                 while runEnd+7 <= audio.count()
                     following = rpHdOnlineTsAdtsHeader(audio,runEnd)
-                    if not following.valid or following.profile <> frame.profile or following.rateIndex <> frame.rateIndex or following.channels <> frame.channels then exit while
+                    if not following.valid or runEnd+following.length > audio.count() or following.profile <> frame.profile or following.rateIndex <> frame.rateIndex or following.channels <> frame.channels then exit while
                     runFrames++
                     runEnd += following.length
                 end while
@@ -1031,6 +1031,7 @@ function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) a
                 cursor++
             end if
         else
+            if frame.valid and cursor+frame.length > audio.count() then result.truncatedFrames++
             cursor++
         end if
     end while
