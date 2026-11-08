@@ -160,7 +160,7 @@ function rpTsRelaySendString(connection as object, value as string) as Boolean
     return success
 end function
 
-function rpTsRelaySendBytes(connection as object, value as object) as Boolean
+function rpTsRelaySendBytes(connection, value)
     offset = 0
     total = value.Count()
     success = true
