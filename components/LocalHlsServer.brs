@@ -55,12 +55,16 @@ sub rpLocalHlsServeConnection(connection as object, server as object)
     firstLine = request.split(chr(10))[0].trim()
     parts = firstLine.split(" ")
     path = ""
-    if parts.count() >= 2 then path = parts[1]
+    if parts.count() >= 2
+        path = parts[1]
+        queryAt = instr(1,path,"?")
+        if queryAt > 0 then path = left(path,queryAt-1)
+    end if
     print "[RokuPlus local-hls] request path="; path
     body = ""
     statusLine = "200 OK"
     contentType = "application/vnd.apple.mpegurl"
-    if path = "/index.m3u8" or path = "/index.m3u8?source=rokuplus"
+    if path = "/index.m3u8"
         body = server.playlist
         if GetInterface(body,"ifString") = invalid or len(body) = 0
             statusLine = "503 Service Unavailable"
