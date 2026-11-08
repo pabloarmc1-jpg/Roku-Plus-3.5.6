@@ -69,7 +69,7 @@ sub rpTsRelayServe(connection as object, server as object)
     requestPath = ""
     if parts.count() >= 2 then requestPath = parts[1]
     if GetInterface(accessKey,"ifString") = invalid or len(accessKey) < 16 or requestPath <> "/stream.ts?key="+accessKey
-        rpTsRelaySendString(connection,"HTTP/1.1 403 Forbidden"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server)
+        rpTsRelaySendString(connection,"HTTP/1.1 403 Forbidden"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
         connection.close()
         print "[RokuPlus ts-relay] rejected_client"
         return
