@@ -71,8 +71,10 @@ sub init()
     m.nativePollAt = -1000
     m.nativePollSignature = ""
     m.hlsStartupIsolation = false
+    m.hlsPrebufferPending = false
     m.mediaNode = invalid
     m.hlsRetryCount = 0
+    m.hlsPrebufferPending = false
     m.hlsRestartStage = 0
     m.hlsRestartAt = 0
     m.lastTransportDrawAt = -1000
@@ -268,6 +270,7 @@ sub openRequest()
     if format = "mpegts" then format = "ts"
     if format = "m3u8" then format = "hls"
     m.hlsStartupIsolation = format = "hls"
+    m.hlsPrebufferPending = m.hlsStartupIsolation
     if m.hlsStartupIsolation
         ' Diagnostic 3.5.44: cap decoder allocation to this 720p Roku TV.
         ' Roku documents video decode memory as shared with SceneGraph/OpenGL texture memory.
@@ -369,7 +372,12 @@ sub openRequest()
     m.top.visible = true
     m.top.active = true
     applyPresentation()
-    m.decoder.control = "play"
+    if m.hlsStartupIsolation
+        m.decoder.control = "prebuffer"
+        print "[RokuPlus hls-prebuffer] action=prebuffer"
+    else
+        m.decoder.control = "play"
+    end if
     m.pulse.control = "start"
     emitDiagnostic("open")
     if not m.hlsStartupIsolation then drawTransport()
@@ -584,6 +592,13 @@ sub onBufferDetails()
             if info[field] <> invalid then sample[field] = info[field]
         end for
         m.lastBuffer = sample
+        if m.hlsStartupIsolation and m.hlsPrebufferPending and info.prebufferDone = true
+            m.hlsPrebufferPending = false
+            m.decoder.visible = true
+            m.decoder.control = "play"
+            print "[RokuPlus hls-prebuffer] action=play prebufferDone=true"
+            emitDiagnostic("hls_prebuffer_ready_play")
+        end if
         if m.ticket <> invalid
             actualStart = plusClockValue(info.actualStart)
             if actualStart <> invalid
@@ -964,6 +979,7 @@ sub advanceHlsSoftRestart(now as integer)
             m.mediaNode = freshMedia
             m.decoder.contentIsPlaylist = false
             m.decoder.content = freshMedia
+            m.hlsPrebufferPending = true
             print "[RokuPlus hls-retry] action=fresh-content format="; freshMedia.streamFormat; " headers="; freshHeaders.count()
             m.hlsRestartStage = 2
             m.hlsRestartAt = now
@@ -980,7 +996,9 @@ sub advanceHlsSoftRestart(now as integer)
         end if
     else if m.hlsRestartStage = 2 and now - m.hlsRestartAt >= 500
         m.decoder.visible = true
-        m.decoder.control = "play"
+        m.hlsPrebufferPending = true
+        m.decoder.control = "prebuffer"
+        print "[RokuPlus hls-prebuffer] action=retry-prebuffer"
         m.hlsRestartStage = 0
         m.hlsRestartAt = 0
         m.watch = plusWatchdogCreate(now)
