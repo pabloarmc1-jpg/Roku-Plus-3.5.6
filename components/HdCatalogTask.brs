@@ -222,6 +222,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                                 print "[RokuPlus ts-idr] first sps="; firstProfile.spsPresent; " pps="; firstProfile.ppsPresent; " spsProfile="
                                                 print "[RokuPlus ts-idr] first sps="; "cont"; firstProfile.spsProfileIdc; " spsConstraints="; firstProfile.spsConstraints; " spsLevel="
                                                 print "[RokuPlus ts-idr] first sps="; "cont"; firstProfile.spsLevelIdc
+                                                print "[RokuPlus ts-sps] first valid="; firstProfile.spsWidth > 0; " width="; firstProfile.spsWidth; " height="; firstProfile.spsHeight; " chroma="; firstProfile.spsChroma
+                                                print "[RokuPlus ts-sps] first bitDepthLuma="; firstProfile.spsBitDepthLuma; " bitDepthChroma="; firstProfile.spsBitDepthChroma; " maxRefs="; firstProfile.spsMaxRefs
+                                                print "[RokuPlus ts-sps] first frameMbsOnly="; firstProfile.spsFrameMbsOnly; " fps="; firstProfile.spsFrameRate; " fixed="; firstProfile.spsFixedFrameRate; " vui="; firstProfile.spsVui
                                                 print "[RokuPlus ts-idr] second firstVclType="; secondProfile.firstVclType
                                                 print "[RokuPlus ts-idr] second idr="; secondProfile.idrPresent; " idrByte="; secondProfile.idrByte
                                                 print "[RokuPlus ts-idr] second sps="; secondProfile.spsPresent; " pps="; secondProfile.ppsPresent
