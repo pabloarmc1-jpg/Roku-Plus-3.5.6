@@ -965,6 +965,9 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     else if role = "sample-tail"
         transfer.addHeader("Range","bytes=-65612")
         limit = 65612
+    else if role = "sample-full"
+        ' Diagnostic only: some provider first segments exceed 2 MiB.
+        limit = 4194304
     end if
     transfer.enableEncodings(true)
     transfer.setUrl(endpoint)
@@ -1106,6 +1109,6 @@ function rpHdTaskFileSize(info as dynamic) as integer
     numeric = GetInterface(size,"ifInt") <> invalid or GetInterface(size,"ifLongInt") <> invalid or GetInterface(size,"ifFloat") <> invalid or GetInterface(size,"ifDouble") <> invalid
     if not numeric then return -1
     if size < 0 then return -1
-    if size > 2097152 then return 2097153
+    if size > 4194304 then return 4194305
     return int(size)
 end function
