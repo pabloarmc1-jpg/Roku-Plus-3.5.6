@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="LocalHlsProbe" extends="Task">
+  <interface>
+    <field id="url" type="string" value="" />
+    <field id="status" type="string" value="idle" alwaysNotify="true" />
+    <field id="responseCode" type="integer" value="-999" alwaysNotify="true" />
+    <field id="bodyLength" type="integer" value="0" alwaysNotify="true" />
+    <field id="failureReason" type="string" value="" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="LocalHlsProbe.brs" />
+</component>
