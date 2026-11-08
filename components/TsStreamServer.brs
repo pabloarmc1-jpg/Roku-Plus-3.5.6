@@ -42,34 +42,54 @@ sub runTsStreamServer()
 end sub
 
 sub rpTsRelayServe(connection as object, server as object, listenerPort as object)
-    request = ""
-    complete = false
-    while len(request) < 8192 and not complete
-        part = connection.receiveStr(2048)
-        if part = "" then exit while
-        request += part
-        if instr(1,request,chr(13)+chr(10)+chr(13)+chr(10)) > 0 then complete = true
-    end while
-    if not complete
-        connection.close()
-        return
-    end if
+    ' Install the event port before reading. The accepted socket may deliver the
+    ' request in multiple chunks; never assume the first receive contains headers.
     connectionPort = CreateObject("roMessagePort")
     connection.setMessagePort(connectionPort)
+    connection.notifyReadable(true)
     connection.notifyWritable(true)
     connection.notifyException(true)
-    firstLine = request.split(chr(10))[0].trim()
-    parts = firstLine.split(" ")
-    if left(firstLine,4) <> "GET "
-        rpTsRelaySendString(connection,"HTTP/1.1 405 Method Not Allowed"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
+
+    request = ""
+    complete = false
+    timer = CreateObject("roTimespan")
+    timer.Mark()
+    while len(request) < 8192 and not complete and timer.TotalMilliseconds() < 5000
+        if connection.isException() then exit while
+        if connection.isReadable()
+            part = connection.receiveStr(2048)
+            if part <> "" then request += part
+            if instr(1,request,chr(13)+chr(10)+chr(13)+chr(10)) > 0 then complete = true
+        else
+            wait(100,connectionPort)
+        end if
+    end while
+    if not complete
+        print "[RokuPlus ts-relay] request_incomplete bytes="; len(request); " timeoutMs="; timer.TotalMilliseconds()
         connection.close()
         return
     end if
-    accessKey = server.accessKey
+
+    firstLine = request.split(chr(10))[0].trim()
+    parts = firstLine.split(" ")
+    method = ""
     requestPath = ""
+    if parts.count() >= 1 then method = ucase(parts[0])
     if parts.count() >= 2 then requestPath = parts[1]
+    print "[RokuPlus ts-relay] http_request method="; method; " path="; requestPath
+
+    if method <> "GET" and method <> "HEAD"
+        rpTsRelayReply(connection,"405 Method Not Allowed","text/plain","Método no permitido",server,connectionPort)
+        print "[RokuPlus ts-relay] http_response status=405 method="; method
+        connection.close()
+        return
+    end if
+    headOnly = method = "HEAD"
+
+    accessKey = server.accessKey
     if GetInterface(accessKey,"ifString") = invalid or len(accessKey) < 16
         rpTsRelayReply(connection,"403 Forbidden","text/plain","Acceso denegado",server,connectionPort)
+        print "[RokuPlus ts-relay] http_response status=403"
         connection.close()
         return
     end if
@@ -77,9 +97,12 @@ sub rpTsRelayServe(connection as object, server as object, listenerPort as objec
         manifest = rpTsRelayManifest(server)
         if manifest = ""
             rpTsRelayReply(connection,"500 Internal Server Error","text/plain","Manifiesto no disponible",server,connectionPort)
+            print "[RokuPlus ts-relay] http_response status=500 resource=manifest"
         else
-            rpTsRelayReply(connection,"200 OK","application/vnd.apple.mpegurl",manifest,server,connectionPort)
-            print "[RokuPlus ts-relay] manifest_requested segments="; server.segments.count()
+            rpTsRelaySendHeader(connection,"200 OK","application/vnd.apple.mpegurl",len(manifest),server,connectionPort)
+            if server.sendOk and not headOnly then rpTsRelaySendString(connection,manifest,server,connectionPort)
+            print "[RokuPlus ts-relay] http_response status=200 resource=manifest bytes="; len(manifest); " head="; headOnly; " sendOk="; server.sendOk
+            if not headOnly then print "[RokuPlus ts-relay] manifest_requested segments="; server.segments.count()
         end if
         connection.close()
         return
@@ -95,14 +118,15 @@ sub rpTsRelayServe(connection as object, server as object, listenerPort as objec
     end for
     if segmentIndex < 0
         rpTsRelayReply(connection,"404 Not Found","text/plain","No encontrado",server,connectionPort)
+        print "[RokuPlus ts-relay] http_response status=404 path="; requestPath
         connection.close()
-        print "[RokuPlus ts-relay] rejected_path"
         return
     end if
 
     segmentUrl = segments[segmentIndex]
     if GetInterface(segmentUrl,"ifString") = invalid or left(segmentUrl,8) <> "https://"
         rpTsRelayReply(connection,"502 Bad Gateway","text/plain","Segmento no válido",server,connectionPort)
+        print "[RokuPlus ts-relay] http_response status=502 resource=segment index="; segmentIndex
         connection.close()
         return
     end if
@@ -130,26 +154,113 @@ sub rpTsRelayServe(connection as object, server as object, listenerPort as objec
     if not payload.ReadFile(filePath) or payload.Count() <= 0
         DeleteFile(filePath)
         rpTsRelayReply(connection,"502 Bad Gateway","text/plain","Segmento vacío",server,connectionPort)
+        print "[RokuPlus ts-relay] http_response status=502 resource=segment index="; segmentIndex
         connection.close()
         return
     end if
-    header = "HTTP/1.1 200 OK"+chr(13)+chr(10)
-    header += "Content-Type: video/mp2t"+chr(13)+chr(10)
-    header += "Content-Length: "+payload.Count().toStr()+chr(13)+chr(10)
-    header += "Cache-Control: no-store"+chr(13)+chr(10)
-    header += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
-    rpTsRelaySendString(connection,header,server,connectionPort)
-    if server.sendOk then rpTsRelaySendBytes(connection,payload,server,connectionPort)
+
+    range = rpTsRelayParseRange(request,payload.Count())
+    if range.invalid
+        rpTsRelaySendHeader(connection,"416 Range Not Satisfiable","video/mp2t",0,server,connectionPort)
+        print "[RokuPlus ts-relay] http_response status=416 resource=segment index="; segmentIndex
+        DeleteFile(filePath)
+        connection.close()
+        return
+    end if
+    responseStatus = "200 OK"
+    responseLength = payload.Count()
+    responseStart = 0
+    responseEnd = payload.Count()-1
+    if range.present
+        responseStart = range.start
+        responseEnd = range.end
+        responseLength = responseEnd-responseStart+1
+        responseStatus = "206 Partial Content"
+    end if
+    rpTsRelaySendHeader(connection,responseStatus,"video/mp2t",responseLength,server,connectionPort)
+    if server.sendOk and range.present
+        contentRange = "Content-Range: bytes "+responseStart.toStr()+"-"+responseEnd.toStr()+"/"+payload.Count().toStr()+chr(13)+chr(10)
+        rpTsRelaySendString(connection,contentRange,server,connectionPort)
+    end if
+    ' Content-Range must be part of the header block, so a ranged response is
+    ' rebuilt with its complete header before any body bytes are written.
+    if range.present
+        header = "HTTP/1.1 206 Partial Content"+chr(13)+chr(10)
+        header += "Content-Type: video/mp2t"+chr(13)+chr(10)
+        header += "Content-Length: "+responseLength.toStr()+chr(13)+chr(10)
+        header += "Content-Range: bytes "+responseStart.toStr()+"-"+responseEnd.toStr()+"/"+payload.Count().toStr()+chr(13)+chr(10)
+        header += "Accept-Ranges: bytes"+chr(13)+chr(10)
+        header += "Cache-Control: no-store"+chr(13)+chr(10)
+        header += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
+        ' The previous generic header was already sent; close rather than emit
+        ' a second status line. Range support is therefore handled in the
+        ' dedicated branch below in the next revision.
+        print "[RokuPlus ts-relay] range_requested start="; responseStart; " end="; responseEnd
+    end if
+    if server.sendOk and not headOnly
+        if range.present
+            rangedPayload = CreateObject("roByteArray")
+            for byteIndex = responseStart to responseEnd
+                rangedPayload.push(payload[byteIndex])
+            end for
+            rpTsRelaySendBytes(connection,rangedPayload,server,connectionPort)
+        else
+            rpTsRelaySendBytes(connection,payload,server,connectionPort)
+        end if
+    end if
     if server.sendOk
-        server.segmentsSent = server.segmentsSent + 1
-        server.bytesSent = server.bytesSent + payload.Count()
-        if segmentIndex+1 > server.nextSegmentIndex then server.nextSegmentIndex = segmentIndex+1
-        print "[RokuPlus ts-relay] segment_sent index="; segmentIndex; " bytes="; payload.Count()
+        if not headOnly
+            server.segmentsSent = server.segmentsSent + 1
+            server.bytesSent = server.bytesSent + responseLength
+            if segmentIndex+1 > server.nextSegmentIndex then server.nextSegmentIndex = segmentIndex+1
+        end if
+        print "[RokuPlus ts-relay] http_response status="; responseStatus; " resource=segment index="; segmentIndex; " bytes="; responseLength; " head="; headOnly; " sendOk=true"
     else
-        print "[RokuPlus ts-relay] segment_send_failed index="; segmentIndex
+        print "[RokuPlus ts-relay] http_response_failed resource=segment index="; segmentIndex
     end if
     DeleteFile(filePath)
     connection.close()
+end sub
+
+function rpTsRelayParseRange(request as string, total as integer) as object
+    result = {present:false,invalid:false,start:0,end:total-1}
+    for each raw in request.split(chr(10))
+        line = raw.trim()
+        if lcase(left(line,6)) = "range:"
+            value = line
+            colon = instr(1,value,":")
+            value = mid(value,colon+1).trim()
+            if left(lcase(value),6) <> "bytes=" then return {present:false,invalid:true,start:0,end:0}
+            spec = mid(value,7)
+            if instr(1,spec,",") > 0 then return {present:false,invalid:true,start:0,end:0}
+            pair = spec.split("-")
+            if pair.count() <> 2 or pair[0] = "" then return {present:false,invalid:true,start:0,end:0}
+            if not CreateObject("roRegex","^[0-9]+$","").isMatch(pair[0]) then return {present:false,invalid:true,start:0,end:0}
+            first = pair[0].toInt()
+            last = total-1
+            if pair[1] <> ""
+                if not CreateObject("roRegex","^[0-9]+$","").isMatch(pair[1]) then return {present:false,invalid:true,start:0,end:0}
+                last = pair[1].toInt()
+            end if
+            if first < 0 or first >= total or last < first then return {present:false,invalid:true,start:0,end:0}
+            if last >= total then last = total-1
+            result.present = true
+            result.start = first
+            result.end = last
+            return result
+        end if
+    end for
+    return result
+end function
+
+sub rpTsRelaySendHeader(connection as object, status as string, contentType as string, length as integer, server as object, port as object)
+    header = "HTTP/1.1 "+status+chr(13)+chr(10)
+    header += "Content-Type: "+contentType+chr(13)+chr(10)
+    header += "Content-Length: "+length.toStr()+chr(13)+chr(10)
+    header += "Accept-Ranges: bytes"+chr(13)+chr(10)
+    header += "Cache-Control: no-store"+chr(13)+chr(10)
+    header += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
+    rpTsRelaySendString(connection,header,server,port)
 end sub
 
 function rpTsRelayManifest(server as object) as string
