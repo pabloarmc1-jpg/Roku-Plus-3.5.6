@@ -373,6 +373,8 @@ sub openRequest()
     if m.tsRelayMode
         m.tsStreamServer.segments = m.tsRelaySegments
         m.tsStreamServer.mediaHeaders = supplied.mediaHeaders
+        m.tsRelayAccessKey = CreateObject("roDeviceInfo").getRandomUUID()
+        m.tsStreamServer.accessKey = m.tsRelayAccessKey
         m.tsStreamServer.stopRequested = false
         m.tsStreamServer.segmentsSent = 0
         m.tsStreamServer.bytesSent = 0
@@ -1118,7 +1120,7 @@ sub onPulse()
                 return
             end if
             relayMedia = CreateObject("roSGNode","ContentNode")
-            relayMedia.url = "http://" + localIp + ":49322/stream.ts"
+            relayMedia.url = "http://" + localIp + ":49322/stream.ts?key=" + m.tsRelayAccessKey
             relayMedia.title = m.titleText.text
             relayMedia.streamFormat = "ts"
             relayMedia.live = false
