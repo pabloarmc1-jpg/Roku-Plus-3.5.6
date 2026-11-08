@@ -143,15 +143,21 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 if response.cancelled then return rpHdTaskFailure(answer,response)
                 if response.ok
                     master = rpHdOnlineMaster(response.body,masterUrl)
-                    print "[RokuPlus hls] master variants="; master.variants.count(); " audioTracks="; master.audioTracks.count(); " mediaTags="; master.mediaTagCount; " audioMediaTags="; master.audioMediaTagCount; " audioGroups="; master.audioGroupCount; " variantAudioGroups="; master.variantAudioGroupCount; " encrypted="; master.encrypted
+                    print "[RokuPlus hls] master variants="; master.variants.count(); " audioTracks="; master.audioTracks.count(); " mediaTags="
+                    print "[RokuPlus hls] master variants="; "cont"; master.mediaTagCount; " audioMediaTags="; master.audioMediaTagCount; " audioGroups="
+                    print "[RokuPlus hls] master variants="; "cont"; master.audioGroupCount; " variantAudioGroups="; master.variantAudioGroupCount; " encrypted="
+                    print "[RokuPlus hls] master variants="; "cont"; master.encrypted
                     for each audioTrack in master.audioTracks
                         uriState = "missing"
                         if audioTrack.url <> "" then uriState = "present"
-                        print "[RokuPlus hls] audio group="; audioTrack.group; " language="; audioTrack.language; " name="; audioTrack.name; " default="; audioTrack.default; " uri="; uriState
+                        print "[RokuPlus hls] audio group="; audioTrack.group; " language="; audioTrack.language; " name="; audioTrack.name; " default="
+                        print "[RokuPlus hls] audio group="; "cont"; audioTrack.default; " uri="; uriState
                     end for
                     candidates = {variants:[],audioTracks:master.audioTracks,encrypted:master.encrypted}
                     for each variant in master.variants
-                        print "[RokuPlus hls] variant group="; variant.audioGroup; " resolution="; variant.width; "x"; variant.height; " fps="; variant.fps; " bandwidth="; variant.bandwidth; " averageBandwidth="; variant.averageBandwidth; " codecs="; variant.codecs; " videoRange="; variant.videoRange; " hdcp="; variant.hdcpLevel
+                        print "[RokuPlus hls] variant group="; variant.audioGroup; " resolution="; variant.width; "x"; variant.height; " fps="; variant.fps
+                        print "[RokuPlus hls] variant group="; "cont"; " bandwidth="; variant.bandwidth; " averageBandwidth="; variant.averageBandwidth; " codecs="
+                        print "[RokuPlus hls] variant group="; "cont"; variant.codecs; " videoRange="; variant.videoRange; " hdcp="; variant.hdcpLevel
                         if rpHdTaskSpanishAudio(master,variant) then candidates.variants.push(variant)
                     end for
                     print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
@@ -207,11 +213,15 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                             if secondSample.ok and tailSample.ok
                                                 firstProfile = rpHdOnlineTsStartupProfile(sample.bytes)
                                                 secondProfile = rpHdOnlineTsStartupProfile(secondSample.bytes)
-                                                print "[RokuPlus ts-boundary] first valid="; firstProfile.valid; " videoPid="; firstProfile.videoPid; " audioPid="; firstProfile.audioPid
-                                                print "[RokuPlus ts-boundary] second valid="; secondProfile.valid; " videoPid="; secondProfile.videoPid; " audioPid="; secondProfile.audioPid
+                                                print "[RokuPlus ts-boundary] first valid="; firstProfile.valid; " videoPid="; firstProfile.videoPid; " audioPid="
+                                                print "[RokuPlus ts-boundary] first valid="; "cont"; firstProfile.audioPid
+                                                print "[RokuPlus ts-boundary] second valid="; secondProfile.valid; " videoPid="; secondProfile.videoPid; " audioPid="
+                                                print "[RokuPlus ts-boundary] second valid="; "cont"; secondProfile.audioPid
                                                 print "[RokuPlus ts-idr] first firstVclType="; firstProfile.firstVclType
                                                 print "[RokuPlus ts-idr] first idr="; firstProfile.idrPresent; " idrByte="; firstProfile.idrByte
-                                                print "[RokuPlus ts-idr] first sps="; firstProfile.spsPresent; " pps="; firstProfile.ppsPresent; " spsProfile="; firstProfile.spsProfileIdc; " spsConstraints="; firstProfile.spsConstraints; " spsLevel="; firstProfile.spsLevelIdc
+                                                print "[RokuPlus ts-idr] first sps="; firstProfile.spsPresent; " pps="; firstProfile.ppsPresent; " spsProfile="
+                                                print "[RokuPlus ts-idr] first sps="; "cont"; firstProfile.spsProfileIdc; " spsConstraints="; firstProfile.spsConstraints; " spsLevel="
+                                                print "[RokuPlus ts-idr] first sps="; "cont"; firstProfile.spsLevelIdc
                                                 print "[RokuPlus ts-idr] second firstVclType="; secondProfile.firstVclType
                                                 print "[RokuPlus ts-idr] second idr="; secondProfile.idrPresent; " idrByte="; secondProfile.idrByte
                                                 print "[RokuPlus ts-idr] second sps="; secondProfile.spsPresent; " pps="; secondProfile.ppsPresent
@@ -220,24 +230,42 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                                     secondHeadTiming = rpHdOnlineTsTimingProfile(secondSample.bytes,firstProfile.videoPid,firstProfile.audioPid)
                                                     tailTiming = rpHdOnlineTsTimingProfile(tailSample.bytes,firstProfile.videoPid,firstProfile.audioPid)
                                                     headTiming = rpHdOnlineTsTimingProfile(secondSample.bytes,firstProfile.videoPid,firstProfile.audioPid)
-                                                    print "[RokuPlus ts-audio] first bytes="; sample.bytes.count(); " videoPackets="; firstTiming.videoPackets; " audioPackets="; firstTiming.audioPackets; " videoPes="; firstTiming.videoPesStarts; " audioPes="; firstTiming.audioPesStarts; " videoPts="; firstTiming.videoPtsCount; " audioPts="; firstTiming.audioPtsCount
-                                                    print "[RokuPlus ts-audio] second bytes="; secondSample.bytes.count(); " videoPackets="; secondHeadTiming.videoPackets; " audioPackets="; secondHeadTiming.audioPackets; " videoPes="; secondHeadTiming.videoPesStarts; " audioPes="; secondHeadTiming.audioPesStarts; " videoPts="; secondHeadTiming.videoPtsCount; " audioPts="; secondHeadTiming.audioPtsCount
-                                                    print "[RokuPlus ts-audio] tail bytes="; tailSample.bytes.count(); " videoPackets="; tailTiming.videoPackets; " audioPackets="; tailTiming.audioPackets; " videoPes="; tailTiming.videoPesStarts; " audioPes="; tailTiming.audioPesStarts; " videoPts="; tailTiming.videoPtsCount; " audioPts="; tailTiming.audioPtsCount
+                                                    print "[RokuPlus ts-audio] first bytes="; sample.bytes.count(); " videoPackets="; firstTiming.videoPackets; " audioPackets="
+                                                    print "[RokuPlus ts-audio] first bytes="; "cont"; firstTiming.audioPackets; " videoPes="; firstTiming.videoPesStarts; " audioPes="
+                                                    print "[RokuPlus ts-audio] first bytes="; "cont"; firstTiming.audioPesStarts; " videoPts="; firstTiming.videoPtsCount; " audioPts="
+                                                    print "[RokuPlus ts-audio] first bytes="; "cont"; firstTiming.audioPtsCount
+                                                    print "[RokuPlus ts-audio] second bytes="; secondSample.bytes.count(); " videoPackets="; secondHeadTiming.videoPackets
+                                                    print "[RokuPlus ts-audio] second bytes="; "cont"; " audioPackets="; secondHeadTiming.audioPackets; " videoPes="
+                                                    print "[RokuPlus ts-audio] second bytes="; "cont"; secondHeadTiming.videoPesStarts; " audioPes="; secondHeadTiming.audioPesStarts
+                                                    print "[RokuPlus ts-audio] second bytes="; "cont"; " videoPts="; secondHeadTiming.videoPtsCount; " audioPts="; secondHeadTiming.audioPtsCount
+                                                    print "[RokuPlus ts-audio] tail bytes="; tailSample.bytes.count(); " videoPackets="; tailTiming.videoPackets; " audioPackets="
+                                                    print "[RokuPlus ts-audio] tail bytes="; "cont"; tailTiming.audioPackets; " videoPes="; tailTiming.videoPesStarts; " audioPes="
+                                                    print "[RokuPlus ts-audio] tail bytes="; "cont"; tailTiming.audioPesStarts; " videoPts="; tailTiming.videoPtsCount; " audioPts="
+                                                    print "[RokuPlus ts-audio] tail bytes="; "cont"; tailTiming.audioPtsCount
                                                     firstAdts = rpHdOnlineTsAdtsSequenceProfile(sample.bytes,firstProfile.audioPid)
                                                     secondAdts = rpHdOnlineTsAdtsSequenceProfile(secondSample.bytes,firstProfile.audioPid)
                                                     tailAdts = rpHdOnlineTsAdtsSequenceProfile(tailSample.bytes,firstProfile.audioPid)
                                                     print "[RokuPlus ts-adts-seq] first valid="; firstAdts.valid; " tsPackets="; firstAdts.tsPackets; " pes="; firstAdts.pesStarts
-                                                    print "[RokuPlus ts-adts-seq] first pesBytes="; firstAdts.pesPayloadBytes; " firstPes="; firstAdts.firstPesBytes; " maxPes="; firstAdts.maxPesBytes; " ccErrors="; firstAdts.continuityErrors
-                                                    print "[RokuPlus ts-adts-seq] first candidates="; firstAdts.adtsCandidates; " runs="; firstAdts.confirmedRuns; " frames="; firstAdts.confirmedFrames; " truncated="; firstAdts.truncatedFrames
-                                                    print "[RokuPlus ts-adts-seq] first profile="; firstAdts.profile; " rate="; firstAdts.rateIndex; " channels="; firstAdts.channels; " unframed="; firstAdts.unframedBytes
+                                                    print "[RokuPlus ts-adts-seq] first pesBytes="; firstAdts.pesPayloadBytes; " firstPes="; firstAdts.firstPesBytes; " maxPes="
+                                                    print "[RokuPlus ts-adts-seq] first pesBytes="; "cont"; firstAdts.maxPesBytes; " ccErrors="; firstAdts.continuityErrors
+                                                    print "[RokuPlus ts-adts-seq] first candidates="; firstAdts.adtsCandidates; " runs="; firstAdts.confirmedRuns; " frames="
+                                                    print "[RokuPlus ts-adts-seq] first candidates="; "cont"; firstAdts.confirmedFrames; " truncated="; firstAdts.truncatedFrames
+                                                    print "[RokuPlus ts-adts-seq] first profile="; firstAdts.profile; " rate="; firstAdts.rateIndex; " channels="; firstAdts.channels
+                                                    print "[RokuPlus ts-adts-seq] first profile="; "cont"; " unframed="; firstAdts.unframedBytes
                                                     print "[RokuPlus ts-adts-seq] second valid="; secondAdts.valid; " tsPackets="; secondAdts.tsPackets; " pes="; secondAdts.pesStarts
-                                                    print "[RokuPlus ts-adts-seq] second pesBytes="; secondAdts.pesPayloadBytes; " firstPes="; secondAdts.firstPesBytes; " maxPes="; secondAdts.maxPesBytes; " ccErrors="; secondAdts.continuityErrors
-                                                    print "[RokuPlus ts-adts-seq] second candidates="; secondAdts.adtsCandidates; " runs="; secondAdts.confirmedRuns; " frames="; secondAdts.confirmedFrames; " truncated="; secondAdts.truncatedFrames
-                                                    print "[RokuPlus ts-adts-seq] second profile="; secondAdts.profile; " rate="; secondAdts.rateIndex; " channels="; secondAdts.channels; " unframed="; secondAdts.unframedBytes
+                                                    print "[RokuPlus ts-adts-seq] second pesBytes="; secondAdts.pesPayloadBytes; " firstPes="; secondAdts.firstPesBytes; " maxPes="
+                                                    print "[RokuPlus ts-adts-seq] second pesBytes="; "cont"; secondAdts.maxPesBytes; " ccErrors="; secondAdts.continuityErrors
+                                                    print "[RokuPlus ts-adts-seq] second candidates="; secondAdts.adtsCandidates; " runs="; secondAdts.confirmedRuns; " frames="
+                                                    print "[RokuPlus ts-adts-seq] second candidates="; "cont"; secondAdts.confirmedFrames; " truncated="; secondAdts.truncatedFrames
+                                                    print "[RokuPlus ts-adts-seq] second profile="; secondAdts.profile; " rate="; secondAdts.rateIndex; " channels="; secondAdts.channels
+                                                    print "[RokuPlus ts-adts-seq] second profile="; "cont"; " unframed="; secondAdts.unframedBytes
                                                     print "[RokuPlus ts-adts-seq] tail valid="; tailAdts.valid; " tsPackets="; tailAdts.tsPackets; " pes="; tailAdts.pesStarts
-                                                    print "[RokuPlus ts-adts-seq] tail pesBytes="; tailAdts.pesPayloadBytes; " firstPes="; tailAdts.firstPesBytes; " maxPes="; tailAdts.maxPesBytes; " ccErrors="; tailAdts.continuityErrors
-                                                    print "[RokuPlus ts-adts-seq] tail candidates="; tailAdts.adtsCandidates; " runs="; tailAdts.confirmedRuns; " frames="; tailAdts.confirmedFrames; " truncated="; tailAdts.truncatedFrames
-                                                    print "[RokuPlus ts-adts-seq] tail profile="; tailAdts.profile; " rate="; tailAdts.rateIndex; " channels="; tailAdts.channels; " unframed="; tailAdts.unframedBytes
+                                                    print "[RokuPlus ts-adts-seq] tail pesBytes="; tailAdts.pesPayloadBytes; " firstPes="; tailAdts.firstPesBytes; " maxPes="
+                                                    print "[RokuPlus ts-adts-seq] tail pesBytes="; "cont"; tailAdts.maxPesBytes; " ccErrors="; tailAdts.continuityErrors
+                                                    print "[RokuPlus ts-adts-seq] tail candidates="; tailAdts.adtsCandidates; " runs="; tailAdts.confirmedRuns; " frames="
+                                                    print "[RokuPlus ts-adts-seq] tail candidates="; "cont"; tailAdts.confirmedFrames; " truncated="; tailAdts.truncatedFrames
+                                                    print "[RokuPlus ts-adts-seq] tail profile="; tailAdts.profile; " rate="; tailAdts.rateIndex; " channels="; tailAdts.channels
+                                                    print "[RokuPlus ts-adts-seq] tail profile="; "cont"; " unframed="; tailAdts.unframedBytes
                                                     ' Diagnostic 3.5.64: inspect the entire first TS segment, not only its 64KB prefix.
                                                     ' Read-only; native HLS playback continues to use the original provider playlist.
                                                     rpHdTaskBeginSlice(1)
@@ -246,26 +274,45 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                                     if fullFirst.ok
                                                         fullAdts = rpHdOnlineTsAdtsSequenceProfile(fullFirst.bytes,firstProfile.audioPid)
                                                         fullTiming = rpHdOnlineTsTimingProfile(fullFirst.bytes,firstProfile.videoPid,firstProfile.audioPid)
-                                                        print "[RokuPlus ts-timing-full] bytes="; fullFirst.bytes.count(); " videoPackets="; fullTiming.videoPackets; " audioPackets="; fullTiming.audioPackets; " videoPes="; fullTiming.videoPesStarts; " audioPes="; fullTiming.audioPesStarts
-                                                        print "[RokuPlus ts-timing-full] videoPts="; fullTiming.videoPtsCount; " audioPts="; fullTiming.audioPtsCount; " videoDts="; fullTiming.videoDtsCount; " audioDts="; fullTiming.audioDtsCount; " pcr="; fullTiming.pcrCount; " discontinuities="; fullTiming.discontinuityFlags
-                                                        print "[RokuPlus ts-timing-full] firstVideoPts="; fullTiming.firstVideoPts; " lastVideoPts="; fullTiming.lastVideoPts; " firstAudioPts="; fullTiming.firstAudioPts; " lastAudioPts="; fullTiming.lastAudioPts
-                                                        print "[RokuPlus ts-timing-full] firstPcr="; fullTiming.firstPcr; " lastPcr="; fullTiming.lastPcr; " invalidPackets="; fullTiming.invalidPackets; " transportErrors="; fullTiming.transportErrors; " scrambled="; fullTiming.scrambledPackets; " videoCcErrors="; fullTiming.videoContinuityErrors; " audioCcErrors="; fullTiming.audioContinuityErrors
+                                                        print "[RokuPlus ts-timing-full] bytes="; fullFirst.bytes.count(); " videoPackets="; fullTiming.videoPackets; " audioPackets="
+                                                        print "[RokuPlus ts-timing-full] bytes="; "cont"; fullTiming.audioPackets; " videoPes="; fullTiming.videoPesStarts; " audioPes="
+                                                        print "[RokuPlus ts-timing-full] bytes="; "cont"; fullTiming.audioPesStarts
+                                                        print "[RokuPlus ts-timing-full] videoPts="; fullTiming.videoPtsCount; " audioPts="; fullTiming.audioPtsCount; " videoDts="
+                                                        print "[RokuPlus ts-timing-full] videoPts="; "cont"; fullTiming.videoDtsCount; " audioDts="; fullTiming.audioDtsCount; " pcr="
+                                                        print "[RokuPlus ts-timing-full] videoPts="; "cont"; fullTiming.pcrCount; " discontinuities="; fullTiming.discontinuityFlags
+                                                        print "[RokuPlus ts-timing-full] firstVideoPts="; fullTiming.firstVideoPts; " lastVideoPts="; fullTiming.lastVideoPts
+                                                        print "[RokuPlus ts-timing-full] firstVideoPts="; "cont"; " firstAudioPts="; fullTiming.firstAudioPts; " lastAudioPts="
+                                                        print "[RokuPlus ts-timing-full] firstVideoPts="; "cont"; fullTiming.lastAudioPts
+                                                        print "[RokuPlus ts-timing-full] firstPcr="; fullTiming.firstPcr; " lastPcr="; fullTiming.lastPcr; " invalidPackets="
+                                                        print "[RokuPlus ts-timing-full] firstPcr="; "cont"; fullTiming.invalidPackets; " transportErrors="; fullTiming.transportErrors
+                                                        print "[RokuPlus ts-timing-full] firstPcr="; "cont"; " scrambled="; fullTiming.scrambledPackets; " videoCcErrors="
+                                                        print "[RokuPlus ts-timing-full] firstPcr="; "cont"; fullTiming.videoContinuityErrors; " audioCcErrors="; fullTiming.audioContinuityErrors
                                                         print "[RokuPlus ts-adts-full] first bytes="; fullFirst.bytes.count(); " valid="; fullAdts.valid
-                                                        print "[RokuPlus ts-adts-full] first tsPackets="; fullAdts.tsPackets; " pes="; fullAdts.pesStarts; " pesBytes="; fullAdts.pesPayloadBytes
-                                                        print "[RokuPlus ts-adts-full] first candidates="; fullAdts.adtsCandidates; " runs="; fullAdts.confirmedRuns; " frames="; fullAdts.confirmedFrames; " truncated="; fullAdts.truncatedFrames
-                                                        print "[RokuPlus ts-adts-full] first ccErrors="; fullAdts.continuityErrors; " firstPes="; fullAdts.firstPesBytes; " maxPes="; fullAdts.maxPesBytes
-                                                        print "[RokuPlus ts-adts-full] first profile="; fullAdts.profile; " rate="; fullAdts.rateIndex; " channels="; fullAdts.channels; " unframed="; fullAdts.unframedBytes
+                                                        print "[RokuPlus ts-adts-full] first tsPackets="; fullAdts.tsPackets; " pes="; fullAdts.pesStarts; " pesBytes="
+                                                        print "[RokuPlus ts-adts-full] first tsPackets="; "cont"; fullAdts.pesPayloadBytes
+                                                        print "[RokuPlus ts-adts-full] first candidates="; fullAdts.adtsCandidates; " runs="; fullAdts.confirmedRuns; " frames="
+                                                        print "[RokuPlus ts-adts-full] first candidates="; "cont"; fullAdts.confirmedFrames; " truncated="; fullAdts.truncatedFrames
+                                                        print "[RokuPlus ts-adts-full] first ccErrors="; fullAdts.continuityErrors; " firstPes="; fullAdts.firstPesBytes; " maxPes="
+                                                        print "[RokuPlus ts-adts-full] first ccErrors="; "cont"; fullAdts.maxPesBytes
+                                                        print "[RokuPlus ts-adts-full] first profile="; fullAdts.profile; " rate="; fullAdts.rateIndex; " channels="; fullAdts.channels
+                                                        print "[RokuPlus ts-adts-full] first profile="; "cont"; " unframed="; fullAdts.unframedBytes
                                                     else
                                                         print "[RokuPlus ts-adts-full] first fetch=failed"
                                                     end if
-                                                    print "[RokuPlus ts-boundary] tail PTS video first="; tailTiming.firstVideoPts; " last="; tailTiming.lastVideoPts; " audio first="; tailTiming.firstAudioPts; " last="; tailTiming.lastAudioPts
-                                                    print "[RokuPlus ts-boundary] head PTS video first="; headTiming.firstVideoPts; " last="; headTiming.lastVideoPts; " audio first="; headTiming.firstAudioPts; " last="; headTiming.lastAudioPts
+                                                    print "[RokuPlus ts-boundary] tail PTS video first="; tailTiming.firstVideoPts; " last="; tailTiming.lastVideoPts; " audio first="
+                                                    print "[RokuPlus ts-boundary] tail PTS video first="; "cont"; tailTiming.firstAudioPts; " last="; tailTiming.lastAudioPts
+                                                    print "[RokuPlus ts-boundary] head PTS video first="; headTiming.firstVideoPts; " last="; headTiming.lastVideoPts; " audio first="
+                                                    print "[RokuPlus ts-boundary] head PTS video first="; "cont"; headTiming.firstAudioPts; " last="; headTiming.lastAudioPts
                                                     print "[RokuPlus ts-boundary] tail PCR first="; tailTiming.firstPcr; " last="; tailTiming.lastPcr; " count="; tailTiming.pcrCount
                                                     print "[RokuPlus ts-boundary] head PCR first="; headTiming.firstPcr; " last="; headTiming.lastPcr; " count="; headTiming.pcrCount
-                                                    print "[RokuPlus ts-boundary] tail packet-errors video="; tailTiming.videoContinuityErrors; " audio="; tailTiming.audioContinuityErrors; " head packet-errors video="; headTiming.videoContinuityErrors; " audio="; headTiming.audioContinuityErrors
+                                                    print "[RokuPlus ts-boundary] tail packet-errors video="; tailTiming.videoContinuityErrors; " audio="
+                                                    print "[RokuPlus ts-boundary] tail packet-errors video="; "cont"; tailTiming.audioContinuityErrors; " head packet-errors video="
+                                                    print "[RokuPlus ts-boundary] tail packet-errors video="; "cont"; headTiming.videoContinuityErrors; " audio="
+                                                    print "[RokuPlus ts-boundary] tail packet-errors video="; "cont"; headTiming.audioContinuityErrors
                                                 end if
                                             else
-                                                print "[RokuPlus ts-boundary] boundary_samples tailOk="; tailSample.ok; " headOk="; secondSample.ok; " tailMessage="; tailSample.message
+                                                print "[RokuPlus ts-boundary] boundary_samples tailOk="; tailSample.ok; " headOk="; secondSample.ok; " tailMessage="
+                                                print "[RokuPlus ts-boundary] boundary_samples tailOk="; "cont"; tailSample.message
                                             end if
                                         else
                                             print "[RokuPlus ts-boundary] second_segment=missing"
@@ -296,8 +343,12 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             for each audioTrack in master.audioTracks
                                 if audioTrack.group = selected.audioGroup then matchingAudioTracks = matchingAudioTracks + 1
                             end for
-                            print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="; master.audioTracks.count()
-                            print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode; " validation=avc-aac-ts"
+                            print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="
+                            print "[RokuPlus hls] selected group="; "cont"; master.audioTracks.count()
+                            print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="
+                            print "[RokuPlus resolve] provider="; "cont"; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="
+                            print "[RokuPlus resolve] provider="; "cont"; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode
+                            print "[RokuPlus resolve] provider="; "cont"; " validation=avc-aac-ts"
                             print "[RokuPlus ts-test] diagnostic="; playbackPlaylistKind; " format="; playbackStreamFormat; " targetHost="; rpHdTaskSafeHost(answer.url)
                             answer.attemptUsed = embedIndex+variantIndex*count
                             answer.ok = true
@@ -391,7 +442,9 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
     print "[RokuPlus hls-manifest] version="; version; " targetDuration="; targetDuration; " mediaSequence="; mediaSequence; " playlistType="; playlistType
     print "[RokuPlus hls-manifest] segments="; segmentCount; " extinfCount="; extinfCount; " totalDuration="; totalDuration; " endList="; hasEndList
     print "[RokuPlus hls-manifest] duration min="; minDuration; " max="; maxDuration; " avg="; averageDuration; " invalid="; invalidExtinf; " targetOverruns="; targetOverruns
-    print "[RokuPlus hls-manifest] discontinuities="; discontinuities; " byteRanges="; byteRanges; " programDates="; programDates; " independent="; hasIndependent; " map="; hasMap; " key="; hasKey; " lines="; lineCount
+    print "[RokuPlus hls-manifest] discontinuities="; discontinuities; " byteRanges="; byteRanges; " programDates="; programDates
+    print "[RokuPlus hls-manifest] discontinuities="; "cont"; " independent="; hasIndependent; " map="; hasMap; " key="; hasKey; " lines="
+    print "[RokuPlus hls-manifest] discontinuities="; "cont"; lineCount
     if firstSegment <> "" then print "[RokuPlus hls-manifest] firstSegment="; firstSegment
 end sub
 
@@ -1003,7 +1056,8 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     end if
     bytesRead = rpHdTaskFileSize(files.stat(filename))
     print "[RokuPlus http] role="; role; " host="; rpHdTaskSafeHost(endpoint); " status="; code; " finished="; finished; " ms="; answer.httpElapsedMs
-    print "[RokuPlus http] bytes="; bytesRead; " ok="; answer.ok; " type="; answer.httpContentType; " length="; answer.httpContentLength; " range="; answer.httpContentRange; " acceptRanges="; answer.httpAcceptRanges
+    print "[RokuPlus http] bytes="; bytesRead; " ok="; answer.ok; " type="; answer.httpContentType; " length="; answer.httpContentLength
+    print "[RokuPlus http] bytes="; "cont"; " range="; answer.httpContentRange; " acceptRanges="; answer.httpAcceptRanges
     print "[RokuPlus http] cache="; answer.httpCacheControl; " age="; answer.httpAge; " server="; answer.httpServer; " via="; answer.httpVia
     files.delete(filename)
     if requestFile <> "" then files.delete(requestFile)
