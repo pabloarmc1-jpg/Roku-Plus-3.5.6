@@ -221,6 +221,7 @@ sub openRequest()
     m.tsRelayMode = false
     m.tsRelayPending = false
     m.tsRelaySegments = invalid
+    m.tsRelayDurations = invalid
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
         m.segmentMode = true
@@ -276,10 +277,11 @@ sub openRequest()
     if supplied.tsRelayEnabled = true and type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.tsRelayMode = true
         m.tsRelaySegments = supplied.segmentUrls
+        m.tsRelayDurations = supplied.segmentDurations
         m.segmentMode = false
         m.nativePlaylistMode = false
         format = "ts"
-        print "[RokuPlus ts-relay] mode=single-http-connection segments="; m.tsRelaySegments.count()
+        print "[RokuPlus ts-relay] mode=local-hls-segments segments="; m.tsRelaySegments.count()
     end if
     ' A clean-TS diagnostic is opt-in. Never replace a provider stream merely
     ' because a diagnostic URL happens to be present in a playback descriptor.
@@ -372,6 +374,7 @@ sub openRequest()
 
     if m.tsRelayMode
         m.tsStreamServer.segments = m.tsRelaySegments
+        m.tsStreamServer.segmentDurations = m.tsRelayDurations
         m.tsStreamServer.mediaHeaders = supplied.mediaHeaders
         m.tsRelayAccessKey = CreateObject("roDeviceInfo").getRandomUUID()
         m.tsStreamServer.accessKey = m.tsRelayAccessKey
@@ -1121,9 +1124,9 @@ sub onPulse()
                 return
             end if
             relayMedia = CreateObject("roSGNode","ContentNode")
-            relayMedia.url = "http://" + localIp + ":49322/stream.ts?key=" + m.tsRelayAccessKey
+            relayMedia.url = "http://" + localIp + ":49322/index.m3u8?key=" + m.tsRelayAccessKey
             relayMedia.title = m.titleText.text
-            relayMedia.streamFormat = "ts"
+            relayMedia.streamFormat = "hls"
             relayMedia.live = false
             relayMedia.httpHeaders = CreateObject("roArray",0,true)
             m.mediaNode = relayMedia
