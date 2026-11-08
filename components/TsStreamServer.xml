@@ -8,8 +8,6 @@
     <field id="stopRequested" type="boolean" value="false" />
     <field id="segmentsSent" type="integer" value="0" />
     <field id="bytesSent" type="integer" value="0" />
-    <field id="lastHttpStatus" type="integer" value="0" />
-    <field id="lastHttpStatus" type="integer" value="0" />
   </interface>
   <script type="text/brightscript" uri="TsStreamServer.brs" />
 </component>
