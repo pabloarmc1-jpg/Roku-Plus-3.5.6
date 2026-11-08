@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="TsStreamServer" extends="Task">
+  <interface>
+    <field id="segments" type="array" />
+    <field id="mediaHeaders" type="assocarray" />
+    <field id="status" type="string" value="idle" />
+    <field id="stopRequested" type="boolean" value="false" />
+    <field id="segmentsSent" type="integer" value="0" />
+    <field id="bytesSent" type="integer" value="0" />
+    <field id="lastHttpStatus" type="integer" value="0" />
+  </interface>
+  <script type="text/brightscript" uri="TsStreamServer.brs" />
+</component>
