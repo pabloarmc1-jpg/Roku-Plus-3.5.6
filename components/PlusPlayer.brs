@@ -269,6 +269,20 @@ sub openRequest()
     if GetInterface(supplied.streamFormat, "ifString") <> invalid then format = lcase(supplied.streamFormat)
     if format = "mpegts" then format = "ts"
     if format = "m3u8" then format = "hls"
+    diagnosticTs = false
+    diagnosticUrl = supplied.hlsDiagnosticTsUrl
+    if GetInterface(diagnosticUrl, "ifString") <> invalid
+        if len(diagnosticUrl) > 0 and len(diagnosticUrl) <= 4096 and left(diagnosticUrl,8) = "https://"
+            diagnosticTs = true
+            format = "ts"
+            m.segmentUrls = invalid
+            m.segmentIndex = 0
+            m.segmentMode = false
+            m.nativePlaylistMode = false
+            m.resumePending = invalid
+            print "[RokuPlus hls-id3-test] mode=clean-ts-direct"
+        end if
+    end if
     m.hlsStartupIsolation = format = "hls"
     m.hlsPrebufferPending = m.hlsStartupIsolation
     if m.hlsStartupIsolation
@@ -304,7 +318,8 @@ sub openRequest()
     media = CreateObject("roSGNode", "ContentNode")
     ' 3.5.50: restore the provider's validated HLS URL for the 480p variant test.
     playbackUrl = supplied.url
-    referenceHlsTest = false
+    referenceHlsTest = diagnosticTs
+    if diagnosticTs then playbackUrl = diagnosticUrl
     if format = "hls"
         print "[RokuPlus hls-test] source=provider-native variant=480p"
     end if
