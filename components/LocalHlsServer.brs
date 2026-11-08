@@ -9,7 +9,7 @@ sub runLocalHlsServer()
     listener = CreateObject("roStreamSocket")
     listener.setMessagePort(port)
     address = CreateObject("roSocketAddress")
-    if not address.setAddress("127.0.0.1:49321")
+    if not address.setPort(49321)
         m.top.status = "address_error"
         print "[RokuPlus local-hls] server_failed stage=address"
         return
@@ -27,7 +27,7 @@ sub runLocalHlsServer()
         return
     end if
     m.top.status = "listening"
-    print "[RokuPlus local-hls] listen address=127.0.0.1:49321"
+    print "[RokuPlus local-hls] listen address=0.0.0.0:49321"
     while true
         event = wait(0,port)
         if type(event) = "roSocketEvent"
