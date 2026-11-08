@@ -26,6 +26,7 @@ on:
       - test/hls-explicit-prebuffer-3.5.48
       - test/hls-reference-stream-3.5.49
       - test/hls-lamovie-480p-3.5.50
+      - test/hls-id3-clean-ts-3.5.51
   workflow_dispatch:
 permissions:
   contents: read
@@ -39,11 +40,11 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.50.zip . -x './.git/*' './.github/*' '*.zip'
+          zip -qr /tmp/Roku-Plus-3.5.51.zip . -x './.git/*' './.github/*' '*.zip'
           mv /tmp/Roku-Plus-3.5.50.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.50
+          name: Roku-Plus-3.5.51
           path: Roku-Plus-3.5.50.zip
           if-no-files-found: error
           retention-days: 7
