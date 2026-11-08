@@ -156,9 +156,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                     end for
                     print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
                     choices = rpHdTaskStableVariants(candidates,decoderAccept)
-                    ' Diagnostic build 3.5.24: test native HLS with the 528-line child playlist.
-                    ' Build 3.5.23 confirmed that the first segment of the 480-line variant renders as direct TS.
-                    diagnosticHeight = 480
+                    ' Diagnostic build 3.5.47: isolate native HLS startup using the 1280x528 variant.
+                    ' The only playback-selection change from 3.5.46 is the selected child-playlist height.
+                    diagnosticHeight = 528
                     diagnosticChoices = []
                     for each diagnosticChoice in choices
                         if diagnosticChoice.height = diagnosticHeight then diagnosticChoices.push(diagnosticChoice)
