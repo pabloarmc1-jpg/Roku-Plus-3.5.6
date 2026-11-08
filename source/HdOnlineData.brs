@@ -762,7 +762,7 @@ end function
 function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPid as integer) as object
     result = {videoPackets:0,audioPackets:0,videoContinuityErrors:0,audioContinuityErrors:0,videoPesStarts:0,audioPesStarts:0,videoPtsCount:0,audioPtsCount:0,videoDtsCount:0,audioDtsCount:0,pcrCount:0,discontinuityFlags:0,firstVideoPts:-1,lastVideoPts:-1,firstAudioPts:-1,lastAudioPts:-1,firstPcr:-1,lastPcr:-1,invalidPackets:0,transportErrors:0,scrambledPackets:0}
     if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
-    if data.count() < 188*4 or data.count() > 2097152 then return result
+    if data.count() < 188*4 or data.count() > 4194304 then return result
     previousVideo = -1
     previousAudio = -1
     for offset = 0 to data.count()-188 step 188
@@ -1039,7 +1039,7 @@ end function
 function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) as object
     result = {valid:false,tsPackets:0,pesStarts:0,pesPayloadBytes:0,firstPesBytes:0,maxPesBytes:0,continuityErrors:0,adtsCandidates:0,confirmedRuns:0,confirmedFrames:0,truncatedFrames:0,unframedBytes:0,firstFrameLength:0,lastFrameLength:0,profile:-1,rateIndex:-1,channels:-1}
     if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
-    if data.count() < 188*4 or data.count() > 2097152 or audioPid < 1 then return result
+    if data.count() < 188*4 or data.count() > 4194304 or audioPid < 1 then return result
     audio = CreateObject("roByteArray")
     collecting = false
     previousCounter = -1
