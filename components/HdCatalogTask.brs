@@ -1002,7 +1002,13 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
             answer.message = "Consulta cancelada."
             exit while
         end if
-        if rpHdTaskSliceExpired() or elapsed.totalMilliseconds() >= 20000
+        sliceExpired = rpHdTaskSliceExpired()
+        elapsedMs = elapsed.totalMilliseconds()
+        if sliceExpired
+            answer.message = "La fuente HD tardó demasiado. Vuelve a intentar."
+            exit while
+        end if
+        if elapsedMs >= 20000
             answer.message = "La fuente HD tardó demasiado. Vuelve a intentar."
             exit while
         end if
