@@ -329,45 +329,125 @@ function rpHdOnlineTokenIndex(token as string, radix as integer, maximum as inte
     return result
 end function
 
+function rpHdOnlineSkipSpace(value as string, index as integer) as integer
+    while index <= len(value)
+        code = asc(mid(value,index,1))
+        if code <> 9 and code <> 10 and code <> 13 and code <> 32 then exit while
+        index++
+    end while
+    return index
+end function
+
+function rpHdOnlineReadQuoted(value as string, index as integer) as object
+    answer = {ok:false,value:"",next:index}
+    if index > len(value) or mid(value,index,1) <> "'" then return answer
+    index++
+    result = ""
+    while index <= len(value)
+        char = mid(value,index,1)
+        if char = chr(92) and index < len(value)
+            result += char + mid(value,index+1,1)
+            index += 2
+        else if char = "'"
+            answer.ok = true
+            answer.value = result
+            answer.next = index+1
+            return answer
+        else
+            result += char
+            index++
+        end if
+        if len(result) > 262144 then return answer
+    end while
+    return answer
+end function
+
+function rpHdOnlineReadNumber(value as string, index as integer) as object
+    answer = {ok:false,value:0,next:index}
+    first = index
+    while index <= len(value)
+        code = asc(mid(value,index,1))
+        if code < 48 or code > 57 then exit while
+        index++
+    end while
+    if index = first then return answer
+    answer.ok = true
+    answer.value = val(mid(value,first,index-first))
+    answer.next = index
+    return answer
+end function
+
 function rpHdOnlineUnpack(html as dynamic) as string
     text = orbitText(html,524289)
     if text = "" or len(text) > 524288 then return ""
-    pattern = "}\\s*\\(\\s*'([^']*)'\\s*,\\s*([0-9]+)\\s*,\\s*([0-9]+)\\s*,\\s*'([^']*)'\\.split\\('\\|'\\)"
-    parts = CreateObject("roRegex",pattern,"s").match(text)
-    if parts.count() < 5 then return text
-    radix = orbitInteger(parts[2],62)
-    count = orbitInteger(parts[3],5000)
-    if radix < 2 or count < 1 then return text
-    payload = rpHdOnlineJsString(parts[1])
-    words = rpHdOnlineJsString(parts[4]).split("|")
-    if len(payload) > 262144 then return ""
-    result = ""
-    token = ""
-    alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
-    for i = 1 to len(payload)+1
-        char = ""
-        if i <= len(payload) then char = mid(payload,i,1)
-        if char <> "" and instr(1,alphabet,char) > 0
-            token += char
-        else
-            if token <> ""
-                index = rpHdOnlineTokenIndex(token,radix,count-1)
-                if index >= 0 and index < words.count()
-                    if words[index] <> ""
-                        result += words[index]
-                    else
-                        result += token
+    ' Parse the common Dean Edwards packer arguments without roRegex.
+    ' Expected shape: }('payload', radix, count, 'word|list'.split('|')
+    marker = 0
+    while marker < len(text)
+        found = instr(marker+1,text,"}")
+        if found = 0 then exit while
+        index = rpHdOnlineSkipSpace(text,found+1)
+        if index <= len(text) and mid(text,index,1) = "("
+            index = rpHdOnlineSkipSpace(text,index+1)
+            packed = rpHdOnlineReadQuoted(text,index)
+            if packed.ok
+                index = rpHdOnlineSkipSpace(text,packed.next)
+                if index <= len(text) and mid(text,index,1) = ","
+                    radixPart = rpHdOnlineReadNumber(text,rpHdOnlineSkipSpace(text,index+1))
+                    if radixPart.ok
+                        index = rpHdOnlineSkipSpace(text,radixPart.next)
+                        if index <= len(text) and mid(text,index,1) = ","
+                            countPart = rpHdOnlineReadNumber(text,rpHdOnlineSkipSpace(text,index+1))
+                            if countPart.ok
+                                index = rpHdOnlineSkipSpace(text,countPart.next)
+                                if index <= len(text) and mid(text,index,1) = ","
+                                    wordsPart = rpHdOnlineReadQuoted(text,rpHdOnlineSkipSpace(text,index+1))
+                                    if wordsPart.ok
+                                        radix = radixPart.value
+                                        count = countPart.value
+                                        if radix >= 2 and radix <= 62 and count > 0 and count <= 5000
+                                            payload = rpHdOnlineJsString(packed.value)
+                                            words = rpHdOnlineJsString(wordsPart.value).split("|")
+                                            if len(payload) > 262144 then return ""
+                                            result = ""
+                                            token = ""
+                                            alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
+                                            for i = 1 to len(payload)+1
+                                                char = ""
+                                                if i <= len(payload) then char = mid(payload,i,1)
+                                                if char <> "" and instr(1,alphabet,char) > 0
+                                                    token += char
+                                                else
+                                                    if token <> ""
+                                                        wordIndex = rpHdOnlineTokenIndex(token,radix,count-1)
+                                                        if wordIndex >= 0 and wordIndex < words.count()
+                                                            if words[wordIndex] <> ""
+                                                                result += words[wordIndex]
+                                                            else
+                                                                result += token
+                                                            end if
+                                                        else
+                                                            result += token
+                                                        end if
+                                                        token = ""
+                                                    end if
+                                                    result += char
+                                                end if
+                                                if len(text)+len(result)+1 > 1048576 then return ""
+                                            end for
+                                            return text+chr(10)+result
+                                        end if
+                                    end if
+                                end if
+                            end if
+                        end if
                     end if
-                else
-                    result += token
                 end if
-                token = ""
             end if
-            result += char
         end if
-        if len(text)+len(result)+1 > 1048576 then return ""
-    end for
-    return text+chr(10)+result
+        marker = found
+    end while
+    return text
 end function
 
 function rpHdOnlineCdn(value as dynamic) as string
