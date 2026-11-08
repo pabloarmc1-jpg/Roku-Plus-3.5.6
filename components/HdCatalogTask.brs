@@ -236,12 +236,12 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            ' Diagnostic 3.5.38: return the selected child HLS manifest as one native stream.
-                            ' The TS playlist path was confirmed to create visible clip boundaries.
-                            ' Isolate Roku HLS audio selection while preserving the validated variant.
-                            playbackPlaylistKind = "native-child-hls-audio-isolation"
+                            ' 3.5.50: validate the selected variant and its first TS segment,
+                            ' then let Roku parse the provider master playlist and select
+                            ' the actual rendition/audio group during native HLS playback.
+                            playbackPlaylistKind = "native-master-hls-prebuffer"
                             playbackStreamFormat = "hls"
-                            answer.url = selected.url
+                            answer.url = masterUrl
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
