@@ -87,6 +87,7 @@ sub init()
     m.request = ""
     m.pending = invalid
     m.pendingSegmentUrls = invalid
+    m.pendingSegmentDurations = invalid
     m.pendingTsRelay = false
     m.dialogBox = invalid
     m.dialogPurpose = ""
@@ -312,6 +313,7 @@ sub fetched(event as object)
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSegmentUrls = answer.segmentUrls
+        m.pendingSegmentDurations = answer.segmentDurations
         m.pendingTsRelay = false
         if answer.tsRelayEnabled = true then m.pendingTsRelay = true
         launchVideo(m.detail,answer.url,answer.streamFormat)
@@ -425,6 +427,10 @@ sub launchVideo(item as object, url as string, format as string)
     if type(m.pendingSegmentUrls) = "roArray"
         descriptor.segmentUrls = m.pendingSegmentUrls
         m.pendingSegmentUrls = invalid
+    end if
+    if type(m.pendingSegmentDurations) = "roArray"
+        descriptor.segmentDurations = m.pendingSegmentDurations
+        m.pendingSegmentDurations = invalid
     end if
     if m.pendingTsRelay then descriptor.tsRelayEnabled = true
     m.pendingTsRelay = false
