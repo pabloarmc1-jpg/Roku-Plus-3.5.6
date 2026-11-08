@@ -54,10 +54,14 @@ sub rpTsRelayServe(connection as object, server as object)
         connection.close()
         return
     end if
+    connectionPort = CreateObject("roMessagePort")
+    connection.setMessagePort(connectionPort)
+    connection.notifyWritable(true)
+    connection.notifyException(true)
     firstLine = request.split(chr(10))[0].trim()
     parts = firstLine.split(" ")
     if left(firstLine,4) <> "GET "
-        rpTsRelaySendString(connection,"HTTP/1.1 405 Method Not Allowed"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server)
+        rpTsRelaySendString(connection,"HTTP/1.1 405 Method Not Allowed"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
         connection.close()
         return
     end if
@@ -71,10 +75,6 @@ sub rpTsRelayServe(connection as object, server as object)
         return
     end if
     print "[RokuPlus ts-relay] client_connected"
-    connectionPort = CreateObject("roMessagePort")
-    connection.setMessagePort(connectionPort)
-    connection.notifyWritable(true)
-    connection.notifyException(true)
     header = "HTTP/1.1 200 OK"+chr(13)+chr(10)
     header += "Content-Type: video/mp2t"+chr(13)+chr(10)
     header += "Transfer-Encoding: chunked"+chr(13)+chr(10)
