@@ -53,6 +53,7 @@ on:
       - test/hls-decoder-stats-3.5.75
       - test/hls-native-attach-trace-3.5.76
       - test/hls-disable-decoder-stats-3.5.77
+      - test/hls-clean-attach-sequence-3.5.78
   workflow_dispatch:
 permissions:
   contents: read
