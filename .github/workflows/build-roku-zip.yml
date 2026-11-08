@@ -20,6 +20,7 @@ on:
       - test/hls-native-event-diagnostics-3.5.41
       - test/hls-ui-isolation-3.5.42
       - test/hls-minimal-startup-3.5.43
+      - test/hls-decode-memory-cap-3.5.44
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,12 +34,12 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.43.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.43.zip .
+          zip -qr /tmp/Roku-Plus-3.5.44.zip . -x './.git/*' './.github/*' '*.zip'
+          mv /tmp/Roku-Plus-3.5.44.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.43
-          path: Roku-Plus-3.5.43.zip
+          name: Roku-Plus-3.5.44
+          path: Roku-Plus-3.5.44.zip
           if-no-files-found: error
           retention-days: 7
 
