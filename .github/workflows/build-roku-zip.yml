@@ -38,6 +38,7 @@ on:
       - test/hls-aac-sequence-diagnostic-3.5.60
       - test/hls-aac-sequence-diagnostic-3.5.61
       - test/hls-aac-sequence-diagnostic-3.5.62
+      - test/hls-aac-sequence-diagnostic-3.5.63
   workflow_dispatch:
 permissions:
   contents: read
