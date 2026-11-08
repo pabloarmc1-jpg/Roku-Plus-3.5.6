@@ -84,9 +84,11 @@ sub rpTsRelayServe(connection as object, server as object)
     segments = server.segments
     headers = server.mediaHeaders
     sentSegments = 0
-    sentBytes = 0
-    for each segmentUrl in segments
+    startIndex = server.nextSegmentIndex
+    if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
+    for segmentIndex = startIndex to segments.count() - 1
         if server.stopRequested then exit for
+        segmentUrl = segments[segmentIndex]
         if GetInterface(segmentUrl,"ifString") = invalid then exit for
         if left(segmentUrl,8) <> "https://" then exit for
         xfer = CreateObject("roUrlTransfer")
@@ -134,14 +136,15 @@ sub rpTsRelayServe(connection as object, server as object)
         end if
         sentSegments++
         sentBytes += payloadSize
-        server.segmentsSent = sentSegments
-        server.bytesSent = sentBytes
+        server.nextSegmentIndex = segmentIndex + 1
+        server.segmentsSent = server.nextSegmentIndex
+        server.bytesSent = server.bytesSent + payloadSize
         if sentSegments = 1 or sentSegments mod 25 = 0
             print "[RokuPlus ts-relay] forwarded segments="; sentSegments; " bytes="; sentBytes
         end if
         DeleteFile(filePath)
     end for
-    if sentSegments = segments.count()
+    if server.nextSegmentIndex >= segments.count()
         rpTsRelaySendString(connection,"0"+chr(13)+chr(10)+chr(13)+chr(10),server)
         print "[RokuPlus ts-relay] stream_complete segments="; sentSegments; " bytes="; sentBytes
     else
