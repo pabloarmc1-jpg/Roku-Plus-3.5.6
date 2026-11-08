@@ -323,13 +323,15 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
                             relaySegments = rpHdTaskSegmentList(child.body,selected.url)
-                            if relaySegments.count() > 1
+                            relayDurations = rpHdTaskSegmentDurations(child.body)
+                            if relaySegments.count() > 1 and relayDurations.count() = relaySegments.count()
                                 answer.segmentUrls = relaySegments
+                                answer.segmentDurations = relayDurations
                                 answer.tsRelayEnabled = true
-                                print "[RokuPlus ts-relay] candidate_segments="; relaySegments.count()
+                                print "[RokuPlus ts-relay] candidate_segments="; relaySegments.count(); " durations="; relayDurations.count()
                             else
                                 answer.tsRelayEnabled = false
-                                print "[RokuPlus ts-relay] disabled reason=segment_list_unavailable"
+                                print "[RokuPlus ts-relay] disabled reason=segment_metadata_invalid segments="; relaySegments.count(); " durations="; relayDurations.count()
                             end if
                             ' Diagnostic 3.5.38: return the selected child HLS manifest as one native stream.
                             ' The TS playlist path was confirmed to create visible clip boundaries.
@@ -847,6 +849,27 @@ function rpHdTaskSegmentList(body as string, baseUrl as string) as object
         end if
     end for
     return segments
+end function
+
+function rpHdTaskSegmentDurations(body as string) as object
+    durations = []
+    pendingDuration = invalid
+    for each raw in body.split(chr(10))
+        line = raw.trim()
+        if left(line,8) = "#EXTINF:"
+            value = mid(line,9).split(",")[0].trim()
+            parsed = value.toFloat()
+            if parsed <= 0 or pendingDuration <> invalid then return []
+            pendingDuration = parsed
+        else if line <> "" and left(line,1) <> "#"
+            if pendingDuration = invalid then return []
+            durations.push(pendingDuration)
+            pendingDuration = invalid
+            if durations.count() > 2000 then return []
+        end if
+    end for
+    if pendingDuration <> invalid then return []
+    return durations
 end function
 
 function rpHdTaskFirstSegment(body as string, baseUrl as string) as string
