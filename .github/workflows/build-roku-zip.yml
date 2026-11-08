@@ -52,6 +52,7 @@ on:
       - test/hls-local-manifest-no-headers-3.5.74
       - test/hls-decoder-stats-3.5.75
       - test/hls-native-attach-trace-3.5.76
+      - test/hls-disable-decoder-stats-3.5.77
   workflow_dispatch:
 permissions:
   contents: read
