@@ -71,12 +71,16 @@ sub rpTsRelayServe(connection as object, server as object)
         return
     end if
     print "[RokuPlus ts-relay] client_connected"
+    connectionPort = CreateObject("roMessagePort")
+    connection.setMessagePort(connectionPort)
+    connection.notifyWritable(true)
+    connection.notifyException(true)
     header = "HTTP/1.1 200 OK"+chr(13)+chr(10)
     header += "Content-Type: video/mp2t"+chr(13)+chr(10)
     header += "Transfer-Encoding: chunked"+chr(13)+chr(10)
     header += "Cache-Control: no-store"+chr(13)+chr(10)
     header += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
-    rpTsRelaySendString(connection,header,server)
+    rpTsRelaySendString(connection,header,server,connectionPort)
     if not server.sendOk
         connection.close()
         return
@@ -84,6 +88,7 @@ sub rpTsRelayServe(connection as object, server as object)
     segments = server.segments
     headers = server.mediaHeaders
     sentSegments = 0
+    sentBytes = 0
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
     for segmentIndex = startIndex to segments.count() - 1
@@ -119,17 +124,17 @@ sub rpTsRelayServe(connection as object, server as object)
             DeleteFile(filePath)
             exit for
         end if
-        rpTsRelaySendString(connection,rpTsRelayHex(payloadSize)+chr(13)+chr(10),server)
+        rpTsRelaySendString(connection,rpTsRelayHex(payloadSize)+chr(13)+chr(10),server,connectionPort)
         if not server.sendOk
             DeleteFile(filePath)
             exit for
         end if
-        rpTsRelaySendBytes(connection,payload,server)
+        rpTsRelaySendBytes(connection,payload,server,connectionPort)
         if not server.sendOk
             DeleteFile(filePath)
             exit for
         end if
-        rpTsRelaySendString(connection,chr(13)+chr(10),server)
+        rpTsRelaySendString(connection,chr(13)+chr(10),server,connectionPort)
         if not server.sendOk
             DeleteFile(filePath)
             exit for
@@ -145,7 +150,7 @@ sub rpTsRelayServe(connection as object, server as object)
         DeleteFile(filePath)
     end for
     if server.nextSegmentIndex >= segments.count()
-        rpTsRelaySendString(connection,"0"+chr(13)+chr(10)+chr(13)+chr(10),server)
+        rpTsRelaySendString(connection,"0"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
         print "[RokuPlus ts-relay] stream_complete segments="; sentSegments; " bytes="; sentBytes
     else
         print "[RokuPlus ts-relay] stream_incomplete segments="; sentSegments; " total="; segments.count()
@@ -153,32 +158,50 @@ sub rpTsRelayServe(connection as object, server as object)
     connection.close()
 end sub
 
-sub rpTsRelaySendString(connection as object, value as string, server as object)
+sub rpTsRelaySendString(connection as object, value as string, server as object, port as object)
     offset = 0
     server.sendOk = true
     while offset < len(value)
         count = connection.sendStr(mid(value,offset+1))
         if count <= 0
-            server.sendOk = false
-            exit while
+            if count = 0 and rpTsRelayWaitWritable(connection,port)
+                ' The non-blocking socket is temporarily full. Retry this offset.
+            else
+                server.sendOk = false
+                exit while
+            end if
+        else
+            offset += count
         end if
-        offset += count
     end while
 end sub
 
-sub rpTsRelaySendBytes(connection as object, value as object, server as object)
+sub rpTsRelaySendBytes(connection as object, value as object, server as object, port as object)
     offset = 0
     total = value.Count()
     server.sendOk = true
     while offset < total
         count = connection.send(value,offset,total-offset)
         if count <= 0
-            server.sendOk = false
-            exit while
+            if count = 0 and rpTsRelayWaitWritable(connection,port)
+                ' Wait for writable before retrying the unsent bytes.
+            else
+                server.sendOk = false
+                exit while
+            end if
+        else
+            offset += count
         end if
-        offset += count
     end while
 end sub
+
+function rpTsRelayWaitWritable(connection as object, port as object) as boolean
+    if connection.isWritable() then return true
+    event = wait(5000,port)
+    if event = invalid then return false
+    if connection.isException() then return false
+    return connection.isWritable()
+end function
 
 function rpTsRelayHex(value as integer) as string
     digits = "0123456789ABCDEF"
