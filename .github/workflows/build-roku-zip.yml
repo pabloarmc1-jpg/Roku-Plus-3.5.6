@@ -82,3 +82,5 @@ jobs:
           retention-days: 7
 
 # Package the native HLS reference-stream isolation test.
+
+# Local loopback HLS manifest experiment package.
