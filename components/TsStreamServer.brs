@@ -57,7 +57,7 @@ sub rpTsRelayServe(connection as object, server as object)
     firstLine = request.split(chr(10))[0].trim()
     parts = firstLine.split(" ")
     if left(firstLine,4) <> "GET "
-        rpTsRelaySendString(connection,"HTTP/1.1 405 Method Not Allowed"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10))
+        rpTsRelaySendString(connection,"HTTP/1.1 405 Method Not Allowed"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server)
         connection.close()
         return
     end if
@@ -65,7 +65,7 @@ sub rpTsRelayServe(connection as object, server as object)
     requestPath = ""
     if parts.count() >= 2 then requestPath = parts[1]
     if GetInterface(accessKey,"ifString") = invalid or len(accessKey) < 16 or requestPath <> "/stream.ts?key="+accessKey
-        rpTsRelaySendString(connection,"HTTP/1.1 403 Forbidden"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10))
+        rpTsRelaySendString(connection,"HTTP/1.1 403 Forbidden"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server)
         connection.close()
         print "[RokuPlus ts-relay] rejected_client"
         return
@@ -116,15 +116,18 @@ sub rpTsRelayServe(connection as object, server as object)
             DeleteFile(filePath)
             exit for
         end if
-        if not rpTsRelaySendString(connection,rpTsRelayHex(payloadSize)+chr(13)+chr(10))
+        rpTsRelaySendString(connection,rpTsRelayHex(payloadSize)+chr(13)+chr(10),server)
+        if not server.sendOk
             DeleteFile(filePath)
             exit for
         end if
-        if not rpTsRelaySendBytes(connection,payload)
+        rpTsRelaySendBytes(connection,payload,server)
+        if not server.sendOk
             DeleteFile(filePath)
             exit for
         end if
-        if not rpTsRelaySendString(connection,chr(13)+chr(10))
+        rpTsRelaySendString(connection,chr(13)+chr(10),server)
+        if not server.sendOk
             DeleteFile(filePath)
             exit for
         end if
@@ -138,7 +141,7 @@ sub rpTsRelayServe(connection as object, server as object)
         DeleteFile(filePath)
     end for
     if sentSegments = segments.count()
-        rpTsRelaySendString(connection,"0"+chr(13)+chr(10)+chr(13)+chr(10))
+        rpTsRelaySendString(connection,"0"+chr(13)+chr(10)+chr(13)+chr(10),server)
         print "[RokuPlus ts-relay] stream_complete segments="; sentSegments; " bytes="; sentBytes
     else
         print "[RokuPlus ts-relay] stream_incomplete segments="; sentSegments; " total="; segments.count()
@@ -146,34 +149,32 @@ sub rpTsRelayServe(connection as object, server as object)
     connection.close()
 end sub
 
-function rpTsRelaySendString(connection as object, value as string) as Boolean
+sub rpTsRelaySendString(connection as object, value as string, server as object)
     offset = 0
-    success = true
+    server.sendOk = true
     while offset < len(value)
         count = connection.sendStr(mid(value,offset+1))
         if count <= 0
-            success = false
+            server.sendOk = false
             exit while
         end if
         offset += count
     end while
-    return success
-end function
+end sub
 
-function rpTsRelaySendBytes(connection as object, value as object) as Boolean
+sub rpTsRelaySendBytes(connection as object, value as object, server as object)
     offset = 0
     total = value.Count()
-    success = true
+    server.sendOk = true
     while offset < total
         count = connection.send(value,offset,total-offset)
         if count <= 0
-            success = false
+            server.sendOk = false
             exit while
         end if
         offset += count
     end while
-    return success
-end function
+end sub
 
 function rpTsRelayHex(value as integer) as string
     digits = "0123456789ABCDEF"
