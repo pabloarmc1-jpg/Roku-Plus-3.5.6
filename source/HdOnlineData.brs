@@ -967,7 +967,7 @@ function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) a
                 currentPesBytes = 0
                 collecting = false
                 cursor = packet.payloadAt
-                if continuityOk and cursor+9 <= packet.endAt
+                if cursor+9 <= packet.endAt
                     if data[cursor] = 0 and data[cursor+1] = 0 and data[cursor+2] = 1
                         streamId = orbitInteger(data[cursor+3],255,-1)
                         headerLength = orbitInteger(data[cursor+8],255,-1)
@@ -999,6 +999,7 @@ function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) a
     end if
     if audio.count() < 7 then return result
     cursor = 0
+    confirmedBytes = 0
     while cursor+7 <= audio.count()
         frame = rpHdOnlineTsAdtsHeader(audio,cursor)
         if frame.valid
@@ -1023,7 +1024,7 @@ function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) a
                     result.channels = frame.channels
                 end if
                 result.lastFrameLength = nextFrame.length
-                result.unframedBytes += cursor
+                confirmedBytes += runEnd-cursor
                 cursor = runEnd
             else
                 if nextOffset+7 > audio.count() and nextOffset < audio.count() then result.truncatedFrames++
@@ -1033,7 +1034,7 @@ function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) a
             cursor++
         end if
     end while
-    result.unframedBytes += audio.count()-cursor
+    result.unframedBytes = audio.count()-confirmedBytes
     result.valid = result.confirmedFrames >= 2
     return result
 end function
