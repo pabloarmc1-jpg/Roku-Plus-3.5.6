@@ -41,6 +41,7 @@ on:
       - test/hls-aac-sequence-diagnostic-3.5.63
       - test/hls-full-first-segment-aac-diagnostic-3.5.64
       - test/hls-complete-playback-diagnostics-3.5.65
+      - test/hls-next-diagnostics-3.5.66
   workflow_dispatch:
 permissions:
   contents: read
