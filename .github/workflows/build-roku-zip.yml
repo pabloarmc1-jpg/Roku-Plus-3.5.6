@@ -49,6 +49,7 @@ on:
       - test/hls-lan-m3u8-server-3.5.71
       - test/hls-lan-http-probe-3.5.72
       - test/hls-fresh-content-local-manifest-3.5.73
+      - test/hls-local-manifest-no-headers-3.5.74
   workflow_dispatch:
 permissions:
   contents: read
