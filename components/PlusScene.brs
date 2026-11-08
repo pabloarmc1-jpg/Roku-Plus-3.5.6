@@ -86,6 +86,8 @@ sub init()
     m.job = invalid
     m.request = ""
     m.pending = invalid
+    m.pendingSegmentUrls = invalid
+    m.pendingTsRelay = false
     m.dialogBox = invalid
     m.dialogPurpose = ""
     m.note = ""
@@ -310,6 +312,7 @@ sub fetched(event as object)
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSegmentUrls = answer.segmentUrls
+        m.pendingTsRelay = answer.tsRelayEnabled = true
         launchVideo(m.detail,answer.url,answer.streamFormat)
         return
     else if context.operation = "episodes"
@@ -422,6 +425,8 @@ sub launchVideo(item as object, url as string, format as string)
         descriptor.segmentUrls = m.pendingSegmentUrls
         m.pendingSegmentUrls = invalid
     end if
+    if m.pendingTsRelay then descriptor.tsRelayEnabled = true
+    m.pendingTsRelay = false
     ' Tag every playback request so delayed progress from an earlier decoder
     ' generation cannot overwrite the currently selected title's watch state.
     descriptor.requestId = CreateObject("roDeviceInfo").getRandomUUID()
