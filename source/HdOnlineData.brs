@@ -1014,7 +1014,7 @@ function rpHdOnlinePpsProfile(data as dynamic, nalAt as integer, endAt as intege
     bits = CreateObject("roArray",rbsp.count()*8,true)
     for i = 0 to rbsp.count()-1
         for bitIndex = 7 to 0 step -1
-            bits.push((rbsp[i] \\ (2^bitIndex)) mod 2)
+            bits.push((rbsp[i] \ (2^bitIndex)) mod 2)
         end for
     end for
     state = {pos:0}
