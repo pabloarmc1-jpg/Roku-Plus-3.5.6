@@ -1144,12 +1144,9 @@ sub onPulse()
                 freshMedia.streamFormat = "hls"
                 freshMedia.live = false
                 freshMedia.httpCertificatesFile = "common:/certs/ca-bundle.crt"
-                freshHeaders = CreateObject("roArray", 2, true)
-                if type(m.mediaNode.httpHeaders) = "roArray"
-                    for each header in m.mediaNode.httpHeaders
-                        freshHeaders.push(header)
-                    end for
-                end if
+                ' Isolate native HLS startup without provider HTTP headers.
+                ' The HTTP probe has already verified the local manifest endpoint.
+                freshHeaders = CreateObject("roArray", 0, true)
                 freshMedia.httpHeaders = freshHeaders
                 m.localHlsFreshMedia = freshMedia
                 m.localHlsAttachPending = true
