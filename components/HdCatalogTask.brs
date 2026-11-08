@@ -225,6 +225,13 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                                 print "[RokuPlus ts-sps] first valid="; firstProfile.spsWidth > 0; " width="; firstProfile.spsWidth; " height="; firstProfile.spsHeight; " chroma="; firstProfile.spsChroma
                                                 print "[RokuPlus ts-sps] first bitDepthLuma="; firstProfile.spsBitDepthLuma; " bitDepthChroma="; firstProfile.spsBitDepthChroma; " maxRefs="; firstProfile.spsMaxRefs
                                                 print "[RokuPlus ts-sps] first frameMbsOnly="; firstProfile.spsFrameMbsOnly; " fps="; firstProfile.spsFrameRate; " fixed="; firstProfile.spsFixedFrameRate; " vui="; firstProfile.spsVui
+                                                print "[RokuPlus ts-sps-vui] timing="; firstProfile.spsTimingPresent; " numUnitsInTick="; firstProfile.spsNumUnitsInTick; " timeScale="; firstProfile.spsTimeScale
+                                                print "[RokuPlus ts-sps-vui] nalHrd="; firstProfile.spsNalHrd; " vclHrd="; firstProfile.spsVclHrd; " lowDelay="; firstProfile.spsLowDelayHrd; " picStruct="; firstProfile.spsPicStruct
+                                                print "[RokuPlus ts-sps-vui] restriction="; firstProfile.spsBitstreamRestriction; " maxReorder="; firstProfile.spsMaxReorder; " maxBuffer="; firstProfile.spsMaxBuffer
+                                                print "[RokuPlus ts-pps] present="; firstProfile.ppsPresent; " valid="; firstProfile.ppsValid; " ppsId="; firstProfile.ppsId; " spsId="; firstProfile.ppsSpsId
+                                                print "[RokuPlus ts-pps] entropy="; firstProfile.ppsEntropy; " bottomFieldPicOrder="; firstProfile.ppsBottomFieldPicOrder; " sliceGroups="; firstProfile.ppsSliceGroups
+                                                print "[RokuPlus ts-pps] refL0="; firstProfile.ppsRefL0; " refL1="; firstProfile.ppsRefL1; " weightedPred="; firstProfile.ppsWeightedPred; " weightedBipred="; firstProfile.ppsWeightedBipred
+                                                print "[RokuPlus ts-pps] deblocking="; firstProfile.ppsDeblocking; " constrainedIntra="; firstProfile.ppsConstrainedIntra; " redundantPicCount="; firstProfile.ppsRedundant
                                                 print "[RokuPlus ts-idr] second firstVclType="; secondProfile.firstVclType
                                                 print "[RokuPlus ts-idr] second idr="; secondProfile.idrPresent; " idrByte="; secondProfile.idrByte
                                                 print "[RokuPlus ts-idr] second sps="; secondProfile.spsPresent; " pps="; secondProfile.ppsPresent
@@ -237,6 +244,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                                     print "[RokuPlus ts-audio] first bytes="; "cont"; firstTiming.audioPackets; " videoPes="; firstTiming.videoPesStarts; " audioPes="
                                                     print "[RokuPlus ts-audio] first bytes="; "cont"; firstTiming.audioPesStarts; " videoPts="; firstTiming.videoPtsCount; " audioPts="
                                                     print "[RokuPlus ts-audio] first bytes="; "cont"; firstTiming.audioPtsCount
+                                                    print "[RokuPlus ts-clock] first videoPts="; firstTiming.firstVideoPts; " last="; firstTiming.lastVideoPts; " videoDts="; firstTiming.firstVideoDts; " last="; firstTiming.lastVideoDts
+                                                    print "[RokuPlus ts-clock] first audioPts="; firstTiming.firstAudioPts; " last="; firstTiming.lastAudioPts; " audioDts="; firstTiming.firstAudioDts; " last="; firstTiming.lastAudioDts
+                                                    print "[RokuPlus ts-clock] first PCR="; firstTiming.firstPcr; " last="; firstTiming.lastPcr; " count="; firstTiming.pcrCount
                                                     print "[RokuPlus ts-audio] second bytes="; secondSample.bytes.count(); " videoPackets="; secondHeadTiming.videoPackets
                                                     print "[RokuPlus ts-audio] second bytes="; "cont"; " audioPackets="; secondHeadTiming.audioPackets; " videoPes="
                                                     print "[RokuPlus ts-audio] second bytes="; "cont"; secondHeadTiming.videoPesStarts; " audioPes="; secondHeadTiming.audioPesStarts
