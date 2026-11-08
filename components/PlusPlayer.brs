@@ -328,10 +328,12 @@ sub openRequest()
     ' HLS isolation test: do not force an app-selected audio language over the
     ' Roku system preference. Enable seamless HLS audio-track changes from init.
     if m.decoder.hasField("audioSelectionPreferences")
-        if format = "hls"
+        if format = "hls" or m.tsRelayMode
+            ' The local TS relay is exposed to Video as HLS after its server starts.
+            ' Do not apply the non-HLS Spanish track override to this HLS playlist.
             m.decoder.audioSelectionPreferences = {values: [], overrideSystem: false}
             m.audioSelectionPreferenceSet = false
-            print "[RokuPlus decoder] hlsAudioSelection=system-default"
+            print "[RokuPlus decoder] hlsAudioSelection=system-default relay="; m.tsRelayMode
         else
             m.decoder.audioSelectionPreferences = {values: [{language: ["es", "es-*"]}], overrideSystem: true}
             m.audioSelectionPreferenceSet = true
