@@ -3,6 +3,7 @@ sub init()
     m.top.focusable = true
     m.top.visible = false
     m.decoder = m.top.findNode("decoder")
+    m.tsStreamServer = m.top.findNode("tsStreamServer")
     if m.decoder.hasField("enableDecoderStats")
         m.decoder.enableDecoderStats = true
         print "[RokuPlus decoder] enableDecoderStats="; m.decoder.enableDecoderStats
@@ -217,6 +218,9 @@ sub openRequest()
     m.segmentRestartAt = 0
     m.segmentMode = false
     m.nativePlaylistMode = false
+    m.tsRelayMode = false
+    m.tsRelayPending = false
+    m.tsRelaySegments = invalid
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
         m.segmentMode = true
@@ -269,6 +273,14 @@ sub openRequest()
     if GetInterface(supplied.streamFormat, "ifString") <> invalid then format = lcase(supplied.streamFormat)
     if format = "mpegts" then format = "ts"
     if format = "m3u8" then format = "hls"
+    if supplied.tsRelayEnabled = true and type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
+        m.tsRelayMode = true
+        m.tsRelaySegments = supplied.segmentUrls
+        m.segmentMode = false
+        m.nativePlaylistMode = false
+        format = "ts"
+        print "[RokuPlus ts-relay] mode=single-http-connection segments="; m.tsRelaySegments.count()
+    end if
     ' A clean-TS diagnostic is opt-in. Never replace a provider stream merely
     ' because a diagnostic URL happens to be present in a playback descriptor.
     diagnosticTs = false
@@ -357,6 +369,32 @@ sub openRequest()
         end if
     end if
     media.httpHeaders = requestHeaders
+
+    if m.tsRelayMode
+        m.tsStreamServer.segments = m.tsRelaySegments
+        m.tsStreamServer.mediaHeaders = supplied.mediaHeaders
+        m.tsStreamServer.stopRequested = false
+        m.tsStreamServer.segmentsSent = 0
+        m.tsStreamServer.bytesSent = 0
+        if m.tsStreamServer.status <> "listening"
+            m.tsStreamServer.status = "starting"
+            m.tsStreamServer.control = "RUN"
+        end if
+        m.tsRelayPending = true
+        m.tsRelayStartedAt = m.monotonic.totalMilliseconds()
+        m.decoder.contentIsPlaylist = false
+        m.mediaNode = media
+        m.mediaOpen = true
+        m.top.visible = true
+        m.top.active = true
+        m.decoder.visible = true
+        applyPresentation()
+        m.pulse.duration = 0.25
+        m.pulse.control = "start"
+        emitDiagnostic("ts_relay_starting")
+        return
+    end if
+
 
     ' Use Roku's native Video playlist for sequential TS items. This lets the
     ' Video node own segment transitions instead of stopping/replacing content
@@ -1059,6 +1097,52 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
+    if m.tsRelayPending
+        relayStatus = m.tsStreamServer.status
+        nowRelay = m.monotonic.totalMilliseconds()
+        if relayStatus = "listening"
+            deviceInfo = CreateObject("roDeviceInfo")
+            connectionInfo = deviceInfo.GetConnectionInfo()
+            localIp = ""
+            if type(connectionInfo) = "roAssociativeArray"
+                if GetInterface(connectionInfo.ip,"ifString") <> invalid then localIp = connectionInfo.ip
+            end if
+            if localIp = "" or localIp = "0.0.0.0"
+                m.tsRelayPending = false
+                m.failed = true
+                m.watchdogReason = "ts_relay_ip_unavailable"
+                m.notice = "No se pudo obtener la dirección local del Roku."
+                m.noticeUntil = 2147483647
+                revealTransport()
+                emitDiagnostic("ts_relay_ip_unavailable")
+                return
+            end if
+            relayMedia = CreateObject("roSGNode","ContentNode")
+            relayMedia.url = "http://" + localIp + ":49322/stream.ts"
+            relayMedia.title = m.titleText.text
+            relayMedia.streamFormat = "ts"
+            relayMedia.live = false
+            relayMedia.httpHeaders = CreateObject("roArray",0,true)
+            m.mediaNode = relayMedia
+            m.decoder.contentIsPlaylist = false
+            m.decoder.content = relayMedia
+            m.decoder.control = "play"
+            m.tsRelayPending = false
+            m.tsRelayActive = true
+            print "[RokuPlus ts-relay] player_attached format=ts segments="; m.tsRelaySegments.count()
+            emitDiagnostic("ts_relay_attached")
+        else if relayStatus = "address_error" or relayStatus = "bind_error" or relayStatus = "listen_error" or nowRelay - m.tsRelayStartedAt >= 10000
+            m.tsRelayPending = false
+            m.failed = true
+            m.watchdogReason = "ts_relay_server_failed"
+            m.notice = "No se pudo iniciar el flujo TS local. OK para reintentar."
+            m.noticeUntil = 2147483647
+            revealTransport()
+            print "[RokuPlus ts-relay] server_failed status="; relayStatus
+            emitDiagnostic("ts_relay_server_failed")
+        end if
+        return
+    end if
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
     advanceSegmentRestart(now)
