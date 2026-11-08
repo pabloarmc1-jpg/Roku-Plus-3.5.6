@@ -415,17 +415,6 @@ function rpHdTaskSafeUrl(value as dynamic) as string
     return url
 end function
 
-function rpHdTaskUrlHost(value as dynamic) as string
-    url = orbitText(value,4096)
-    if left(url,8) <> "https://" then return ""
-    host = mid(url,9)
-    slash = instr(1,host,"/")
-    if slash > 0 then host = left(host,slash-1)
-    query = instr(1,host,"?")
-    if query > 0 then host = left(host,query-1)
-    return lcase(left(host,160))
-end function
-
 function rpHdTaskResponseHeader(headers as dynamic, wanted as string) as string
     if type(headers) <> "roAssociativeArray" then return ""
     for each name in headers
@@ -944,7 +933,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         started = transfer.asyncGetToFile(filename)
     end if
     if not started
-        print "[RokuPlus http] role="; role; " host="; rpHdTaskUrlHost(endpoint); " started=false"
+        print "[RokuPlus http] role="; role; " host="; rpHdTaskSafeHost(endpoint); " started=false"
         files.delete(filename)
         if requestFile <> "" then files.delete(requestFile)
         return answer
@@ -1013,7 +1002,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         end if
     end if
     bytesRead = rpHdTaskFileSize(files.stat(filename))
-    print "[RokuPlus http] role="; role; " host="; rpHdTaskUrlHost(endpoint); " status="; code; " finished="; finished; " ms="; answer.httpElapsedMs; " bytes="; bytesRead; " ok="; answer.ok; " type="; answer.httpContentType; " length="; answer.httpContentLength; " range="; answer.httpContentRange; " acceptRanges="; answer.httpAcceptRanges; " cache="; answer.httpCacheControl; " age="; answer.httpAge; " server="; answer.httpServer; " via="; answer.httpVia
+    print "[RokuPlus http] role="; role; " host="; rpHdTaskSafeHost(endpoint); " status="; code; " finished="; finished; " ms="; answer.httpElapsedMs; " bytes="; bytesRead; " ok="; answer.ok; " type="; answer.httpContentType; " length="; answer.httpContentLength; " range="; answer.httpContentRange; " acceptRanges="; answer.httpAcceptRanges; " cache="; answer.httpCacheControl; " age="; answer.httpAge; " server="; answer.httpServer; " via="; answer.httpVia
     files.delete(filename)
     if requestFile <> "" then files.delete(requestFile)
     return answer
