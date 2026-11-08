@@ -261,12 +261,20 @@ sub openRequest()
     if format = "m3u8" then format = "hls"
     m.hlsStartupIsolation = format = "hls"
     if m.hlsStartupIsolation
-        ' Diagnostic 3.5.43: reduce player-side work during native HLS startup.
-        ' Decoder statistics and repeated native snapshots are not required to start playback.
+        ' Diagnostic 3.5.44: cap decoder allocation to this 720p Roku TV.
+        ' Roku documents video decode memory as shared with SceneGraph/OpenGL texture memory.
+        if m.decoder.hasField("maxVideoDecodeResolution")
+            m.decoder.maxVideoDecodeResolution = [1280, 720]
+            print "[RokuPlus hls-memory] maxVideoDecodeResolution=1280x720"
+        else
+            print "[RokuPlus hls-memory] maxVideoDecodeResolution=unsupported"
+        end if
+        ' Keep startup diagnostics lightweight while testing the decoder memory cap.
         if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = false
         print "[RokuPlus hls-minimal] decoderStats=disabled nativePoll=deferred"
         print "[RokuPlus hls-ui] startup isolation enabled"
     else
+        if m.decoder.hasField("maxVideoDecodeResolution") then m.decoder.maxVideoDecodeResolution = [0, 0]
         if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
     end if
     ' HLS isolation test: do not force an app-selected audio language over the
