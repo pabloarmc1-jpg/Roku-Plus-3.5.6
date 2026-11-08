@@ -407,7 +407,7 @@ sub launchVideo(item as object, url as string, format as string)
     m.player.visible = true
     descriptor = {title:item.title,url:url,streamFormat:format,kind:item.kind,itemId:item.id,provider:orbitText(item.provider,32),direct:m.playbackMode="direct",poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),year:orbitText(item.year,20)}
     ' 3.5.51: populated only with the user-hosted clean TS URL for the isolated ID3 test.
-    diagnosticTsUrl = ""
+    diagnosticTsUrl = "https://www.dropbox.com/scl/fi/qgy4p4ahhxp64ng7bwgl1/seg-1-sin-id3-copyts.ts?rlkey=u65jhhd496zc4jgixhmmer4s1&dl=1"
     if diagnosticTsUrl <> "" then descriptor.hlsDiagnosticTsUrl = diagnosticTsUrl
     if descriptor.provider = "lamovie"
         print "[RokuPlus identity] launch id="; descriptor.itemId; " providerId="; orbitText(item.providerId,40); " slugPresent="; item.doesExist("providerSlug"); " slug="; orbitText(item.providerSlug,200)
