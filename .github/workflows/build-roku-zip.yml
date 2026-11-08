@@ -33,6 +33,7 @@ on:
       - test/hls-direct-media-playlist-3.5.55
       - test/hls-provider-native-confirm-3.5.56
       - test/hls-ts-audio-pes-diagnostic-3.5.57
+      - test/hls-aac-frame-diagnostic-3.5.58
   workflow_dispatch:
 permissions:
   contents: read
