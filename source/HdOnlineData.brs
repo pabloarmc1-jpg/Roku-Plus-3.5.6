@@ -913,3 +913,127 @@ function rpHdOnlineTsAdtsProfile(data as dynamic, audioPid as integer) as object
     return result
 end function
 
+
+
+' Diagnostic 3.5.59: validate consecutive ADTS frames after extracting complete audio PES payloads.
+function rpHdOnlineTsAdtsHeader(data as dynamic, offset as integer) as object
+    result = {valid:false,length:0,profile:-1,rateIndex:-1,channels:-1}
+    if offset < 0 or offset+7 > data.count() then return result
+    b0 = orbitInteger(data[offset],255,-1)
+    b1 = orbitInteger(data[offset+1],255,-1)
+    b2 = orbitInteger(data[offset+2],255,-1)
+    b3 = orbitInteger(data[offset+3],255,-1)
+    b4 = orbitInteger(data[offset+4],255,-1)
+    b5 = orbitInteger(data[offset+5],255,-1)
+    if b0 <> 255 or b1 < 0 or b2 < 0 or b3 < 0 or b4 < 0 or b5 < 0 then return result
+    if b1 < 240 or ((b1 \\ 2) mod 4) <> 0 then return result
+    rateIndex = (b2 \\ 2) mod 16
+    channels = (b2 mod 2)*4+(b3 \\ 64)
+    frameLength = (b3 mod 4)*2048+b4*8+(b5 \\ 32)
+    headerLength = 7
+    if (b1 mod 2) = 0 then headerLength = 9
+    if rateIndex > 12 or frameLength < headerLength then return result
+    result.valid = true
+    result.length = frameLength
+    result.profile = b2 \\ 64
+    result.rateIndex = rateIndex
+    result.channels = channels
+    return result
+end function
+
+function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) as object
+    result = {valid:false,tsPackets:0,pesStarts:0,pesPayloadBytes:0,firstPesBytes:0,maxPesBytes:0,continuityErrors:0,adtsCandidates:0,confirmedRuns:0,confirmedFrames:0,truncatedFrames:0,unframedBytes:0,firstFrameLength:0,lastFrameLength:0,profile:-1,rateIndex:-1,channels:-1}
+    if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
+    if data.count() < 188*4 or data.count() > 131072 or audioPid < 1 then return result
+    audio = CreateObject("roByteArray")
+    collecting = false
+    previousCounter = -1
+    currentPesBytes = 0
+    for offset = 0 to data.count()-188 step 188
+        packet = rpHdOnlineTsPacket(data,offset)
+        if packet <> invalid and packet.pid = audioPid and not packet.scrambled
+            result.tsPackets++
+            continuityOk = true
+            if previousCounter >= 0 and packet.counter <> ((previousCounter+1) mod 16)
+                result.continuityErrors++
+                continuityOk = false
+            end if
+            previousCounter = packet.counter
+            if packet.pusi
+                if currentPesBytes > 0
+                    if result.pesStarts = 1 then result.firstPesBytes = currentPesBytes
+                    if currentPesBytes > result.maxPesBytes then result.maxPesBytes = currentPesBytes
+                end if
+                currentPesBytes = 0
+                collecting = false
+                cursor = packet.payloadAt
+                if continuityOk and cursor+9 <= packet.endAt
+                    if data[cursor] = 0 and data[cursor+1] = 0 and data[cursor+2] = 1
+                        streamId = orbitInteger(data[cursor+3],255,-1)
+                        headerLength = orbitInteger(data[cursor+8],255,-1)
+                        if streamId >= 192 and streamId <= 223 and headerLength >= 0 and cursor+9+headerLength <= packet.endAt
+                            cursor += 9+headerLength
+                            collecting = true
+                            result.pesStarts++
+                        end if
+                    end if
+                end if
+            else if not continuityOk
+                collecting = false
+            end if
+            if collecting
+                cursor = packet.payloadAt
+                if packet.pusi then cursor += 9+orbitInteger(data[packet.payloadAt+8],255,0)
+                while cursor < packet.endAt
+                    audio.push(data[cursor])
+                    cursor++
+                    currentPesBytes++
+                    result.pesPayloadBytes++
+                end while
+            end if
+        end if
+    end for
+    if currentPesBytes > 0
+        if result.pesStarts = 1 then result.firstPesBytes = currentPesBytes
+        if currentPesBytes > result.maxPesBytes then result.maxPesBytes = currentPesBytes
+    end if
+    if audio.count() < 7 then return result
+    cursor = 0
+    while cursor+7 <= audio.count()
+        frame = rpHdOnlineTsAdtsHeader(audio,cursor)
+        if frame.valid
+            result.adtsCandidates++
+            nextOffset = cursor+frame.length
+            nextFrame = rpHdOnlineTsAdtsHeader(audio,nextOffset)
+            if nextFrame.valid and nextFrame.profile = frame.profile and nextFrame.rateIndex = frame.rateIndex and nextFrame.channels = frame.channels
+                runFrames = 2
+                runEnd = nextOffset+nextFrame.length
+                while runEnd+7 <= audio.count()
+                    following = rpHdOnlineTsAdtsHeader(audio,runEnd)
+                    if not following.valid or following.profile <> frame.profile or following.rateIndex <> frame.rateIndex or following.channels <> frame.channels then exit while
+                    runFrames++
+                    runEnd += following.length
+                end while
+                result.confirmedRuns++
+                result.confirmedFrames += runFrames
+                if result.confirmedRuns = 1
+                    result.firstFrameLength = frame.length
+                    result.profile = frame.profile
+                    result.rateIndex = frame.rateIndex
+                    result.channels = frame.channels
+                end if
+                result.lastFrameLength = nextFrame.length
+                result.unframedBytes += cursor
+                cursor = runEnd
+            else
+                if nextOffset+7 > audio.count() and nextOffset < audio.count() then result.truncatedFrames++
+                cursor++
+            end if
+        else
+            cursor++
+        end if
+    end while
+    result.unframedBytes += audio.count()-cursor
+    result.valid = result.confirmedFrames >= 2
+    return result
+end function
