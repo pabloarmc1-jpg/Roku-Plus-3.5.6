@@ -269,20 +269,29 @@ sub openRequest()
     if GetInterface(supplied.streamFormat, "ifString") <> invalid then format = lcase(supplied.streamFormat)
     if format = "mpegts" then format = "ts"
     if format = "m3u8" then format = "hls"
+    ' A clean-TS diagnostic is opt-in. Never replace a provider stream merely
+    ' because a diagnostic URL happens to be present in a playback descriptor.
     diagnosticTs = false
-    diagnosticUrl = supplied.hlsDiagnosticTsUrl
-    if GetInterface(diagnosticUrl, "ifString") <> invalid
-        if len(diagnosticUrl) > 0 and len(diagnosticUrl) <= 4096 and left(diagnosticUrl,8) = "https://"
-            diagnosticTs = true
-            format = "ts"
-            m.segmentUrls = invalid
-            m.segmentIndex = 0
-            m.segmentMode = false
-            m.nativePlaylistMode = false
-            m.resumePending = invalid
-            print "[RokuPlus hls-id3-test] mode=clean-ts-direct"
+    diagnosticUrl = ""
+    diagnosticTsEnabled = false
+    if supplied.doesExist("diagnosticTsEnabled") then diagnosticTsEnabled = supplied.diagnosticTsEnabled = true
+    if diagnosticTsEnabled
+        diagnosticUrl = supplied.hlsDiagnosticTsUrl
+        if GetInterface(diagnosticUrl, "ifString") <> invalid
+            if len(diagnosticUrl) > 0 and len(diagnosticUrl) <= 4096 and left(diagnosticUrl,8) = "https://"
+                diagnosticTs = true
+                format = "ts"
+                m.segmentUrls = invalid
+                m.segmentIndex = 0
+                m.segmentMode = false
+                m.nativePlaylistMode = false
+                m.resumePending = invalid
+                print "[RokuPlus hls-id3-test] mode=clean-ts-direct"
+            end if
         end if
     end if
+    m.diagnosticTsActive = diagnosticTs
+    m.effectiveStreamFormat = format
     m.hlsStartupIsolation = format = "hls"
     m.hlsPrebufferPending = m.hlsStartupIsolation
     if m.hlsStartupIsolation
@@ -1360,7 +1369,13 @@ sub emitDiagnostic(reason as string)
     provider = plusSafePlaybackIdentity(m.current.provider,true)
     if itemId <> "" then entry.itemId = itemId
     if provider <> "" then entry.provider = provider
-    if GetInterface(m.current.streamFormat,"ifString") <> invalid then entry.streamFormat = lcase(m.current.streamFormat)
+    if GetInterface(m.current.streamFormat,"ifString") <> invalid
+        entry.streamFormat = lcase(m.current.streamFormat)
+        entry.requestedStreamFormat = lcase(m.current.streamFormat)
+    end if
+    if m.effectiveStreamFormat <> "" then entry.effectiveStreamFormat = m.effectiveStreamFormat
+    entry.diagnosticTsActive = m.diagnosticTsActive
+    if m.decoder.hasField("contentIsPlaylist") then entry.contentIsPlaylist = m.decoder.contentIsPlaylist
     entry.failed = m.failed
     if m.watchdogReason <> "" then entry.watchdogReason = m.watchdogReason
     if m.decoder.state = "error" then entry.nativeError = plusSafeNativeError(m.decoder.errorCode,m.decoder.errorInfo)

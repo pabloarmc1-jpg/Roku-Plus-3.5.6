@@ -29,6 +29,7 @@ on:
       - test/hls-id3-clean-ts-3.5.51
       - test/hls-clean-playlist-tool-3.5.52
       - test/hls-manifest-audit-3.5.53
+      - test/hls-native-segment-trace-3.5.54
   workflow_dispatch:
 permissions:
   contents: read
@@ -41,13 +42,26 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - name: Create source package
+        shell: bash
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.53.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.53.zip .
+          VERSION="$(awk -F= '
+            /^major_version=/ { major=$2 }
+            /^minor_version=/ { minor=$2 }
+            /^build_version=/ { build=$2 }
+            END {
+              if (major == "" || minor == "" || build == "") exit 1
+              printf "%s.%s.%s", major, minor, build
+            }
+          ' manifest)"
+          PACKAGE_NAME="Roku-Plus-${VERSION}"
+          zip -qr "/tmp/${PACKAGE_NAME}.zip" . -x './.git/*' './.github/*' '*.zip'
+          mv "/tmp/${PACKAGE_NAME}.zip" .
+          echo "PACKAGE_NAME=${PACKAGE_NAME}" >> "$GITHUB_ENV"
+          echo "PACKAGE_PATH=${PACKAGE_NAME}.zip" >> "$GITHUB_ENV"
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.53
-          path: Roku-Plus-3.5.53.zip
+          name: ${{ env.PACKAGE_NAME }}
+          path: ${{ env.PACKAGE_PATH }}
           if-no-files-found: error
           retention-days: 7
 
