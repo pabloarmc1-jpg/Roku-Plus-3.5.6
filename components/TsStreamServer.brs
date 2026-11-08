@@ -101,7 +101,6 @@ sub rpTsRelayServe(connection as object, server as object)
         filePath = "tmp:/rp_ts_relay_segment.ts"
         DeleteFile(filePath)
         code = xfer.GetToFile(filePath)
-        server.lastHttpStatus = code
         if code < 200 or code >= 300
             print "[RokuPlus ts-relay] upstream_failed index="; sentSegments+1; " status="; code
             DeleteFile(filePath)
