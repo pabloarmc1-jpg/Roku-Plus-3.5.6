@@ -377,6 +377,7 @@ sub openRequest()
         m.tsStreamServer.accessKey = m.tsRelayAccessKey
         m.tsStreamServer.stopRequested = false
         m.tsStreamServer.segmentsSent = 0
+        m.tsStreamServer.nextSegmentIndex = 0
         m.tsStreamServer.bytesSent = 0
         if m.tsStreamServer.status <> "listening"
             m.tsStreamServer.status = "starting"
