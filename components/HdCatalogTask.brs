@@ -151,7 +151,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                     end for
                     candidates = {variants:[],audioTracks:master.audioTracks,encrypted:master.encrypted}
                     for each variant in master.variants
-                        print "[RokuPlus hls] variant group="; variant.audioGroup; " resolution="; variant.width; "x"; variant.height; " codecs="; variant.codecs
+                        print "[RokuPlus hls] variant group="; variant.audioGroup; " resolution="; variant.width; "x"; variant.height; " fps="; variant.fps; " bandwidth="; variant.bandwidth; " averageBandwidth="; variant.averageBandwidth; " codecs="; variant.codecs; " videoRange="; variant.videoRange; " hdcp="; variant.hdcpLevel
                         if rpHdTaskSpanishAudio(master,variant) then candidates.variants.push(variant)
                     end for
                     print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
@@ -211,7 +211,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                                 print "[RokuPlus ts-boundary] second valid="; secondProfile.valid; " videoPid="; secondProfile.videoPid; " audioPid="; secondProfile.audioPid
                                                 print "[RokuPlus ts-idr] first firstVclType="; firstProfile.firstVclType
                                                 print "[RokuPlus ts-idr] first idr="; firstProfile.idrPresent; " idrByte="; firstProfile.idrByte
-                                                print "[RokuPlus ts-idr] first sps="; firstProfile.spsPresent; " pps="; firstProfile.ppsPresent
+                                                print "[RokuPlus ts-idr] first sps="; firstProfile.spsPresent; " pps="; firstProfile.ppsPresent; " spsProfile="; firstProfile.spsProfileIdc; " spsConstraints="; firstProfile.spsConstraints; " spsLevel="; firstProfile.spsLevelIdc
                                                 print "[RokuPlus ts-idr] second firstVclType="; secondProfile.firstVclType
                                                 print "[RokuPlus ts-idr] second idr="; secondProfile.idrPresent; " idrByte="; secondProfile.idrByte
                                                 print "[RokuPlus ts-idr] second sps="; secondProfile.spsPresent; " pps="; secondProfile.ppsPresent
@@ -245,6 +245,11 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                                     if fullFirst.cancelled then return rpHdTaskFailure(answer,fullFirst)
                                                     if fullFirst.ok
                                                         fullAdts = rpHdOnlineTsAdtsSequenceProfile(fullFirst.bytes,firstProfile.audioPid)
+                                                        fullTiming = rpHdOnlineTsTimingProfile(fullFirst.bytes,firstProfile.videoPid,firstProfile.audioPid)
+                                                        print "[RokuPlus ts-timing-full] bytes="; fullFirst.bytes.count(); " videoPackets="; fullTiming.videoPackets; " audioPackets="; fullTiming.audioPackets; " videoPes="; fullTiming.videoPesStarts; " audioPes="; fullTiming.audioPesStarts
+                                                        print "[RokuPlus ts-timing-full] videoPts="; fullTiming.videoPtsCount; " audioPts="; fullTiming.audioPtsCount; " videoDts="; fullTiming.videoDtsCount; " audioDts="; fullTiming.audioDtsCount; " pcr="; fullTiming.pcrCount; " discontinuities="; fullTiming.discontinuityFlags
+                                                        print "[RokuPlus ts-timing-full] firstVideoPts="; fullTiming.firstVideoPts; " lastVideoPts="; fullTiming.lastVideoPts; " firstAudioPts="; fullTiming.firstAudioPts; " lastAudioPts="; fullTiming.lastAudioPts
+                                                        print "[RokuPlus ts-timing-full] firstPcr="; fullTiming.firstPcr; " lastPcr="; fullTiming.lastPcr; " invalidPackets="; fullTiming.invalidPackets; " transportErrors="; fullTiming.transportErrors; " scrambled="; fullTiming.scrambledPackets; " videoCcErrors="; fullTiming.videoContinuityErrors; " audioCcErrors="; fullTiming.audioContinuityErrors
                                                         print "[RokuPlus ts-adts-full] first bytes="; fullFirst.bytes.count(); " valid="; fullAdts.valid
                                                         print "[RokuPlus ts-adts-full] first tsPackets="; fullAdts.tsPackets; " pes="; fullAdts.pesStarts; " pesBytes="; fullAdts.pesPayloadBytes
                                                         print "[RokuPlus ts-adts-full] first candidates="; fullAdts.adtsCandidates; " runs="; fullAdts.confirmedRuns; " frames="; fullAdts.confirmedFrames; " truncated="; fullAdts.truncatedFrames
@@ -317,12 +322,20 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
     segmentCount = 0
     extinfCount = 0
     totalDuration = 0.0
+    minDuration = 0.0
+    maxDuration = 0.0
     targetDuration = ""
+    targetValue = 0.0
     mediaSequence = ""
     playlistType = ""
     version = ""
+    discontinuities = 0
+    byteRanges = 0
+    programDates = 0
+    invalidExtinf = 0
+    targetOverruns = 0
     hasEndList = false
-    hasDiscontinuity = false
+    hasIndependent = false
     hasMap = false
     hasKey = false
     firstSegment = ""
@@ -334,9 +347,17 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
                 extinfCount++
                 value = mid(line,9).split(",")[0].trim()
                 parsedDuration = value.toFloat()
-                if parsedDuration > 0 then totalDuration += parsedDuration
+                if parsedDuration > 0
+                    totalDuration += parsedDuration
+                    if minDuration = 0 or parsedDuration < minDuration then minDuration = parsedDuration
+                    if parsedDuration > maxDuration then maxDuration = parsedDuration
+                    if targetValue > 0 and parsedDuration > targetValue then targetOverruns++
+                else
+                    invalidExtinf++
+                end if
             else if left(line,21) = "#EXT-X-TARGETDURATION"
                 targetDuration = mid(line,instr(1,line,":")+1).trim()
+                targetValue = targetDuration.toFloat()
             else if left(line,21) = "#EXT-X-MEDIA-SEQUENCE"
                 mediaSequence = mid(line,instr(1,line,":")+1).trim()
             else if left(line,20) = "#EXT-X-PLAYLIST-TYPE"
@@ -345,8 +366,14 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
                 version = mid(line,instr(1,line,":")+1).trim()
             else if left(line,14) = "#EXT-X-ENDLIST"
                 hasEndList = true
-            else if left(line,20) = "#EXT-X-DISCONTINUITY"
-                hasDiscontinuity = true
+            else if left(line,21) = "#EXT-X-DISCONTINUITY"
+                discontinuities++
+            else if left(line,18) = "#EXT-X-BYTERANGE:"
+                byteRanges++
+            else if left(line,24) = "#EXT-X-PROGRAM-DATE-TIME"
+                programDates++
+            else if left(line,28) = "#EXT-X-INDEPENDENT-SEGMENTS"
+                hasIndependent = true
             else if left(line,11) = "#EXT-X-MAP:"
                 hasMap = true
             else if left(line,11) = "#EXT-X-KEY:"
@@ -359,9 +386,12 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
             end if
         end if
     end for
+    averageDuration = 0.0
+    if extinfCount > 0 then averageDuration = totalDuration/extinfCount
     print "[RokuPlus hls-manifest] version="; version; " targetDuration="; targetDuration; " mediaSequence="; mediaSequence; " playlistType="; playlistType
     print "[RokuPlus hls-manifest] segments="; segmentCount; " extinfCount="; extinfCount; " totalDuration="; totalDuration; " endList="; hasEndList
-    print "[RokuPlus hls-manifest] discontinuity="; hasDiscontinuity; " map="; hasMap; " key="; hasKey; " lines="; lineCount
+    print "[RokuPlus hls-manifest] duration min="; minDuration; " max="; maxDuration; " avg="; averageDuration; " invalid="; invalidExtinf; " targetOverruns="; targetOverruns
+    print "[RokuPlus hls-manifest] discontinuities="; discontinuities; " byteRanges="; byteRanges; " programDates="; programDates; " independent="; hasIndependent; " map="; hasMap; " key="; hasKey; " lines="; lineCount
     if firstSegment <> "" then print "[RokuPlus hls-manifest] firstSegment="; firstSegment
 end sub
 
@@ -383,6 +413,25 @@ function rpHdTaskSafeUrl(value as dynamic) as string
     if fragmentAt > 0 and (cutAt = 0 or fragmentAt < cutAt) then cutAt = fragmentAt
     if cutAt > 0 then url = left(url,cutAt-1)
     return url
+end function
+
+function rpHdTaskUrlHost(value as dynamic) as string
+    url = orbitText(value,4096)
+    if left(url,8) <> "https://" then return ""
+    host = mid(url,9)
+    slash = instr(1,host,"/")
+    if slash > 0 then host = left(host,slash-1)
+    query = instr(1,host,"?")
+    if query > 0 then host = left(host,query-1)
+    return lcase(left(host,160))
+end function
+
+function rpHdTaskResponseHeader(headers as dynamic, wanted as string) as string
+    if type(headers) <> "roAssociativeArray" then return ""
+    for each name in headers
+        if lcase(name) = lcase(wanted) then return left(orbitText(headers[name],256),256)
+    end for
+    return ""
 end function
 
 function rpHdTaskStableVariants(master as object, decoderAccept as dynamic) as object
@@ -760,17 +809,22 @@ end function
 
 function rpHdTaskCanDecode(variant as object) as boolean
     format = rpHdTaskDecodeFormat(variant)
-    if format = invalid then return false
+    if format = invalid
+        print "[RokuPlus decode-cap] validCodecDeclaration=false"
+        return false
+    end if
     device = CreateObject("roDeviceInfo")
+    accepted = false
     for each codec in ["mpeg4 avc","h264"]
         response = device.canDecodeVideo({"codec":codec,"profile":format.profile,"level":format.capabilityLevel})
+        supported = false
         if type(response) = "roAssociativeArray"
-            if GetInterface(response.result,"ifBoolean") <> invalid
-                if response.result then return true
-            end if
+            if GetInterface(response.result,"ifBoolean") <> invalid then supported = response.result
         end if
+        print "[RokuPlus decode-cap] codec="; codec; " profile="; format.profile; " level="; format.capabilityLevel; " supported="; supported
+        if supported then accepted = true
     end for
-    return false
+    return accepted
 end function
 
 ' CanDecodeVideo reports supported capability ceilings, not every source level.
@@ -890,6 +944,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         started = transfer.asyncGetToFile(filename)
     end if
     if not started
+        print "[RokuPlus http] role="; role; " host="; rpHdTaskUrlHost(endpoint); " started=false"
         files.delete(filename)
         if requestFile <> "" then files.delete(requestFile)
         return answer
@@ -923,6 +978,17 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         end if
     end while
     if not finished then transfer.asyncCancel()
+    answer.httpStatus = code
+    answer.httpElapsedMs = elapsed.totalMilliseconds()
+    answer.httpFinished = finished
+    answer.httpContentType = rpHdTaskResponseHeader(responseHeaders,"content-type")
+    answer.httpContentLength = rpHdTaskResponseHeader(responseHeaders,"content-length")
+    answer.httpContentRange = rpHdTaskResponseHeader(responseHeaders,"content-range")
+    answer.httpAcceptRanges = rpHdTaskResponseHeader(responseHeaders,"accept-ranges")
+    answer.httpCacheControl = rpHdTaskResponseHeader(responseHeaders,"cache-control")
+    answer.httpAge = rpHdTaskResponseHeader(responseHeaders,"age")
+    answer.httpServer = rpHdTaskResponseHeader(responseHeaders,"server")
+    answer.httpVia = rpHdTaskResponseHeader(responseHeaders,"via")
     successCode = code = 200
     if role = "sample" or role = "sample-tail" then successCode = code = 206
     if finished and successCode and not m.top.cancelRequested
@@ -946,6 +1012,8 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
             if answer.ok then answer.message = ""
         end if
     end if
+    bytesRead = rpHdTaskFileSize(files.stat(filename))
+    print "[RokuPlus http] role="; role; " host="; rpHdTaskUrlHost(endpoint); " status="; code; " finished="; finished; " ms="; answer.httpElapsedMs; " bytes="; bytesRead; " ok="; answer.ok; " type="; answer.httpContentType; " length="; answer.httpContentLength; " range="; answer.httpContentRange; " acceptRanges="; answer.httpAcceptRanges; " cache="; answer.httpCacheControl; " age="; answer.httpAge; " server="; answer.httpServer; " via="; answer.httpVia
     files.delete(filename)
     if requestFile <> "" then files.delete(requestFile)
     return answer
