@@ -50,6 +50,7 @@ on:
       - test/hls-lan-http-probe-3.5.72
       - test/hls-fresh-content-local-manifest-3.5.73
       - test/hls-local-manifest-no-headers-3.5.74
+      - test/hls-decoder-stats-3.5.75
   workflow_dispatch:
 permissions:
   contents: read
