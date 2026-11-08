@@ -146,7 +146,7 @@ sub rpTsRelayServe(connection as object, server as object)
     connection.close()
 end sub
 
-function rpTsRelaySendString(connection as object, value as string) as Boolean
+function rpTsRelaySendString(connection, value)
     offset = 0
     success = true
     while offset < len(value)
