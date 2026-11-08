@@ -1024,7 +1024,7 @@ end function
 function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) as object
     result = {valid:false,tsPackets:0,pesStarts:0,pesPayloadBytes:0,firstPesBytes:0,maxPesBytes:0,continuityErrors:0,adtsCandidates:0,confirmedRuns:0,confirmedFrames:0,truncatedFrames:0,unframedBytes:0,firstFrameLength:0,lastFrameLength:0,profile:-1,rateIndex:-1,channels:-1}
     if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
-    if data.count() < 188*4 or data.count() > 131072 or audioPid < 1 then return result
+    if data.count() < 188*4 or data.count() > 2097152 or audioPid < 1 then return result
     audio = CreateObject("roByteArray")
     collecting = false
     previousCounter = -1
