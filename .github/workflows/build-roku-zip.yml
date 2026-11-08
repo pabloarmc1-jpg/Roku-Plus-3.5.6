@@ -45,6 +45,7 @@ on:
       - test/hls-variant-528p-ab-3.5.67
       - test/hls-full-528p-segment-diagnostics-3.5.68
       - restore/native-player-3.5.79
+      - test/ts-single-connection-3.5.80
   workflow_dispatch:
 permissions:
   contents: read
