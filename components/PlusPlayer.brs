@@ -1117,16 +1117,12 @@ sub onPulse()
     if m.localHlsAttachPending
         nowAttach = m.monotonic.totalMilliseconds()
         if nowAttach >= m.localHlsAttachAt
-            print "[RokuPlus local-hls-trace] stage=attach_begin elapsed_ms="; nowAttach; " pulse="; m.pulse.duration; " decoder_state="; m.decoder.state; " decoder_visible="; m.decoder.visible
             m.localHlsAttachPending = false
             m.mediaNode = m.localHlsFreshMedia
             m.localHlsFreshMedia = invalid
             m.decoder.contentIsPlaylist = false
-            print "[RokuPlus local-hls-trace] stage=before_content_assignment url_host="; m.localHlsHost; " format="; m.mediaNode.streamFormat; " live="; m.mediaNode.live; " headers="; m.mediaNode.httpHeaders.count()
             m.decoder.content = m.mediaNode
-            print "[RokuPlus local-hls-trace] stage=after_content_assignment decoder_state="; m.decoder.state; " decoder_visible="; m.decoder.visible
             m.decoder.control = "prebuffer"
-            print "[RokuPlus local-hls-trace] stage=after_prebuffer decoder_state="; m.decoder.state; " decoder_visible="; m.decoder.visible
             print "[RokuPlus local-hls] action=fresh_content_attached format=hls headers="; m.mediaNode.httpHeaders.count()
             emitDiagnostic("local_hls_fresh_content_attached")
         end if
@@ -1156,11 +1152,8 @@ sub onPulse()
                 m.localHlsFreshMedia = freshMedia
                 m.localHlsAttachPending = true
                 m.localHlsAttachAt = nowProbe + 300
-                print "[RokuPlus local-hls-trace] stage=probe_ok now_ms="; nowProbe; " attach_due_ms="; m.localHlsAttachAt; " pulse_interval="; m.pulse.duration; " server_status="; m.localHlsServer.status
                 m.decoder.control = "stop"
-                print "[RokuPlus local-hls-trace] stage=after_stop decoder_state="; m.decoder.state
                 m.decoder.content = invalid
-                print "[RokuPlus local-hls-trace] stage=after_detach decoder_state="; m.decoder.state
                 print "[RokuPlus local-hls] video_url=lan host="; m.localHlsHost; " action=detach_then_fresh_attach"
                 emitDiagnostic("local_hls_detached")
             else
