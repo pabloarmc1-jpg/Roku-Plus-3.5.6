@@ -302,16 +302,26 @@ sub openRequest()
         end if
     end if
     media = CreateObject("roSGNode", "ContentNode")
-    media.url = supplied.url
+    ' 3.5.49 isolation: replace only HLS requests with a public H.264/AAC
+    ' reference master playlist. This tests Roku's native HLS path independently
+    ' of LaMovie's signed URLs, manifests, CDN, and Referer requirements.
+    playbackUrl = supplied.url
+    referenceHlsTest = format = "hls"
+    if referenceHlsTest
+        playbackUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+        m.nativePlaylistMode = false
+        print "[RokuPlus hls-reference] enabled=true source=mux-bbb format=hls"
+    end if
+    media.url = playbackUrl
     media.title = m.titleText.text
     media.streamFormat = format
-    media.live = m.live
+    media.live = false
     media.httpCertificatesFile = "common:/certs/ca-bundle.crt"
     ' Build headers in a local resizable array. SceneGraph node fields may
     ' expose a fixed-size copy after assignment, so do not mutate the field.
     requestHeaders = CreateObject("roArray", 2, true)
     requestHeaders.push("User-Agent: RokuPlus/1.0")
-    if type(supplied.mediaHeaders) = "roAssociativeArray"
+    if type(supplied.mediaHeaders) = "roAssociativeArray" and not referenceHlsTest
         agent = supplied.mediaHeaders["User-Agent"]
         if GetInterface(agent, "ifString") <> invalid
             if len(agent) > 0 and len(agent) <= 512 and instr(1,agent,chr(13)) = 0 and instr(1,agent,chr(10)) = 0 then requestHeaders[0] = "User-Agent: " + agent
