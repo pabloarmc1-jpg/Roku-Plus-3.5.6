@@ -27,7 +27,8 @@ on:
       - test/hls-reference-stream-3.5.49
       - test/hls-lamovie-480p-3.5.50
       - test/hls-id3-clean-ts-3.5.51
-      - test/hls-clean-playlist-tool-3.5.52
+      - test/hls-clean-playlist-tool-3.5.53
+      - test/hls-manifest-audit-3.5.53
   workflow_dispatch:
 permissions:
   contents: read
@@ -41,12 +42,12 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.52.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.52.zip .
+          zip -qr /tmp/Roku-Plus-3.5.53.zip . -x './.git/*' './.github/*' '*.zip'
+          mv /tmp/Roku-Plus-3.5.53.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.52
-          path: Roku-Plus-3.5.52.zip
+          name: Roku-Plus-3.5.53
+          path: Roku-Plus-3.5.53.zip
           if-no-files-found: error
           retention-days: 7
 
