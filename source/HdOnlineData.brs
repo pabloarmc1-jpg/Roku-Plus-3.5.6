@@ -777,8 +777,8 @@ function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPi
             result.invalidPackets++
             return result
         end if
-        if (b1 \\ 128) = 1 then result.transportErrors++
-        if (b3 \\ 64) mod 2 = 1 then result.scrambledPackets++
+        if (b1 \ 128) = 1 then result.transportErrors++
+        if (b3 \ 64) mod 2 = 1 then result.scrambledPackets++
         pid = (b1 mod 32)*256+b2
         pusi = ((b1 \ 64) mod 2) = 1
         control = (b3 \ 16) mod 4
