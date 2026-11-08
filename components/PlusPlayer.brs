@@ -1131,11 +1131,21 @@ sub onPulse()
             relayMedia.httpHeaders = CreateObject("roArray",0,true)
             m.mediaNode = relayMedia
             m.decoder.contentIsPlaylist = false
+            m.decoder.enableUI = false
+            m.decoder.enableTrickPlay = false
+            m.decoder.notificationInterval = 0.5
+            m.decoder.autoplayAfterSeek = true
+            m.accuracyMode = "unavailable"
+            if m.decoder.hasField("seekMode")
+                m.decoder.seekMode = "accurate"
+                m.accuracyMode = m.decoder.seekMode
+            end if
             m.decoder.content = relayMedia
             m.decoder.control = "play"
             m.tsRelayPending = false
             m.tsRelayActive = true
-            print "[RokuPlus ts-relay] player_attached format=ts segments="; m.tsRelaySegments.count()
+            m.effectiveStreamFormat = "hls"
+            print "[RokuPlus ts-relay] player_attached format=hls segments="; m.tsRelaySegments.count()
             emitDiagnostic("ts_relay_attached")
         else if relayStatus = "address_error" or relayStatus = "bind_error" or relayStatus = "listen_error" or nowRelay - m.tsRelayStartedAt >= 10000
             m.tsRelayPending = false
