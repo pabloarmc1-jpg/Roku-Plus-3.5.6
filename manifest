@@ -1,7 +1,7 @@
 title=Roku Plus
 major_version=3
 minor_version=5
-build_version=59
+build_version=60
 ui_resolutions=fhd
 rsg_version=1.3
 mm_icon_focus_fhd=pkg:/images/icon-fhd.png
