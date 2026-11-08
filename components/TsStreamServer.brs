@@ -146,25 +146,33 @@ sub rpTsRelayServe(connection as object, server as object)
     connection.close()
 end sub
 
-function rpTsRelaySendString(connection as object, value as string) as boolean
+function rpTsRelaySendString(connection as object, value as string) as Boolean
     offset = 0
+    success = true
     while offset < len(value)
         count = connection.sendStr(mid(value,offset+1))
-        if count <= 0 then return false
+        if count <= 0
+            success = false
+            exit while
+        end if
         offset += count
     end while
-    return true
+    return success
 end function
 
-function rpTsRelaySendBytes(connection as object, value as object) as boolean
+function rpTsRelaySendBytes(connection as object, value as object) as Boolean
     offset = 0
     total = value.Count()
+    success = true
     while offset < total
         count = connection.send(value,offset,total-offset)
-        if count <= 0 then return false
+        if count <= 0
+            success = false
+            exit while
+        end if
         offset += count
     end while
-    return true
+    return success
 end function
 
 function rpTsRelayHex(value as integer) as string
