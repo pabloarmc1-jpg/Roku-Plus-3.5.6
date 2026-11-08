@@ -43,6 +43,7 @@ on:
       - test/hls-complete-playback-diagnostics-3.5.65
       - test/hls-next-diagnostics-3.5.66
       - test/hls-variant-528p-ab-3.5.67
+      - test/hls-full-528p-segment-diagnostics-3.5.68
   workflow_dispatch:
 permissions:
   contents: read
