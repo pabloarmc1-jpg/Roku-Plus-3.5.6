@@ -60,6 +60,15 @@ sub rpTsRelayServe(connection as object, server as object)
         connection.close()
         return
     end if
+    accessKey = server.accessKey
+    requestPath = ""
+    if parts.count() >= 2 then requestPath = parts[1]
+    if GetInterface(accessKey,"ifString") = invalid or len(accessKey) < 16 or instr(1,requestPath,"?key="+accessKey) = 0
+        rpTsRelaySendString(connection,"HTTP/1.1 403 Forbidden"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10))
+        connection.close()
+        print "[RokuPlus ts-relay] rejected_client"
+        return
+    end if
     print "[RokuPlus ts-relay] client_connected"
     header = "HTTP/1.1 200 OK"+chr(13)+chr(10)
     header += "Content-Type: video/mp2t"+chr(13)+chr(10)
