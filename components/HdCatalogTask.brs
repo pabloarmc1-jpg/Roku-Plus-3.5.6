@@ -1002,7 +1002,9 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         end if
     end if
     bytesRead = rpHdTaskFileSize(files.stat(filename))
-    print "[RokuPlus http] role="; role; " host="; rpHdTaskSafeHost(endpoint); " status="; code; " finished="; finished; " ms="; answer.httpElapsedMs; " bytes="; bytesRead; " ok="; answer.ok; " type="; answer.httpContentType; " length="; answer.httpContentLength; " range="; answer.httpContentRange; " acceptRanges="; answer.httpAcceptRanges; " cache="; answer.httpCacheControl; " age="; answer.httpAge; " server="; answer.httpServer; " via="; answer.httpVia
+    print "[RokuPlus http] role="; role; " host="; rpHdTaskSafeHost(endpoint); " status="; code; " finished="; finished; " ms="; answer.httpElapsedMs
+    print "[RokuPlus http] bytes="; bytesRead; " ok="; answer.ok; " type="; answer.httpContentType; " length="; answer.httpContentLength; " range="; answer.httpContentRange; " acceptRanges="; answer.httpAcceptRanges
+    print "[RokuPlus http] cache="; answer.httpCacheControl; " age="; answer.httpAge; " server="; answer.httpServer; " via="; answer.httpVia
     files.delete(filename)
     if requestFile <> "" then files.delete(requestFile)
     return answer
