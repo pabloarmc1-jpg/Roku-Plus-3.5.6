@@ -835,3 +835,81 @@ function rpHdOnlineTsStartupProfile(data as dynamic) as object
     profile.valid = true
     return profile
 end function
+
+' Diagnostic 3.5.58: extract AAC ADTS frames from one bounded MPEG-TS sample.
+' This is read-only: it never changes the stream URL, manifest, or playback.
+function rpHdOnlineTsAdtsProfile(data as dynamic, audioPid as integer) as object
+    result = {valid:false,payloadBytes:0,frames:0,invalidHeaders:0,truncatedFrames:0,firstFrameLength:0,lastFrameLength:0,minFrameLength:0,maxFrameLength:0,profile:-1,sampleRateIndex:-1,channelConfig:-1,rawDataBlocks:0}
+    if type(data) <> "roByteArray" and type(data) <> "roArray" then return result
+    if data.count() < 188*4 or data.count() > 131072 or audioPid < 1 then return result
+    audio = CreateObject("roByteArray")
+    for offset = 0 to data.count()-188 step 188
+        packet = rpHdOnlineTsPacket(data,offset)
+        if packet <> invalid and packet.pid = audioPid and not packet.scrambled
+            cursor = packet.payloadAt
+            if packet.pusi
+                if cursor+9 > packet.endAt then continue for
+                if data[cursor] <> 0 or data[cursor+1] <> 0 or data[cursor+2] <> 1 then continue for
+                streamId = data[cursor+3]
+                if streamId < 192 or streamId > 223 then continue for
+                headerLength = orbitInteger(data[cursor+8],255,-1)
+                if headerLength < 0 then continue for
+                cursor += 9+headerLength
+            end if
+            while cursor < packet.endAt
+                audio.push(data[cursor])
+                cursor++
+            end while
+        end if
+    end for
+    result.payloadBytes = audio.count()
+    if audio.count() < 7 then return result
+    cursor = 0
+    while cursor+7 <= audio.count()
+        b0 = orbitInteger(audio[cursor],255,-1)
+        b1 = orbitInteger(audio[cursor+1],255,-1)
+        b2 = orbitInteger(audio[cursor+2],255,-1)
+        b3 = orbitInteger(audio[cursor+3],255,-1)
+        b4 = orbitInteger(audio[cursor+4],255,-1)
+        b5 = orbitInteger(audio[cursor+5],255,-1)
+        b6 = orbitInteger(audio[cursor+6],255,-1)
+        if b0 = 255 and b1 >= 240 and ((b1 \ 2) mod 4) = 0
+            profile = (b2 \ 64)
+            sampleRate = (b2 \ 2) mod 16
+            channels = (b2 mod 2)*4+(b3 \ 64)
+            frameLength = (b3 mod 4)*2048+(b4*8)+(b5 \ 32)
+            headerLength = 7
+            if (b1 mod 2) = 0 then headerLength = 9
+            if sampleRate <= 12 and channels <= 7 and frameLength >= headerLength
+                if cursor+frameLength > audio.count()
+                    result.truncatedFrames++
+                    exit while
+                end if
+                result.frames++
+                if result.frames = 1
+                    result.firstFrameLength = frameLength
+                    result.minFrameLength = frameLength
+                    result.maxFrameLength = frameLength
+                    result.profile = profile
+                    result.sampleRateIndex = sampleRate
+                    result.channelConfig = channels
+                else
+                    if frameLength < result.minFrameLength then result.minFrameLength = frameLength
+                    if frameLength > result.maxFrameLength then result.maxFrameLength = frameLength
+                    if profile <> result.profile or sampleRate <> result.sampleRateIndex or channels <> result.channelConfig then result.invalidHeaders++
+                end if
+                result.lastFrameLength = frameLength
+                result.rawDataBlocks += (b6 mod 4)+1
+                cursor += frameLength
+            else
+                result.invalidHeaders++
+                cursor++
+            end if
+        else
+            cursor++
+        end if
+    end while
+    result.valid = result.frames > 0
+    return result
+end function
+
