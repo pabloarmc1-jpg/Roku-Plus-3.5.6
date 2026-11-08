@@ -159,6 +159,8 @@ sub rpTsRelayServe(connection as object, server as object, listenerPort as objec
         return
     end if
 
+    if segmentIndex = 0 then rpTsRelayInspectTransport(payload)
+
     range = rpTsRelayParseRange(request,payload.Count())
     if range.invalid
         rpTsRelaySendHeader(connection,"416 Range Not Satisfiable","video/mp2t",0,server,connectionPort)
@@ -213,6 +215,93 @@ sub rpTsRelayServe(connection as object, server as object, listenerPort as objec
     end if
     DeleteFile(filePath)
     connection.close()
+end sub
+
+' Inspect the first downloaded TS segment without changing its bytes or playback path.
+sub rpTsRelayInspectTransport(data as object)
+    if type(data) <> "roByteArray" or data.Count() < 188 then return
+    packetCount = int(data.Count()/188)
+    syncErrors = 0
+    pidCounts = {}
+    pmtPid = -1
+    videoPid = -1
+    audioPid = -1
+    videoType = -1
+    audioType = -1
+    patFound = false
+    pmtFound = false
+
+    for packetIndex = 0 to packetCount-1
+        base = packetIndex*188
+        if data[base] <> 71
+            syncErrors++
+            continue for
+        end if
+        pid = ((data[base+1] and 31)*256)+data[base+2]
+        key = pid.toStr()
+        if pidCounts[key] = invalid then pidCounts[key] = 0
+        pidCounts[key] = pidCounts[key]+1
+
+        adaptation = (data[base+3] and 48)/16
+        if adaptation = 0 or adaptation = 2 then continue for
+        payloadAt = base+4
+        if adaptation = 3
+            payloadAt = payloadAt+1+data[base+4]
+        end if
+        if payloadAt >= base+188 then continue for
+
+        if pid = 0 and not patFound and (data[base+1] and 64) <> 0
+            pointer = data[payloadAt]
+            sectionAt = payloadAt+1+pointer
+            if sectionAt+12 < base+188 and data[sectionAt] = 0
+                sectionLength = ((data[sectionAt+1] and 15)*256)+data[sectionAt+2]
+                loopAt = sectionAt+8
+                loopEnd = sectionAt+3+sectionLength-4
+                while loopAt+3 <= loopEnd and loopAt+3 < base+188
+                    programNumber = data[loopAt]*256+data[loopAt+1]
+                    candidatePid = (data[loopAt+2] and 31)*256+data[loopAt+3]
+                    if programNumber > 0
+                        pmtPid = candidatePid
+                        patFound = true
+                        exit while
+                    end if
+                    loopAt += 4
+                end while
+            end if
+        end if
+
+        if pmtPid >= 0 and pid = pmtPid and not pmtFound and (data[base+1] and 64) <> 0
+            pointer = data[payloadAt]
+            sectionAt = payloadAt+1+pointer
+            if sectionAt+16 < base+188 and data[sectionAt] = 2
+                sectionLength = ((data[sectionAt+1] and 15)*256)+data[sectionAt+2]
+                programInfoLength = (data[sectionAt+10] and 15)*256+data[sectionAt+11]
+                streamAt = sectionAt+12+programInfoLength
+                sectionEnd = sectionAt+3+sectionLength-4
+                while streamAt+4 <= sectionEnd and streamAt+4 < base+188
+                    streamType = data[streamAt]
+                    elementaryPid = (data[streamAt+1] and 31)*256+data[streamAt+2]
+                    esInfoLength = (data[streamAt+3] and 15)*256+data[streamAt+4]
+                    if streamType = 27 or streamType = 36 or streamType = 2
+                        if videoPid < 0
+                            videoPid = elementaryPid
+                            videoType = streamType
+                        end if
+                    else if streamType = 15 or streamType = 17 or streamType = 3 or streamType = 4 or streamType = 129 or streamType = 135
+                        if audioPid < 0
+                            audioPid = elementaryPid
+                            audioType = streamType
+                        end if
+                    end if
+                    streamAt += 5+esInfoLength
+                end while
+                pmtFound = true
+            end if
+        end if
+    end for
+
+    print "[RokuPlus ts-inspect] bytes="; data.Count(); " packets="; packetCount; " syncErrors="; syncErrors; " pat="; patFound; " pmtPid="; pmtPid; " pmt="; pmtFound; " videoPid="; videoPid; " videoType="; videoType; " audioPid="; audioPid; " audioType="; audioType
+    print "[RokuPlus ts-inspect] pidPacketCounts="; FormatJson(pidCounts)
 end sub
 
 function rpTsRelayParseRange(request as string, total as integer) as object
