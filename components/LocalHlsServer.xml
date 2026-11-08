@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="LocalHlsServer" extends="Task">
+  <interface>
+    <field id="playlist" type="string" value="" />
+    <field id="status" type="string" value="idle" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="LocalHlsServer.brs" />
+</component>
