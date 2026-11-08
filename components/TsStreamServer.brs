@@ -159,7 +159,6 @@ function rpTsRelayManifest(server as object) as string
     if segments.count() < 2 or durations.count() <> segments.count() then return ""
     targetDuration = 1
     for each duration in durations
-        if GetInterface(duration,"ifFloat") = invalid and GetInterface(duration,"ifDouble") = invalid and GetInterface(duration,"ifInt") = invalid then return ""
         if duration <= 0 then return ""
         rounded = int(duration)
         if duration > rounded then rounded++
