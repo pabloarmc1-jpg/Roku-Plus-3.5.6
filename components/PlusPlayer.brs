@@ -946,10 +946,28 @@ sub advanceHlsSoftRestart(now as integer)
     if m.hlsRestartStage = 0 or not m.mediaOpen then return
     if m.hlsRestartStage = 1
         if m.decoder.state = "stopped"
-            m.decoder.content = m.mediaNode
+            ' Rebuild a fresh ContentNode so Video cannot retain a stale HLS parser/session.
+            source = m.mediaNode
+            freshMedia = CreateObject("roSGNode", "ContentNode")
+            freshMedia.url = source.url
+            freshMedia.title = source.title
+            freshMedia.streamFormat = source.streamFormat
+            freshMedia.live = source.live
+            freshMedia.httpCertificatesFile = source.httpCertificatesFile
+            freshHeaders = CreateObject("roArray", 2, true)
+            if type(source.httpHeaders) = "roArray"
+                for each header in source.httpHeaders
+                    freshHeaders.push(header)
+                end for
+            end if
+            freshMedia.httpHeaders = freshHeaders
+            m.mediaNode = freshMedia
+            m.decoder.contentIsPlaylist = false
+            m.decoder.content = freshMedia
+            print "[RokuPlus hls-retry] action=fresh-content format="; freshMedia.streamFormat; " headers="; freshHeaders.count()
             m.hlsRestartStage = 2
             m.hlsRestartAt = now
-            emitDiagnostic("hls_soft_restart_content")
+            emitDiagnostic("hls_soft_restart_fresh_content")
         else if now - m.hlsRestartAt >= 5000
             m.hlsRestartStage = 0
             m.hlsStartupIsolation = false
