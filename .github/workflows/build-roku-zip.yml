@@ -23,6 +23,7 @@ on:
       - test/hls-decode-memory-cap-3.5.44
       - test/hls-fresh-content-restart-3.5.46
       - test/hls-variant-528p-3.5.47
+      - test/hls-explicit-prebuffer-3.5.48
   workflow_dispatch:
 permissions:
   contents: read
@@ -36,13 +37,13 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.47.zip . -x './.git/*' './.github/*' '*.zip'
-          mv /tmp/Roku-Plus-3.5.47.zip .
+          zip -qr /tmp/Roku-Plus-3.5.48.zip . -x './.git/*' './.github/*' '*.zip'
+          mv /tmp/Roku-Plus-3.5.48.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.47
-          path: Roku-Plus-3.5.47.zip
+          name: Roku-Plus-3.5.48
+          path: Roku-Plus-3.5.48.zip
           if-no-files-found: error
           retention-days: 7
 
-# Package the native HLS 528p variant isolation build.
+# Package the native HLS explicit-prebuffer startup test.
