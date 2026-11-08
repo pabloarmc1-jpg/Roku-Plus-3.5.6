@@ -2,6 +2,7 @@
 <component name="TsStreamServer" extends="Task">
   <interface>
     <field id="segments" type="array" />
+    <field id="segmentDurations" type="array" />
     <field id="mediaHeaders" type="assocarray" />
     <field id="accessKey" type="string" value="" />
     <field id="status" type="string" value="idle" />
