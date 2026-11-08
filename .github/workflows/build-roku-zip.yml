@@ -24,6 +24,7 @@ on:
       - test/hls-fresh-content-restart-3.5.46
       - test/hls-variant-528p-3.5.47
       - test/hls-explicit-prebuffer-3.5.48
+      - test/hls-reference-stream-3.5.49
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,13 +38,13 @@ jobs:
           ref: ${{ github.sha }}
       - name: Create source package
         run: |
-          zip -qr /tmp/Roku-Plus-3.5.48.zip . -x './.git/*' './.github/*' '*.zip'
+          zip -qr /tmp/Roku-Plus-3.5.49.zip . -x './.git/*' './.github/*' '*.zip'
           mv /tmp/Roku-Plus-3.5.48.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: Roku-Plus-3.5.48
+          name: Roku-Plus-3.5.49
           path: Roku-Plus-3.5.48.zip
           if-no-files-found: error
           retention-days: 7
 
-# Package the native HLS explicit-prebuffer startup test.
+# Package the native HLS reference-stream isolation test.
