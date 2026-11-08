@@ -842,7 +842,7 @@ function rpHdOnlineTsTimingProfile(data as dynamic, videoPid as integer, audioPi
 end function
 
 function rpHdOnlineTsStartupProfile(data as dynamic) as object
-    profile = {valid:false,sampleBytes:0,pat:false,pmt:false,videoPid:-1,audioPid:-1,firstVideoPesByte:-1,firstNalType:0,firstVclType:0,idrPresent:false,idrByte:-1,spsPresent:false,ppsPresent:false,spsProfileIdc:-1,spsConstraints:-1,spsLevelIdc:-1}
+    profile = {valid:false,sampleBytes:0,pat:false,pmt:false,videoPid:-1,audioPid:-1,firstVideoPesByte:-1,firstNalType:0,firstVclType:0,idrPresent:false,idrByte:-1,spsPresent:false,ppsPresent:false,spsProfileIdc:-1,spsConstraints:-1,spsLevelIdc:-1,spsWidth:-1,spsHeight:-1,spsChroma:-1,spsBitDepthLuma:-1,spsBitDepthChroma:-1,spsMaxRefs:-1,spsFrameMbsOnly:false,spsFrameRate:0,spsFixedFrameRate:false,spsVui:false}
     if type(data) <> "roByteArray" and type(data) <> "roArray" then return profile
     if data.count() < 188*4 or data.count() > 131072 then return profile
     profile.sampleBytes = data.count()
@@ -911,6 +911,19 @@ function rpHdOnlineTsStartupProfile(data as dynamic) as object
                                 profile.spsProfileIdc = data[nalAt+1]
                                 profile.spsConstraints = data[nalAt+2]
                                 profile.spsLevelIdc = data[nalAt+3]
+                                spsInfo = rpHdOnlineSpsProfile(data,nalAt,packet.endAt)
+                                if spsInfo.valid
+                                    profile.spsWidth = spsInfo.width
+                                    profile.spsHeight = spsInfo.height
+                                    profile.spsChroma = spsInfo.chromaFormatIdc
+                                    profile.spsBitDepthLuma = spsInfo.bitDepthLuma
+                                    profile.spsBitDepthChroma = spsInfo.bitDepthChroma
+                                    profile.spsMaxRefs = spsInfo.maxNumRefFrames
+                                    profile.spsFrameMbsOnly = spsInfo.frameMbsOnly
+                                    profile.spsFrameRate = spsInfo.frameRate
+                                    profile.spsFixedFrameRate = spsInfo.fixedFrameRate
+                                    profile.spsVui = spsInfo.vuiPresent
+                                end if
                             end if
                         end if
                         if nalType = 8 then profile.ppsPresent = true
@@ -929,6 +942,251 @@ function rpHdOnlineTsStartupProfile(data as dynamic) as object
     end for
     profile.valid = true
     return profile
+end function
+
+
+' Diagnostic 3.5.88: bounded H.264 SPS parser. Read-only; parses one SPS NAL
+' contained in the current TS packet and reports decoder-relevant properties.
+function rpHdOnlineSpsReadBits(bits as object, state as object, bitCount as integer) as integer
+    if bitCount < 0 or bitCount > 32 then return -1
+    if state.pos+bitCount > bits.count() then return -1
+    value = 0
+    for i = 1 to bitCount
+        value = value*2+bits[state.pos]
+        state.pos++
+    end for
+    return value
+end function
+
+function rpHdOnlineSpsReadUe(bits as object, state as object) as integer
+    zeros = 0
+    while state.pos < bits.count()
+        bit = rpHdOnlineSpsReadBits(bits,state,1)
+        if bit < 0 then return -1
+        if bit = 1 then exit while
+        zeros++
+        if zeros > 30 then return -1
+    end while
+    if zeros = 0 then return 0
+    suffix = rpHdOnlineSpsReadBits(bits,state,zeros)
+    if suffix < 0 then return -1
+    return (2^zeros)-1+suffix
+end function
+
+function rpHdOnlineSpsReadSe(bits as object, state as object) as integer
+    codeNum = rpHdOnlineSpsReadUe(bits,state)
+    if codeNum < 0 then return -999999
+    if (codeNum mod 2) = 0 then return -(codeNum \ 2)
+    return (codeNum+1) \ 2
+end function
+
+function rpHdOnlineSpsSkipScalingList(bits as object, state as object, size as integer) as boolean
+    lastScale = 8
+    nextScale = 8
+    for j = 0 to size-1
+        if nextScale <> 0
+            deltaScale = rpHdOnlineSpsReadSe(bits,state)
+            if deltaScale = -999999 then return false
+            nextScale = (lastScale+deltaScale+256) mod 256
+        end if
+        if nextScale <> 0 then lastScale = nextScale
+    end for
+    return true
+end function
+
+function rpHdOnlineSpsSkipHrd(bits as object, state as object) as boolean
+    cpbCount = rpHdOnlineSpsReadUe(bits,state)
+    if cpbCount < 0 or cpbCount > 31 then return false
+    if rpHdOnlineSpsReadBits(bits,state,8) < 0 then return false
+    for i = 0 to cpbCount
+        if rpHdOnlineSpsReadUe(bits,state) < 0 then return false
+        if rpHdOnlineSpsReadUe(bits,state) < 0 then return false
+        if rpHdOnlineSpsReadBits(bits,state,1) < 0 then return false
+    end for
+    if rpHdOnlineSpsReadBits(bits,state,20) < 0 then return false
+    return true
+end function
+
+function rpHdOnlineSpsProfile(data as dynamic, nalAt as integer, endAt as integer) as object
+    result = {valid:false,profileIdc:-1,levelIdc:-1,chromaFormatIdc:-1,separateColourPlane:false,bitDepthLuma:8,bitDepthChroma:8,width:-1,height:-1,maxNumRefFrames:-1,frameMbsOnly:false,fpsNumerator:0,fpsDenominator:0,frameRate:0,fixedFrameRate:false,vuiPresent:false}
+    if nalAt < 0 or endAt <= nalAt+4 or endAt > data.count() then return result
+    rbsp = CreateObject("roArray",64,true)
+    zeroCount = 0
+    for i = nalAt+1 to endAt-1
+        value = data[i]
+        if zeroCount >= 2 and value = 3
+            zeroCount = 0
+            continue for
+        end if
+        rbsp.push(value)
+        if value = 0 then
+            zeroCount++
+        else
+            zeroCount = 0
+        end if
+    end for
+    if rbsp.count() < 4 then return result
+    bits = CreateObject("roArray",rbsp.count()*8,true)
+    for i = 0 to rbsp.count()-1
+        byteValue = rbsp[i]
+        for bitIndex = 7 to 0 step -1
+            bits.push((byteValue \ (2^bitIndex)) mod 2)
+        end for
+    end for
+    state = {pos:0}
+    profileIdc = rpHdOnlineSpsReadBits(bits,state,8)
+    constraints = rpHdOnlineSpsReadBits(bits,state,8)
+    levelIdc = rpHdOnlineSpsReadBits(bits,state,8)
+    spsId = rpHdOnlineSpsReadUe(bits,state)
+    if profileIdc < 0 or levelIdc < 0 or spsId < 0 then return result
+    result.profileIdc = profileIdc
+    result.levelIdc = levelIdc
+    chromaFormat = 1
+    separateColourPlane = false
+    bitDepthLumaMinus8 = 0
+    bitDepthChromaMinus8 = 0
+    if profileIdc = 100 or profileIdc = 110 or profileIdc = 122 or profileIdc = 244 or profileIdc = 44 or profileIdc = 83 or profileIdc = 86 or profileIdc = 118 or profileIdc = 128 or profileIdc = 138 or profileIdc = 139 or profileIdc = 134 or profileIdc = 135
+        chromaFormat = rpHdOnlineSpsReadUe(bits,state)
+        if chromaFormat < 0 or chromaFormat > 3 then return result
+        if chromaFormat = 3
+            flag = rpHdOnlineSpsReadBits(bits,state,1)
+            if flag < 0 then return result
+            separateColourPlane = flag = 1
+        end if
+        bitDepthLumaMinus8 = rpHdOnlineSpsReadUe(bits,state)
+        bitDepthChromaMinus8 = rpHdOnlineSpsReadUe(bits,state)
+        if bitDepthLumaMinus8 < 0 or bitDepthLumaMinus8 > 6 or bitDepthChromaMinus8 < 0 or bitDepthChromaMinus8 > 6 then return result
+        if rpHdOnlineSpsReadBits(bits,state,1) < 0 then return result
+        scalingPresent = rpHdOnlineSpsReadBits(bits,state,1)
+        if scalingPresent < 0 then return result
+        if scalingPresent = 1
+            listCount = 8
+            if chromaFormat = 3 then listCount = 12
+            for i = 0 to listCount-1
+                listPresent = rpHdOnlineSpsReadBits(bits,state,1)
+                if listPresent < 0 then return result
+                if listPresent = 1
+                    listSize = 16
+                    if i >= 6 then listSize = 64
+                    if not rpHdOnlineSpsSkipScalingList(bits,state,listSize) then return result
+                end if
+            end for
+        end if
+    end if
+    result.chromaFormatIdc = chromaFormat
+    result.separateColourPlane = separateColourPlane
+    result.bitDepthLuma = 8+bitDepthLumaMinus8
+    result.bitDepthChroma = 8+bitDepthChromaMinus8
+    if rpHdOnlineSpsReadUe(bits,state) < 0 then return result
+    picOrderCntType = rpHdOnlineSpsReadUe(bits,state)
+    if picOrderCntType < 0 or picOrderCntType > 2 then return result
+    if picOrderCntType = 0
+        if rpHdOnlineSpsReadUe(bits,state) < 0 then return result
+    else if picOrderCntType = 1
+        if rpHdOnlineSpsReadBits(bits,state,1) < 0 then return result
+        if rpHdOnlineSpsReadSe(bits,state) = -999999 then return result
+        if rpHdOnlineSpsReadSe(bits,state) = -999999 then return result
+        cycleCount = rpHdOnlineSpsReadUe(bits,state)
+        if cycleCount < 0 or cycleCount > 255 then return result
+        for i = 1 to cycleCount
+            if rpHdOnlineSpsReadSe(bits,state) = -999999 then return result
+        end for
+    end if
+    maxRefs = rpHdOnlineSpsReadUe(bits,state)
+    if maxRefs < 0 then return result
+    result.maxNumRefFrames = maxRefs
+    if rpHdOnlineSpsReadBits(bits,state,1) < 0 then return result
+    widthMbsMinus1 = rpHdOnlineSpsReadUe(bits,state)
+    heightMapUnitsMinus1 = rpHdOnlineSpsReadUe(bits,state)
+    if widthMbsMinus1 < 0 or heightMapUnitsMinus1 < 0 then return result
+    frameMbsOnlyFlag = rpHdOnlineSpsReadBits(bits,state,1)
+    if frameMbsOnlyFlag < 0 then return result
+    if frameMbsOnlyFlag = 0
+        if rpHdOnlineSpsReadBits(bits,state,1) < 0 then return result
+    end if
+    if rpHdOnlineSpsReadBits(bits,state,1) < 0 then return result
+    cropFlag = rpHdOnlineSpsReadBits(bits,state,1)
+    if cropFlag < 0 then return result
+    cropLeft = 0
+    cropRight = 0
+    cropTop = 0
+    cropBottom = 0
+    if cropFlag = 1
+        cropLeft = rpHdOnlineSpsReadUe(bits,state)
+        cropRight = rpHdOnlineSpsReadUe(bits,state)
+        cropTop = rpHdOnlineSpsReadUe(bits,state)
+        cropBottom = rpHdOnlineSpsReadUe(bits,state)
+        if cropLeft < 0 or cropRight < 0 or cropTop < 0 or cropBottom < 0 then return result
+    end if
+    chromaArrayType = chromaFormat
+    if separateColourPlane then chromaArrayType = 0
+    subWidth = 1
+    subHeight = 1
+    if chromaArrayType = 1
+        subWidth = 2
+        subHeight = 2
+    else if chromaArrayType = 2
+        subWidth = 2
+    end if
+    cropUnitX = 1
+    cropUnitY = 2-frameMbsOnlyFlag
+    if chromaArrayType <> 0
+        cropUnitX = subWidth
+        cropUnitY = subHeight*(2-frameMbsOnlyFlag)
+    end if
+    result.width = (widthMbsMinus1+1)*16-(cropLeft+cropRight)*cropUnitX
+    result.height = (2-frameMbsOnlyFlag)*(heightMapUnitsMinus1+1)*16-(cropTop+cropBottom)*cropUnitY
+    result.frameMbsOnly = frameMbsOnlyFlag = 1
+    vuiFlag = rpHdOnlineSpsReadBits(bits,state,1)
+    if vuiFlag < 0 then return result
+    result.vuiPresent = vuiFlag = 1
+    if vuiFlag = 1
+        aspectFlag = rpHdOnlineSpsReadBits(bits,state,1)
+        if aspectFlag < 0 then return result
+        if aspectFlag = 1
+            aspectIdc = rpHdOnlineSpsReadBits(bits,state,8)
+            if aspectIdc < 0 then return result
+            if aspectIdc = 255
+                if rpHdOnlineSpsReadBits(bits,state,32) < 0 then return result
+            end if
+        end if
+        overscanFlag = rpHdOnlineSpsReadBits(bits,state,1)
+        if overscanFlag < 0 then return result
+        if overscanFlag = 1
+            if rpHdOnlineSpsReadBits(bits,state,1) < 0 then return result
+        end if
+        videoSignalFlag = rpHdOnlineSpsReadBits(bits,state,1)
+        if videoSignalFlag < 0 then return result
+        if videoSignalFlag = 1
+            if rpHdOnlineSpsReadBits(bits,state,4) < 0 then return result
+            colourDesc = rpHdOnlineSpsReadBits(bits,state,1)
+            if colourDesc < 0 then return result
+            if colourDesc = 1
+                if rpHdOnlineSpsReadBits(bits,state,24) < 0 then return result
+            end if
+        end if
+        chromaLocFlag = rpHdOnlineSpsReadBits(bits,state,1)
+        if chromaLocFlag < 0 then return result
+        if chromaLocFlag = 1
+            if rpHdOnlineSpsReadUe(bits,state) < 0 then return result
+            if rpHdOnlineSpsReadUe(bits,state) < 0 then return result
+        end if
+        timingFlag = rpHdOnlineSpsReadBits(bits,state,1)
+        if timingFlag < 0 then return result
+        if timingFlag = 1
+            numUnits = rpHdOnlineSpsReadBits(bits,state,32)
+            timeScale = rpHdOnlineSpsReadBits(bits,state,32)
+            fixedFlag = rpHdOnlineSpsReadBits(bits,state,1)
+            if numUnits > 0 and timeScale > 0 and fixedFlag >= 0
+                result.fpsNumerator = timeScale
+                result.fpsDenominator = 2*numUnits
+                result.frameRate = timeScale/(2*numUnits)
+                result.fixedFrameRate = fixedFlag = 1
+            end if
+        end if
+    end if
+    result.valid = result.width > 0 and result.height > 0
+    return result
 end function
 
 ' Diagnostic 3.5.58: extract AAC ADTS frames from one bounded MPEG-TS sample.
