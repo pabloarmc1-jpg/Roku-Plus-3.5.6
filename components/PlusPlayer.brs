@@ -41,6 +41,7 @@ sub init()
     m.localHlsPending = false
     m.localHlsStartedAt = 0
     m.localHlsUse = false
+    m.localHlsHost = ""
     m.decoder.observeField("state", "onDecoderState")
     m.decoder.observeField("position", "onNativePosition")
     m.decoder.observeField("positionInfo", "onRenderedPosition")
@@ -1108,10 +1109,31 @@ sub onPulse()
         nowLocal = m.monotonic.totalMilliseconds()
         if localStatus = "listening"
             m.localHlsPending = false
-            m.mediaNode.url = "http://127.0.0.1:49321/index.m3u8"
+            deviceInfo = CreateObject("roDeviceInfo")
+            connectionInfo = deviceInfo.GetConnectionInfo()
+            localIp = ""
+            if type(connectionInfo) = "roAssociativeArray"
+                if GetInterface(connectionInfo.ip, "ifString") <> invalid then localIp = connectionInfo.ip
+            end if
+            if localIp = "" or localIp = "0.0.0.0"
+                m.localHlsPending = false
+                m.failed = true
+                m.hlsStartupIsolation = false
+                m.pulse.duration = 0.25
+                m.watchdogReason = "local_hls_ip_unavailable"
+                m.notice = "No se pudo obtener la dirección de red del Roku."
+                m.noticeUntil = 2147483647
+                m.decoder.visible = false
+                revealTransport()
+                print "[RokuPlus local-hls] server_failed stage=device_ip"
+                emitDiagnostic("local_hls_server_failed")
+                return
+            end if
+            m.localHlsHost = localIp
+            m.mediaNode.url = "http://" + localIp + ":49321/index.m3u8"
             m.decoder.content = m.mediaNode
             m.decoder.control = "prebuffer"
-            print "[RokuPlus local-hls] video_url=loopback manifest=attached"
+            print "[RokuPlus local-hls] video_url=lan host="; localIp; " manifest=attached"
             emitDiagnostic("local_hls_ready")
         else if localStatus = "address_error" or localStatus = "bind_error" or localStatus = "listen_error" or nowLocal - m.localHlsStartedAt >= 10000
             m.localHlsPending = false
