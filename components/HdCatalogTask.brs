@@ -353,7 +353,13 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             ' Isolate Roku HLS audio selection while preserving the validated variant.
                             playbackPlaylistKind = "native-child-hls-audio-isolation"
                             playbackStreamFormat = "hls"
-                            answer.url = selected.url
+                            if item.id = "hdo-lamovie-4453"
+                                answer.url = "http://192.168.100.7:8000/4453-test.m3u8"
+                            else if item.id = "hdo-lamovie-4519"
+                                answer.url = "http://192.168.100.7:8000/4519-test.m3u8"
+                            else
+                                answer.url = selected.url
+                            end if
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
