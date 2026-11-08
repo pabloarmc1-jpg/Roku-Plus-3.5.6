@@ -260,7 +260,15 @@ sub openRequest()
     if format = "mpegts" then format = "ts"
     if format = "m3u8" then format = "hls"
     m.hlsStartupIsolation = format = "hls"
-    if m.hlsStartupIsolation then print "[RokuPlus hls-ui] startup isolation enabled"
+    if m.hlsStartupIsolation
+        ' Diagnostic 3.5.43: reduce player-side work during native HLS startup.
+        ' Decoder statistics and repeated native snapshots are not required to start playback.
+        if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = false
+        print "[RokuPlus hls-minimal] decoderStats=disabled nativePoll=deferred"
+        print "[RokuPlus hls-ui] startup isolation enabled"
+    else
+        if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
+    end if
     ' HLS isolation test: do not force an app-selected audio language over the
     ' Roku system preference. Enable seamless HLS audio-track changes from init.
     if m.decoder.hasField("audioSelectionPreferences")
@@ -893,13 +901,17 @@ sub onPulse()
     now = m.monotonic.totalMilliseconds()
     advanceSegmentRestart(now)
     ' Sample native Video fields even when Roku does not emit observer notifications.
-    if now - m.nativePollAt >= 1000
-        m.nativePollAt = now
-        nativeSample = nativeStreamSnapshot()
-        nativeSignature = FormatJson(nativeSample)
-        if nativeSignature <> m.nativePollSignature
-            m.nativePollSignature = nativeSignature
-            emitDiagnostic("native_poll")
+    ' Defer the diagnostic snapshot while HLS is trying to acquire its first frame.
+    ' This avoids repeatedly traversing decoder fields during the sensitive startup window.
+    if not m.hlsStartupIsolation
+        if now - m.nativePollAt >= 1000
+            m.nativePollAt = now
+            nativeSample = nativeStreamSnapshot()
+            nativeSignature = FormatJson(nativeSample)
+            if nativeSignature <> m.nativePollSignature
+                m.nativePollSignature = nativeSignature
+                emitDiagnostic("native_poll")
+            end if
         end if
     end if
     if m.resumePending <> invalid and now - m.resumeStartedAt >= 15000
