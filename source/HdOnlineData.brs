@@ -1015,7 +1015,6 @@ function rpHdOnlineSpsProfile(data as dynamic, nalAt as integer, endAt as intege
     for i = nalAt+1 to endAt-1
         value = data[i]
         if zeroCount >= 2 and value = 3
-            zeroCount = 0
             continue for
         end if
         rbsp.push(value)
@@ -1137,6 +1136,7 @@ function rpHdOnlineSpsProfile(data as dynamic, nalAt as integer, endAt as intege
     result.width = (widthMbsMinus1+1)*16-(cropLeft+cropRight)*cropUnitX
     result.height = (2-frameMbsOnlyFlag)*(heightMapUnitsMinus1+1)*16-(cropTop+cropBottom)*cropUnitY
     result.frameMbsOnly = frameMbsOnlyFlag = 1
+    result.valid = result.width > 0 and result.height > 0
     vuiFlag = rpHdOnlineSpsReadBits(bits,state,1)
     if vuiFlag < 0 then return result
     result.vuiPresent = vuiFlag = 1
@@ -1185,7 +1185,6 @@ function rpHdOnlineSpsProfile(data as dynamic, nalAt as integer, endAt as intege
             end if
         end if
     end if
-    result.valid = result.width > 0 and result.height > 0
     return result
 end function
 
