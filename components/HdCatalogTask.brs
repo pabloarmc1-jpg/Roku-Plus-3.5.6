@@ -238,6 +238,21 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                                     print "[RokuPlus ts-adts-seq] tail pesBytes="; tailAdts.pesPayloadBytes; " firstPes="; tailAdts.firstPesBytes; " maxPes="; tailAdts.maxPesBytes; " ccErrors="; tailAdts.continuityErrors
                                                     print "[RokuPlus ts-adts-seq] tail candidates="; tailAdts.adtsCandidates; " runs="; tailAdts.confirmedRuns; " frames="; tailAdts.confirmedFrames; " truncated="; tailAdts.truncatedFrames
                                                     print "[RokuPlus ts-adts-seq] tail profile="; tailAdts.profile; " rate="; tailAdts.rateIndex; " channels="; tailAdts.channels; " unframed="; tailAdts.unframedBytes
+                                                    ' Diagnostic 3.5.64: inspect the entire first TS segment, not only its 64KB prefix.
+                                                    ' Read-only; native HLS playback continues to use the original provider playlist.
+                                                    rpHdTaskBeginSlice(1)
+                                                    fullFirst = fetcher(segmentUrl,"sample-full",mediaReferer)
+                                                    if fullFirst.cancelled then return rpHdTaskFailure(answer,fullFirst)
+                                                    if fullFirst.ok
+                                                        fullAdts = rpHdOnlineTsAdtsSequenceProfile(fullFirst.bytes,firstProfile.audioPid)
+                                                        print "[RokuPlus ts-adts-full] first bytes="; fullFirst.bytes.count(); " valid="; fullAdts.valid
+                                                        print "[RokuPlus ts-adts-full] first tsPackets="; fullAdts.tsPackets; " pes="; fullAdts.pesStarts; " pesBytes="; fullAdts.pesPayloadBytes
+                                                        print "[RokuPlus ts-adts-full] first candidates="; fullAdts.adtsCandidates; " runs="; fullAdts.confirmedRuns; " frames="; fullAdts.confirmedFrames; " truncated="; fullAdts.truncatedFrames
+                                                        print "[RokuPlus ts-adts-full] first ccErrors="; fullAdts.continuityErrors; " firstPes="; fullAdts.firstPesBytes; " maxPes="; fullAdts.maxPesBytes
+                                                        print "[RokuPlus ts-adts-full] first profile="; fullAdts.profile; " rate="; fullAdts.rateIndex; " channels="; fullAdts.channels; " unframed="; fullAdts.unframedBytes
+                                                    else
+                                                        print "[RokuPlus ts-adts-full] first fetch=failed"
+                                                    end if
                                                     print "[RokuPlus ts-boundary] tail PTS video first="; tailTiming.firstVideoPts; " last="; tailTiming.lastVideoPts; " audio first="; tailTiming.firstAudioPts; " last="; tailTiming.lastAudioPts
                                                     print "[RokuPlus ts-boundary] head PTS video first="; headTiming.firstVideoPts; " last="; headTiming.lastVideoPts; " audio first="; headTiming.firstAudioPts; " last="; headTiming.lastAudioPts
                                                     print "[RokuPlus ts-boundary] tail PCR first="; tailTiming.firstPcr; " last="; tailTiming.lastPcr; " count="; tailTiming.pcrCount
@@ -809,7 +824,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
         if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","").isMatch(endpoint) then return true
         return CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","").isMatch(endpoint)
     end if
-    if role = "media" or role = "sample" or role = "sample-tail" then return rpHdOnlineCdn(endpoint) <> ""
+    if role = "media" or role = "sample" or role = "sample-tail" or role = "sample-full" then return rpHdOnlineCdn(endpoint) <> ""
     return false
 end function
 
@@ -913,8 +928,9 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     if finished and successCode and not m.top.cancelRequested
         bytes = rpHdTaskFileSize(files.stat(filename))
         if bytes > 0 and bytes <= limit
-            if role = "sample" or role = "sample-tail"
-                rangeOk = rpHdTaskRangeResponse(responseHeaders,bytes)
+            if role = "sample" or role = "sample-tail" or role = "sample-full"
+                rangeOk = true
+                if role = "sample" then rangeOk = rpHdTaskRangeResponse(responseHeaders,bytes)
                 if role = "sample-tail" then rangeOk = rpHdTaskTailRangeResponse(responseHeaders,bytes)
                 if rangeOk
                     binary = CreateObject("roByteArray")
