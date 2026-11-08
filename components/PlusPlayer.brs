@@ -302,15 +302,11 @@ sub openRequest()
         end if
     end if
     media = CreateObject("roSGNode", "ContentNode")
-    ' 3.5.49 isolation: replace only HLS requests with a public H.264/AAC
-    ' reference master playlist. This tests Roku's native HLS path independently
-    ' of LaMovie's signed URLs, manifests, CDN, and Referer requirements.
+    ' 3.5.50: restore the provider's validated HLS URL for the 480p variant test.
     playbackUrl = supplied.url
-    referenceHlsTest = format = "hls"
-    if referenceHlsTest
-        playbackUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
-        m.nativePlaylistMode = false
-        print "[RokuPlus hls-reference] enabled=true source=mux-bbb format=hls"
+    referenceHlsTest = false
+    if format = "hls"
+        print "[RokuPlus hls-test] source=provider-native variant=480p"
     end if
     media.url = playbackUrl
     media.title = m.titleText.text
