@@ -55,6 +55,7 @@ sub rpTsRelayServe(connection as object, server as object)
         return
     end if
     firstLine = request.split(chr(10))[0].trim()
+    parts = firstLine.split(" ")
     if left(firstLine,4) <> "GET "
         rpTsRelaySendString(connection,"HTTP/1.1 405 Method Not Allowed"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10))
         connection.close()
