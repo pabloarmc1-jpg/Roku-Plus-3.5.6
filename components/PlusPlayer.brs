@@ -37,6 +37,10 @@ sub init()
     m.rewindSurface = m.top.findNode("rewindSurface")
     m.forwardSurface = m.top.findNode("forwardSurface")
     m.pulse = m.top.findNode("uiPulse")
+    m.localHlsServer = m.top.findNode("localHlsServer")
+    m.localHlsPending = false
+    m.localHlsStartedAt = 0
+    m.localHlsUse = false
     m.decoder.observeField("state", "onDecoderState")
     m.decoder.observeField("position", "onNativePosition")
     m.decoder.observeField("positionInfo", "onRenderedPosition")
@@ -218,6 +222,8 @@ sub openRequest()
     m.segmentRestartAt = 0
     m.segmentMode = false
     m.nativePlaylistMode = false
+    m.localHlsPending = false
+    m.localHlsUse = false
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
         m.segmentMode = true
@@ -292,6 +298,16 @@ sub openRequest()
         end if
     end if
     m.diagnosticTsActive = diagnosticTs
+    localManifest = ""
+    if format = "hls" and not diagnosticTs
+        candidateManifest = supplied.localHlsManifest
+        if GetInterface(candidateManifest,"ifString") <> invalid
+            if len(candidateManifest) > 0 and len(candidateManifest) <= 2097152
+                localManifest = candidateManifest
+                m.localHlsUse = true
+            end if
+        end if
+    end if
     m.effectiveStreamFormat = format
     m.hlsStartupIsolation = format = "hls"
     m.hlsStartupAt = 0
@@ -409,11 +425,25 @@ sub openRequest()
         m.accuracyMode = m.decoder.seekMode
     end if
     m.mediaNode = media
-    m.decoder.content = media
     m.mediaOpen = true
     m.top.visible = true
     m.top.active = true
     applyPresentation()
+    if m.localHlsUse
+        m.localHlsPending = true
+        m.localHlsStartedAt = m.monotonic.totalMilliseconds()
+        m.localHlsServer.playlist = localManifest
+        serverStatus = m.localHlsServer.status
+        if serverStatus <> "listening" and serverStatus <> "starting"
+            m.localHlsServer.status = "starting"
+            m.localHlsServer.control = "RUN"
+        end if
+        print "[RokuPlus local-hls] startup waiting_for_server=true"
+        m.pulse.control = "start"
+        emitDiagnostic("open")
+        return
+    end if
+    m.decoder.content = media
     if m.hlsStartupIsolation
         m.decoder.control = "prebuffer"
         print "[RokuPlus hls-prebuffer] action=prebuffer"
@@ -439,6 +469,7 @@ sub closePlayback()
     end if
     m.closing = true
     emitDiagnostic("close")
+    m.localHlsPending = false
     m.mediaOpen = false
     m.ticket = invalid
     m.pendingSeek = invalid
@@ -1072,6 +1103,31 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
+    if m.localHlsPending
+        localStatus = m.localHlsServer.status
+        nowLocal = m.monotonic.totalMilliseconds()
+        if localStatus = "listening"
+            m.localHlsPending = false
+            m.mediaNode.url = "http://127.0.0.1:49321/index.m3u8"
+            m.decoder.content = m.mediaNode
+            m.decoder.control = "prebuffer"
+            print "[RokuPlus local-hls] video_url=loopback manifest=attached"
+            emitDiagnostic("local_hls_ready")
+        else if localStatus = "address_error" or localStatus = "bind_error" or localStatus = "listen_error" or nowLocal - m.localHlsStartedAt >= 10000
+            m.localHlsPending = false
+            m.hlsStartupIsolation = false
+            m.pulse.duration = 0.25
+            m.failed = true
+            m.watchdogReason = "local_hls_server_failed"
+            m.notice = "No se pudo iniciar el servidor HLS local. OK para reintentar."
+            m.noticeUntil = 2147483647
+            m.decoder.visible = false
+            revealTransport()
+            print "[RokuPlus local-hls] server_failed status="; localStatus
+            emitDiagnostic("local_hls_server_failed")
+        end if
+        return
+    end if
     if m.hlsStartupIsolation
         now = m.monotonic.totalMilliseconds()
         if now - m.hlsStartupAt >= 30000
