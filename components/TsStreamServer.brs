@@ -177,13 +177,6 @@ sub rpTsRelayServe(connection as object, server as object, listenerPort as objec
         responseLength = responseEnd-responseStart+1
         responseStatus = "206 Partial Content"
     end if
-    rpTsRelaySendHeader(connection,responseStatus,"video/mp2t",responseLength,server,connectionPort)
-    if server.sendOk and range.present
-        contentRange = "Content-Range: bytes "+responseStart.toStr()+"-"+responseEnd.toStr()+"/"+payload.Count().toStr()+chr(13)+chr(10)
-        rpTsRelaySendString(connection,contentRange,server,connectionPort)
-    end if
-    ' Content-Range must be part of the header block, so a ranged response is
-    ' rebuilt with its complete header before any body bytes are written.
     if range.present
         header = "HTTP/1.1 206 Partial Content"+chr(13)+chr(10)
         header += "Content-Type: video/mp2t"+chr(13)+chr(10)
@@ -192,10 +185,10 @@ sub rpTsRelayServe(connection as object, server as object, listenerPort as objec
         header += "Accept-Ranges: bytes"+chr(13)+chr(10)
         header += "Cache-Control: no-store"+chr(13)+chr(10)
         header += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
-        ' The previous generic header was already sent; close rather than emit
-        ' a second status line. Range support is therefore handled in the
-        ' dedicated branch below in the next revision.
+        rpTsRelaySendString(connection,header,server,connectionPort)
         print "[RokuPlus ts-relay] range_requested start="; responseStart; " end="; responseEnd
+    else
+        rpTsRelaySendHeader(connection,responseStatus,"video/mp2t",responseLength,server,connectionPort)
     end if
     if server.sendOk and not headOnly
         if range.present
