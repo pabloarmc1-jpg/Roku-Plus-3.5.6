@@ -71,6 +71,7 @@ sub init()
     m.nativePollAt = -1000
     m.nativePollSignature = ""
     m.hlsStartupIsolation = false
+    m.hlsStartupAt = 0
     m.hlsPrebufferPending = false
     m.mediaNode = invalid
     m.hlsRetryCount = 0
@@ -293,7 +294,15 @@ sub openRequest()
     m.diagnosticTsActive = diagnosticTs
     m.effectiveStreamFormat = format
     m.hlsStartupIsolation = format = "hls"
+    m.hlsStartupAt = 0
+    if m.hlsStartupIsolation then m.hlsStartupAt = m.monotonic.totalMilliseconds()
     m.hlsPrebufferPending = m.hlsStartupIsolation
+    if m.hlsStartupIsolation
+        m.pulse.duration = 1.0
+        print "[RokuPlus hls-minimal] pulse=1s startup-work=deferred"
+    else
+        m.pulse.duration = 0.25
+    end if
     if m.hlsStartupIsolation
         ' Diagnostic 3.5.44: cap decoder allocation to this 720p Roku TV.
         ' Roku documents video decode memory as shared with SceneGraph/OpenGL texture memory.
@@ -514,8 +523,9 @@ sub onDecoderState()
     if m.phase = "playing"
         if m.hlsStartupIsolation
             m.hlsStartupIsolation = false
+            m.pulse.duration = 0.25
             revealTransport()
-            print "[RokuPlus hls-ui] startup isolation released: playing"
+            print "[RokuPlus hls-minimal] startup isolation released: playing pulse=250ms"
         end if
         m.segmentTransitioning = false
         m.bufferSince = invalid
@@ -536,6 +546,7 @@ sub onDecoderState()
         revealTransport()
     else if m.phase = "error"
         m.hlsStartupIsolation = false
+        m.pulse.duration = 0.25
         m.failed = true
         m.ticket = invalid
         m.pendingSeek = invalid
@@ -555,8 +566,10 @@ sub onDecoderState()
             return
         end if
     end if
-    drawTransport()
-    publishProgress(true)
+    if not m.hlsStartupIsolation
+        drawTransport()
+        publishProgress(true)
+    end if
 end sub
 
 sub applyResumeSeek()
@@ -1059,6 +1072,23 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
+    if m.hlsStartupIsolation
+        now = m.monotonic.totalMilliseconds()
+        if now - m.hlsStartupAt >= 30000
+            m.hlsStartupIsolation = false
+            m.pulse.duration = 0.25
+            m.failed = true
+            m.watchdogReason = "hls_startup_timeout"
+            m.notice = "La fuente no inició en 30 segundos. OK para reintentar; Atrás para elegir otra."
+            m.noticeUntil = 2147483647
+            m.decoder.visible = false
+            revealTransport()
+            emitDiagnostic("hls_startup_timeout")
+            publishProgress(true)
+            m.decoder.control = "stop"
+        end if
+        return
+    end if
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
     advanceSegmentRestart(now)
