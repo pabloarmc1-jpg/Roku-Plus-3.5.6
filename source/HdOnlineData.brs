@@ -332,7 +332,7 @@ end function
 function rpHdOnlineUnpack(html as dynamic) as string
     text = orbitText(html,524289)
     if text = "" or len(text) > 524288 then return ""
-    pattern = "}\s*\(\s*'((?:\.|[^'\])*)'\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*'((?:\.|[^'\])*)'\.split\('\|'\)"
+    pattern = "}\\s*\\(\\s*'([^']*)'\\s*,\\s*([0-9]+)\\s*,\\s*([0-9]+)\\s*,\\s*'([^']*)'\\.split\\('\\|'\\)"
     parts = CreateObject("roRegex",pattern,"s").match(text)
     if parts.count() < 5 then return text
     radix = orbitInteger(parts[2],62)
