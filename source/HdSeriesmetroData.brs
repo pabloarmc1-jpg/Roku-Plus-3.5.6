@@ -71,15 +71,15 @@ end function
 
 function rpHdSeriesmetroEpisodeArt(block as string) as string
     quotes = chr(34)+"'"
-    images = CreateObject("roRegex","<img[^>]*>","i").split(block)
-    for i = 1 to images.count()-1
-        tag = "<img"+images[i]
+    ' Capture the complete first image tag, including its attributes.
+    imageTag = rpHdSeriesmetroMatch(block,"(<img[^>]*>)")
+    if imageTag <> ""
         for each attribute in ["data-src","data-lazy-src","data-original","data-image","src"]
-            value = rpHdSeriesmetroAttr(tag,attribute)
+            value = rpHdSeriesmetroAttr(imageTag,attribute)
             art = rpHdSeriesmetroArt(value)
             if art <> "" then return art
         end for
-        sourceSet = rpHdSeriesmetroAttr(tag,"srcset")
+        sourceSet = rpHdSeriesmetroAttr(imageTag,"srcset")
         if sourceSet <> ""
             candidate = CreateObject("roRegex","^\s*([^,\s]+)","").match(sourceSet)
             if candidate.count() > 1
@@ -87,7 +87,7 @@ function rpHdSeriesmetroEpisodeArt(block as string) as string
                 if art <> "" then return art
             end if
         end if
-    end for
+    end if
     ' Some templates store the still in an inline background-image.
     css = rpHdSeriesmetroMatch(block,"background-image\s*:\s*url\(["+quotes+"]?([^'"+chr(34)+")]+)")
     return rpHdSeriesmetroArt(css)
