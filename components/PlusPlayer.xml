@@ -24,12 +24,6 @@
     <Rectangle id="backdrop" width="1920" height="1080" color="0x000000FF" />
     <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
     <TsStreamServer id="tsStreamServer" />
-
-    <!-- Text-only black loading screen until Roku reports that playback has started. -->
-    <Group id="loadingOverlay" visible="true">
-      <Rectangle width="1920" height="1080" color="0x000000FF" />
-      <Label id="loadingTitle" translation="[160,475]" width="1600" height="130" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
-    </Group>
     <Poster id="previewMask" translation="[294,206]" width="1016" height="572" uri="pkg:/images/ui/live-preview-mask.png" loadDisplayMode="scaleToFit" visible="false" />
 
     <!-- Clean glass transport: lightweight translucent controls over the video. -->
