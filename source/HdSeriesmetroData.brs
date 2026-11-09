@@ -101,7 +101,7 @@ function rpHdSeriesmetroEpisodeArt(block as string) as string
     ' Also scan the whole episode card for TMDB URLs. Some SeriesMetro
     ' templates keep the image URL in data attributes or embedded markup that
     ' is not a conventional img src.
-    rawArt = rpHdSeriesmetroMatch(block,"(https?:)?//image\\.tmdb\\.org/t/p/[^ \\t\\r\\n\\\"'<>]+\\.(jpg|jpeg|png|webp)")
+    rawArt = rpHdSeriesmetroMatch(block,"(https?:)?//image[.]tmdb[.]org/t/p/[^ ]+[.](jpg|jpeg|png|webp)")
     art = rpHdSeriesmetroArt(rawArt)
     if art <> "" then return art
     ' Some templates store the still in an inline background-image.
@@ -210,6 +210,11 @@ function rpHdSeriesmetroEpisodes(html as dynamic, parent as object, requested as
                 id = "hdo-seriesmetro-"+parent.providerId.toStr()+"-s"+season.toStr()+"-e"+episode.toStr()
                 if not seen.doesExist(id)
                     title = rpHdSeriesmetroText(rpHdSeriesmetroMatch(block,"<h2[^>]*class="+chr(34)+"entry-title"+chr(34)+"[^>]*>(.*?)</h2>"),200)
+                    ' Discard generated headings that only repeat the series, season and episode number.
+                    lowerTitle = lcase(title)
+                    lowerSeries = lcase(parent.title)
+                    if lowerSeries <> "" and left(lowerTitle,len(lowerSeries)) = lowerSeries then title = mid(title,len(parent.title)+1).trim()
+                    if CreateObject("roRegex","^(temporada[ ]+[0-9]+[ ]*)?(cap[ií]tulo|episodio)[ ]*[0-9]+$","i").isMatch(title) then title = ""
                     if title = "" then title = "Episodio "+episode.toStr()
                     ' Extract the still from this episode's own article.
                     episodePoster = rpHdSeriesmetroEpisodeArt(block)
