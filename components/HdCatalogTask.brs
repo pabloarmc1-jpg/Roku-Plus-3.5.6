@@ -416,6 +416,20 @@ function rpHdTaskTsSegment(url as string) as boolean
     return rpHdOnlineCdn(url) <> "" and CreateObject("roRegex","\.ts(\?[^#]*)?$","i").isMatch(url)
 end function
 
+' Remove a trailing year from a series display title and retain it as metadata.
+' This allows providers with different IDs/title formatting to be deduplicated.
+function rpHdTaskNormalizeSeriesTitle(item as dynamic) as dynamic
+    if type(item) <> "roAssociativeArray" then return item
+    title = orbitText(item.title,200).trim()
+    match = CreateObject("roRegex","\\s*\\(((?:19|20)[0-9]{2})\\)\\s*$","").match(title)
+    if match.count() > 1
+        if orbitText(item.year,4) = "" then item.year = match[1]
+        title = CreateObject("roRegex","\\s*\\(((?:19|20)[0-9]{2})\\)\\s*$","").replace(title,"").trim()
+        item.title = title
+    end if
+    return item
+end function
+
 ' skip encodes source-page rounds in steps of twenty, not displayed-card count.
 ' JSON providers request twenty records; SSR pages may contain more cards.
 ' Round-robin output preserves duplicate titles belonging to different sources.
@@ -464,19 +478,44 @@ function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as
         end if
     end for
     answer.items = []
-    seen = {}
+    deduped = []
     if rows > 200 then rows = 200
     for row = 0 to rows-1
         for each entries in pages
             if row < entries.count()
                 item = entries[row]
-                if not seen.doesExist(item.id)
-                    answer.items.push(item)
-                    seen[item.id] = true
+                if answer.kind = "series"
+                    item = rpHdTaskNormalizeSeriesTitle(item)
+                    duplicateIndex = -1
+                    for existingIndex = 0 to deduped.count()-1
+                        existing = deduped[existingIndex]
+                        if lcase(existing.title) = lcase(item.title)
+                            existingYear = orbitText(existing.year,4)
+                            itemYear = orbitText(item.year,4)
+                            if existingYear = "" or itemYear = "" or existingYear = itemYear
+                                duplicateIndex = existingIndex
+                                exit for
+                            end if
+                        end if
+                    end for
+                    if duplicateIndex < 0
+                        deduped.push(item)
+                    else
+                        ' Prefer the entry with a known year and fill missing artwork/details.
+                        existing = deduped[duplicateIndex]
+                        if existing.year = "" and item.year <> "" then existing.year = item.year
+                        if existing.poster = "" and item.poster <> "" then existing.poster = item.poster
+                        if existing.background = "" and item.background <> "" then existing.background = item.background
+                        if existing.description = "" and item.description <> "" then existing.description = item.description
+                        if existing.provider = "" and item.provider <> "" then existing.provider = item.provider
+                    end if
+                else
+                    deduped.push(item)
                 end if
             end if
         end for
     end for
+    answer.items = deduped
     answer.sourceFailures = failures
     answer.sourcesSearched = successes
     answer.partial = failures.count() > 0
