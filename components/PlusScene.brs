@@ -4,6 +4,8 @@ sub init()
     m.top.focusable = true
     m.canvas = m.top.findNode("canvas")
     m.player = m.top.findNode("player")
+    m.logoTask = invalid
+    m.logoRequest = ""
     m.deadline = m.top.findNode("catalogDeadline")
     m.deadline.observeField("fire","catalogTimedOut")
     m.lease = m.top.findNode("playbackLease")
@@ -426,6 +428,8 @@ sub launchVideo(item as object, url as string, format as string)
     m.view = "player"
     loadingTitleNode = m.player.findNode("loadingTitle")
     if loadingTitleNode <> invalid then loadingTitleNode.text = left(orbitText(item.title,130),130)
+    m.player.loadingLogoUri = ""
+    startLoadingLogo(item)
     m.player.visible = true
     descriptor = {title:item.title,url:url,streamFormat:format,kind:item.kind,itemId:item.id,provider:orbitText(item.provider,32),direct:m.playbackMode="direct",poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),year:orbitText(item.year,20)}
     if descriptor.provider = "lamovie"
@@ -566,6 +570,41 @@ sub cancelNextEpisode()
     drawScreen()
 end sub
 
+sub startLoadingLogo(item as object)
+    if m.logoTask <> invalid then m.logoTask.cancelRequested = true
+    m.logoTask = invalid
+    m.logoRequest = CreateObject("roDeviceInfo").getRandomUUID()
+    title = orbitText(item.title,180)
+    if item.kind = "episode" and item.doesExist("seriesTitle")
+        seriesTitle = orbitText(item.seriesTitle,180)
+        if seriesTitle <> "" then title = seriesTitle
+    end if
+    if title = "" or item.kind = "live" then return
+    task = CreateObject("roSGNode", "LogoTask")
+    task.title = title
+    task.requestId = m.logoRequest
+    task.observeField("result", "loadingLogoFetched")
+    m.logoTask = task
+    task.control = "RUN"
+end sub
+
+sub loadingLogoFetched(event as object)
+    answer = event.getData()
+    if m.logoTask = invalid or not event.getRoSGNode().isSameNode(m.logoTask) then return
+    if type(answer) <> "roAssociativeArray" or answer.requestId <> m.logoRequest then return
+    if m.view <> "player" or answer.ok <> true then return
+    uri = orbitText(answer.url,2048)
+    if left(uri,29) <> "https://upload.wikimedia.org/" then return
+    m.player.loadingLogoUri = uri
+    print "[RokuPlus logo] loaded title="; orbitText(answer.title,180)
+end sub
+
+sub cancelLoadingLogo()
+    if m.logoTask <> invalid then m.logoTask.cancelRequested = true
+    m.logoTask = invalid
+    m.logoRequest = ""
+end sub
+
 sub playerClosed(event as object)
     if event.getData() <> true then return
     if m.player.active = true then return
@@ -581,6 +620,7 @@ sub playerClosed(event as object)
     end if
     if m.watchSaveClock <> invalid then m.watchSaveClock.mark()
     m.lease.control = "stop"
+    cancelLoadingLogo()
     if m.leaseTask <> invalid then m.leaseTask.cancelRequested = true
     m.leaseTask = invalid
     m.activeJobId = ""
