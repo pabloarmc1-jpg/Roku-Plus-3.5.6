@@ -26,9 +26,7 @@
     <TsStreamServer id="tsStreamServer" />
     <Poster id="previewMask" translation="[294,206]" width="1016" height="572" uri="pkg:/images/ui/live-preview-mask.png" loadDisplayMode="scaleToFit" visible="false" />
     <Group id="startupOverlay" translation="[0,0]" visible="false">
-      <Rectangle translation="[560,430]" width="800" height="220" color="0x080A0FCC" />
-      <Label id="startupTitle" translation="[600,470]" width="720" height="64" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
-      <Label id="startupStatus" translation="[600,545]" width="720" height="40" font="font:MediumSystemFont" color="0xE4E7EDFF" horizAlign="center" />
+      <Label id="startupTitle" translation="[160,490]" width="1600" height="100" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
     </Group>
 
     <!-- Clean glass transport: lightweight translucent controls over the video. -->
@@ -63,5 +61,6 @@
       <Label id="noticeText" translation="[112,0]" width="1696" height="32" font="font:SmallSystemFont" color="0xFFFFFFFF" />
     </Group>
     <Timer id="uiPulse" duration="0.25" repeat="true" />
+    <Timer id="startupTypeTimer" duration="0.08" repeat="true" />
   </children>
 </component>
