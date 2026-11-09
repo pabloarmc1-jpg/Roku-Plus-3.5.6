@@ -1606,11 +1606,12 @@ sub enterEpisodes()
         m.season = 0
         if m.series.seasons[0].number = 0 and m.series.seasons.count() > 1 then m.season = 1
         m.episode = 0
-        m.episodeMode = "seasons"
+        m.episodeMode = "episodes"
         m.view = "episodes"
         m.zone = "seasons"
     end if
     drawScreen()
+    if m.view = "episodes" then loadEpisodeSeason()
 end sub
 
 function rpIsOnlineHdItem(item as dynamic) as boolean
@@ -2048,29 +2049,42 @@ function onKeyEvent(key as string, press as boolean) as boolean
             return true
         end if
     else if m.view = "episodes"
-        if m.episodeMode = "seasons"
-            if key = "left" then m.zone = "nav": drawScreen(): return true
-            if key = "up" and m.season > 0 then m.season--
-            if key = "down" and m.season+1 < m.series.seasons.count() then m.season++
-            if key = "OK"
-                m.episode = 0
-                m.episodeMode = "episodes"
-                m.zone = "episodes"
-                loadEpisodeSeason()
-            end if
-        else
-            if key = "left"
-                m.episodeMode = "seasons"
-                m.zone = "seasons"
+        if m.zone = "seasons"
+            if key = "up"
+                m.zone = "nav"
                 drawScreen()
                 return true
             end if
+            if key = "left"
+                if m.season > 0
+                    m.season--
+                    m.episode = 0
+                    loadEpisodeSeason()
+                else
+                    m.zone = "nav"
+                end if
+            end if
+            if key = "right" and m.season+1 < m.series.seasons.count()
+                m.season++
+                m.episode = 0
+                loadEpisodeSeason()
+            end if
+            if key = "down" or key = "OK" then m.zone = "episodes"
+        else
             items = m.series.seasons[m.season].episodes
-            if key = "up" and m.episode > 0 then m.episode--
-            if key = "down" and m.episode+1 < items.count() then m.episode++
-            if key = "OK"
-                if items.count() > 0 then openDetails(items[m.episode],"episodes") else loadEpisodeSeason()
-                return true
+            if key = "up"
+                m.zone = "seasons"
+            else if key = "left"
+                m.zone = "seasons"
+            else if key = "down" and m.episode+1 < items.count()
+                m.episode++
+            else if key = "OK"
+                if items.count() > 0
+                    openDetails(items[m.episode],"episodes")
+                    return true
+                else
+                    loadEpisodeSeason()
+                end if
             end if
         end if
         drawScreen()
