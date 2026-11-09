@@ -221,15 +221,10 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            relaySegments = rpHdTaskSegmentList(child.body,selected.url)
-                            if relaySegments.count() > 1
-                                answer.segmentUrls = relaySegments
-                                answer.tsRelayEnabled = true
-                                print "[RokuPlus ts-relay] candidate_segments="; relaySegments.count()
-                            else
-                                answer.tsRelayEnabled = false
-                                print "[RokuPlus ts-relay] disabled reason=segment_list_unavailable"
-                            end if
+                            ' Regression test: keep the validated child HLS playlist native.
+                            ' Do not attach segmentUrls or enable the experimental local TS relay.
+                            answer.tsRelayEnabled = false
+                            print "[RokuPlus ts-relay] disabled reason=native_hls_regression_test"
                             ' Diagnostic 3.5.38: return the selected child HLS manifest as one native stream.
                             ' The TS playlist path was confirmed to create visible clip boundaries.
                             ' Isolate Roku HLS audio selection while preserving the validated variant.
