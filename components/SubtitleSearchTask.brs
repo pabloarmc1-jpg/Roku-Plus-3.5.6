@@ -86,7 +86,12 @@ sub runSubtitleSearch()
             return
         end if
         parsed = ParseJson(body)
-        if type(parsed) <> "roAssociativeArray" or GetInterface(parsed.download_url,"ifString") = invalid
+        if type(parsed) <> "roAssociativeArray"
+            answer.message = "El servicio no entregó un archivo de subtítulos."
+            m.top.result = answer
+            return
+        end if
+        if GetInterface(parsed.download_url,"ifString") = invalid
             answer.message = "El servicio no entregó un archivo de subtítulos."
             m.top.result = answer
             return
