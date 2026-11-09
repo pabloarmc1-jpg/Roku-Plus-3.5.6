@@ -203,7 +203,10 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                         candidateStage = "sample_rejected"
                                         if playable then candidateStage = "accepted"
 
-                                        ' Diagnostic 3.5.33: compare the final TS packets of segment 1 with the first packets of segment 2.
+                                                                                runDeepTsDiagnostics = false
+                                        if runDeepTsDiagnostics
+                                            print "[RokuPlus ts-diagnostics] deep=enabled"
+' Diagnostic 3.5.33: compare the final TS packets of segment 1 with the first packets of segment 2.
                                         ' This remains read-only and does not alter playback selection.
                                         boundarySegments = rpHdTaskSegmentList(child.body,selected.url)
                                         if boundarySegments.count() > 1
@@ -330,6 +333,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                             end if
                                         else
                                             print "[RokuPlus ts-boundary] second_segment=missing"
+                                        end if
                                         end if
                                     end if
                                 end if
