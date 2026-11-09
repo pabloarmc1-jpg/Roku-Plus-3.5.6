@@ -7,6 +7,7 @@
         <field id="query" type="string" value="" />
         <field id="skip" type="integer" value="0" />
         <field id="item" type="assocarray" />
+        <field id="tvmazeCache" type="assocarray" />
         <field id="season" type="integer" value="1" />
         <field id="attempt" type="integer" value="0" />
         <field id="requestId" type="string" value="" />
