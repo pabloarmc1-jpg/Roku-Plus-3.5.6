@@ -806,6 +806,7 @@ function plusAudioLanguageName(code as string) as string
 end function
 
 sub openAudioMenu()
+    if m.subtitleMenuOpen then closeSubtitleMenu()
     refreshAudioTracks()
     if m.audioTracks.count() = 0
         m.notice = "Esta fuente no ofrece pistas de audio seleccionables."
@@ -895,7 +896,7 @@ sub refreshSubtitleTracks()
     m.subtitleTracks = updated
     selected = ""
     if m.decoder.hasField("currentSubtitleTrack") then selected = m.decoder.currentSubtitleTrack
-    if GetInterface(selected,"ifString") = invalid or selected = "" then selected = m.decoder.subtitleTrack
+    if (GetInterface(selected,"ifString") = invalid or selected = "") and m.decoder.hasField("subtitleTrack") then selected = m.decoder.subtitleTrack
     found = false
     for i = 0 to m.subtitleTracks.count()-1
         if m.subtitleTracks[i].id = selected
