@@ -386,13 +386,11 @@ sub openRequest()
     else
         if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
     end if
-    ' Let Roku honor the user's saved audio-language preference. If that
-    ' language is unavailable, Roku can fall back to another available track.
-    ' Never force Spanish here: doing so can block sources without Spanish audio.
-    if m.decoder.hasField("audioSelectionPreferences")
-        m.decoder.audioSelectionPreferences = {values: [], overrideSystem: false}
-        m.audioSelectionPreferenceSet = false
-        print "[RokuPlus decoder] audioSelection=system-default-with-fallback format="; format
+    ' Keep the Spanish-first preference configured in init().
+    ' Roku falls back when a matching Spanish rendition is not available.
+    ' Do not overwrite the write-only Video preference for each title.
+    if m.audioSelectionPreferenceSet
+        print "[RokuPlus decoder] audioSelection=Spanish-preference-retained format="; format
     end if
     media = CreateObject("roSGNode", "ContentNode")
     ' 3.5.56: restore the real provider URL after the successful Mux media-playlist control test.
