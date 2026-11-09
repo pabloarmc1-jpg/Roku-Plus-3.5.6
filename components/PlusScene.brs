@@ -263,7 +263,10 @@ sub fetched(event as object)
         return
     end if
     context = m.pending
-    print "[RokuPlus trace] fetched operation="; orbitText(context.operation,24); " itemId="; orbitText(context.item.id,180)
+    print "[RokuPlus trace] fetched operation="; orbitText(context.operation,24)
+    if context.doesExist("item") and type(context.item) = "roAssociativeArray"
+        print "[RokuPlus trace] fetched context-itemId="; orbitText(context.item.id,180)
+    end if
     cancelRequest()
     if not answer.ok
         m.autoplay = false
