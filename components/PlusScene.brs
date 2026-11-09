@@ -424,6 +424,8 @@ sub launchVideo(item as object, url as string, format as string)
     m.canvas.visible = false
     m.viewBeforePlayer = m.view
     m.view = "player"
+    loadingTitleNode = m.player.findNode("loadingTitle")
+    if loadingTitleNode <> invalid then loadingTitleNode.text = left(orbitText(item.title,130),130)
     m.player.visible = true
     descriptor = {title:item.title,url:url,streamFormat:format,kind:item.kind,itemId:item.id,provider:orbitText(item.provider,32),direct:m.playbackMode="direct",poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),year:orbitText(item.year,20)}
     if descriptor.provider = "lamovie"
