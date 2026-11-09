@@ -421,10 +421,10 @@ end function
 function rpHdTaskNormalizeSeriesTitle(item as dynamic) as dynamic
     if type(item) <> "roAssociativeArray" then return item
     title = orbitText(item.title,200).trim()
-    match = CreateObject("roRegex","\\s*\\(((?:19|20)[0-9]{2})\\)\\s*$","").match(title)
+    match = CreateObject("roRegex","\s*\\(((?:19|20)[0-9]{2})\\)\s*$","").match(title)
     if match.count() > 1
         if orbitText(item.year,4) = "" then item.year = match[1]
-        title = CreateObject("roRegex","\\s*\\(((?:19|20)[0-9]{2})\\)\\s*$","").replace(title,"").trim()
+        title = CreateObject("roRegex","\s*\\(((?:19|20)[0-9]{2})\\)\s*$","").replace(title,"").trim()
         item.title = title
     end if
     return item
@@ -432,7 +432,7 @@ end function
 
 ' skip encodes source-page rounds in steps of twenty, not displayed-card count.
 ' JSON providers request twenty records; SSR pages may contain more cards.
-' Round-robin output preserves duplicate titles belonging to different sources.
+' Round-robin output keeps source order while merging the same series across providers.
 function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as dynamic, sources = invalid as dynamic) as object
     skip = orbitInteger(request.skip,200000)
     page = (skip \ 20)+1
