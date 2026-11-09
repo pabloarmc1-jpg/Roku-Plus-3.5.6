@@ -202,12 +202,21 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
 end sub
 
 function rpTsRelayWaitWritable(connection as object, port as object) as boolean
+    ' Wait for the socket's writable notification instead of polling blindly.
+    ' A slow decoder can temporarily apply TCP backpressure while consuming a
+    ' large TS segment; allow that pause without abandoning a valid connection.
     timer = CreateObject("roTimespan")
     timer.Mark()
-    while timer.TotalMilliseconds() < 10000
+    while timer.TotalMilliseconds() < 30000
         if connection.isException() then return false
         if connection.isWritable() then return true
-        wait(250,port)
+        event = wait(1000,port)
+        if type(event) = "roSocketEvent"
+            if event.getSocketID() = connection.getID()
+                if connection.isException() then return false
+                if connection.isWritable() then return true
+            end if
+        end if
     end while
     return false
 end function
