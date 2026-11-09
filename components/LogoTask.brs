@@ -17,6 +17,7 @@ sub runLogoLookup()
     if fullQuery <> "" then queries.push(fullQuery + " logo")
     mainQuery = orbitLogoMainTitle(title)
     if mainQuery <> "" and mainQuery <> fullQuery then queries.push(mainQuery + " logo")
+    if mainQuery <> "" then queries.push(mainQuery + " wordmark")
     if queries.count() = 0 then queries.push(title + " logo")
 
     encoder = CreateObject("roUrlTransfer")
