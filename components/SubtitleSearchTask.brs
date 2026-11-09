@@ -131,7 +131,7 @@ function subtitleTransfer() as object
     transfer.setCertificatesFile("common:/certs/ca-bundle.crt")
     transfer.enablePeerVerification(true)
     transfer.enableHostVerification(true)
-    transfer.setTimeout(12000)
+    transfer.enableEncodings(true)
     transfer.addHeader("User-Agent","RokuPlus/1.0")
     transfer.addHeader("Accept","application/json,text/plain,*/*")
     return transfer
@@ -141,6 +141,16 @@ function subtitleGet(transfer as object, endpoint as string) as dynamic
     if left(endpoint,37) <> "https://subtitles.website/strapi/api/" and left(endpoint,41) <> "https://subtitles.website/strapi/uploads/"
         if endpoint <> "https://subtitles.website/strapi/api/search/subtitles?" then return invalid
     end if
+    port = CreateObject("roMessagePort")
+    transfer.setMessagePort(port)
     transfer.setUrl(endpoint)
-    return transfer.getToString()
+    if not transfer.asyncGetToString() then return invalid
+    event = wait(12000,port)
+    if type(event) = "roUrlEvent"
+        if event.getSourceIdentity() = transfer.getIdentity() and event.getInt() = 1
+            if event.getResponseCode() = 200 then return event.getString()
+        end if
+    end if
+    transfer.asyncCancel()
+    return invalid
 end function
