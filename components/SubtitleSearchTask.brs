@@ -121,6 +121,8 @@ sub runSubtitleSearch()
         subtitleText = subtitleGet(transfer,subtitleUrl)
         if GetInterface(subtitleText,"ifString") = invalid
             answer.message = "No se pudo leer el archivo SRT."
+            if m.subtitleHttpStatus = 429 then answer.message = "Se alcanzó el límite diario de solicitudes de subtítulos."
+            if m.subtitleHttpStatus = 401 or m.subtitleHttpStatus = 403 then answer.message = "La API Key fue rechazada. Revisa la clave en el menú de subtítulos."
             m.top.result = answer
             return
         end if
