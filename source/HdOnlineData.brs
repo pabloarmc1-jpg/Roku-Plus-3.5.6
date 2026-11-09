@@ -1199,6 +1199,12 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     if cacheKey = "el juego de la muerte (2023)" or cacheKey = "el juego de la muerte" then searchTitle = "Death's Game"
     if cacheKey = "el juego de gracie darling" then searchTitle = "Playing Gracie Darling"
     if cacheKey = "phony: la otra madre" then searchTitle = "Phony"
+    if cacheKey = "chicago en llamas" then searchTitle = "Chicago Fire"
+    if cacheKey = "estamos muertos" or cacheKey = "estamos muertos (2022)" then searchTitle = "All of Us Are Dead"
+    if cacheKey = "reacher (2022)" then searchTitle = "Reacher"
+    if cacheKey = "frasier (1993)" then searchTitle = "Frasier"
+    if cacheKey = "el rey de queens" then searchTitle = "The King of Queens"
+    if cacheKey = "asesinato para principiantes" or cacheKey = "asesinato para principiantes (2024)" then searchTitle = "A Good Girl's Guide to Murder"
     aliasLookup = searchTitle <> title
     cache = invalid
     print "[RokuPlus tvmaze] start op="; operation; " provider="; providerName; " title="; title
@@ -1261,17 +1267,11 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
             print "[RokuPlus tvmaze] alias_exact_match_missing local="; title; " query="; searchTitle
             return answer
         end if
-        ' Search results are relevance-ranked. Use the first valid result only when
-        ' the provider title has no exact spelling match (e.g. localized titles).
+        ' Never attach a merely similar result to a different series. Localized
+        ' provider titles must be mapped explicitly above to a canonical exact title.
         if show = invalid
-            for each match in matches
-                if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
-                    if orbitInteger(match.show.id,999999999) > 0
-                        show = match.show
-                        exit for
-                    end if
-                end if
-            end for
+            print "[RokuPlus tvmaze] exact_show_match_missing local="; title; " query="; searchTitle
+            return answer
         end if
         if type(show) <> "roAssociativeArray"
             print "[RokuPlus tvmaze] show_not_found title="; title
