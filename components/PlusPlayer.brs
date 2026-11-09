@@ -173,10 +173,11 @@ sub applyPresentation()
         m.decoder.width = 1920
         m.decoder.height = 1080
         if m.mediaOpen
-            if m.hlsStartupIsolation
-                m.panel.visible = false
-            else
+            state = m.decoder.state
+            if state = "playing" or state = "paused" or m.failed
                 revealTransport()
+            else
+                m.panel.visible = false
             end if
             m.top.setFocus(true)
         end if
@@ -226,6 +227,7 @@ sub openRequest()
     m.monotonic.mark()
     m.current = supplied
     m.loadingOverlay.visible = true
+    m.panel.visible = false
     if m.loadingLogo <> invalid then m.loadingLogo.visible = m.top.loadingLogoUri <> ""
     if m.loadingTitle <> invalid then m.loadingTitle.visible = true
     m.mediaNode = invalid
@@ -575,16 +577,17 @@ sub onDecoderState()
     if m.phase = "buffering"
         m.bufferSince = m.monotonic.totalMilliseconds()
         if m.ticket <> invalid then m.ticket.sawBuffering = true
-        if not m.hlsStartupIsolation then revealTransport()
+        ' Keep the loading logo/title unobstructed until the first real playing state.
+        if m.loadingOverlay <> invalid and m.loadingOverlay.visible then m.panel.visible = false
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
         if m.loadingOverlay <> invalid then m.loadingOverlay.visible = false
         if m.hlsStartupIsolation
             m.hlsStartupIsolation = false
-            revealTransport()
             print "[RokuPlus hls-ui] startup isolation released: playing"
         end if
+        revealTransport()
         m.segmentTransitioning = false
         m.bufferSince = invalid
         applyResumeSeek()
