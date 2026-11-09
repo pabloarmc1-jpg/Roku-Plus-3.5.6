@@ -14,11 +14,7 @@ sub init()
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
     m.loadingOverlay = m.top.findNode("loadingOverlay")
-    m.loadingPoster = m.top.findNode("loadingPoster")
     m.loadingTitle = m.top.findNode("loadingTitle")
-    m.loadingStatus = m.top.findNode("loadingStatus")
-    m.loadingDots = 0
-    m.loadingPulseCounter = 0
     m.panel = m.top.findNode("transport")
     m.capsule = m.top.findNode("capsule")
     m.titleShade = m.top.findNode("titleShade")
@@ -203,16 +199,6 @@ sub openRequest()
     m.monotonic.mark()
     m.current = supplied
     m.loadingOverlay.visible = true
-    m.loadingPoster.uri = ""
-    if GetInterface(supplied.poster,"ifString") <> invalid and len(supplied.poster) > 0
-        m.loadingPoster.uri = supplied.poster
-    else if GetInterface(supplied.background,"ifString") <> invalid and len(supplied.background) > 0
-        m.loadingPoster.uri = supplied.background
-    end if
-    m.loadingTitle.text = m.titleText.text
-    m.loadingStatus.text = "Preparando reproducción"
-    m.loadingDots = 0
-    m.loadingPulseCounter = 0
     m.mediaNode = invalid
     m.hlsRetryCount = 0
     m.hlsPrebufferPending = false
@@ -1114,17 +1100,6 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
-    if m.loadingOverlay <> invalid and m.loadingOverlay.visible
-        m.loadingPulseCounter++
-        if m.loadingPulseCounter mod 2 = 0
-            m.loadingDots = (m.loadingDots mod 3) + 1
-            dots = ""
-            for dotIndex = 1 to m.loadingDots
-                dots += "."
-            end for
-            m.loadingStatus.text = "Preparando reproducción" + dots
-        end if
-    end if
     if m.tsRelayPending
         relayStatus = m.tsStreamServer.status
         nowRelay = m.monotonic.totalMilliseconds()
