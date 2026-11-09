@@ -38,6 +38,11 @@ sub init()
     m.audioMenuOpen = false
     m.audioTracks = []
     m.audioTrackIndex = 0
+    m.subtitleMenuGroup = m.top.findNode("subtitleMenu")
+    m.subtitleMenuItems = m.top.findNode("subtitleMenuItems")
+    m.subtitleMenuOpen = false
+    m.subtitleTracks = []
+    m.subtitleTrackIndex = 0
     m.track = m.top.findNode("timeTrack")
     m.fill = m.top.findNode("timeFill")
     m.thumb = m.top.findNode("timeThumb")
@@ -54,6 +59,8 @@ sub init()
     m.decoder.observeField("bufferingStatus", "onBufferDetails")
     if m.decoder.hasField("availableAudioTracks") then m.decoder.observeField("availableAudioTracks", "onNativeAudioTrackDetails")
     if m.decoder.hasField("currentAudioTrack") then m.decoder.observeField("currentAudioTrack", "onNativeAudioTrackDetails")
+    if m.decoder.hasField("availableSubtitleTracks") then m.decoder.observeField("availableSubtitleTracks", "onNativeSubtitleTrackDetails")
+    if m.decoder.hasField("currentSubtitleTrack") then m.decoder.observeField("currentSubtitleTrack", "onNativeSubtitleTrackDetails")
     if m.decoder.hasField("streamingSegment") then m.decoder.observeField("streamingSegment", "onNativeStreamDetails")
     if m.decoder.hasField("downloadedSegment") then m.decoder.observeField("downloadedSegment", "onNativeStreamDetails")
     if m.decoder.hasField("playStartInfo") then m.decoder.observeField("playStartInfo", "onNativeStreamDetails")
@@ -262,8 +269,12 @@ sub openRequest()
     m.notice = ""
     m.audioMenuOpen = false
     if m.audioMenuGroup <> invalid then m.audioMenuGroup.visible = false
+    m.subtitleMenuOpen = false
+    if m.subtitleMenuGroup <> invalid then m.subtitleMenuGroup.visible = false
     m.audioTracks = []
     m.audioTrackIndex = 0
+    m.subtitleTracks = []
+    m.subtitleTrackIndex = 0
     m.bufferSince = 0
     m.watch = plusWatchdogCreate(0)
     m.lastProgressAt = -1000
@@ -849,6 +860,121 @@ sub selectAudioTrack()
     print "[RokuPlus audio] selected="; chosen.label; " language="; chosen.language
 end sub
 
+
+sub onNativeSubtitleTrackDetails()
+    if not m.mediaOpen or m.closing then return
+    refreshSubtitleTracks()
+    emitDiagnostic("native_subtitle_tracks")
+end sub
+
+' Roku reports subtitle identifiers through TrackName. Keep the identifier
+' unchanged; Video.subtitleTrack expects that exact value.
+sub refreshSubtitleTracks()
+    if m.decoder = invalid or not m.decoder.hasField("availableSubtitleTracks") then return
+    tracks = m.decoder.availableSubtitleTracks
+    updated = []
+    if type(tracks) = "roArray"
+        for each track in tracks
+            if type(track) = "roAssociativeArray"
+                trackId = track["TrackName"]
+                if GetInterface(trackId,"ifString") = invalid or trackId = "" then trackId = track["Name"]
+                if GetInterface(trackId,"ifString") = invalid or trackId = "" then trackId = track["Track"]
+                if GetInterface(trackId,"ifString") <> invalid and trackId <> ""
+                    language = ""
+                    label = ""
+                    if GetInterface(track["Language"],"ifString") <> invalid then language = track["Language"]
+                    if GetInterface(track["Description"],"ifString") <> invalid then label = track["Description"]
+                    if label = "" and GetInterface(track["Name"],"ifString") <> invalid then label = track["Name"]
+                    if label = "" then label = plusAudioLanguageName(language)
+                    if label = "" then label = "Subtítulos"
+                    updated.push({id:trackId,label:label,language:language})
+                end if
+            end if
+        end for
+    end if
+    m.subtitleTracks = updated
+    selected = ""
+    if m.decoder.hasField("currentSubtitleTrack") then selected = m.decoder.currentSubtitleTrack
+    if GetInterface(selected,"ifString") = invalid or selected = "" then selected = m.decoder.subtitleTrack
+    found = false
+    for i = 0 to m.subtitleTracks.count()-1
+        if m.subtitleTracks[i].id = selected
+            m.subtitleTrackIndex = i + 1
+            found = true
+            exit for
+        end if
+    end for
+    if not found then m.subtitleTrackIndex = 0
+    if m.subtitleMenuOpen then drawSubtitleMenu()
+end sub
+
+sub openSubtitleMenu()
+    refreshSubtitleTracks()
+    if m.subtitleMenuGroup = invalid then return
+    m.subtitleMenuOpen = true
+    m.subtitleMenuGroup.visible = true
+    if m.audioMenuOpen then closeAudioMenu()
+    revealTransport()
+    drawSubtitleMenu()
+end sub
+
+sub drawSubtitleMenu()
+    if m.subtitleMenuItems = invalid then return
+    output = "SUBTÍTULOS" + chr(10) + chr(10)
+    prefix = "   "
+    if m.subtitleTrackIndex = 0 then prefix = "▶  "
+    output += prefix + "Desactivados"
+    for i = 0 to m.subtitleTracks.count()-1
+        output += chr(10)
+        prefix = "   "
+        if i + 1 = m.subtitleTrackIndex then prefix = "▶  "
+        output += prefix + m.subtitleTracks[i].label
+        if m.subtitleTracks[i].language <> "" then output += "  (" + m.subtitleTracks[i].language + ")"
+    end for
+    output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
+    if m.subtitleTracks.count() = 0 then output += chr(10) + "Esta fuente no anuncia pistas externas."
+    m.subtitleMenuItems.text = output
+end sub
+
+sub closeSubtitleMenu()
+    m.subtitleMenuOpen = false
+    if m.subtitleMenuGroup <> invalid then m.subtitleMenuGroup.visible = false
+end sub
+
+sub moveSubtitleMenuSelection(direction as integer)
+    count = m.subtitleTracks.count() + 1
+    m.subtitleTrackIndex = m.subtitleTrackIndex + direction
+    if m.subtitleTrackIndex < 0 then m.subtitleTrackIndex = count - 1
+    if m.subtitleTrackIndex >= count then m.subtitleTrackIndex = 0
+    drawSubtitleMenu()
+end sub
+
+sub selectSubtitleTrack()
+    if m.subtitleTrackIndex = 0
+        if m.decoder.hasField("subtitleTrack") then m.decoder.subtitleTrack = ""
+        if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "Off"
+        closeSubtitleMenu()
+        m.notice = "Subtítulos desactivados."
+        print "[RokuPlus subtitles] selected=off"
+    else
+        index = m.subtitleTrackIndex - 1
+        if index < 0 or index >= m.subtitleTracks.count() then return
+        chosen = m.subtitleTracks[index]
+        if not m.decoder.hasField("subtitleTrack")
+            m.notice = "Este Roku no permite seleccionar subtítulos en esta reproducción."
+        else
+            m.decoder.subtitleTrack = chosen.id
+            if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "On"
+            m.notice = "Subtítulos: " + chosen.label
+            print "[RokuPlus subtitles] selected="; chosen.label; " language="; chosen.language
+        end if
+        closeSubtitleMenu()
+    end if
+    m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
+    revealTransport()
+    drawTransport()
+end sub
+
 function nativeStreamSnapshot() as object
     snapshot = {}
     if m.decoder = invalid then return snapshot
@@ -1142,7 +1268,7 @@ sub drawTransport()
             if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "OPTIONS · Saltar introducción"
         end if
     end if
-    m.keyText.text += "   ·   ↑ Idioma de audio"
+    m.keyText.text += "   ·   ↑ Audio   ·   ↓ Subtítulos"
     m.noticeText.text = ""
     if m.monotonic.totalMilliseconds() < m.noticeUntil then m.noticeText.text = m.notice
 end sub
@@ -1687,6 +1813,20 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if not m.mediaOpen then return false
     if isPreviewPresentation() then return false
     if not press then return true
+    if m.subtitleMenuOpen
+        if key = "up"
+            moveSubtitleMenuSelection(-1)
+        else if key = "down"
+            moveSubtitleMenuSelection(1)
+        else if key = "OK" or key = "play"
+            selectSubtitleTrack()
+        else if key = "back"
+            closeSubtitleMenu()
+            revealTransport()
+            drawTransport()
+        end if
+        return true
+    end if
     if m.audioMenuOpen
         if key = "up"
             moveAudioMenuSelection(-1)
@@ -1716,6 +1856,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
         skipIntro()
     else if key = "up"
         openAudioMenu()
+    else if key = "down"
+        openSubtitleMenu()
     else if key = "OK"
         if m.panel.visible
             revealTransport()
