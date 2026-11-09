@@ -1,7 +1,7 @@
 ' Original Roku Plus decoder profile. Output/display size is descriptive only;
 ' it never decides codec support. Query again when playback capabilities change.
 
-function rpDeviceProfile(device = invalid as dynamic) as object
+function rpDeviceProfile(device = invalid as dynamic, designResolution = invalid as dynamic) as object
     if device = invalid then device = CreateObject("roDeviceInfo")
     samples = {}
     display = {}
@@ -14,6 +14,7 @@ function rpDeviceProfile(device = invalid as dynamic) as object
     display.videoMode = device.getVideoMode()
     display.uiResolution = device.getUIResolution()
     display.displaySize = device.getDisplaySize()
+    if type(designResolution) = "roAssociativeArray" then display.designResolution = designResolution
     return rpDeviceProfileFromSamples(samples, display)
 end function
 
@@ -88,7 +89,7 @@ function rpDeviceProfileFromSamples(samples as dynamic, display = invalid as dyn
 end function
 
 function rpDeviceDisplaySummary(raw as dynamic) as object
-    display = {videoMode: "", uiName: "", uiWidth: 0, uiHeight: 0, outputWidth: 0, outputHeight: 0}
+    display = {videoMode: "", uiName: "", uiWidth: 0, uiHeight: 0, outputWidth: 0, outputHeight: 0, designName: "", designWidth: 0, designHeight: 0}
     if type(raw) <> "roAssociativeArray" then return display
     if GetInterface(raw.videoMode, "ifString") <> invalid then display.videoMode = left(raw.videoMode, 32)
     if type(raw.displaySize) = "roAssociativeArray"
@@ -111,6 +112,24 @@ function rpDeviceDisplaySummary(raw as dynamic) as object
                 end if
             end if
         end for
+    end if
+    if type(raw.designResolution) = "roAssociativeArray"
+        design = raw.designResolution
+        if GetInterface(design.name, "ifString") <> invalid then display.designName = left(design.name, 16)
+        for each field in ["width", "height"]
+            number = design[field]
+            if GetInterface(number, "ifInt") <> invalid
+                if number > 0 and number <= 16384
+                    if field = "width" then display.designWidth = number else display.designHeight = number
+                end if
+            end if
+        end for
+    end if
+    ' Older Roku firmware may not expose Scene.currentDesignResolution.
+    if display.designName = ""
+        display.designName = display.uiName
+        display.designWidth = display.uiWidth
+        display.designHeight = display.uiHeight
     end if
     return display
 end function
