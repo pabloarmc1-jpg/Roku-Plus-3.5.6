@@ -196,7 +196,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             answer.streamFormat = "hls"
                             answer.tsRelayEnabled = false
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                            answer.description = "Audio seleccionable · HLS · "+selected.height.toStr()+"p"
+                            answer.description = "Audio español verificado · HLS · "+selected.height.toStr()+"p"
                             answer.language = embed.language
                             answer.width = selected.width
                             answer.height = selected.height
@@ -260,7 +260,11 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             answer.url = selected.url
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                            answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
+                            audioLanguageStatus = "unknown"
+                            if selected.audioGroup <> "" and rpHdTaskSpanishAudio(master,selected) then audioLanguageStatus = "spanish-verified"
+                            answer.description = "H.264 · "+selected.height.toStr()+"p"
+                            if audioLanguageStatus = "spanish-verified" then answer.description = "Audio español verificado · H.264 · "+selected.height.toStr()+"p"
+                            print "[RokuPlus hls-audio] selectedLanguageStatus="; audioLanguageStatus
                             answer.language = embed.language
                             answer.width = selected.width
                             answer.height = selected.height
