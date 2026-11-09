@@ -24,6 +24,11 @@ sub runSubtitleSearch()
                 imdb = ""
             end if
         end if
+        if imdb = "" and title = ""
+            answer.message = "El identificador IMDb no es válido y falta el título."
+            m.top.result = answer
+            return
+        end if
         if imdb <> ""
             endpoint += "imdb=" + transfer.Escape(imdb)
         else
@@ -31,9 +36,14 @@ sub runSubtitleSearch()
         end if
         endpoint += "&language=" + transfer.Escape(language) + "&format=srt"
         body = subtitleGet(transfer,endpoint)
-        if GetInterface(body,"ifString") = invalid or len(body) = 0
+        if GetInterface(body,"ifString") = invalid
             answer.message = "El servicio de subtítulos no respondió."
             if m.subtitleHttpStatus = 429 then answer.message = "Se alcanzó el límite diario de búsquedas gratuitas."
+            m.top.result = answer
+            return
+        end if
+        if len(body) = 0
+            answer.message = "El servicio de subtítulos devolvió una respuesta vacía."
             m.top.result = answer
             return
         end if
@@ -107,7 +117,12 @@ sub runSubtitleSearch()
         subtitleUrl = "https://subtitles.website/strapi" + path
         transfer = subtitleTransfer()
         subtitleText = subtitleGet(transfer,subtitleUrl)
-        if GetInterface(subtitleText,"ifString") = invalid or len(subtitleText) = 0 or len(subtitleText) > 2097152
+        if GetInterface(subtitleText,"ifString") = invalid
+            answer.message = "No se pudo leer el archivo SRT."
+            m.top.result = answer
+            return
+        end if
+        if len(subtitleText) = 0 or len(subtitleText) > 2097152
             answer.message = "El archivo SRT está vacío o supera el tamaño permitido."
             m.top.result = answer
             return
