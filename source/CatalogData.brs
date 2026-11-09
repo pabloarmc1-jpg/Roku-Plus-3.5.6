@@ -387,9 +387,42 @@ function orbitUniqueCatalogItems(items as dynamic) as object
                 if orbitText(item.year,12).trim() = "" and year <> "" then item.year = year
                 key = "series|"+lcase(title)
             else if kind = "movie" and title <> ""
+                ' Movie providers also disagree about whether the year is part of
+                ' the title. Normalize "Example (2020)" before comparing cards.
+                yearMatch = CreateObject("roRegex","\\s*\\(((19|20)[0-9]{2})\\)\\s*$","").match(title)
+                if yearMatch.count() > 2
+                    if year = "" then year = yearMatch[1]
+                    title = CreateObject("roRegex","\\s*\\(((19|20)[0-9]{2})\\)\\s*$","").replace(title,"").trim()
+                end if
+                item.title = title
+                if orbitText(item.year,12).trim() = "" and year <> "" then item.year = year
                 key = "movie|"+lcase(title)+"|"+year
             end if
-            if key <> "" and not seen.doesExist(key)
+            duplicateIndex = -1
+            if kind = "movie" and title <> ""
+                ' Merge same-title movie records when years match or one source
+                ' omits the year. Keep genuine remakes with different years.
+                for existingIndex = 0 to result.count()-1
+                    existing = result[existingIndex]
+                    if orbitText(existing.kind,20) = "movie"
+                        existingTitle = orbitText(existing.title,200).trim()
+                        if lcase(existingTitle) = lcase(title)
+                            existingYear = orbitText(existing.year,12).trim()
+                            if existingYear = "" or year = "" or existingYear = year
+                                duplicateIndex = existingIndex
+                                exit for
+                            end if
+                        end if
+                    end if
+                end for
+            end if
+            if duplicateIndex >= 0
+                existing = result[duplicateIndex]
+                if orbitText(existing.year,12).trim() = "" and year <> "" then existing.year = year
+                if orbitText(existing.poster,2048) = "" and orbitText(item.poster,2048) <> "" then existing.poster = item.poster
+                if orbitText(existing.background,2048) = "" and orbitText(item.background,2048) <> "" then existing.background = item.background
+                if orbitText(existing.description,2400) = "" and orbitText(item.description,2400) <> "" then existing.description = item.description
+            else if key <> "" and not seen.doesExist(key)
                 seen[key] = result.count()
                 result.push(item)
             else if key <> "" and seen.doesExist(key) and kind = "series"
