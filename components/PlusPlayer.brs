@@ -739,7 +739,7 @@ end sub
 ' Build a safe, user-facing list from the tracks reported by Roku. The Track
 ' value is kept unchanged because it is the identifier required by Video.audioTrack.
 sub refreshAudioTracks()
-    if m.decoder = invalid then return
+    if m.decoder = invalid or not m.decoder.hasField("availableAudioTracks") then return
     tracks = m.decoder.availableAudioTracks
     updated = []
     if type(tracks) = "roArray"
@@ -1142,6 +1142,7 @@ sub drawTransport()
             if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "OPTIONS · Saltar introducción"
         end if
     end if
+    m.keyText.text += "   ·   ↑ Idioma de audio"
     m.noticeText.text = ""
     if m.monotonic.totalMilliseconds() < m.noticeUntil then m.noticeText.text = m.notice
 end sub
