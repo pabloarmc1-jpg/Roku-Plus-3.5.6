@@ -1212,6 +1212,7 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     if cacheKey = "coraje, el perro cobarde" or cacheKey = "coraje, el perro cobarde (1999)" then searchTitle = "Courage the Cowardly Dog"
     if cacheKey = "el intercambio" then searchTitle = "Bytet"
     if cacheKey = "breaking bad (2008)" then searchTitle = "Breaking Bad"
+    if cacheKey = "the blacklist (2013)" then searchTitle = "The Blacklist"
     if cacheKey = "marshals: una historia de yellowstone (2026)" then searchTitle = "Marshals"
     if cacheKey = "la lista terminal (2022)" then searchTitle = "The Terminal List"
     if cacheKey = "visionquest (2026)" then searchTitle = "VisionQuest"
