@@ -648,10 +648,10 @@ sub episodeScreen()
                 if watched.watched = true then words("VISTO",x+278,y+10,126,24,15,"0xE50914FF").horizAlign = "right"
             end if
 
-            episodeNumber = "EPISODIO "+item.episode.toStr()
-            words(episodeNumber,x+2,y+248,412,25,16,"0xA3A3A3FF")
+            ' Show the episode's actual title, not a generic season/episode label.
             episodeTitle = orbitText(item.title,150)
-            words(episodeTitle,x+2,y+278,412,60,24,"0xFFFFFFFF").wrap = true
+            if episodeTitle = "" then episodeTitle = "Episodio "+item.episode.toStr()
+            words(episodeTitle,x+2,y+252,412,88,25,"0xFFFFFFFF").wrap = true
             if n = m.episode then panel(x,y+346,416,4,"0xE50914FF")
             focusTarget("episodes",n,x-7,y-7,430,366,"landscape")
         end if
