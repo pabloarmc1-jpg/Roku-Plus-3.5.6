@@ -4,11 +4,8 @@ sub init()
     m.top.visible = false
     m.decoder = m.top.findNode("decoder")
     m.tsStreamServer = m.top.findNode("tsStreamServer")
-    if m.decoder.hasField("enableDecoderStats")
-        m.decoder.enableDecoderStats = true
-        print "[RokuPlus decoder] enableDecoderStats="; m.decoder.enableDecoderStats
-    end if
-    if m.decoder.hasField("decoderStats") then m.decoder.observeField("decoderStats", "onNativeDecoderStats")
+    ' Lightweight playback test: keep decoder statistics disabled.
+    ' Re-enable only after comparing long-playback stability on Roku.
     m.audioSelectionPreferenceSet = false
     if m.decoder.hasField("seamlessAudioTrackSelection")
         m.decoder.seamlessAudioTrackSelection = true
@@ -44,14 +41,8 @@ sub init()
     m.decoder.observeField("bufferingStatus", "onBufferDetails")
     if m.decoder.hasField("availableAudioTracks") then m.decoder.observeField("availableAudioTracks", "onNativeAudioTrackDetails")
     if m.decoder.hasField("currentAudioTrack") then m.decoder.observeField("currentAudioTrack", "onNativeAudioTrackDetails")
-    if m.decoder.hasField("streamingSegment") then m.decoder.observeField("streamingSegment", "onNativeStreamDetails")
-    if m.decoder.hasField("downloadedSegment") then m.decoder.observeField("downloadedSegment", "onNativeStreamDetails")
-    if m.decoder.hasField("playStartInfo") then m.decoder.observeField("playStartInfo", "onNativeStreamDetails")
-    if m.decoder.hasField("errorInfo") then m.decoder.observeField("errorInfo", "onNativeStreamDetails")
-    ' Capture native HLS startup/error fields at the instant Roku changes them.
-    for each field in ["errorCode","errorMsg","errorStr","streamInfo","videoFormat","audioFormat","timeToStartStreaming","contentIndex"]
-        if m.decoder.hasField(field) then m.decoder.observeField(field, "onNativeStreamDetails")
-    end for
+    ' Lightweight playback test: omit high-volume native diagnostic observers.
+    ' Essential state, position, buffering and audio-track observers remain active.
     m.pulse.observeField("fire", "onPulse")
     m.monotonic = CreateObject("roTimespan")
     m.monotonic.mark()
