@@ -1211,6 +1211,13 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
             return answer
         end if
         print "[RokuPlus tvmaze] search_results="; matches.count(); " title="; title
+        candidateLogCount = 0
+        for each candidateMatch in matches
+            if candidateLogCount < 5 and type(candidateMatch) = "roAssociativeArray" and type(candidateMatch.show) = "roAssociativeArray"
+                candidateLogCount++
+                print "[RokuPlus tvmaze] candidate title="; orbitText(candidateMatch.show.name,200); " score="; orbitText(candidateMatch.score,30)
+            end if
+        end for
         if matches.count() = 0 and instr(1,lcase(title)," y ") > 0
             alternateTitle = CreateObject("roRegex"," y ","i").replace(title," and ")
             alternateUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(alternateTitle)
@@ -1332,6 +1339,9 @@ function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as objec
                             end if
                             if not genericTitle
                                 genericTitle = CreateObject("roRegex","^s[0-9]{1,3}e[0-9]{1,4}$","i").isMatch(existingTitle)
+                            end if
+                            if checkedCount <= 12
+                                print "[RokuPlus tvmaze] episode_title S"; seasonNumber; "E"; episodeNumber; " local="; orbitText(localEpisode.title,200); " tvmaze="; episodeTitle; " generic="; genericTitle
                             end if
                             if episodeTitle <> "" and genericTitle
                                 localEpisode.title = episodeTitle
