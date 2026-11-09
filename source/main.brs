@@ -12,26 +12,34 @@ sub Main(args as dynamic)
     display.setMessagePort(messages)
 
     ' Observe app memory pressure without changing playback or UI behavior.
-    memoryMonitor = CreateObject("roAppMemoryMonitor")
-    deviceInfo = invalid
+    deviceInfo = CreateObject("roDeviceInfo")
+    versionText = deviceInfo.GetVersion()
+    versionParts = versionText.tokenize(".")
+    osMajor = 0
+    osMinor = 0
+    if versionParts.count() >= 2
+        osMajor = val(versionParts[0])
+        osMinor = val(versionParts[1])
+    end if
+
+    memoryMonitor = invalid
     memoryAlertsEnabled = false
-    if memoryMonitor <> invalid
-        memoryMonitor.setMessagePort(messages)
-        memoryAlertsEnabled = memoryMonitor.EnableMemoryWarningEvent(true)
+    ' EnableMemoryWarningEvent/GetMemoryLimitPercent require Roku OS 15.2+.
+    if osMajor > 15 or (osMajor = 15 and osMinor >= 2)
+        memoryMonitor = CreateObject("roAppMemoryMonitor")
+        if memoryMonitor <> invalid
+            memoryMonitor.setMessagePort(messages)
+            memoryAlertsEnabled = memoryMonitor.EnableMemoryWarningEvent(true)
+        end if
     end if
     if memoryAlertsEnabled
         print "[RokuPlus memory] monitor=app-thresholds enabled=true"
         print "[RokuPlus memory] usagePercent="; memoryMonitor.GetMemoryLimitPercent()
     else
-        deviceInfo = CreateObject("roDeviceInfo")
-        if deviceInfo <> invalid
-            deviceInfo.setMessagePort(messages)
-            fallbackEnabled = deviceInfo.enableLowGeneralMemoryEvent(true)
-            print "[RokuPlus memory] monitor=general-level enabled="; fallbackEnabled
-            print "[RokuPlus memory] generalLevel="; deviceInfo.GetGeneralMemoryLevel()
-        else
-            print "[RokuPlus memory] monitor=unavailable"
-        end if
+        deviceInfo.setMessagePort(messages)
+        fallbackEnabled = deviceInfo.enableLowGeneralMemoryEvent(true)
+        print "[RokuPlus memory] monitor=general-level enabled="; fallbackEnabled
+        print "[RokuPlus memory] generalLevel="; deviceInfo.GetGeneralMemoryLevel()
     end if
 
     display.createScene("PlusScene")
