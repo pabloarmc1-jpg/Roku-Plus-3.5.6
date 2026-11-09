@@ -1,5 +1,5 @@
 ' Public HD source requests. No JavaScript evaluation, proxy or PC helper.
-' Every operation has one 40-second deadline; response files are bounded/deleted.
+' Catalog aggregation keeps a 40-second total deadline and caps each provider slice at 9 seconds.
 sub init()
     m.top.functionName = "runHdCatalogRequest"
 end sub
@@ -506,8 +506,12 @@ function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as
         source = rpHdOnlineProvider(sources[i])
         if source <> "" and source <> "all"
             rpHdTaskBeginSlice(count-i)
+            sourceElapsed = CreateObject("roTimespan")
+            sourceElapsed.mark()
             response = rpHdTaskCatalogPage(source,answer.kind,page,query,fetcher)
+            sourceMs = sourceElapsed.totalMilliseconds()
             m.hdProviderDeadline = 0
+            print "[RokuPlus catalog] source="; source; " elapsed_ms="; sourceMs; " ok="; response.ok; " cancelled="; response.cancelled
             if response.cancelled then return rpHdTaskFailure(answer,response)
             if response.ok
                 catalog = response
@@ -614,6 +618,9 @@ sub rpHdTaskBeginSlice(remaining as integer)
     if m.hdElapsed <> invalid
         now = m.hdElapsed.totalMilliseconds()
         budget = (40000-now) \ remaining
+        ' In "Todas", one slow provider must not consume the entire window
+        ' reserved for the remaining sources. Keep a fair share, capped at 9s.
+        if budget > 9000 then budget = 9000
         if budget < 0 then budget = 0
         m.hdProviderDeadline = now+budget
     end if
