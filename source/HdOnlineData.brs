@@ -1161,7 +1161,7 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     ' Search by the source's series title; TVmaze is public and needs no API key.
     searchUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(title)
     rpHdTaskBeginSlice(3)
-    response = fetcher(searchUrl,"tvmaze-search","https://www.tvmaze.com/")
+    response = fetcher(searchUrl,"tvmaze","https://www.tvmaze.com/")
     if not response.ok then return answer
     matches = ParseJson(response.body)
     if type(matches) <> "roArray" or matches.count() = 0 then return answer
@@ -1204,7 +1204,7 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
 
     rpHdTaskBeginSlice(2)
     episodesUrl = "https://api.tvmaze.com/shows/"+showId.toStr()+"/episodes"
-    episodeResponse = fetcher(episodesUrl,"tvmaze-episodes","https://www.tvmaze.com/")
+    episodeResponse = fetcher(episodesUrl,"tvmaze","https://www.tvmaze.com/")
     if not episodeResponse.ok then return answer
     tvEpisodes = ParseJson(episodeResponse.body)
     if type(tvEpisodes) <> "roArray" then return answer
