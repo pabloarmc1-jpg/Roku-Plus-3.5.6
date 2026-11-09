@@ -304,7 +304,7 @@ sub openRequest()
     m.diagnosticTsActive = diagnosticTs
     m.effectiveStreamFormat = format
     m.hlsStartupIsolation = format = "hls"
-    m.hlsPrebufferPending = m.hlsStartupIsolation
+    m.hlsPrebufferPending = false
     if m.hlsStartupIsolation
         ' Diagnostic 3.5.44: cap decoder allocation to this 720p Roku TV.
         ' Roku documents video decode memory as shared with SceneGraph/OpenGL texture memory.
@@ -446,11 +446,11 @@ sub openRequest()
     m.top.visible = true
     m.top.active = true
     applyPresentation()
+    ' Controlled startup test: bypass prebuffer and start native HLS directly.
+    m.decoder.visible = true
+    m.decoder.control = "play"
     if m.hlsStartupIsolation
-        m.decoder.control = "prebuffer"
-        print "[RokuPlus hls-prebuffer] action=prebuffer"
-    else
-        m.decoder.control = "play"
+        print "[RokuPlus hls-startup-test] action=direct-play prebuffer=disabled"
     end if
     m.pulse.control = "start"
     emitDiagnostic("open")
@@ -1075,7 +1075,7 @@ sub advanceHlsSoftRestart(now as integer)
             m.mediaNode = freshMedia
             m.decoder.contentIsPlaylist = false
             m.decoder.content = freshMedia
-            m.hlsPrebufferPending = true
+            m.hlsPrebufferPending = false
             print "[RokuPlus hls-retry] action=fresh-content format="; freshMedia.streamFormat; " headers="; freshHeaders.count()
             m.hlsRestartStage = 2
             m.hlsRestartAt = now
@@ -1092,9 +1092,9 @@ sub advanceHlsSoftRestart(now as integer)
         end if
     else if m.hlsRestartStage = 2 and now - m.hlsRestartAt >= 500
         m.decoder.visible = true
-        m.hlsPrebufferPending = true
-        m.decoder.control = "prebuffer"
-        print "[RokuPlus hls-prebuffer] action=retry-prebuffer"
+        m.hlsPrebufferPending = false
+        m.decoder.control = "play"
+        print "[RokuPlus hls-startup-test] action=retry-direct-play prebuffer=disabled"
         m.hlsRestartStage = 0
         m.hlsRestartAt = 0
         m.watch = plusWatchdogCreate(now)
