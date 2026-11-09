@@ -37,8 +37,13 @@ sub runSubtitleSearch()
             return
         end if
         parsed = ParseJson(body)
-        if type(parsed) <> "roAssociativeArray" or type(parsed.data) <> "roArray"
+        if type(parsed) <> "roAssociativeArray"
             answer.message = "La respuesta del servicio no tiene un formato válido."
+            m.top.result = answer
+            return
+        end if
+        if type(parsed.data) <> "roArray"
+            answer.message = "La respuesta del servicio no incluye resultados."
             m.top.result = answer
             return
         end if
@@ -128,7 +133,7 @@ function subtitleTransfer() as object
 end function
 
 function subtitleGet(transfer as object, endpoint as string) as dynamic
-    if left(endpoint,37) <> "https://subtitles.website/strapi/api/" and left(endpoint,42) <> "https://subtitles.website/strapi/uploads/"
+    if left(endpoint,37) <> "https://subtitles.website/strapi/api/" and left(endpoint,41) <> "https://subtitles.website/strapi/uploads/"
         if endpoint <> "https://subtitles.website/strapi/api/search/subtitles?" then return invalid
     end if
     transfer.setUrl(endpoint)
