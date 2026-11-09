@@ -308,7 +308,9 @@ sub openRequest()
     m.effectiveStreamFormat = format
     ' Diagnostic experiment: 4453 local HLS already plays in Roku Streamer.
     ' Bypass HLS prebuffer/memory isolation only for this title and use native play.
-    localHlsDirectTest = supplied.itemId = "hdo-lamovie-4453" and format = "hls"
+    localTestItemId = orbitText(supplied.itemId,180)
+    localTestProviderId = orbitText(supplied.providerId,40)
+    localHlsDirectTest = (localTestItemId = "hdo-lamovie-4453" or localTestProviderId = "4453") and format = "hls"
     m.hlsStartupIsolation = format = "hls" and not localHlsDirectTest
     m.hlsPrebufferPending = m.hlsStartupIsolation
     if localHlsDirectTest then print "[RokuPlus hls-direct-test] isolation=off action=play"
