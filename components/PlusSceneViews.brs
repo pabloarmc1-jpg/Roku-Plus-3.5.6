@@ -596,7 +596,7 @@ sub episodeScreen()
     words("TEMPORADAS",80,218,420,30,18,"0xA3A3A3FF")
 
     ' Compact horizontal season selector.
-    firstSeason = (m.season \\ 6)*6
+    firstSeason = (m.season \ 6)*6
     for i = 0 to 5
         n = firstSeason+i
         if n < m.series.seasons.count()
@@ -625,7 +625,7 @@ sub episodeScreen()
     end if
 
     ' Horizontal episode carousel: four large previews per screen.
-    firstEpisode = (m.episode \\ 4)*4
+    firstEpisode = (m.episode \ 4)*4
     for i = 0 to 3
         n = firstEpisode+i
         if n < season.episodes.count()
