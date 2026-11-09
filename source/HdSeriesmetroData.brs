@@ -89,7 +89,7 @@ function rpHdSeriesmetroEpisodeArt(block as string) as string
         for each attribute in ["data-srcset","srcset"]
             sourceSet = rpHdSeriesmetroAttr(imageTag,attribute)
             if sourceSet <> ""
-                candidate = CreateObject("roRegex","^\\s*([^,\\s]+)","").match(sourceSet)
+                candidate = CreateObject("roRegex","^\s*([^,\s]+)","").match(sourceSet)
                 if candidate.count() > 1
                     art = rpHdSeriesmetroArt(candidate[1])
                     if art <> "" then return art
@@ -99,7 +99,7 @@ function rpHdSeriesmetroEpisodeArt(block as string) as string
         remaining = mid(afterStart,tagEnd+1)
     end while
     ' Some templates store the still in an inline background-image.
-    css = rpHdSeriesmetroMatch(block,"background-image\\s*:\\s*url\\(["+quotes+"]?([^'"+chr(34)+")]+)")
+    css = rpHdSeriesmetroMatch(block,"background-image\s*:\s*url\(["+quotes+"]?([^'"+chr(34)+")]+)")
     return rpHdSeriesmetroArt(css)
 end function
 
