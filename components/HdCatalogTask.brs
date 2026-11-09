@@ -804,7 +804,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if len(endpoint) > 4096 then return false
     if CreateObject("roRegex","[\x00-\x20\x7F\\]","").isMatch(endpoint) then return false
     if role = "api" then return CreateObject("roRegex","^https://(lamovie\.org/wp-api/v1/|allcalidad\.re/api/rest/|cinehax\.org/api/rest/v1/)[^#]*$","").isMatch(endpoint)
-    if role = "tvmaze" then return CreateObject("roRegex","^https://api\\.tvmaze\\.com/(search/shows\\?q=[^#]+|shows/[0-9]+/episodes)$","").isMatch(endpoint)
+    if role = "tvmaze" then return CreateObject("roRegex","^https://api\.tvmaze\.com/(search/shows\?q=[^#]+|shows/[0-9]+/episodes)$","").isMatch(endpoint)
     if role = "player" then return CreateObject("roRegex","^https://videoapp\.mov/e/(movie/[0-9]+|tv/[0-9]+/[0-9]+/[0-9]+)$","").isMatch(endpoint)
     if role = "seriesmetro-season" then return rpHdTaskSeasonPost(endpoint) <> invalid
     if role = "seriesmetro-page"
