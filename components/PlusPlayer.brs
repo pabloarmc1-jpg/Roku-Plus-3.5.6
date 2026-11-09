@@ -767,6 +767,7 @@ end sub
 sub onNativeAudioTrackDetails()
     if not m.mediaOpen or m.closing then return
     refreshAudioTracks()
+    print "[RokuPlus audio] native_tracks_changed count="; m.audioTracks.count(); " selected="; m.decoder.currentAudioTrack
     emitDiagnostic("native_audio_tracks")
 end sub
 
@@ -831,13 +832,7 @@ end function
 sub openAudioMenu()
     if m.subtitleMenuOpen then closeSubtitleMenu()
     refreshAudioTracks()
-    if m.audioTracks.count() = 0
-        m.notice = "Esta fuente no ofrece pistas de audio seleccionables."
-        m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
-        revealTransport()
-        drawTransport()
-        return
-    end if
+    print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " state="; m.decoder.state; " format="; m.decoder.streamFormat
     m.audioMenuOpen = true
     m.audioMenuGroup.visible = true
     revealTransport()
@@ -847,6 +842,12 @@ end sub
 sub drawAudioMenu()
     if m.audioMenuItems = invalid then return
     output = "IDIOMA DE AUDIO" + chr(10) + chr(10)
+    if m.audioTracks.count() = 0
+        output += "Roku no ha informado pistas seleccionables para esta fuente." + chr(10) + chr(10) + "El audio disponible puede estar integrado en el video."
+        output += chr(10) + chr(10) + "BACK Cerrar"
+        m.audioMenuItems.text = output
+        return
+    end if
     for i = 0 to m.audioTracks.count()-1
         prefix = "   "
         if i = m.audioTrackIndex then prefix = "▶  "
@@ -875,13 +876,17 @@ end sub
 sub selectAudioTrack()
     if m.audioTrackIndex < 0 or m.audioTrackIndex >= m.audioTracks.count() then return
     chosen = m.audioTracks[m.audioTrackIndex]
+    beforeTrack = m.decoder.currentAudioTrack
+    print "[RokuPlus audio] select_request label="; chosen.label; " language="; chosen.language; " id="; chosen.id; " currentBefore="; beforeTrack
     m.decoder.audioTrack = chosen.id
+    afterTrack = m.decoder.currentAudioTrack
+    requestedTrack = m.decoder.audioTrack
+    print "[RokuPlus audio] select_write requested="; requestedTrack; " currentImmediatelyAfter="; afterTrack
     closeAudioMenu()
-    m.notice = "Audio seleccionado: " + chosen.label
+    m.notice = "Cambio solicitado: " + chosen.label
     m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
     revealTransport()
     drawTransport()
-    print "[RokuPlus audio] selected="; chosen.label; " language="; chosen.language
 end sub
 
 
