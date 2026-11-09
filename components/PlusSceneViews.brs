@@ -588,6 +588,61 @@ sub detailScreen()
     words("*  Marcar como vista     INFO  Añadir / quitar de Mi lista",542,974,1190,34,20,"0xC5CBD4FF")
 end sub
 
+' Display a series year only when another loaded series has the same
+' normalized title but a different year. This affects presentation only.
+function rpSeasonTitleBase(title as dynamic) as string
+    value = orbitText(title,240).trim()
+    value = CreateObject("roRegex","\\s*\\((19|20)[0-9]{2}\\)\\s*$","").replace(value,"").trim()
+    value = lcase(value)
+    value = value.replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u").replace("ñ","n")
+    return CreateObject("roRegex","\\s+","").replace(value,"")
+end function
+
+function rpSeasonTitleYear(item as dynamic) as string
+    if type(item) <> "roAssociativeArray" then return ""
+    title = orbitText(item.title,240).trim()
+    yearPattern = CreateObject("roRegex","\\((19|20)[0-9]{2}\\)\\s*$","")
+    if yearPattern.isMatch(title) then return mid(title,len(title)-4,4)
+    return orbitText(item.year,16).trim()
+end function
+
+function rpSeasonTitleHasDifferentYear(items as dynamic, baseTitle as string, currentYear as string, currentId as string) as boolean
+    if type(items) <> "roArray" or baseTitle = "" or currentYear = "" then return false
+    for each other in items
+        if type(other) = "roAssociativeArray"
+            otherId = orbitText(other.id,200)
+            if currentId = "" or otherId <> currentId
+                otherBase = rpSeasonTitleBase(other.title)
+                otherYear = rpSeasonTitleYear(other)
+                if otherBase = baseTitle and otherYear <> "" and otherYear <> currentYear then return true
+            end if
+        end if
+    end for
+    return false
+end function
+
+function rpSeasonDisplayTitle(series as dynamic) as string
+    if type(series) <> "roAssociativeArray" then return ""
+    title = orbitText(series.title,240).trim()
+    baseTitle = rpSeasonTitleBase(title)
+    year = rpSeasonTitleYear(series)
+    currentId = orbitText(series.id,200)
+    differentYearExists = rpSeasonTitleHasDifferentYear(m.pageTitles,baseTitle,year,currentId)
+    if not differentYearExists then differentYearExists = rpSeasonTitleHasDifferentYear(m.homeSeries,baseTitle,year,currentId)
+    if not differentYearExists then differentYearExists = rpSeasonTitleHasDifferentYear(m.features,baseTitle,year,currentId)
+    if differentYearExists and year <> "" then return titleWithoutYear(baseTitle,year)
+    return baseTitle
+end function
+
+function titleWithoutYear(baseTitle as string, year as string) as string
+    ' Restore readable spacing from the original title while omitting its year.
+    ' The caller supplies the original title through the current series object.
+    original = orbitText(m.series.title,240).trim()
+    original = CreateObject("roRegex","\\s*\\((19|20)[0-9]{2}\\)\\s*$","").replace(original,"").trim()
+    if original <> "" then return original + " (" + year + ")"
+    return baseTitle + " (" + year + ")"
+end function
+
 sub episodeScreen()
     topBar()
     if m.series = invalid or m.series.seasons.count() = 0 then return
@@ -598,7 +653,8 @@ sub episodeScreen()
     if backdrop <> "" then art(backdrop,0,112,1920,968)
     panel(0,112,1920,968,"0x080808B8")
 
-    words(m.series.title,76,142,1500,66,43,"0xFFFFFFFF").wrap = true
+    displaySeriesTitle = rpSeasonDisplayTitle(m.series)
+    words(displaySeriesTitle,76,142,1500,66,43,"0xFFFFFFFF").wrap = true
     words("TEMPORADAS",80,218,420,30,18,"0xA3A3A3FF")
 
     ' Compact horizontal season selector.
