@@ -579,6 +579,8 @@ sub onDecoderState()
             m.hlsStartupIsolation = false
             revealTransport()
             print "[RokuPlus hls-ui] startup isolation released: playing"
+        else
+            revealTransport()
         end if
         m.segmentTransitioning = false
         m.bufferSince = invalid
