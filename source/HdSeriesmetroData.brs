@@ -60,10 +60,37 @@ function rpHdSeriesmetroPath(value as dynamic) as string
 end function
 
 function rpHdSeriesmetroArt(value as dynamic) as string
-    url = orbitText(value,600)
+    url = orbitText(value,1000)
     if left(url,2) = "//" then url = "https:"+url
-    if not CreateObject("roRegex","^https://image\.tmdb\.org/t/p/(w[0-9]+|original)/[a-zA-Z0-9_.-]+\.(jpg|png|webp)$","").isMatch(url) then return ""
+    ' TMDB uses both simple sizes (w500) and compound sizes
+    ' (w300_and_h450_bestv2) for episode stills and posters.
+    pattern = "^https://image\.tmdb\.org/t/p/(original|w[0-9]+(_and_h[0-9]+(_bestv2|_face[0-9]+)?)?)/[a-zA-Z0-9_.-]+\.(jpg|jpeg|png|webp)([?][^ ]*)?$"
+    if not CreateObject("roRegex",pattern,"i").isMatch(url) then return ""
     return url
+end function
+
+function rpHdSeriesmetroEpisodeArt(block as string) as string
+    quotes = chr(34)+"'"
+    images = CreateObject("roRegex","<img[^>]*>","i").split(block)
+    for i = 1 to images.count()-1
+        tag = "<img"+images[i]
+        for each attribute in ["data-src","data-lazy-src","data-original","data-image","src"]
+            value = rpHdSeriesmetroAttr(tag,attribute)
+            art = rpHdSeriesmetroArt(value)
+            if art <> "" then return art
+        end for
+        sourceSet = rpHdSeriesmetroAttr(tag,"srcset")
+        if sourceSet <> ""
+            candidate = CreateObject("roRegex","^\s*([^,\s]+)","").match(sourceSet)
+            if candidate.count() > 1
+                art = rpHdSeriesmetroArt(candidate[1])
+                if art <> "" then return art
+            end if
+        end if
+    end for
+    ' Some templates store the still in an inline background-image.
+    css = rpHdSeriesmetroMatch(block,"background-image\s*:\s*url\(["+quotes+"]?([^'"+chr(34)+")]+)")
+    return rpHdSeriesmetroArt(css)
 end function
 
 function rpHdSeriesmetroCatalog(html as dynamic, kind as string, page as integer) as object
@@ -168,11 +195,8 @@ function rpHdSeriesmetroEpisodes(html as dynamic, parent as object, requested as
                 if not seen.doesExist(id)
                     title = rpHdSeriesmetroText(rpHdSeriesmetroMatch(block,"<h2[^>]*class="+chr(34)+"entry-title"+chr(34)+"[^>]*>(.*?)</h2>"),200)
                     if title = "" then title = "Episodio "+episode.toStr()
-                    ' Read the artwork from this episode's own article, not the series page.
-                    imageTag = rpHdSeriesmetroMatch(block,"(<img[^>]*>)")
-                    episodePoster = rpHdSeriesmetroArt(rpHdSeriesmetroAttr(imageTag,"data-src"))
-                    if episodePoster = "" then episodePoster = rpHdSeriesmetroArt(rpHdSeriesmetroAttr(imageTag,"data-lazy-src"))
-                    if episodePoster = "" then episodePoster = rpHdSeriesmetroArt(rpHdSeriesmetroAttr(imageTag,"src"))
+                    ' Extract the still from this episode's own article.
+                    episodePoster = rpHdSeriesmetroEpisodeArt(block)
                     if episodePoster = "" then episodePoster = parent.poster
                     answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
                     seen[id] = true
