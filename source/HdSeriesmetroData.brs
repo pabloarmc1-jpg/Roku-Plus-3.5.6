@@ -101,7 +101,7 @@ function rpHdSeriesmetroEpisodeArt(block as string) as string
     ' Also scan the whole episode card for TMDB URLs. Some SeriesMetro
     ' templates keep the image URL in data attributes or embedded markup that
     ' is not a conventional img src.
-    rawArt = rpHdSeriesmetroMatch(block,"((https?:)?//image\.tmdb\.org/t/p/(original|w[0-9]+(_and_h[0-9]+(_bestv2|_face[0-9]+)?)?)/[a-zA-Z0-9_.-]+\.(jpg|jpeg|png|webp)([?][^ \"'<>]*)?)")
+    rawArt = rpHdSeriesmetroMatch(block,"((https?:)?//image\.tmdb\.org/t/p/(original|w[0-9]+(_and_h[0-9]+(_bestv2|_face[0-9]+)?)?)/[a-zA-Z0-9_.-]+\.(jpg|jpeg|png|webp))")
     art = rpHdSeriesmetroArt(rawArt)
     if art <> "" then return art
     ' Some templates store the still in an inline background-image.
