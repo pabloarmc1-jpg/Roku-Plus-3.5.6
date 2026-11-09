@@ -595,8 +595,8 @@ sub episodeScreen()
     words(m.series.title,76,142,1500,66,43,"0xFFFFFFFF").wrap = true
     words("TEMPORADAS",80,218,420,30,18,"0xA3A3A3FF")
 
-    ' Compact horizontal season selector. The current season stays in view.
-    firstSeason = (m.season \ 6)*6
+    ' Compact horizontal season selector.
+    firstSeason = (m.season \\ 6)*6
     for i = 0 to 5
         n = firstSeason+i
         if n < m.series.seasons.count()
@@ -615,43 +615,45 @@ sub episodeScreen()
     end for
 
     season = m.series.seasons[m.season]
-    words("EPISODIOS",80,340,500,30,18,"0xA3A3A3FF")
+    words("EPISODIOS",80,356,500,30,18,"0xA3A3A3FF")
     if season.episodes.count() = 0
         message = "Cargando episodios…"
         if not m.busy then message = "No se encontraron episodios para esta temporada."
-        words(message,100,470,1600,70,30,"0xB3B3B3FF")
-        words("← / →  Cambiar temporada     ↓  Ir a episodios     Atrás  Volver",80,1018,1700,34,19,"0x808080FF")
+        words(message,100,500,1600,70,30,"0xB3B3B3FF")
+        words("← / →  Cambiar temporada     ↓  Episodios     Atrás  Volver",80,1018,1700,34,19,"0x808080FF")
         return
     end if
 
-    ' Flat episode rows with large landscape artwork, like a streaming-service episode list.
-    firstEpisode = (m.episode \ 4)*4
+    ' Horizontal episode carousel: four large previews per screen.
+    firstEpisode = (m.episode \\ 4)*4
     for i = 0 to 3
         n = firstEpisode+i
         if n < season.episodes.count()
             item = season.episodes[n]
-            y = 382+i*151
-            panel(76,y,1768,140,"0x111111FF")
-            imageUri = orbitText(item.poster,2048)
-            thumbnail(imageUri,92,y+7,246,126,"landscape")
-            episodeNumber = "Episodio "+item.episode.toStr()
-            words(episodeNumber,372,y+12,440,27,18,"0xA3A3A3FF")
-            episodeTitle = orbitText(item.title,220)
-            words(episodeTitle,372,y+40,1300,39,26,"0xFFFFFFFF").wrap = true
-            description = orbitText(item.description,260)
-            if description <> "" then words(description,372,y+83,1370,43,18,"0xB3B3B3FF").wrap = true
+            x = 76+i*446
+            y = 414
+            imageUri = orbitText(item.background,2048)
+            if imageUri = "" then imageUri = orbitText(item.poster,2048)
+            thumbnail(imageUri,x,y,416,234,"landscape")
+
             watched = rpWatchGet(m.watchState,item.id)
             if watched <> invalid
-                if watched.watched = true then words("VISTO",1690,y+48,120,28,16,"0xE50914FF").horizAlign = "right"
+                if watched.watched = true then words("VISTO",x+278,y+10,126,24,15,"0xE50914FF").horizAlign = "right"
             end if
-            focusTarget("episodes",n,68,y-5,1784,150,"live-search")
+
+            episodeNumber = "EPISODIO "+item.episode.toStr()
+            words(episodeNumber,x+2,y+248,412,25,16,"0xA3A3A3FF")
+            episodeTitle = orbitText(item.title,150)
+            words(episodeTitle,x+2,y+278,412,60,24,"0xFFFFFFFF").wrap = true
+            if n = m.episode then panel(x,y+346,416,4,"0xE50914FF")
+            focusTarget("episodes",n,x-7,y-7,430,366,"landscape")
         end if
     end for
 
     lastEpisode = firstEpisode+4
     if lastEpisode > season.episodes.count() then lastEpisode = season.episodes.count()
-    words("Episodios "+(firstEpisode+1).toStr()+"–"+lastEpisode.toStr()+" de "+season.episodes.count().toStr(),80,1000,800,32,18,"0x808080FF")
-    words("↑ / ↓  Elegir episodio     OK  Ver episodio     ←  Temporadas",950,1000,870,32,18,"0x808080FF").horizAlign = "right"
+    words("Episodios "+(firstEpisode+1).toStr()+"–"+lastEpisode.toStr()+" de "+season.episodes.count().toStr(),80,900,800,32,18,"0x808080FF")
+    words("← / →  Elegir episodio     OK  Ver episodio     ↑  Temporadas",950,900,870,32,18,"0x808080FF").horizAlign = "right"
 end sub
 
 sub liveChannelBadge(item as object, x as integer, y as integer)
