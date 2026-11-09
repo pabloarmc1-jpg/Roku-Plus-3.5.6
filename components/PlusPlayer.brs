@@ -361,21 +361,20 @@ sub openRequest()
     m.effectiveStreamFormat = format
     m.hlsStartupIsolation = format = "hls"
     m.hlsPrebufferPending = m.hlsStartupIsolation
+    ' D213X diagnostic: apply the TV's native 720p ceiling to every stream
+    ' format, including TS. This is isolated to the d213x test branch.
+    if m.decoder.hasField("maxVideoDecodeResolution")
+        m.decoder.maxVideoDecodeResolution = [1280, 720]
+        print "[RokuPlus decoder-memory-test] maxVideoDecodeResolution=1280x720 format="; format
+    else
+        print "[RokuPlus decoder-memory-test] maxVideoDecodeResolution=unsupported format="; format
+    end if
     if m.hlsStartupIsolation
-        ' Diagnostic 3.5.44: cap decoder allocation to this 720p Roku TV.
-        ' Roku documents video decode memory as shared with SceneGraph/OpenGL texture memory.
-        if m.decoder.hasField("maxVideoDecodeResolution")
-            m.decoder.maxVideoDecodeResolution = [1280, 720]
-            print "[RokuPlus hls-memory] maxVideoDecodeResolution=1280x720"
-        else
-            print "[RokuPlus hls-memory] maxVideoDecodeResolution=unsupported"
-        end if
-        ' Keep startup diagnostics lightweight while testing the decoder memory cap.
+        ' Keep startup diagnostics lightweight for HLS while testing the decoder memory cap.
         if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = false
         print "[RokuPlus hls-minimal] decoderStats=disabled nativePoll=deferred"
         print "[RokuPlus hls-ui] startup isolation enabled"
     else
-        if m.decoder.hasField("maxVideoDecodeResolution") then m.decoder.maxVideoDecodeResolution = [0, 0]
         if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
     end if
     ' Let Roku honor the user's saved audio-language preference. If that
