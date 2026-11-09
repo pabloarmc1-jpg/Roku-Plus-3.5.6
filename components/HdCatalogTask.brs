@@ -425,9 +425,9 @@ end function
 ' This is deliberately an exact alias, not fuzzy title matching.
 function rpHdTaskKnownSeriesTitleKey(title as dynamic) as string
     key = lcase(orbitText(title,200).trim())
-    key = CreateObject("roRegex","\\s*\\(((?:19|20)[0-9]{2})\\)\\s*$","").replace(key,"").trim()
+    key = CreateObject("roRegex","\s*\\(((?:19|20)[0-9]{2})\\)\s*$","").replace(key,"").trim()
     key = key.replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u").replace("ñ","n")
-    key = CreateObject("roRegex","\\s+","").replace(key,"")
+    key = CreateObject("roRegex","\s+","").replace(key,"")
     if key = "thelastmanonearth" or key = "elultimohombreenlatierra"
         return "tmdb-tv-61888"
     end if
