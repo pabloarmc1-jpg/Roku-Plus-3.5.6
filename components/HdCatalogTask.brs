@@ -489,8 +489,8 @@ function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as
                     duplicateIndex = -1
                     for existingIndex = 0 to deduped.count()-1
                         existing = deduped[existingIndex]
-                        existingKey = CreateObject("roRegex","\\s+","").replace(lcase(orbitText(existing.title,200)),"")
-                        itemKey = CreateObject("roRegex","\\s+","").replace(lcase(orbitText(item.title,200)),"")
+                        existingKey = CreateObject("roRegex","\s+","").replace(lcase(orbitText(existing.title,200)),"")
+                        itemKey = CreateObject("roRegex","\s+","").replace(lcase(orbitText(item.title,200)),"")
                         if existingKey = itemKey
                             existingYear = orbitText(existing.year,4)
                             itemYear = orbitText(item.year,4)
