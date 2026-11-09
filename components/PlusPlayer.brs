@@ -563,9 +563,9 @@ sub onDecoderState()
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
+        if m.startupOverlay <> invalid then m.startupOverlay.visible = false
         if m.hlsStartupIsolation
             m.hlsStartupIsolation = false
-            if m.startupOverlay <> invalid then m.startupOverlay.visible = false
             revealTransport()
             print "[RokuPlus hls-ui] startup isolation released: playing"
         end if
