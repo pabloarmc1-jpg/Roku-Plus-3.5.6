@@ -10,7 +10,7 @@ sub runHdCatalogRequest()
     request = {
         operation:m.top.operation, kind:m.top.kind, provider:m.top.provider
         query:m.top.query, skip:m.top.skip, item:m.top.item, season:m.top.season
-        requestId:m.top.requestId, attempt:m.top.attempt
+        requestId:m.top.requestId, attempt:m.top.attempt, tvmazeCache:m.top.tvmazeCache
     }
     answer = rpHdTaskExecute(request)
     if not m.top.cancelRequested then m.top.result = answer
