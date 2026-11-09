@@ -421,10 +421,10 @@ end function
 function rpHdTaskNormalizeSeriesTitle(item as dynamic) as dynamic
     if type(item) <> "roAssociativeArray" then return item
     title = orbitText(item.title,200).trim()
-    match = CreateObject("roRegex","\s*\\(((?:19|20)[0-9]{2})\\)\s*$","").match(title)
+    match = CreateObject("roRegex","\s*\(((?:19|20)[0-9]{2})\)\s*$","").match(title)
     if match.count() > 1
         if orbitText(item.year,4) = "" then item.year = match[1]
-        title = CreateObject("roRegex","\s*\\(((?:19|20)[0-9]{2})\\)\s*$","").replace(title,"").trim()
+        title = CreateObject("roRegex","\s*\(((?:19|20)[0-9]{2})\)\s*$","").replace(title,"").trim()
         item.title = title
     end if
     return item
@@ -489,7 +489,9 @@ function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as
                     duplicateIndex = -1
                     for existingIndex = 0 to deduped.count()-1
                         existing = deduped[existingIndex]
-                        if lcase(existing.title) = lcase(item.title)
+                        existingKey = CreateObject("roRegex","\\s+","").replace(lcase(orbitText(existing.title,200)),"")
+                        itemKey = CreateObject("roRegex","\\s+","").replace(lcase(orbitText(item.title,200)),"")
+                        if existingKey = itemKey
                             existingYear = orbitText(existing.year,4)
                             itemYear = orbitText(item.year,4)
                             if existingYear = "" or itemYear = "" or existingYear = itemYear
