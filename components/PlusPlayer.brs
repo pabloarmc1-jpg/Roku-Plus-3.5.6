@@ -306,8 +306,12 @@ sub openRequest()
     end if
     m.diagnosticTsActive = diagnosticTs
     m.effectiveStreamFormat = format
-    m.hlsStartupIsolation = format = "hls"
+    ' Diagnostic experiment: 4453 local HLS already plays in Roku Streamer.
+    ' Bypass HLS prebuffer/memory isolation only for this title and use native play.
+    localHlsDirectTest = supplied.itemId = "hdo-lamovie-4453" and format = "hls"
+    m.hlsStartupIsolation = format = "hls" and not localHlsDirectTest
     m.hlsPrebufferPending = m.hlsStartupIsolation
+    if localHlsDirectTest then print "[RokuPlus hls-direct-test] isolation=off action=play"
     if m.hlsStartupIsolation
         ' Diagnostic 3.5.44: cap decoder allocation to this 720p Roku TV.
         ' Roku documents video decode memory as shared with SceneGraph/OpenGL texture memory.
