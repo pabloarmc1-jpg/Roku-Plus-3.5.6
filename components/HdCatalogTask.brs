@@ -337,19 +337,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            relaySegments = rpHdTaskSegmentList(child.body,selected.url)
-                            relayDurations = rpHdTaskSegmentDurations(child.body)
-                            if relaySegments.count() > 1 and relayDurations.count() = relaySegments.count()
-                                answer.segmentUrls = relaySegments
-                                answer.segmentDurations = relayDurations
-                                answer.tsRelayEnabled = true
-                                print "[RokuPlus ts-relay] candidate_segments="; relaySegments.count(); " durations="; relayDurations.count()
-                            else
-                                answer.tsRelayEnabled = false
-                                print "[RokuPlus ts-relay] disabled reason=segment_metadata_invalid segments="; relaySegments.count(); " durations="; relayDurations.count()
-                            end if
-                            ' Native HLS diagnostic: return the selected child manifest directly.
-                            ' Local test titles must bypass TS relay metadata parsing entirely.
+                            ' Native HLS diagnostic: local test titles bypass relay parsing completely.
                             playbackPlaylistKind = "native-child-hls-audio-isolation"
                             playbackStreamFormat = "hls"
                             if item.id = "hdo-lamovie-4453"
