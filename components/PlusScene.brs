@@ -257,15 +257,11 @@ sub fetched(event as object)
     if not m.job.isSameNode(event.getRoSGNode()) then return
     answer = event.getData()
     if type(answer) <> "roAssociativeArray" then return
-    print "[RokuPlus trace] fetched ok="; answer.ok; " answerRequest="; orbitText(answer.requestId,120); " currentRequest="; orbitText(m.request,120)
     if answer.requestId <> m.request
-        print "[RokuPlus trace] fetched ignored=request-id-mismatch"
         return
     end if
     context = m.pending
-    print "[RokuPlus trace] fetched operation="; orbitText(context.operation,24)
     if context.doesExist("item") and type(context.item) = "roAssociativeArray"
-        print "[RokuPlus trace] fetched context-itemId="; orbitText(context.item.id,180)
     end if
     cancelRequest()
     if not answer.ok
@@ -391,7 +387,6 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
 end sub
 
 sub launchVideo(item as object, url as string, format as string)
-    print "[RokuPlus trace] launchVideo itemId="; orbitText(item.id,180); " provider="; orbitText(item.provider,32); " format="; orbitText(format,16); " urlPrefix="; left(url,32)
     ' Recover LaMovie numeric identity from the canonical HD id when a
     ' catalog item arrives with its slug but without providerId.
     itemProvider = lcase(orbitText(item.provider,32))
@@ -448,7 +443,6 @@ sub launchVideo(item as object, url as string, format as string)
     descriptor.requestId = CreateObject("roDeviceInfo").getRandomUUID()
     m.activePlaybackRequestId = descriptor.requestId
     m.lastPlaybackProgress = invalid
-    print "[RokuPlus trace] scene-player-request itemId="; orbitText(descriptor.itemId,180); " format="; orbitText(descriptor.streamFormat,16); " urlPrefix="; left(descriptor.url,32); " requestId="; orbitText(descriptor.requestId,120)
     m.player.request = descriptor
     if m.activeJobId <> "" then m.lease.control = "start"
 end sub
