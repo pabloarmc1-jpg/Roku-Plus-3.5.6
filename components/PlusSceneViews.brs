@@ -592,16 +592,16 @@ end sub
 ' normalized title but a different year. This affects presentation only.
 function rpSeasonTitleBase(title as dynamic) as string
     value = orbitText(title,240).trim()
-    value = CreateObject("roRegex","\\s*\\((19|20)[0-9]{2}\\)\\s*$","").replace(value,"").trim()
+    value = CreateObject("roRegex","\s*\((19|20)[0-9]{2}\)\s*$","").replace(value,"").trim()
     value = lcase(value)
     value = value.replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u").replace("ñ","n")
-    return CreateObject("roRegex","\\s+","").replace(value,"")
+    return CreateObject("roRegex","\s+","").replace(value,"")
 end function
 
 function rpSeasonTitleYear(item as dynamic) as string
     if type(item) <> "roAssociativeArray" then return ""
     title = orbitText(item.title,240).trim()
-    yearPattern = CreateObject("roRegex","\\((19|20)[0-9]{2}\\)\\s*$","")
+    yearPattern = CreateObject("roRegex","\((19|20)[0-9]{2}\)\s*$","")
     if yearPattern.isMatch(title) then return mid(title,len(title)-4,4)
     return orbitText(item.year,16).trim()
 end function
@@ -624,23 +624,15 @@ end function
 function rpSeasonDisplayTitle(series as dynamic) as string
     if type(series) <> "roAssociativeArray" then return ""
     title = orbitText(series.title,240).trim()
+    cleanTitle = CreateObject("roRegex","\s*\((19|20)[0-9]{2}\)\s*$","").replace(title,"").trim()
     baseTitle = rpSeasonTitleBase(title)
     year = rpSeasonTitleYear(series)
     currentId = orbitText(series.id,200)
     differentYearExists = rpSeasonTitleHasDifferentYear(m.pageTitles,baseTitle,year,currentId)
     if not differentYearExists then differentYearExists = rpSeasonTitleHasDifferentYear(m.homeSeries,baseTitle,year,currentId)
     if not differentYearExists then differentYearExists = rpSeasonTitleHasDifferentYear(m.features,baseTitle,year,currentId)
-    if differentYearExists and year <> "" then return titleWithoutYear(baseTitle,year)
-    return baseTitle
-end function
-
-function titleWithoutYear(baseTitle as string, year as string) as string
-    ' Restore readable spacing from the original title while omitting its year.
-    ' The caller supplies the original title through the current series object.
-    original = orbitText(m.series.title,240).trim()
-    original = CreateObject("roRegex","\\s*\\((19|20)[0-9]{2}\\)\\s*$","").replace(original,"").trim()
-    if original <> "" then return original + " (" + year + ")"
-    return baseTitle + " (" + year + ")"
+    if differentYearExists and year <> "" then return cleanTitle + " (" + year + ")"
+    return cleanTitle
 end function
 
 sub episodeScreen()
