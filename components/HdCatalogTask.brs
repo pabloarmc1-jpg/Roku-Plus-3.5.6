@@ -161,15 +161,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if rpHdTaskSpanishAudio(master,variant) then candidates.variants.push(variant)
                     end for
                     print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
-                    ' Diagnostic build 3.5.67: isolate the alternate 1280x528 provider rendition.
-                    ' Filter the original master variants first, then apply the normal decoder/codec guards.
-                    diagnosticHeight = 528
-                    diagnosticCandidates = {variants:[],encrypted:candidates.encrypted}
-                    for each diagnosticChoice in candidates.variants
-                        if diagnosticChoice.height = diagnosticHeight then diagnosticCandidates.variants.push(diagnosticChoice)
-                    end for
-                    choices = rpHdTaskStableVariants(diagnosticCandidates,decoderAccept)
-                    print "[RokuPlus hls-test] targetHeight="; diagnosticHeight; " eligibleVariants="; choices.count()
+                    ' Use every Spanish-compatible rendition; do not pin playback to one resolution.
+                    choices = rpHdTaskStableVariants(candidates,decoderAccept)
+                    print "[RokuPlus hls-test] eligibleVariants="; choices.count()
                     variantOffset = 0
                     if choices.count() > 0 then variantOffset = (retry \ count) mod choices.count()
                     for qualityAttempt = 0 to choices.count()-1
@@ -789,17 +783,15 @@ function rpHdTaskFailure(answer as object, response as object) as object
 end function
 
 ' A master playlist may link each video variant to an external audio group.
-' Only accept a variant when that linked group declares Spanish as its default.
+' Accept Spanish audio regardless of DEFAULT/AUTOSELECT ordering in the provider manifest.
 function rpHdTaskSpanishAudio(master as object, variant as object) as boolean
     if variant.audioGroup = "" then return true
     for each track in master.audioTracks
         if track.group = variant.audioGroup
-            if track.default
-                language = lcase(track.language)
-                name = lcase(track.name)
-                if language <> "" then return language = "es" or language = "spa" or left(language,3) = "es-"
-                return instr(1,name,"español") > 0 or instr(1,name,"spanish") > 0 or instr(1,name,"latino") > 0 or instr(1,name,"castellano") > 0
-            end if
+            language = lcase(orbitText(track.language,40))
+            name = lcase(orbitText(track.name,120))
+            if language = "es" or language = "spa" or left(language,3) = "es-" then return true
+            if instr(1,name,"español") > 0 or instr(1,name,"espanol") > 0 or instr(1,name,"spanish") > 0 or instr(1,name,"latino") > 0 or instr(1,name,"castellano") > 0 then return true
         end if
     end for
     return false
