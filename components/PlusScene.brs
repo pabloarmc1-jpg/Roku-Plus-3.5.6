@@ -95,7 +95,9 @@ sub init()
     m.note = ""
     m.action = 0
     m.playbackMode = "direct"
-    m.capabilities = rpDeviceProfile()
+    m.capabilities = rpDeviceProfile(invalid, m.top.currentDesignResolution)
+    displayProfile = m.capabilities.display
+    print "[RokuPlus display] design="; displayProfile.designName; " "; displayProfile.designWidth; "x"; displayProfile.designHeight; " ui="; displayProfile.uiName; " "; displayProfile.uiWidth; "x"; displayProfile.uiHeight; " output="; displayProfile.outputWidth; "x"; displayProfile.outputHeight
     prefs = rpLoadPreferences(m.capabilities.recommendedCatalog)
     m.configured = prefs.configured
     m.catalogMode = prefs.mode
