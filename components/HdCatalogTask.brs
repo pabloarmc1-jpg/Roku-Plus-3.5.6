@@ -344,21 +344,22 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             ' Native HLS diagnostic: local test titles bypass relay parsing completely.
                             playbackPlaylistKind = "native-child-hls-audio-isolation"
                             playbackStreamFormat = "hls"
-                            print "[RokuPlus trace] candidate itemId="; orbitText(item.id,180); " provider="; orbitText(item.provider,32); " providerId="; orbitText(item.providerId,40); " kind="; orbitText(item.kind,20)
-                            if item.id = "hdo-lamovie-4453"
+                            localTestId = orbitText(item.id,180)
+                            localTestProviderId = orbitText(item.providerId,40)
+                            isLocalTest4453 = localTestId = "hdo-lamovie-4453" or localTestProviderId = "4453"
+                            isLocalTest4519 = localTestId = "hdo-lamovie-4519" or localTestProviderId = "4519"
+                            if isLocalTest4453
                                 answer.url = "http://192.168.100.7:8000/4453-test.m3u8"
                                 playbackPlaylistKind = "local-test-4453"
                                 answer.segmentUrls = invalid
                                 answer.segmentDurations = invalid
                                 answer.tsRelayEnabled = false
-                                print "[RokuPlus resolve-stage] local-test=4453 route-ready"
-                            else if item.id = "hdo-lamovie-4519"
+                            else if isLocalTest4519
                                 answer.url = "http://192.168.100.7:8000/4519-test.m3u8"
                                 playbackPlaylistKind = "local-test-4519"
                                 answer.segmentUrls = invalid
                                 answer.segmentDurations = invalid
                                 answer.tsRelayEnabled = false
-                                print "[RokuPlus resolve-stage] local-test=4519 route-ready"
                             else
                                 relaySegments = rpHdTaskSegmentList(child.body,selected.url)
                                 relayDurations = rpHdTaskSegmentDurations(child.body)
