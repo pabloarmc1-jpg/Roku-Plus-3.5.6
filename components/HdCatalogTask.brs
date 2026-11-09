@@ -7,6 +7,8 @@ end sub
 sub runHdCatalogRequest()
     m.hdElapsed = CreateObject("roTimespan")
     m.hdElapsed.mark()
+    m.hdTotalBudgetMs = 40000
+    if m.top.operation = "resolve" then m.hdTotalBudgetMs = 60000
     request = {
         operation:m.top.operation, kind:m.top.kind, provider:m.top.provider
         query:m.top.query, skip:m.top.skip, item:m.top.item, season:m.top.season
@@ -624,7 +626,7 @@ sub rpHdTaskBeginSlice(remaining as integer)
     if remaining < 1 then remaining = 1
     if m.hdElapsed <> invalid
         now = m.hdElapsed.totalMilliseconds()
-        budget = (40000-now) \ remaining
+        budget = (m.hdTotalBudgetMs-now) \ remaining
         ' In "Todas", one slow provider must not consume the entire window
         ' reserved for the remaining sources. Keep a fair share, capped at 9s.
         if budget > 9000 then budget = 9000
@@ -636,7 +638,7 @@ end sub
 function rpHdTaskSliceExpired() as boolean
     if m.hdElapsed = invalid then return false
     now = m.hdElapsed.totalMilliseconds()
-    if now >= 40000 then return true
+    if now >= m.hdTotalBudgetMs then return true
     if GetInterface(m.hdProviderDeadline,"ifInt") <> invalid
         if m.hdProviderDeadline > 0 and now >= m.hdProviderDeadline then return true
     end if
