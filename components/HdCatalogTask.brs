@@ -52,9 +52,18 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         provider = rpHdOnlineProvider(request.item.provider)
         if provider = "all" then provider = ""
     end if
-    if provider = "cinehax" then return rpHdCinehaxTask(request,answer,fetcher,decoderAccept)
-    if provider = "seriesmetro" then return rpHdSeriesmetroTask(request,answer,fetcher,decoderAccept)
-    if provider = "cinecalidad" then return rpHdCinecalidadTask(request,answer,fetcher,decoderAccept)
+    if provider = "cinehax"
+        answer = rpHdCinehaxTask(request,answer,fetcher,decoderAccept)
+        return rpHdTvmazeEnrichAnswer(answer,request,fetcher)
+    end if
+    if provider = "seriesmetro"
+        answer = rpHdSeriesmetroTask(request,answer,fetcher,decoderAccept)
+        return rpHdTvmazeEnrichAnswer(answer,request,fetcher)
+    end if
+    if provider = "cinecalidad"
+        answer = rpHdCinecalidadTask(request,answer,fetcher,decoderAccept)
+        return rpHdTvmazeEnrichAnswer(answer,request,fetcher)
+    end if
     item = rpHdTaskInputItem(request.item,provider)
     if item = invalid
         answer.message = "El título HD no tiene un identificador válido."
@@ -82,7 +91,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         answer.item = item
         answer.ok = true
         answer.message = ""
-        return answer
+        return rpHdTvmazeEnrichAnswer(answer,request,fetcher)
     else if operation = "episodes"
         if item.kind <> "series" then return answer
         season = orbitInteger(request.season,999,1)
@@ -97,7 +106,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         answer.season = season
         answer.ok = true
         answer.message = ""
-        return answer
+        return rpHdTvmazeEnrichAnswer(answer,request,fetcher)
     else if operation = "resolve"
         if item.kind <> "movie" and item.kind <> "episode" then return answer
         return rpHdTaskResolveItem(item,provider,answer,fetcher,decoderAccept,orbitInteger(request.attempt,999))
