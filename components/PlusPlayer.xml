@@ -60,6 +60,13 @@
       <Label id="pauseText" translation="[1000,316]" width="808" height="30" font="font:SmallSystemFont" color="0xD7D9E0FF" horizAlign="right" />
       <Label id="noticeText" translation="[112,0]" width="1696" height="32" font="font:SmallSystemFont" color="0xFFFFFFFF" />
     </Group>
+
+    <Group id="audioMenu" translation="[460,210]" visible="false">
+      <Rectangle width="1000" height="660" color="0x10131BEF" />
+      <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
+      <Label id="audioMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    </Group>
+
     <Timer id="uiPulse" duration="0.25" repeat="true" />
     <Timer id="startupTypeTimer" duration="0.08" repeat="true" />
   </children>
