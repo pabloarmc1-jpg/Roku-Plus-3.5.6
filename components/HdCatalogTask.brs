@@ -348,9 +348,8 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 answer.tsRelayEnabled = false
                                 print "[RokuPlus ts-relay] disabled reason=segment_metadata_invalid segments="; relaySegments.count(); " durations="; relayDurations.count()
                             end if
-                            ' Diagnostic 3.5.38: return the selected child HLS manifest as one native stream.
-                            ' The TS playlist path was confirmed to create visible clip boundaries.
-                            ' Isolate Roku HLS audio selection while preserving the validated variant.
+                            ' Native HLS diagnostic: return the selected child manifest directly.
+                            ' Local test titles must bypass TS relay metadata parsing entirely.
                             playbackPlaylistKind = "native-child-hls-audio-isolation"
                             playbackStreamFormat = "hls"
                             if item.id = "hdo-lamovie-4453"
@@ -358,14 +357,28 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 answer.segmentUrls = invalid
                                 answer.segmentDurations = invalid
                                 answer.tsRelayEnabled = false
+                                print "[RokuPlus resolve-stage] local-test=4453 route-ready"
                             else if item.id = "hdo-lamovie-4519"
                                 answer.url = "http://192.168.100.7:8000/4519-test.m3u8"
                                 answer.segmentUrls = invalid
                                 answer.segmentDurations = invalid
                                 answer.tsRelayEnabled = false
+                                print "[RokuPlus resolve-stage] local-test=4519 route-ready"
                             else
+                                relaySegments = rpHdTaskSegmentList(child.body,selected.url)
+                                relayDurations = rpHdTaskSegmentDurations(child.body)
+                                if relaySegments.count() > 1 and relayDurations.count() = relaySegments.count()
+                                    answer.segmentUrls = relaySegments
+                                    answer.segmentDurations = relayDurations
+                                    answer.tsRelayEnabled = true
+                                    print "[RokuPlus ts-relay] candidate_segments="; relaySegments.count(); " durations="; relayDurations.count()
+                                else
+                                    answer.tsRelayEnabled = false
+                                    print "[RokuPlus ts-relay] disabled reason=segment_metadata_invalid segments="; relaySegments.count(); " durations="; relayDurations.count()
+                                end if
                                 answer.url = selected.url
                             end if
+                            print "[RokuPlus resolve-stage] route="; playbackPlaylistKind; " format="; playbackStreamFormat
                             answer.streamFormat = playbackStreamFormat
                             answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
                             answer.description = "Español · H.264 · "+selected.height.toStr()+"p"
