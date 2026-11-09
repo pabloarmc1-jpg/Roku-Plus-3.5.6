@@ -169,7 +169,7 @@ function rpHdSeriesmetroEpisodes(html as dynamic, parent as object, requested as
                     title = rpHdSeriesmetroText(rpHdSeriesmetroMatch(block,"<h2[^>]*class="+chr(34)+"entry-title"+chr(34)+"[^>]*>(.*?)</h2>"),200)
                     if title = "" then title = "Episodio "+episode.toStr()
                     ' Read the artwork from this episode's own article, not the series page.
-                    imageTag = rpHdSeriesmetroMatch(block,"<img[^>]*>")
+                    imageTag = rpHdSeriesmetroMatch(block,"(<img[^>]*>)")
                     episodePoster = rpHdSeriesmetroArt(rpHdSeriesmetroAttr(imageTag,"data-src"))
                     if episodePoster = "" then episodePoster = rpHdSeriesmetroArt(rpHdSeriesmetroAttr(imageTag,"data-lazy-src"))
                     if episodePoster = "" then episodePoster = rpHdSeriesmetroArt(rpHdSeriesmetroAttr(imageTag,"src"))
