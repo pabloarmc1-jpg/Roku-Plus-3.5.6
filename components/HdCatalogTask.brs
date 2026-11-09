@@ -421,6 +421,19 @@ end function
 ' Cross-provider identity: trust matching external IDs first. If both records
 ' carry conflicting external IDs, never merge them by title. Title/year is a
 ' conservative fallback for providers that do not expose shared identifiers.
+' Canonical identity for the one confirmed translated series pair.
+' This is deliberately an exact alias, not fuzzy title matching.
+function rpHdTaskKnownSeriesTitleKey(title as dynamic) as string
+    key = lcase(orbitText(title,200).trim())
+    key = CreateObject("roRegex","\\s*\\(((?:19|20)[0-9]{2})\\)\\s*$","").replace(key,"").trim()
+    key = key.replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u").replace("ñ","n")
+    key = CreateObject("roRegex","\\s+","").replace(key,"")
+    if key = "thelastmanonearth" or key = "elultimohombreenlatierra"
+        return "tmdb-tv-61888"
+    end if
+    return ""
+end function
+
 function rpHdTaskSameCatalogItem(existing as dynamic, item as dynamic) as boolean
     if type(existing) <> "roAssociativeArray" or type(item) <> "roAssociativeArray" then return false
     if orbitText(existing.kind,16) <> orbitText(item.kind,16) then return false
@@ -437,6 +450,11 @@ function rpHdTaskSameCatalogItem(existing as dynamic, item as dynamic) as boolea
     if existingTmdb <> "" or itemTmdb <> "" or existingImdb <> "" or itemImdb <> ""
         ' One source has an ID and the other does not: allow a strict title/year fallback.
         ' Conflicting IDs were already rejected above.
+    end if
+    if orbitText(existing.kind,16) = "series"
+        existingKnownKey = rpHdTaskKnownSeriesTitleKey(existing.title)
+        itemKnownKey = rpHdTaskKnownSeriesTitleKey(item.title)
+        if existingKnownKey <> "" and existingKnownKey = itemKnownKey then return true
     end if
     existingKey = CreateObject("roRegex","\s+","").replace(lcase(orbitText(existing.title,200).trim()),"")
     itemKey = CreateObject("roRegex","\s+","").replace(lcase(orbitText(item.title,200).trim()),"")
