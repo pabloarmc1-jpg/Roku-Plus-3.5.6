@@ -38,7 +38,8 @@ sub runSubtitleSearch()
         body = subtitleGet(transfer,endpoint)
         if GetInterface(body,"ifString") = invalid
             answer.message = "El servicio de subtítulos no respondió."
-            if m.subtitleHttpStatus = 429 then answer.message = "Se alcanzó el límite diario de búsquedas gratuitas."
+            if m.subtitleHttpStatus = 429 then answer.message = "Se alcanzó el límite diario de solicitudes de subtítulos."
+            if m.subtitleHttpStatus = 401 or m.subtitleHttpStatus = 403 then answer.message = "La API Key fue rechazada. Revisa la clave en el menú de subtítulos."
             m.top.result = answer
             return
         end if
@@ -93,7 +94,8 @@ sub runSubtitleSearch()
         body = subtitleGet(transfer,endpoint)
         if GetInterface(body,"ifString") = invalid or len(body) = 0
             answer.message = "No se pudo obtener el enlace del subtítulo."
-            if m.subtitleHttpStatus = 429 then answer.message = "Se alcanzó el límite diario de descargas gratuitas."
+            if m.subtitleHttpStatus = 429 then answer.message = "Se alcanzó el límite diario de solicitudes de subtítulos."
+            if m.subtitleHttpStatus = 401 or m.subtitleHttpStatus = 403 then answer.message = "La API Key fue rechazada. Revisa la clave en el menú de subtítulos."
             m.top.result = answer
             return
         end if
