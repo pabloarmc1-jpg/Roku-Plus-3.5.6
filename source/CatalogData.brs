@@ -372,15 +372,34 @@ function orbitUniqueCatalogItems(items as dynamic) as object
         if type(item) = "roAssociativeArray"
             id = orbitText(item.id,180)
             kind = orbitText(item.kind,20)
-            title = lcase(orbitText(item.title,200).trim())
+            title = orbitText(item.title,200).trim()
             year = orbitText(item.year,12).trim()
             key = id
-            if kind <> "episode" and title <> ""
-                key = kind+"|"+title+"|"+year
+            if kind = "series" and title <> ""
+                ' Providers inconsistently include the release year in the title.
+                ' Normalize "Example (2020)" and "Example" to one series identity.
+                yearMatch = CreateObject("roRegex","\\s*\\(((19|20)[0-9]{2})\\)\\s*$","").match(title)
+                if yearMatch.count() > 2
+                    if year = "" then year = yearMatch[1]
+                    title = CreateObject("roRegex","\\s*\\(((19|20)[0-9]{2})\\)\\s*$","").replace(title,"").trim()
+                end if
+                item.title = title
+                if orbitText(item.year,12).trim() = "" and year <> "" then item.year = year
+                key = "series|"+lcase(title)
+            else if kind = "movie" and title <> ""
+                key = "movie|"+lcase(title)+"|"+year
             end if
             if key <> "" and not seen.doesExist(key)
-                seen[key] = true
+                seen[key] = result.count()
                 result.push(item)
+            else if key <> "" and seen.doesExist(key) and kind = "series"
+                ' Keep useful metadata from whichever provider supplied it.
+                existingIndex = seen[key]
+                existing = result[existingIndex]
+                if orbitText(existing.year,12).trim() = "" and year <> "" then existing.year = year
+                if orbitText(existing.poster,2048) = "" and orbitText(item.poster,2048) <> "" then existing.poster = item.poster
+                if orbitText(existing.background,2048) = "" and orbitText(item.background,2048) <> "" then existing.background = item.background
+                if orbitText(existing.description,2400) = "" and orbitText(item.description,2400) <> "" then existing.description = item.description
             end if
         end if
     end for
