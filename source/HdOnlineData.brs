@@ -1141,3 +1141,130 @@ function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) a
     result.valid = result.confirmedFrames >= 2
     return result
 end function
+
+
+' Optional TVmaze enrichment for series only. Provider IDs and playback fields are never changed.
+function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as dynamic) as object
+    if not answer.ok then return answer
+    operation = orbitText(request.operation,20)
+    item = invalid
+    if operation = "meta" and type(answer.item) = "roAssociativeArray"
+        item = answer.item
+    else if operation = "episodes" and type(request.item) = "roAssociativeArray"
+        item = request.item
+    end if
+    if type(item) <> "roAssociativeArray" then return answer
+    if orbitText(item.kind,16) <> "series" then return answer
+    title = orbitText(item.title,200).trim()
+    if title = "" then return answer
+
+    ' Search by the source's series title; TVmaze is public and needs no API key.
+    searchUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(title)
+    rpHdTaskBeginSlice(3)
+    response = fetcher(searchUrl,"tvmaze-search","https://www.tvmaze.com/")
+    if not response.ok then return answer
+    matches = ParseJson(response.body)
+    if type(matches) <> "roArray" or matches.count() = 0 then return answer
+
+    show = invalid
+    for each match in matches
+        if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
+            candidate = match.show
+            candidateName = lcase(orbitText(candidate.name,200).trim())
+            if candidateName = lcase(title)
+                show = candidate
+                exit for
+            end if
+        end if
+    end for
+    ' Search results are relevance-ranked. Use the first valid result only when
+    ' the provider title has no exact spelling match (e.g. localized titles).
+    if show = invalid
+        for each match in matches
+            if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
+                if orbitInteger(match.show.id,999999999) > 0
+                    show = match.show
+                    exit for
+                end if
+            end if
+        end for
+    end if
+    if type(show) <> "roAssociativeArray" then return answer
+    showId = orbitInteger(show.id,999999999)
+    if showId < 1 then return answer
+
+    image = show.image
+    if type(image) = "roAssociativeArray"
+        poster = orbitText(image.medium,1000)
+        background = orbitText(image.original,1000)
+        if poster <> "" and operation = "meta" then answer.item.poster = poster
+        if background <> "" and operation = "meta" then answer.item.background = background
+    end if
+    summary = rpHdTvmazeText(show.summary)
+    if summary <> "" and operation = "meta" then answer.item.description = summary
+
+    rpHdTaskBeginSlice(2)
+    episodesUrl = "https://api.tvmaze.com/shows/"+showId.toStr()+"/episodes"
+    episodeResponse = fetcher(episodesUrl,"tvmaze-episodes","https://www.tvmaze.com/")
+    if not episodeResponse.ok then return answer
+    tvEpisodes = ParseJson(episodeResponse.body)
+    if type(tvEpisodes) <> "roArray" then return answer
+
+    if operation = "meta"
+        if type(answer.item.seasons) = "roArray"
+            for i = 0 to answer.item.seasons.count()-1
+                answer.item.seasons[i] = rpHdTvmazeEnrichSeason(answer.item.seasons[i],tvEpisodes)
+            end for
+        end if
+    else if operation = "episodes"
+        if type(answer.seasons) = "roArray"
+            for i = 0 to answer.seasons.count()-1
+                answer.seasons[i] = rpHdTvmazeEnrichSeason(answer.seasons[i],tvEpisodes)
+            end for
+        end if
+    end if
+    return answer
+end function
+
+function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as object
+    if type(season) <> "roAssociativeArray" then return season
+    seasonNumber = orbitInteger(season.number,999,-1)
+    if seasonNumber < 0 or type(season.episodes) <> "roArray" then return season
+    for each localEpisode in season.episodes
+        if type(localEpisode) = "roAssociativeArray"
+            episodeNumber = orbitInteger(localEpisode.episode,9999)
+            if episodeNumber > 0
+                for each tvEpisode in tvEpisodes
+                    if type(tvEpisode) = "roAssociativeArray"
+                        if orbitInteger(tvEpisode.season,999,-1) = seasonNumber and orbitInteger(tvEpisode.number,9999) = episodeNumber
+                            episodeTitle = orbitText(tvEpisode.name,200)
+                            if episodeTitle <> "" then localEpisode.title = episodeTitle
+                            episodeDescription = rpHdTvmazeText(tvEpisode.summary)
+                            if episodeDescription <> "" then localEpisode.description = episodeDescription
+                            episodeImage = tvEpisode.image
+                            if type(episodeImage) = "roAssociativeArray"
+                                still = orbitText(episodeImage.original,1000)
+                                if still = "" then still = orbitText(episodeImage.medium,1000)
+                                if still <> ""
+                                    localEpisode.poster = still
+                                    localEpisode.background = still
+                                end if
+                            end if
+                            exit for
+                        end if
+                    end if
+                end for
+            end if
+        end if
+    end for
+    return season
+end function
+
+function rpHdTvmazeText(value as dynamic) as string
+    text = orbitText(value,12000)
+    text = CreateObject("roRegex","<[^>]+>","s").replaceAll(text," ")
+    for each pair in [["&amp;","&"],["&quot;",chr(34)],["&#039;","'"],["&#39;","'"],["&nbsp;"," "],["&#8217;","'"],["&#8211;","-"],["&#8212;","-"]]
+        text = text.replace(pair[0],pair[1])
+    end for
+    return left(CreateObject("roRegex","\\s+","").replaceAll(text," ").trim(),2400)
+end function
