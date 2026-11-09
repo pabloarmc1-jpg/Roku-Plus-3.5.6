@@ -15,6 +15,8 @@ sub init()
     m.backdrop = m.top.findNode("backdrop")
     m.loadingOverlay = m.top.findNode("loadingOverlay")
     m.loadingTitle = m.top.findNode("loadingTitle")
+    m.loadingLogo = m.top.findNode("loadingLogo")
+    if m.loadingLogo <> invalid then m.loadingLogo.observeField("loadStatus", "onLoadingLogoStatus")
     m.panel = m.top.findNode("transport")
     m.capsule = m.top.findNode("capsule")
     m.titleShade = m.top.findNode("titleShade")
@@ -80,6 +82,31 @@ function playerSurfaceUri(name as string) as string
     if m.top.theme = "classic" then prefix += "classic-"
     return prefix + name + ".png"
 end function
+
+sub onLoadingLogoChanged()
+    if m.loadingLogo = invalid or m.loadingTitle = invalid then return
+    uri = m.top.loadingLogoUri
+    if GetInterface(uri, "ifString") = invalid or uri = ""
+        m.loadingLogo.uri = ""
+        m.loadingLogo.visible = false
+        m.loadingTitle.visible = true
+        return
+    end if
+    m.loadingLogo.visible = true
+    m.loadingLogo.uri = uri
+    ' Keep the title visible until the transparent logo has actually loaded.
+    m.loadingTitle.visible = true
+end sub
+
+sub onLoadingLogoStatus()
+    if m.loadingLogo = invalid or m.loadingTitle = invalid then return
+    if m.loadingLogo.loadStatus = "ready"
+        m.loadingTitle.visible = false
+    else if m.loadingLogo.loadStatus = "failed"
+        m.loadingLogo.visible = false
+        m.loadingTitle.visible = true
+    end if
+end sub
 
 ' Changing material must not change decoder state, transport visibility, or
 ' focus. Callbacks before init are harmless; init reapplies once nodes exist.
@@ -199,6 +226,8 @@ sub openRequest()
     m.monotonic.mark()
     m.current = supplied
     m.loadingOverlay.visible = true
+    if m.loadingLogo <> invalid then m.loadingLogo.visible = m.top.loadingLogoUri <> ""
+    if m.loadingTitle <> invalid then m.loadingTitle.visible = true
     m.mediaNode = invalid
     m.hlsRetryCount = 0
     m.hlsPrebufferPending = false
