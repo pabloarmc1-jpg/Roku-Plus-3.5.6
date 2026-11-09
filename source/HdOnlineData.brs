@@ -1195,11 +1195,11 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     if cacheKey = "bojack horseman (2014)" then searchTitle = "BoJack Horseman"
     if instr(1,cacheKey,"cÃ³mo conoc") = 1 or instr(1,cacheKey,"cómo conoc") = 1 or instr(1,cacheKey,"como conoc") = 1 then searchTitle = "How I Met Your Mother"
     if cacheKey = "el juego del calamar" then searchTitle = "Squid Game"
-    if cacheKey = "el juego del calamar: el desafÃ­o" or cacheKey = "el juego del calamar: el desafío" then searchTitle = "Squid Game: The Challenge"
     if instr(1,cacheKey,"mythic quest:") = 1 then searchTitle = "Mythic Quest"
     if cacheKey = "el juego de la muerte (2023)" or cacheKey = "el juego de la muerte" then searchTitle = "Death's Game"
     if cacheKey = "el juego de gracie darling" then searchTitle = "Playing Gracie Darling"
     if cacheKey = "phony: la otra madre" then searchTitle = "Phony"
+    aliasLookup = searchTitle <> title
     cache = invalid
     print "[RokuPlus tvmaze] start op="; operation; " provider="; providerName; " title="; title
     if type(request.tvmazeCache) = "roAssociativeArray"
@@ -1255,6 +1255,12 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
                 end if
             end if
         end for
+        ' A configured canonical alias must resolve exactly; never attach a nearby
+        ' but unrelated show just because it ranked first in TVmaze search.
+        if show = invalid and aliasLookup
+            print "[RokuPlus tvmaze] alias_exact_match_missing local="; title; " query="; searchTitle
+            return answer
+        end if
         ' Search results are relevance-ranked. Use the first valid result only when
         ' the provider title has no exact spelling match (e.g. localized titles).
         if show = invalid
