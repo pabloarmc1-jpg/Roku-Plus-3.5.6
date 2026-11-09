@@ -932,16 +932,11 @@ sub returnOneStep()
             return
         end if
     else if m.view = "episodes"
-        if m.episodeMode = "episodes"
-            m.episodeMode = "seasons"
-            m.zone = "seasons"
-        else
-            m.detail = m.series
-            m.detailOrigin = m.seriesOrigin
-            m.view = "detail"
-            m.zone = "action"
-            m.action = 0
-        end if
+        m.detail = m.series
+        m.detailOrigin = m.seriesOrigin
+        m.view = "detail"
+        m.zone = "action"
+        m.action = 0
     else
         goHome()
         return
