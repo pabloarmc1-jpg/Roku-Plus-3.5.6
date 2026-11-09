@@ -1237,7 +1237,9 @@ function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as objec
                     if type(tvEpisode) = "roAssociativeArray"
                         if orbitInteger(tvEpisode.season,999,-1) = seasonNumber and orbitInteger(tvEpisode.number,9999) = episodeNumber
                             episodeTitle = orbitText(tvEpisode.name,200)
-                            if episodeTitle <> "" then localEpisode.title = episodeTitle
+                            existingTitle = lcase(orbitText(localEpisode.title,200).trim())
+                            genericTitle = existingTitle = "" or existingTitle = "episodio "+episodeNumber.toStr() or existingTitle = "episode "+episodeNumber.toStr()
+                            if episodeTitle <> "" and genericTitle then localEpisode.title = episodeTitle
                             episodeDescription = rpHdTvmazeText(tvEpisode.summary)
                             if episodeDescription <> "" then localEpisode.description = episodeDescription
                             episodeImage = tvEpisode.image
