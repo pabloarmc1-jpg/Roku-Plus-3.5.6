@@ -23,8 +23,9 @@ sub init()
     m.titleText = m.top.findNode("titleText")
     m.startupOverlay = m.top.findNode("startupOverlay")
     m.startupTitle = m.top.findNode("startupTitle")
-    m.startupStatus = m.top.findNode("startupStatus")
-    m.startupDots = 0
+    m.startupTimer = m.top.findNode("startupTypeTimer")
+    m.startupCharIndex = 0
+    if m.startupTimer <> invalid then m.startupTimer.observeField("fire", "onStartupTypePulse")
     m.metaText = m.top.findNode("metaText")
     m.clockText = m.top.findNode("clockText")
     m.modeText = m.top.findNode("modeText")
@@ -159,8 +160,10 @@ sub applyPresentation()
         if m.mediaOpen
             if m.hlsStartupIsolation
                 m.panel.visible = false
-            else
+            else if m.phase = "playing"
                 revealTransport()
+            else
+                m.panel.visible = false
             end if
             m.top.setFocus(true)
         end if
@@ -206,6 +209,7 @@ sub openRequest()
     ' Stop the preceding decoder without emitting a close for the new request.
     m.mediaOpen = false
     m.pulse.control = "stop"
+    if m.startupTimer <> invalid then m.startupTimer.control = "stop"
     m.decoder.visible = false
     m.decoder.control = "stop"
     m.decoder.content = invalid
@@ -265,9 +269,9 @@ sub openRequest()
     if not m.segmentMode and not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
-    if m.startupTitle <> invalid then m.startupTitle.text = m.titleText.text
-    m.startupDots = 0
-    if m.startupStatus <> invalid then m.startupStatus.text = "Preparando reproducción"
+    if m.startupTitle <> invalid then m.startupTitle.text = ""
+    m.startupCharIndex = 0
+    if m.startupTimer <> invalid then m.startupTimer.control = "stop"
     ' Compact metadata row: only display values supplied by the catalogue.
     metaParts = []
     if GetInterface(supplied.year, "ifString") <> invalid and len(supplied.year) > 0 then metaParts.push(supplied.year)
@@ -404,6 +408,7 @@ sub openRequest()
         applyPresentation()
         m.pulse.duration = 0.25
         m.pulse.control = "start"
+        startStartupTitleAnimation()
         emitDiagnostic("ts_relay_starting")
         return
     end if
@@ -463,6 +468,7 @@ sub openRequest()
         m.decoder.control = "play"
     end if
     m.pulse.control = "start"
+    startStartupTitleAnimation()
     emitDiagnostic("open")
     if not m.hlsStartupIsolation then drawTransport()
 end sub
@@ -559,10 +565,15 @@ sub onDecoderState()
     if m.phase = "buffering"
         m.bufferSince = m.monotonic.totalMilliseconds()
         if m.ticket <> invalid then m.ticket.sawBuffering = true
-        if not m.hlsStartupIsolation then revealTransport()
+        if m.startupOverlay = invalid or not m.startupOverlay.visible
+            if not m.hlsStartupIsolation then revealTransport()
+        else
+            m.panel.visible = false
+        end if
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
+        if m.startupTimer <> invalid then m.startupTimer.control = "stop"
         if m.startupOverlay <> invalid then m.startupOverlay.visible = false
         if m.hlsStartupIsolation
             m.hlsStartupIsolation = false
@@ -588,6 +599,7 @@ sub onDecoderState()
         revealTransport()
     else if m.phase = "error"
         m.hlsStartupIsolation = false
+        if m.startupTimer <> invalid then m.startupTimer.control = "stop"
         if m.startupOverlay <> invalid then m.startupOverlay.visible = false
         m.failed = true
         m.ticket = invalid
@@ -1110,16 +1122,30 @@ sub advanceHlsSoftRestart(now as integer)
     end if
 end sub
 
+sub startStartupTitleAnimation()
+    if isPreviewPresentation() or m.startupTimer = invalid or m.startupTitle = invalid then return
+    if m.startupOverlay = invalid or not m.startupOverlay.visible then return
+    m.startupCharIndex = 0
+    m.startupTitle.text = ""
+    m.startupTimer.control = "start"
+end sub
+
+sub onStartupTypePulse()
+    if not m.mediaOpen or m.failed or m.phase = "playing" or m.startupOverlay = invalid or not m.startupOverlay.visible
+        if m.startupTimer <> invalid then m.startupTimer.control = "stop"
+        return
+    end if
+    fullTitle = m.titleText.text
+    if m.startupCharIndex < len(fullTitle)
+        m.startupCharIndex++
+        m.startupTitle.text = left(fullTitle,m.startupCharIndex)
+    else
+        m.startupTimer.control = "stop"
+    end if
+end sub
+
 sub onPulse()
     if not m.mediaOpen then return
-    if m.startupOverlay <> invalid and m.startupOverlay.visible
-        m.startupDots = (m.startupDots + 1) mod 4
-        dots = ""
-        for dotIndex = 1 to m.startupDots
-            dots += "."
-        end for
-        if m.startupStatus <> invalid then m.startupStatus.text = "Preparando reproducción" + dots
-    end if
     if m.tsRelayPending
         relayStatus = m.tsStreamServer.status
         nowRelay = m.monotonic.totalMilliseconds()
