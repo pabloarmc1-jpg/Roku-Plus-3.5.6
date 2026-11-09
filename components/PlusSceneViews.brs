@@ -591,9 +591,33 @@ end sub
 sub episodeScreen()
     topBar()
     if m.series = invalid or m.series.seasons.count() = 0 then return
-    season = m.series.seasons[m.season]
     words(m.series.title,72,142,1520,76,46,"0xFFFFFFFF").wrap = true
-    words("← Temporada "+season.number.toStr()+" →",76,220,1500,45,25,"0xB3B3B3FF")
+    if m.episodeMode = "seasons"
+        words("ELIGE UNA TEMPORADA",76,220,1500,45,23,"0xE50914FF")
+        first = (m.season \ 7)*7
+        for i = 0 to 6
+            n = first+i
+            if n < m.series.seasons.count()
+                season = m.series.seasons[n]
+                y = 280+i*96
+                panel(72,y,1770,82,"0x181818FF")
+                seasonName = "Temporada "+season.number.toStr()
+                if season.number = 0 then seasonName = "Especiales"
+                words(seasonName,108,y+18,1050,43,27,"0xFFFFFFFF")
+                count = season.episodes.count()
+                detail = "Seleccionar para ver episodios"
+                if count > 0 then detail = count.toStr()+" episodios"
+                words(detail,1320,y+22,480,34,20,"0xB3B3B3FF").horizAlign = "right"
+                focusTarget("seasons",n,66,y-5,1782,92,"live")
+            end if
+        end for
+        words("↑ / ↓  Elegir temporada     OK  Ver episodios     Atrás  Volver",76,1010,1600,34,20,"0x808080FF")
+        return
+    end if
+    season = m.series.seasons[m.season]
+    seasonName = "Temporada "+season.number.toStr()
+    if season.number = 0 then seasonName = "Especiales"
+    words(seasonName+" · Elige un episodio",76,220,1500,45,25,"0xB3B3B3FF")
     first = (m.episode \ 6)*6
     for i = 0 to 5
         n = first+i
@@ -609,9 +633,9 @@ sub episodeScreen()
         end if
     end for
     if season.episodes.count() > 0
-        words("Episodio "+(m.episode+1).toStr()+" de "+season.episodes.count().toStr(),76,1010,1480,34,20,"0x808080FF")
+        words("Episodio "+(m.episode+1).toStr()+" de "+season.episodes.count().toStr()+"     ·     ← Cambiar temporada",76,1010,1600,34,20,"0x808080FF")
     else if not m.busy
-        words("No hay episodios cargados. OK para volver a consultar.",324,386,1480,85,29,"0x9696A4FF").wrap = true
+        words("No se encontraron episodios. OK para reintentar o ← para elegir otra temporada.",220,386,1500,85,27,"0x9696A4FF").wrap = true
     end if
 end sub
 
@@ -922,6 +946,7 @@ sub paintFocus()
             if m.zone = "grid" then chosen = entry.index = m.cursor
             if m.zone = "action" then chosen = entry.index = m.action
             if m.zone = "episodes" then chosen = entry.index = m.episode
+            if m.zone = "seasons" then chosen = entry.index = m.season
             if m.zone = "live" then chosen = entry.index = m.liveCursor
             if m.zone = "live-filters" then chosen = entry.index = m.liveFilterCursor
             if m.zone = "live-search" then chosen = entry.index = m.liveSearchCursor
