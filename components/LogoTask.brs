@@ -1,5 +1,6 @@
-' Resolve transparent title logos through the public Wikimedia Commons API.
-' A logo is optional: the player keeps its text title when no trustworthy logo is found.
+' Resolve title logos through Wikimedia Commons, preferring vector artwork.
+' SVG thumbnails are rendered by Commons as PNG and normally preserve transparency.
+' The player keeps its text title when no suitable logo is found.
 sub init()
     m.top.functionName = "runLogoLookup"
 end sub
@@ -10,8 +11,6 @@ sub runLogoLookup()
     if title = "" or m.top.cancelRequested then return
     print "[RokuPlus logo] search_start title="; title
 
-    ' Search both the full display title and its main title. Removing subtitles
-    ' and release years avoids making Commons match an unnecessarily exact phrase.
     queries = []
     fullQuery = orbitLogoSearchBase(title)
     if fullQuery <> "" then queries.push(fullQuery + " logo")
@@ -24,7 +23,7 @@ sub runLogoLookup()
     files = CreateObject("roFileSystem")
     for each search in queries
         if m.top.cancelRequested then exit for
-        endpoint = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=" + encoder.escape(search) + "&gsrnamespace=6&gsrlimit=20&prop=imageinfo&iiprop=url%7Cmime&iiurlwidth=1400&format=json"
+        endpoint = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=" + encoder.escape(search) + "&gsrnamespace=6&gsrlimit=30&prop=imageinfo&iiprop=url%7Cmime%7Csize&iiurlwidth=1200&format=json"
         transfer = CreateObject("roUrlTransfer")
         messages = CreateObject("roMessagePort")
         transfer.setMessagePort(messages)
@@ -36,6 +35,7 @@ sub runLogoLookup()
             print "[RokuPlus logo] request_start_failed query="; search
             continue for
         end if
+
         elapsed = CreateObject("roTimespan")
         elapsed.mark()
         finished = false
@@ -53,14 +53,19 @@ sub runLogoLookup()
         end while
         if not finished then transfer.asyncCancel()
         print "[RokuPlus logo] http query="; search; " finished="; finished; " status="; code; " ms="; elapsed.totalMilliseconds()
+
         if finished and code = 200 and not m.top.cancelRequested
-            ' ReadAsciiFile returns the JSON text directly. roFileSystem.stat returns
-            ' an roFileInfo object, not an associative array with a size field.
             body = ReadAsciiFile(filename)
             if GetInterface(body, "ifString") <> invalid and len(body) > 0 and len(body) <= 1048576
                 data = ParseJson(body)
                 if type(data) = "roAssociativeArray" and type(data.query) = "roAssociativeArray" and type(data.query.pages) = "roAssociativeArray"
                     pages = data.query.pages
+                    bestScore = -1
+                    bestUrl = ""
+                    bestTitle = ""
+                    bestMime = ""
+                    bestWidth = 0
+                    bestHeight = 0
                     for each pageId in pages
                         page = pages[pageId]
                         if type(page) <> "roAssociativeArray" then continue for
@@ -69,22 +74,52 @@ sub runLogoLookup()
                         if type(page.imageinfo) <> "roArray" or page.imageinfo.count() = 0 then continue for
                         imageInfo = page.imageinfo[0]
                         if type(imageInfo) <> "roAssociativeArray" then continue for
+
                         mime = lcase(orbitLogoText(imageInfo.mime,80))
                         if mime <> "image/png" and mime <> "image/svg+xml" then continue for
                         thumb = orbitLogoText(imageInfo.thumburl,2048)
                         if left(thumb,29) <> "https://upload.wikimedia.org/" then continue for
-                        answer.ok = true
-                        answer.url = thumb
-                        answer.title = orbitLogoText(page.title,240)
-                        print "[RokuPlus logo] candidate="; answer.title; " mime="; mime
-                        exit for
+
+                        width = 0
+                        height = 0
+                        if GetInterface(imageInfo.width,"ifInt") <> invalid then width = imageInfo.width
+                        if GetInterface(imageInfo.height,"ifInt") <> invalid then height = imageInfo.height
+                        if width <= 0 or height <= 0 then continue for
+                        ratio = width / height
+                        ' Avoid square icons and portrait artwork: this overlay needs a wordmark.
+                        if ratio < 1.15 then continue for
+                        if width < 180 then continue for
+
+                        score = 100
+                        if mime = "image/svg+xml" then score = score + 1000
+                        if ratio >= 1.5 then score = score + 100
+                        if ratio >= 2.0 then score = score + 50
+                        if width >= 500 then score = score + 20
+                        if instr(1,fileTitle,"logo") > 0 then score = score + 10
+
+                        if score > bestScore
+                            bestScore = score
+                            bestUrl = thumb
+                            bestTitle = orbitLogoText(page.title,240)
+                            bestMime = mime
+                            bestWidth = width
+                            bestHeight = height
+                        end if
                     end for
+
+                    if bestScore >= 0
+                        answer.ok = true
+                        answer.url = bestUrl
+                        answer.title = bestTitle
+                        print "[RokuPlus logo] candidate="; answer.title; " mime="; bestMime; " dimensions="; bestWidth; "x"; bestHeight; " score="; bestScore
+                    end if
                 end if
             end if
         end if
         files.delete(filename)
         if answer.ok then exit for
     end for
+
     if not answer.ok then print "[RokuPlus logo] not_found title="; title
     if not m.top.cancelRequested then m.top.result = answer
 end sub
