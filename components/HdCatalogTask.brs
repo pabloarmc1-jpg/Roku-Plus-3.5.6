@@ -197,6 +197,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                         ' Keep startup validation to one bounded TS sample.
                                         ' Extra segment-boundary and full-segment probes delayed playback
                                         ' without changing the native HLS stream returned to Roku.
+                                    end if
                                 end if
                             end if
                         end if
