@@ -832,7 +832,7 @@ end function
 sub openAudioMenu()
     if m.subtitleMenuOpen then closeSubtitleMenu()
     refreshAudioTracks()
-    print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " state="; m.decoder.state; " format="; m.decoder.streamFormat
+    print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " state="; m.decoder.state
     m.audioMenuOpen = true
     m.audioMenuGroup.visible = true
     revealTransport()
