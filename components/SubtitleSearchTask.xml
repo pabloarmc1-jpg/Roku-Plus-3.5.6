@@ -5,6 +5,7 @@
     <field id="title" type="string" value="" />
     <field id="imdbId" type="string" value="" />
     <field id="subtitleId" type="string" value="" />
+    <field id="apiKey" type="string" value="" />
     <field id="language" type="string" value="es" />
     <field id="result" type="assocarray" alwaysNotify="true" />
   </interface>
