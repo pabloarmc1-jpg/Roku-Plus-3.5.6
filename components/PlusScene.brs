@@ -2069,9 +2069,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
             items = m.series.seasons[m.season].episodes
             if key = "up"
                 m.zone = "seasons"
-            else if key = "left"
-                m.zone = "seasons"
-            else if key = "down" and m.episode+1 < items.count()
+            else if key = "left" and m.episode > 0
+                m.episode--
+            else if key = "right" and m.episode+1 < items.count()
                 m.episode++
             else if key = "OK"
                 if items.count() > 0
