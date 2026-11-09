@@ -87,6 +87,7 @@ sub init()
     m.job = invalid
     m.request = ""
     m.pending = invalid
+    m.tvmazeCache = invalid
     m.pendingSegmentUrls = invalid
     m.pendingTsRelay = false
     m.dialogBox = invalid
@@ -165,6 +166,7 @@ sub fetch(context as object)
             end if
         end if
     end if
+    if online and type(m.tvmazeCache) = "roAssociativeArray" then task.tvmazeCache = m.tvmazeCache
     if online and context.operation = "resolve" then task.attempt = orbitInteger(context.item.hdAttempt,99)
     task.operation = context.operation
     task.kind = m.kind
@@ -259,6 +261,7 @@ sub fetched(event as object)
     if type(answer) <> "roAssociativeArray" then return
     if answer.requestId <> m.request then return
     context = m.pending
+    if type(answer.tvmazeCache) = "roAssociativeArray" then m.tvmazeCache = answer.tvmazeCache
     cancelRequest()
     if not answer.ok
         m.autoplay = false
