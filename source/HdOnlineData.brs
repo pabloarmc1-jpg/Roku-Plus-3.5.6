@@ -1369,6 +1369,9 @@ function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as objec
                 if not foundMatch and checkedCount <= 12
                     print "[RokuPlus tvmaze] no_episode_match local=S"; seasonNumber; "E"; episodeNumber
                 end if
+                if not foundMatch and seasonNumber = 8
+                    print "[RokuPlus tvmaze] unmatched_detail S"; seasonNumber; "E"; episodeNumber; " title="; orbitText(localEpisode.title,200)
+                end if
             end if
         end if
     end for
