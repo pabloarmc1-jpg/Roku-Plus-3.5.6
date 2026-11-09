@@ -579,6 +579,7 @@ function rpHdOnlineSelectVariant(master as dynamic, decoderAccept = invalid as d
     if master.encrypted = true or type(master.variants) <> "roArray" then return invalid
     selected = invalid
     score = -1
+    selectedBandwidth = 100000001
     for each variant in master.variants
         if type(variant) = "roAssociativeArray"
         codecs = lcase(orbitText(variant.codecs,200))
@@ -604,9 +605,15 @@ function rpHdOnlineSelectVariant(master as dynamic, decoderAccept = invalid as d
                 end if
                 if accepted
                     candidateScore = width*height
-                    if candidateScore > score
+                    candidateBandwidth = orbitInteger(variant.averageBandwidth,100000000)
+                    if candidateBandwidth <= 0 then candidateBandwidth = orbitInteger(variant.bandwidth,100000000)
+                    if candidateBandwidth <= 0 then candidateBandwidth = 100000000
+                    ' Keep the highest supported resolution, but among equal resolutions
+                    ' start with the lower-bitrate rendition to reduce initial transfer.
+                    if candidateScore > score or (candidateScore = score and candidateBandwidth < selectedBandwidth)
                         selected = variant
                         score = candidateScore
+                        selectedBandwidth = candidateBandwidth
                     end if
                 end if
             end if
