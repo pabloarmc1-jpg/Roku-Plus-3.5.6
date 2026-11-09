@@ -924,7 +924,7 @@ sub refreshSubtitleTracks()
     found = false
     for i = 0 to m.subtitleTracks.count()-1
         if m.subtitleTracks[i].id = selected
-            m.subtitleTrackIndex = i + 1
+            m.subtitleTrackIndex = i + 3
             found = true
             exit for
         end if
