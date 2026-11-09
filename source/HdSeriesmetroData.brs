@@ -168,7 +168,13 @@ function rpHdSeriesmetroEpisodes(html as dynamic, parent as object, requested as
                 if not seen.doesExist(id)
                     title = rpHdSeriesmetroText(rpHdSeriesmetroMatch(block,"<h2[^>]*class="+chr(34)+"entry-title"+chr(34)+"[^>]*>(.*?)</h2>"),200)
                     if title = "" then title = "Episodio "+episode.toStr()
-                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:parent.poster,background:parent.background,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
+                    ' Read the artwork from this episode's own article, not the series page.
+                    imageTag = rpHdSeriesmetroMatch(block,"<img[^>]*>")
+                    episodePoster = rpHdSeriesmetroArt(rpHdSeriesmetroAttr(imageTag,"data-src"))
+                    if episodePoster = "" then episodePoster = rpHdSeriesmetroArt(rpHdSeriesmetroAttr(imageTag,"data-lazy-src"))
+                    if episodePoster = "" then episodePoster = rpHdSeriesmetroArt(rpHdSeriesmetroAttr(imageTag,"src"))
+                    if episodePoster = "" then episodePoster = parent.poster
+                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
                     seen[id] = true
                 end if
             end if
