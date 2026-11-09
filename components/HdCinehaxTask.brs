@@ -47,9 +47,21 @@ function rpHdCinehaxTask(request as object, answer as object, fetcher as dynamic
                 end for
             end if
             loaded = rpHdCinehaxLoadEpisodes(normalized,first,fetcher,normalized.seasonNumbers)
-            if not loaded.ok then return rpHdTaskFailure(answer,loaded)
-            normalized.seasons = loaded.seasons
-            normalized.seasonNumbers = loaded.seasonNumbers
+            if loaded.ok
+                normalized.seasons = loaded.seasons
+                normalized.seasonNumbers = loaded.seasonNumbers
+            else
+                ' Preserve all seasons from metadata; the browser retries episode loading separately.
+                normalized.seasons = []
+                for each seasonNumber in normalized.seasonNumbers
+                    normalized.seasons.push({number:seasonNumber,episodes:[],loaded:false})
+                end for
+                if normalized.seasons.count() = 0
+                    normalized.seasonNumbers = [first]
+                    normalized.seasons.push({number:first,episodes:[],loaded:false})
+                end if
+                print "[RokuPlus series] meta_episode_load_deferred provider=cinehax id="; normalized.id
+            end if
         end if
         answer.item = normalized
         answer.ok = true
