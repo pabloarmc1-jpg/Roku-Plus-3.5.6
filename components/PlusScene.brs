@@ -352,6 +352,7 @@ sub fetched(event as object)
         if m.view = "live" then refreshLiveList(true)
     end if
     drawScreen()
+    if context.operation = "meta" and m.view = "episodes" then loadEpisodeSeason()
     if not m.liveFullscreen and m.dialogBox = invalid then m.top.setFocus(true)
 end sub
 
