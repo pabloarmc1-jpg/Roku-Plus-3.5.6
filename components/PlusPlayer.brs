@@ -1056,6 +1056,9 @@ sub startSubtitleSearchTask(operation as string, subtitleId as string)
         if m.current.doesExist("title")
             if GetInterface(m.current.title,"ifString") <> invalid and m.current.title <> "" then task.title = m.current.title
         end if
+        if m.current.doesExist("kind") and m.current.kind = "episode" and m.current.doesExist("seriesTitle")
+            if GetInterface(m.current.seriesTitle,"ifString") <> invalid and m.current.seriesTitle <> "" then task.title = m.current.seriesTitle
+        end if
         if m.current.doesExist("imdbId")
             if GetInterface(m.current.imdbId,"ifString") <> invalid then task.imdbId = m.current.imdbId
         end if
