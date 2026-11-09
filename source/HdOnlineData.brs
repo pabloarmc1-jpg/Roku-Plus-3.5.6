@@ -1158,64 +1158,84 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     title = orbitText(item.title,200).trim()
     if title = "" then return answer
 
-    ' Search by the source's series title; TVmaze is public and needs no API key.
-    searchUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(title)
-    rpHdTaskBeginSlice(3)
-    response = fetcher(searchUrl,"tvmaze","https://www.tvmaze.com/")
-    if not response.ok then return answer
-    matches = ParseJson(response.body)
-    if type(matches) <> "roArray" then return answer
-    if matches.count() = 0 and instr(1,lcase(title)," y ") > 0
-        alternateTitle = CreateObject("roRegex"," y ","i").replace(title," and ")
-        alternateUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(alternateTitle)
-        rpHdTaskBeginSlice(2)
-        alternateResponse = fetcher(alternateUrl,"tvmaze","https://www.tvmaze.com/")
-        if alternateResponse.ok then matches = ParseJson(alternateResponse.body)
-    end if
-    if type(matches) <> "roArray" or matches.count() = 0 then return answer
-
-    show = invalid
-    for each match in matches
-        if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
-            candidate = match.show
-            candidateName = lcase(orbitText(candidate.name,200).trim())
-            if candidateName = lcase(title)
-                show = candidate
-                exit for
+    cacheKey = lcase(title)
+    cache = invalid
+    if type(request.tvmazeCache) = "roAssociativeArray"
+        if orbitText(request.tvmazeCache.key,200) = cacheKey
+            if type(request.tvmazeCache.episodes) = "roArray"
+                cache = request.tvmazeCache
             end if
         end if
-    end for
-    ' Search results are relevance-ranked. Use the first valid result only when
-    ' the provider title has no exact spelling match (e.g. localized titles).
-    if show = invalid
+    end if
+
+    if cache = invalid
+        ' Search by the source's series title; TVmaze is public and needs no API key.
+        searchUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(title)
+        rpHdTaskBeginSlice(3)
+        response = fetcher(searchUrl,"tvmaze","https://www.tvmaze.com/")
+        if not response.ok then return answer
+        matches = ParseJson(response.body)
+        if type(matches) <> "roArray" then return answer
+        if matches.count() = 0 and instr(1,lcase(title)," y ") > 0
+            alternateTitle = CreateObject("roRegex"," y ","i").replace(title," and ")
+            alternateUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(alternateTitle)
+            rpHdTaskBeginSlice(2)
+            alternateResponse = fetcher(alternateUrl,"tvmaze","https://www.tvmaze.com/")
+            if alternateResponse.ok then matches = ParseJson(alternateResponse.body)
+        end if
+        if type(matches) <> "roArray" or matches.count() = 0 then return answer
+
+        show = invalid
         for each match in matches
             if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
-                if orbitInteger(match.show.id,999999999) > 0
-                    show = match.show
+                candidate = match.show
+                candidateName = lcase(orbitText(candidate.name,200).trim())
+                if candidateName = cacheKey
+                    show = candidate
                     exit for
                 end if
             end if
         end for
-    end if
-    if type(show) <> "roAssociativeArray" then return answer
-    showId = orbitInteger(show.id,999999999)
-    if showId < 1 then return answer
+        ' Search results are relevance-ranked. Use the first valid result only when
+        ' the provider title has no exact spelling match (e.g. localized titles).
+        if show = invalid
+            for each match in matches
+                if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
+                    if orbitInteger(match.show.id,999999999) > 0
+                        show = match.show
+                        exit for
+                    end if
+                end if
+            end for
+        end if
+        if type(show) <> "roAssociativeArray" then return answer
+        showId = orbitInteger(show.id,999999999)
+        if showId < 1 then return answer
 
-    image = show.image
-    if type(image) = "roAssociativeArray"
-        poster = orbitText(image.medium,1000)
-        background = orbitText(image.original,1000)
-        if poster <> "" and operation = "meta" then answer.item.poster = poster
+        poster = ""
+        image = show.image
+        if type(image) = "roAssociativeArray" then poster = orbitText(image.medium,1000)
+        summary = rpHdTvmazeText(show.summary)
+
+        rpHdTaskBeginSlice(2)
+        episodesUrl = "https://api.tvmaze.com/shows/"+showId.toStr()+"/episodes"
+        episodeResponse = fetcher(episodesUrl,"tvmaze","https://www.tvmaze.com/")
+        if not episodeResponse.ok then return answer
+        tvEpisodes = ParseJson(episodeResponse.body)
+        if type(tvEpisodes) <> "roArray" then return answer
+
+        ' Keep only one series in the Scene cache to bound retained memory.
+        cache = {key:cacheKey,showId:showId,poster:poster,summary:summary,episodes:tvEpisodes}
+    else
+        showId = orbitInteger(cache.showId,999999999)
+        poster = orbitText(cache.poster,1000)
+        summary = orbitText(cache.summary,12000)
+        tvEpisodes = cache.episodes
     end if
-    summary = rpHdTvmazeText(show.summary)
+
+    answer.tvmazeCache = cache
+    if poster <> "" and operation = "meta" then answer.item.poster = poster
     if summary <> "" and operation = "meta" then answer.item.description = summary
-
-    rpHdTaskBeginSlice(2)
-    episodesUrl = "https://api.tvmaze.com/shows/"+showId.toStr()+"/episodes"
-    episodeResponse = fetcher(episodesUrl,"tvmaze","https://www.tvmaze.com/")
-    if not episodeResponse.ok then return answer
-    tvEpisodes = ParseJson(episodeResponse.body)
-    if type(tvEpisodes) <> "roArray" then return answer
 
     if operation = "meta"
         if type(answer.item.seasons) = "roArray"
