@@ -1185,9 +1185,21 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     if title = "" then return answer
 
     providerName = orbitText(item.provider,32)
-    cacheKey = lcase(title)
+    cacheKey = lcase(title.trim())
     searchTitle = title
+    ' Translate known provider-localized titles to their canonical TVmaze names.
+    ' These aliases affect lookup only; provider titles and playback IDs stay untouched.
     if cacheKey = "hora de aventura" then searchTitle = "Adventure Time"
+    if cacheKey = "merlina" or cacheKey = "merlina (2022)" then searchTitle = "Wednesday"
+    if cacheKey = "juego de tronos" or cacheKey = "juego de tronos (2011)" then searchTitle = "Game of Thrones"
+    if cacheKey = "bojack horseman (2014)" then searchTitle = "BoJack Horseman"
+    if instr(1,cacheKey,"cÃ³mo conoc") = 1 or instr(1,cacheKey,"cómo conoc") = 1 or instr(1,cacheKey,"como conoc") = 1 then searchTitle = "How I Met Your Mother"
+    if cacheKey = "el juego del calamar" then searchTitle = "Squid Game"
+    if cacheKey = "el juego del calamar: el desafÃ­o" or cacheKey = "el juego del calamar: el desafío" then searchTitle = "Squid Game: The Challenge"
+    if instr(1,cacheKey,"mythic quest:") = 1 then searchTitle = "Mythic Quest"
+    if cacheKey = "el juego de la muerte (2023)" or cacheKey = "el juego de la muerte" then searchTitle = "Death's Game"
+    if cacheKey = "el juego de gracie darling" then searchTitle = "Playing Gracie Darling"
+    if cacheKey = "phony: la otra madre" then searchTitle = "Phony"
     cache = invalid
     print "[RokuPlus tvmaze] start op="; operation; " provider="; providerName; " title="; title
     if type(request.tvmazeCache) = "roAssociativeArray"
