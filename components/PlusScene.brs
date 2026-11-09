@@ -309,6 +309,17 @@ sub fetched(event as object)
             playDetail()
             return
         end if
+        ' Open a series directly in its season and episode browser.
+        if m.detail.kind = "series" and m.detail.seasons.count() > 0
+            m.series = m.detail
+            m.seriesOrigin = m.detailOrigin
+            m.season = 0
+            if m.series.seasons[0].number = 0 and m.series.seasons.count() > 1 then m.season = 1
+            m.episode = 0
+            m.episodeMode = "episodes"
+            m.view = "episodes"
+            m.zone = "seasons"
+        end if
     else if context.operation = "resolve"
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
@@ -932,11 +943,16 @@ sub returnOneStep()
             return
         end if
     else if m.view = "episodes"
-        m.detail = m.series
-        m.detailOrigin = m.seriesOrigin
-        m.view = "detail"
-        m.zone = "action"
-        m.action = 0
+        if m.seriesOrigin = "browse"
+            m.view = "browse"
+            m.zone = "grid"
+        else
+            m.detail = m.series
+            m.detailOrigin = m.seriesOrigin
+            m.view = "detail"
+            m.zone = "action"
+            m.action = 0
+        end if
     else
         goHome()
         return
