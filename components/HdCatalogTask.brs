@@ -626,7 +626,9 @@ sub rpHdTaskBeginSlice(remaining as integer)
     if remaining < 1 then remaining = 1
     if m.hdElapsed <> invalid
         now = m.hdElapsed.totalMilliseconds()
-        budget = (m.hdTotalBudgetMs-now) \ remaining
+        totalBudget = 40000
+        if GetInterface(m.hdTotalBudgetMs,"ifInt") <> invalid then totalBudget = m.hdTotalBudgetMs
+        budget = (totalBudget-now) \ remaining
         ' In "Todas", one slow provider must not consume the entire window
         ' reserved for the remaining sources. Keep a fair share, capped at 9s.
         if budget > 9000 then budget = 9000
@@ -638,7 +640,9 @@ end sub
 function rpHdTaskSliceExpired() as boolean
     if m.hdElapsed = invalid then return false
     now = m.hdElapsed.totalMilliseconds()
-    if now >= m.hdTotalBudgetMs then return true
+    totalBudget = 40000
+    if GetInterface(m.hdTotalBudgetMs,"ifInt") <> invalid then totalBudget = m.hdTotalBudgetMs
+    if now >= totalBudget then return true
     if GetInterface(m.hdProviderDeadline,"ifInt") <> invalid
         if m.hdProviderDeadline > 0 and now >= m.hdProviderDeadline then return true
     end if
