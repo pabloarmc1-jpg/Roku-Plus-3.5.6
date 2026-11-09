@@ -13,7 +13,6 @@
     <field id="allowPreviewReturn" type="boolean" value="false" />
     <field id="previewReturned" type="boolean" alwaysNotify="true" />
     <field id="theme" type="string" value="glass" onChange="applyPlayerTheme" />
-    <field id="loadingLogoUri" type="string" value="" onChange="onLoadingLogoChanged" />
     <function name="closePlayback" />
     <function name="applyPresentation" />
     <function name="applyPlayerTheme" />
@@ -26,10 +25,9 @@
     <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
     <TsStreamServer id="tsStreamServer" />
 
-    <!-- Fullscreen artwork shown until Roku reports that playback has started. -->
+    <!-- Text-only black loading screen until Roku reports that playback has started. -->
     <Group id="loadingOverlay" visible="true">
       <Rectangle width="1920" height="1080" color="0x000000FF" />
-      <Poster id="loadingLogo" translation="[260,250]" width="1400" height="580" loadDisplayMode="scaleToFit" visible="false" />
       <Label id="loadingTitle" translation="[160,475]" width="1600" height="130" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
     </Group>
     <Poster id="previewMask" translation="[294,206]" width="1016" height="572" uri="pkg:/images/ui/live-preview-mask.png" loadDisplayMode="scaleToFit" visible="false" />
