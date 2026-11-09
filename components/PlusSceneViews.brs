@@ -592,81 +592,68 @@ sub episodeScreen()
     topBar()
     if m.series = invalid or m.series.seasons.count() = 0 then return
 
-    words(m.series.title,72,126,1600,76,46,"0xFFFFFFFF").wrap = true
-    words("SERIE",76,207,500,30,18,"0xA3A3A3FF")
+    words(m.series.title,76,142,1500,66,43,"0xFFFFFFFF").wrap = true
+    words("TEMPORADAS",80,218,420,30,18,"0xA3A3A3FF")
 
-    if m.episodeMode = "seasons"
-        ' Netflix-inspired season picker: a clear selected-season header
-        ' followed by a focused list that works with the Roku remote.
-        selectedSeason = m.series.seasons[m.season]
-        selectedName = "Temporada "+selectedSeason.number.toStr()
-        if selectedSeason.number = 0 then selectedName = "Especiales"
-        panel(72,248,1770,82,"0x242424FF")
-        words("▾",104,260,38,48,30,"0xE50914FF")
-        words(selectedName,160,265,850,48,29,"0xFFFFFFFF")
-        words("ELIGE UNA TEMPORADA",76,354,1000,34,20,"0xE50914FF")
-        first = (m.season \ 7)*7
-        for i = 0 to 6
-            n = first+i
-            if n < m.series.seasons.count()
-                season = m.series.seasons[n]
-                y = 405+i*76
-                seasonName = "Temporada "+season.number.toStr()
-                if season.number = 0 then seasonName = "Especiales"
-                panel(72,y,1770,64,"0x181818FF")
-                words(seasonName,108,y+13,1000,38,25,"0xFFFFFFFF")
-                count = season.episodes.count()
-                detail = "Seleccionar temporada"
-                if count > 0 then detail = count.toStr()+" episodios"
-                words(detail,1320,y+16,460,32,19,"0xAFAFAFFF").horizAlign = "right"
-                focusTarget("seasons",n,66,y-5,1782,74,"live")
+    ' Compact horizontal season selector. The current season stays in view.
+    firstSeason = (m.season \\ 6)*6
+    for i = 0 to 5
+        n = firstSeason+i
+        if n < m.series.seasons.count()
+            season = m.series.seasons[n]
+            x = 76+i*294
+            seasonName = "Temporada "+season.number.toStr()
+            if season.number = 0 then seasonName = "Especiales"
+            if n = m.season
+                words(seasonName,x,260,278,48,24,"0xFFFFFFFF")
+                panel(x,310,278,4,"0xE50914FF")
+            else
+                words(seasonName,x,260,278,48,23,"0xB3B3B3FF")
             end if
-        end for
-        words("↑ / ↓  Elegir temporada     OK  Ver episodios     Atrás  Volver",76,1000,1600,34,20,"0x808080FF")
-        return
-    end if
-
-    season = m.series.seasons[m.season]
-    seasonName = "Temporada "+season.number.toStr()
-    if season.number = 0 then seasonName = "Especiales"
-    panel(72,218,1770,62,"0x242424FF")
-    words("▾",104,227,38,42,27,"0xE50914FF")
-    words(seasonName,158,230,650,38,24,"0xFFFFFFFF")
-    words("← Cambiar temporada",1430,232,360,34,19,"0xB3B3B3FF").horizAlign = "right"
-
-    if season.episodes.count() = 0
-        if not m.busy
-            words("No se encontraron episodios. Pulsa OK para reintentar o ← para elegir otra temporada.",220,430,1500,85,27,"0x9696A4FF").wrap = true
-        end if
-        return
-    end if
-
-    words("EPISODIOS",76,306,700,32,19,"0xE50914FF")
-    first = (m.episode \ 5)*5
-    for i = 0 to 4
-        n = first+i
-        if n < season.episodes.count()
-            item = season.episodes[n]
-            y = 350+i*128
-            panel(72,y,1770,116,"0x181818FF")
-            imageUri = orbitText(item.poster,2048)
-            thumbnail(imageUri,88,y+7,204,102,"landscape")
-            episodeLabel = "Episodio "+item.episode.toStr()
-            words(episodeLabel,320,y+10,320,28,18,"0xB3B3B3FF")
-            episodeTitle = orbitText(item.title,220)
-            words(episodeTitle,320,y+39,1160,37,25,"0xFFFFFFFF").wrap = true
-            description = orbitText(item.description,220)
-            if description <> "" then words(description,320,y+78,1320,27,17,"0xA7A7A7FF")
-            watched = rpWatchGet(m.watchState,item.id)
-            if watched <> invalid and watched.watched then words("VISTO ✓",1645,y+38,150,30,18,"0xE50914FF")
-            focusTarget("episodes",n,66,y-5,1782,126,"live")
+            focusTarget("seasons",n,x-8,250,292,70,"wide")
         end if
     end for
-    words("Episodio "+(m.episode+1).toStr()+" de "+season.episodes.count().toStr()+"     ·     OK  Ver episodio",76,1010,1600,34,20,"0x808080FF")
+
+    season = m.series.seasons[m.season]
+    words("EPISODIOS",80,340,500,30,18,"0xA3A3A3FF")
+    if season.episodes.count() = 0
+        message = "Cargando episodios…"
+        if not m.busy then message = "No se encontraron episodios para esta temporada."
+        words(message,100,470,1600,70,30,"0xB3B3B3FF")
+        words("← / →  Cambiar temporada     ↓  Ir a episodios     Atrás  Volver",80,1018,1700,34,19,"0x808080FF")
+        return
+    end if
+
+    ' Flat episode rows with large landscape artwork, like a streaming-service episode list.
+    firstEpisode = (m.episode \\ 4)*4
+    for i = 0 to 3
+        n = firstEpisode+i
+        if n < season.episodes.count()
+            item = season.episodes[n]
+            y = 382+i*151
+            panel(76,y,1768,140,"0x111111FF")
+            imageUri = orbitText(item.poster,2048)
+            thumbnail(imageUri,92,y+7,246,126,"landscape")
+            episodeNumber = "Episodio "+item.episode.toStr()
+            words(episodeNumber,372,y+12,440,27,18,"0xA3A3A3FF")
+            episodeTitle = orbitText(item.title,220)
+            words(episodeTitle,372,y+40,1300,39,26,"0xFFFFFFFF").wrap = true
+            description = orbitText(item.description,260)
+            if description <> "" then words(description,372,y+83,1370,43,18,"0xB3B3B3FF").wrap = true
+            watched = rpWatchGet(m.watchState,item.id)
+            if watched <> invalid
+                if watched.watched = true then words("VISTO",1690,y+48,120,28,16,"0xE50914FF").horizAlign = "right"
+            end if
+            focusTarget("episodes",n,68,y-5,1784,150,"live-search")
+        end if
+    end for
+
+    lastEpisode = firstEpisode+4
+    if lastEpisode > season.episodes.count() then lastEpisode = season.episodes.count()
+    words("Episodios "+(firstEpisode+1).toStr()+"–"+lastEpisode.toStr()+" de "+season.episodes.count().toStr(),80,1000,800,32,18,"0x808080FF")
+    words("↑ / ↓  Elegir episodio     OK  Ver episodio     ←  Temporadas",950,1000,870,32,18,"0x808080FF").horizAlign = "right"
 end sub
 
-' Channel badges use source logos as-is, with a real fallback for absent or
-' failed images. Live video is never simulated by an image.
 sub liveChannelBadge(item as object, x as integer, y as integer)
     glassSurface("live-logo-badge",x,y,106,77)
     initials = "TV"
