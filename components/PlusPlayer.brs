@@ -4,8 +4,11 @@ sub init()
     m.top.visible = false
     m.decoder = m.top.findNode("decoder")
     m.tsStreamServer = m.top.findNode("tsStreamServer")
-    ' Lightweight playback test: keep decoder statistics disabled.
-    ' Re-enable only after comparing long-playback stability on Roku.
+    if m.decoder.hasField("enableDecoderStats")
+        m.decoder.enableDecoderStats = true
+        print "[RokuPlus decoder] enableDecoderStats="; m.decoder.enableDecoderStats
+    end if
+    if m.decoder.hasField("decoderStats") then m.decoder.observeField("decoderStats", "onNativeDecoderStats")
     m.audioSelectionPreferenceSet = false
     if m.decoder.hasField("seamlessAudioTrackSelection")
         m.decoder.seamlessAudioTrackSelection = true
@@ -13,8 +16,6 @@ sub init()
     end if
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
-    m.loadingOverlay = m.top.findNode("loadingOverlay")
-    m.loadingTitle = m.top.findNode("loadingTitle")
     m.panel = m.top.findNode("transport")
     m.capsule = m.top.findNode("capsule")
     m.titleShade = m.top.findNode("titleShade")
@@ -43,8 +44,14 @@ sub init()
     m.decoder.observeField("bufferingStatus", "onBufferDetails")
     if m.decoder.hasField("availableAudioTracks") then m.decoder.observeField("availableAudioTracks", "onNativeAudioTrackDetails")
     if m.decoder.hasField("currentAudioTrack") then m.decoder.observeField("currentAudioTrack", "onNativeAudioTrackDetails")
-    ' Lightweight playback test: omit high-volume native diagnostic observers.
-    ' Essential state, position, buffering and audio-track observers remain active.
+    if m.decoder.hasField("streamingSegment") then m.decoder.observeField("streamingSegment", "onNativeStreamDetails")
+    if m.decoder.hasField("downloadedSegment") then m.decoder.observeField("downloadedSegment", "onNativeStreamDetails")
+    if m.decoder.hasField("playStartInfo") then m.decoder.observeField("playStartInfo", "onNativeStreamDetails")
+    if m.decoder.hasField("errorInfo") then m.decoder.observeField("errorInfo", "onNativeStreamDetails")
+    ' Capture native HLS startup/error fields at the instant Roku changes them.
+    for each field in ["errorCode","errorMsg","errorStr","streamInfo","videoFormat","audioFormat","timeToStartStreaming","contentIndex"]
+        if m.decoder.hasField(field) then m.decoder.observeField(field, "onNativeStreamDetails")
+    end for
     m.pulse.observeField("fire", "onPulse")
     m.monotonic = CreateObject("roTimespan")
     m.monotonic.mark()
@@ -146,11 +153,10 @@ sub applyPresentation()
         m.decoder.width = 1920
         m.decoder.height = 1080
         if m.mediaOpen
-            state = m.decoder.state
-            if state = "playing" or state = "paused" or m.failed
-                revealTransport()
-            else
+            if m.hlsStartupIsolation
                 m.panel.visible = false
+            else
+                revealTransport()
             end if
             m.top.setFocus(true)
         end if
@@ -199,10 +205,6 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
-    m.loadingOverlay.visible = true
-    m.panel.visible = false
-
-    if m.loadingTitle <> invalid then m.loadingTitle.visible = true
     m.mediaNode = invalid
     m.hlsRetryCount = 0
     m.hlsPrebufferPending = false
@@ -256,7 +258,6 @@ sub openRequest()
     if not m.segmentMode and not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
-    m.loadingTitle.text = m.titleText.text
     ' Compact metadata row: only display values supplied by the catalogue.
     metaParts = []
     if GetInterface(supplied.year, "ifString") <> invalid and len(supplied.year) > 0 then metaParts.push(supplied.year)
@@ -304,7 +305,7 @@ sub openRequest()
     m.diagnosticTsActive = diagnosticTs
     m.effectiveStreamFormat = format
     m.hlsStartupIsolation = format = "hls"
-    m.hlsPrebufferPending = false
+    m.hlsPrebufferPending = m.hlsStartupIsolation
     if m.hlsStartupIsolation
         ' Diagnostic 3.5.44: cap decoder allocation to this 720p Roku TV.
         ' Roku documents video decode memory as shared with SceneGraph/OpenGL texture memory.
@@ -315,13 +316,12 @@ sub openRequest()
             print "[RokuPlus hls-memory] maxVideoDecodeResolution=unsupported"
         end if
         ' Keep startup diagnostics lightweight while testing the decoder memory cap.
-        ' Decoder statistics stay disabled in this lightweight test for every format.
         if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = false
-        print "[RokuPlus hls-minimal] decoderStats=disabled"
+        print "[RokuPlus hls-minimal] decoderStats=disabled nativePoll=deferred"
         print "[RokuPlus hls-ui] startup isolation enabled"
     else
         if m.decoder.hasField("maxVideoDecodeResolution") then m.decoder.maxVideoDecodeResolution = [0, 0]
-        if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = false
+        if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
     end if
     ' HLS isolation test: do not force an app-selected audio language over the
     ' Roku system preference. Enable seamless HLS audio-track changes from init.
@@ -446,11 +446,11 @@ sub openRequest()
     m.top.visible = true
     m.top.active = true
     applyPresentation()
-    ' Controlled startup test: bypass prebuffer and start native HLS directly.
-    m.decoder.visible = true
-    m.decoder.control = "play"
     if m.hlsStartupIsolation
-        print "[RokuPlus hls-startup-test] action=direct-play prebuffer=disabled"
+        m.decoder.control = "prebuffer"
+        print "[RokuPlus hls-prebuffer] action=prebuffer"
+    else
+        m.decoder.control = "play"
     end if
     m.pulse.control = "start"
     emitDiagnostic("open")
@@ -470,7 +470,6 @@ sub closePlayback()
         if GetInterface(m.current.requestId,"ifString") <> invalid then closedRequest.requestId = m.current.requestId
     end if
     m.closing = true
-    if m.loadingOverlay <> invalid then m.loadingOverlay.visible = false
     emitDiagnostic("close")
     m.mediaOpen = false
     m.ticket = invalid
@@ -550,17 +549,15 @@ sub onDecoderState()
     if m.phase = "buffering"
         m.bufferSince = m.monotonic.totalMilliseconds()
         if m.ticket <> invalid then m.ticket.sawBuffering = true
-        ' Keep the text-only loading screen unobstructed until the first real playing state.
-        if m.loadingOverlay <> invalid and m.loadingOverlay.visible then m.panel.visible = false
+        if not m.hlsStartupIsolation then revealTransport()
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
-        if m.loadingOverlay <> invalid then m.loadingOverlay.visible = false
         if m.hlsStartupIsolation
             m.hlsStartupIsolation = false
+            revealTransport()
             print "[RokuPlus hls-ui] startup isolation released: playing"
         end if
-        revealTransport()
         m.segmentTransitioning = false
         m.bufferSince = invalid
         applyResumeSeek()
@@ -579,7 +576,6 @@ sub onDecoderState()
         end if
         revealTransport()
     else if m.phase = "error"
-        if m.loadingOverlay <> invalid then m.loadingOverlay.visible = false
         m.hlsStartupIsolation = false
         m.failed = true
         m.ticket = invalid
@@ -940,7 +936,6 @@ sub publishProgress(force = false as boolean)
 end sub
 
 sub revealTransport()
-    if m.failed and m.loadingOverlay <> invalid then m.loadingOverlay.visible = false
     if isPreviewPresentation()
         m.panel.visible = false
         return
@@ -1075,7 +1070,7 @@ sub advanceHlsSoftRestart(now as integer)
             m.mediaNode = freshMedia
             m.decoder.contentIsPlaylist = false
             m.decoder.content = freshMedia
-            m.hlsPrebufferPending = false
+            m.hlsPrebufferPending = true
             print "[RokuPlus hls-retry] action=fresh-content format="; freshMedia.streamFormat; " headers="; freshHeaders.count()
             m.hlsRestartStage = 2
             m.hlsRestartAt = now
@@ -1092,13 +1087,13 @@ sub advanceHlsSoftRestart(now as integer)
         end if
     else if m.hlsRestartStage = 2 and now - m.hlsRestartAt >= 500
         m.decoder.visible = true
-        m.hlsPrebufferPending = false
-        m.decoder.control = "play"
-        print "[RokuPlus hls-startup-test] action=retry-direct-play prebuffer=disabled"
+        m.hlsPrebufferPending = true
+        m.decoder.control = "prebuffer"
+        print "[RokuPlus hls-prebuffer] action=retry-prebuffer"
         m.hlsRestartStage = 0
         m.hlsRestartAt = 0
         m.watch = plusWatchdogCreate(now)
-        print "[RokuPlus hls-retry] attempt="; m.hlsRetryCount; " action=reattach-direct-play"
+        print "[RokuPlus hls-retry] attempt="; m.hlsRetryCount; " action=reattach-prebuffer"
         emitDiagnostic("hls_soft_restart_play")
     end if
 end sub
