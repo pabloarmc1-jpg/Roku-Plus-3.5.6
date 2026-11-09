@@ -438,8 +438,8 @@ function rpHdTaskSameCatalogItem(existing as dynamic, item as dynamic) as boolea
         ' One source has an ID and the other does not: allow a strict title/year fallback.
         ' Conflicting IDs were already rejected above.
     end if
-    existingKey = CreateObject("roRegex","\\s+","").replace(lcase(orbitText(existing.title,200).trim()),"")
-    itemKey = CreateObject("roRegex","\\s+","").replace(lcase(orbitText(item.title,200).trim()),"")
+    existingKey = CreateObject("roRegex","\s+","").replace(lcase(orbitText(existing.title,200).trim()),"")
+    itemKey = CreateObject("roRegex","\s+","").replace(lcase(orbitText(item.title,200).trim()),"")
     if existingKey = "" or itemKey = "" or existingKey <> itemKey then return false
     existingYear = orbitText(existing.year,4)
     itemYear = orbitText(item.year,4)
