@@ -169,6 +169,26 @@ function rpHdOnlineMetadata(raw as dynamic, provider as string, kind as string, 
     return item
 end function
 
+function rpHdOnlineEpisodeArt(ep as dynamic, provider as string) as string
+    if type(ep) <> "roAssociativeArray" then return ""
+    images = ep.images
+    if type(images) = "roAssociativeArray"
+        for each key in ["still","thumbnail","poster","backdrop","cover"]
+            if images.doesExist(key)
+                image = rpHdOnlineArt(images[key],provider)
+                if image <> "" then return image
+            end if
+        end for
+    end if
+    for each key in ["thumbnail","still","poster","image","featured_image","cover"]
+        if ep.doesExist(key)
+            image = rpHdOnlineArt(ep[key],provider)
+            if image <> "" then return image
+        end if
+    end for
+    return ""
+end function
+
 function rpHdOnlineEpisodes(raw as dynamic, provider as string, parent as dynamic) as object
     answer = {seasons:[], seasonNumbers:[], hasMore:false, nextPage:1}
     if type(raw) <> "roAssociativeArray" or type(parent) <> "roAssociativeArray" then return answer
@@ -205,13 +225,19 @@ function rpHdOnlineEpisodes(raw as dynamic, provider as string, parent as dynami
             if number > 0 and seasonNumber >= 0 and episodeNumber > 0
                 id = "hdo-"+provider+"-"+number.toStr()
                 if not seen.doesExist(id)
-                    title = orbitText(ep.title,200)
+                    title = orbitText(ep.title,200).trim()
+                    if title = "" then title = orbitText(ep.name,200).trim()
+                    if title = "" then title = orbitText(ep.episode_title,200).trim()
                     if title = "" then title = "Episodio "+episodeNumber.toStr()
+                    episodePoster = rpHdOnlineEpisodeArt(ep,provider)
+                    if episodePoster = "" then episodePoster = parent.poster
+                    episodeDescription = orbitText(ep.overview,1200)
+                    if episodeDescription = "" then episodeDescription = orbitText(ep.description,1200)
                     item = {
                         id:id, imdbId:"", kind:"episode", library:"hd-online", provider:provider, providerId:number
                         providerSlug:"", title:title, seriesTitle:parent.title, season:seasonNumber, episode:episodeNumber
-                        poster:parent.poster, background:parent.background, description:orbitText(ep.overview)
-                        year:parent.year, runtime:0, language:"", seasons:[]
+                        poster:episodePoster, background:parent.background, description:episodeDescription
+                        year:parent.year, runtime:orbitInteger(ep.runtime,86400), language:"", seasons:[]
                     }
                     if item.description = "" then item.description = parent.description
                     key = seasonNumber.toStr()
