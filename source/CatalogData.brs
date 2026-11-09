@@ -378,10 +378,10 @@ function orbitUniqueCatalogItems(items as dynamic) as object
             if kind = "series" and title <> ""
                 ' Providers inconsistently include the release year in the title.
                 ' Normalize "Example (2020)" and "Example" to one series identity.
-                yearMatch = CreateObject("roRegex","\\s*\\(((19|20)[0-9]{2})\\)\\s*$","").match(title)
+                yearMatch = CreateObject("roRegex","\s*\(((19|20)[0-9]{2})\)\s*$","").match(title)
                 if yearMatch.count() > 2
                     if year = "" then year = yearMatch[1]
-                    title = CreateObject("roRegex","\\s*\\(((19|20)[0-9]{2})\\)\\s*$","").replace(title,"").trim()
+                    title = CreateObject("roRegex","\s*\(((19|20)[0-9]{2})\)\s*$","").replace(title,"").trim()
                 end if
                 item.title = title
                 if orbitText(item.year,12).trim() = "" and year <> "" then item.year = year
@@ -389,10 +389,10 @@ function orbitUniqueCatalogItems(items as dynamic) as object
             else if kind = "movie" and title <> ""
                 ' Movie providers also disagree about whether the year is part of
                 ' the title. Normalize "Example (2020)" before comparing cards.
-                yearMatch = CreateObject("roRegex","\\s*\\(((19|20)[0-9]{2})\\)\\s*$","").match(title)
+                yearMatch = CreateObject("roRegex","\s*\(((19|20)[0-9]{2})\)\s*$","").match(title)
                 if yearMatch.count() > 2
                     if year = "" then year = yearMatch[1]
-                    title = CreateObject("roRegex","\\s*\\(((19|20)[0-9]{2})\\)\\s*$","").replace(title,"").trim()
+                    title = CreateObject("roRegex","\s*\(((19|20)[0-9]{2})\)\s*$","").replace(title,"").trim()
                 end if
                 item.title = title
                 if orbitText(item.year,12).trim() = "" and year <> "" then item.year = year
