@@ -75,8 +75,6 @@
       <Rectangle width="1600" height="100" color="0x000000B8" />
       <Label id="externalSubtitleText" translation="[40,8]" width="1520" height="84" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
     </Group>
-    <SubtitleSearchTask id="subtitleSearchTaskTemplate" />
-
     <Timer id="uiPulse" duration="0.25" repeat="true" />
     <Timer id="startupTypeTimer" duration="0.08" repeat="true" />
   </children>
