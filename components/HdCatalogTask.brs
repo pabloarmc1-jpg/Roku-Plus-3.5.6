@@ -418,6 +418,34 @@ end function
 
 ' Remove a trailing year from a series display title and retain it as metadata.
 ' This allows providers with different IDs/title formatting to be deduplicated.
+' Cross-provider identity: trust matching external IDs first. If both records
+' carry conflicting external IDs, never merge them by title. Title/year is a
+' conservative fallback for providers that do not expose shared identifiers.
+function rpHdTaskSameCatalogItem(existing as dynamic, item as dynamic) as boolean
+    if type(existing) <> "roAssociativeArray" or type(item) <> "roAssociativeArray" then return false
+    if orbitText(existing.kind,16) <> orbitText(item.kind,16) then return false
+    existingTmdb = orbitText(existing.providerTmdbId,40)
+    itemTmdb = orbitText(item.providerTmdbId,40)
+    if existingTmdb <> "" and itemTmdb <> ""
+        return existingTmdb = itemTmdb
+    end if
+    existingImdb = lcase(orbitText(existing.imdbId,40))
+    itemImdb = lcase(orbitText(item.imdbId,40))
+    if existingImdb <> "" and itemImdb <> ""
+        return existingImdb = itemImdb
+    end if
+    if existingTmdb <> "" or itemTmdb <> "" or existingImdb <> "" or itemImdb <> ""
+        ' One source has an ID and the other does not: allow a strict title/year fallback.
+        ' Conflicting IDs were already rejected above.
+    end if
+    existingKey = CreateObject("roRegex","\\s+","").replace(lcase(orbitText(existing.title,200).trim()),"")
+    itemKey = CreateObject("roRegex","\\s+","").replace(lcase(orbitText(item.title,200).trim()),"")
+    if existingKey = "" or itemKey = "" or existingKey <> itemKey then return false
+    existingYear = orbitText(existing.year,4)
+    itemYear = orbitText(item.year,4)
+    return existingYear = "" or itemYear = "" or existingYear = itemYear
+end function
+
 function rpHdTaskNormalizeSeriesTitle(item as dynamic) as dynamic
     if type(item) <> "roAssociativeArray" then return item
     title = orbitText(item.title,200).trim()
@@ -484,32 +512,27 @@ function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as
         for each entries in pages
             if row < entries.count()
                 item = entries[row]
-                if answer.kind = "series"
-                    item = rpHdTaskNormalizeSeriesTitle(item)
+                if answer.kind = "series" or answer.kind = "movie"
+                    if answer.kind = "series" then item = rpHdTaskNormalizeSeriesTitle(item)
                     duplicateIndex = -1
                     for existingIndex = 0 to deduped.count()-1
                         existing = deduped[existingIndex]
-                        existingKey = CreateObject("roRegex","\s+","").replace(lcase(orbitText(existing.title,200)),"")
-                        itemKey = CreateObject("roRegex","\s+","").replace(lcase(orbitText(item.title,200)),"")
-                        if existingKey = itemKey
-                            existingYear = orbitText(existing.year,4)
-                            itemYear = orbitText(item.year,4)
-                            if existingYear = "" or itemYear = "" or existingYear = itemYear
-                                duplicateIndex = existingIndex
-                                exit for
-                            end if
+                        if rpHdTaskSameCatalogItem(existing,item)
+                            duplicateIndex = existingIndex
+                            exit for
                         end if
                     end for
                     if duplicateIndex < 0
                         deduped.push(item)
                     else
-                        ' Prefer the entry with a known year and fill missing artwork/details.
+                        ' Keep the first provider identity and fill only missing display metadata.
                         existing = deduped[duplicateIndex]
                         if existing.year = "" and item.year <> "" then existing.year = item.year
                         if existing.poster = "" and item.poster <> "" then existing.poster = item.poster
                         if existing.background = "" and item.background <> "" then existing.background = item.background
                         if existing.description = "" and item.description <> "" then existing.description = item.description
-                        if existing.provider = "" and item.provider <> "" then existing.provider = item.provider
+                        if existing.providerTmdbId = "" and item.providerTmdbId <> "" then existing.providerTmdbId = item.providerTmdbId
+                        if existing.imdbId = "" and item.imdbId <> "" then existing.imdbId = item.imdbId
                     end if
                 else
                     deduped.push(item)
