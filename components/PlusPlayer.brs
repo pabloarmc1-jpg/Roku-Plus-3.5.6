@@ -337,18 +337,13 @@ sub openRequest()
         if m.decoder.hasField("maxVideoDecodeResolution") then m.decoder.maxVideoDecodeResolution = [0, 0]
         if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
     end if
-    ' HLS isolation test: do not force an app-selected audio language over the
-    ' Roku system preference. Enable seamless HLS audio-track changes from init.
+    ' Let Roku honor the user's saved audio-language preference. If that
+    ' language is unavailable, Roku can fall back to another available track.
+    ' Never force Spanish here: doing so can block sources without Spanish audio.
     if m.decoder.hasField("audioSelectionPreferences")
-        if format = "hls"
-            m.decoder.audioSelectionPreferences = {values: [], overrideSystem: false}
-            m.audioSelectionPreferenceSet = false
-            print "[RokuPlus decoder] hlsAudioSelection=system-default"
-        else
-            m.decoder.audioSelectionPreferences = {values: [{language: ["es", "es-*"]}], overrideSystem: true}
-            m.audioSelectionPreferenceSet = true
-            print "[RokuPlus decoder] audioSelectionPreferences=es"
-        end if
+        m.decoder.audioSelectionPreferences = {values: [], overrideSystem: false}
+        m.audioSelectionPreferenceSet = false
+        print "[RokuPlus decoder] audioSelection=system-default-with-fallback format="; format
     end if
     media = CreateObject("roSGNode", "ContentNode")
     ' 3.5.56: restore the real provider URL after the successful Mux media-playlist control test.
