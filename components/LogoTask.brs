@@ -8,6 +8,7 @@ sub runLogoLookup()
     answer = {ok:false, requestId:m.top.requestId, title:m.top.title, url:""}
     title = left(m.top.title,180).trim()
     if title = "" or m.top.cancelRequested then return
+    print "[RokuPlus logo] search_start title="; title
     encoder = CreateObject("roUrlTransfer")
     search = chr(34) + title + chr(34) + " logo"
     endpoint = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=" + encoder.escape(search) + "&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url%7Cmime&iiurlwidth=1400&format=json"
@@ -19,7 +20,11 @@ sub runLogoLookup()
     transfer.setUrl(endpoint)
     files = CreateObject("roFileSystem")
     filename = "tmp:/rokuplus-logo-" + CreateObject("roDeviceInfo").getRandomUUID() + ".json"
-    if not transfer.asyncGetToFile(filename) then return
+    if not transfer.asyncGetToFile(filename)
+        print "[RokuPlus logo] request_start_failed"
+        if not m.top.cancelRequested then m.top.result = answer
+        return
+    end if
     elapsed = CreateObject("roTimespan")
     elapsed.mark()
     finished = false
@@ -36,11 +41,12 @@ sub runLogoLookup()
         end if
     end while
     if not finished then transfer.asyncCancel()
+    print "[RokuPlus logo] http finished="; finished; " status="; code; " ms="; elapsed.totalMilliseconds()
     if finished and code = 200 and not m.top.cancelRequested
-        info = files.stat(filename)
-        size = logoTaskFileSize(info)
-        if size > 0 and size <= 1048576
-            body = ReadAsciiFile(filename)
+        ' ReadAsciiFile returns the JSON text directly. roFileSystem.stat returns
+        ' an roFileInfo object, not an associative array with a size field.
+        body = ReadAsciiFile(filename)
+        if GetInterface(body, "ifString") <> invalid and len(body) > 0 and len(body) <= 1048576
             data = ParseJson(body)
             if type(data) = "roAssociativeArray" and type(data.query) = "roAssociativeArray" and type(data.query.pages) = "roAssociativeArray"
                 pages = data.query.pages
@@ -59,25 +65,18 @@ sub runLogoLookup()
                     answer.ok = true
                     answer.url = thumb
                     answer.title = orbitLogoText(page.title,240)
+                    print "[RokuPlus logo] candidate="; answer.title; " mime="; mime
                     exit for
                 end for
             end if
         end if
     end if
     files.delete(filename)
+    if not answer.ok then print "[RokuPlus logo] not_found title="; title
     if not m.top.cancelRequested then m.top.result = answer
 end sub
 
 function orbitLogoText(value as dynamic, limit as integer) as string
     if GetInterface(value,"ifString") = invalid then return ""
     return left(value,limit)
-end function
-
-function logoTaskFileSize(info as dynamic) as integer
-    if type(info) <> "roAssociativeArray" or not info.doesExist("size") then return -1
-    value = info.size
-    if GetInterface(value,"ifInt") = invalid and GetInterface(value,"ifLongInt") = invalid then return -1
-    if value < 0 then return -1
-    if value > 1048576 then return 1048577
-    return int(value)
 end function
