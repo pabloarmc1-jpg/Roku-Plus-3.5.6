@@ -431,6 +431,8 @@ sub launchVideo(item as object, url as string, format as string)
     if descriptor.provider = "lamovie"
         print "[RokuPlus identity] launch id="; descriptor.itemId; " providerId="; orbitText(item.providerId,40); " slugPresent="; item.doesExist("providerSlug"); " slug="; orbitText(item.providerSlug,200)
     end if
+    if item.doesExist("imdbId") then descriptor.imdbId = orbitText(item.imdbId,24)
+    if item.doesExist("seriesTitle") then descriptor.seriesTitle = orbitText(item.seriesTitle,200)
     if item.doesExist("season") then descriptor.season = item.season
     if item.doesExist("episode") then descriptor.episode = item.episode
     if item.doesExist("introStart") then descriptor.introStart = item.introStart
