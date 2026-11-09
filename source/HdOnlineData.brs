@@ -1198,7 +1198,6 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
         poster = orbitText(image.medium,1000)
         background = orbitText(image.original,1000)
         if poster <> "" and operation = "meta" then answer.item.poster = poster
-        if background <> "" and operation = "meta" then answer.item.background = background
     end if
     summary = rpHdTvmazeText(show.summary)
     if summary <> "" and operation = "meta" then answer.item.description = summary
