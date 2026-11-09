@@ -44,6 +44,7 @@ sub init()
     m.subtitleTracks = []
     m.subtitleTrackIndex = 0
     m.subtitleOnlineResults = []
+    m.subtitleApiKeyDialog = invalid
     m.subtitleOnlineBusy = false
     m.subtitleOnlineOperation = ""
     m.subtitleOnlinePendingLabel = ""
@@ -957,6 +958,12 @@ sub drawSubtitleMenu()
     output += chr(10)
     prefix = "   "
     if m.subtitleTrackIndex = 1 then prefix = "▶  "
+    keyStatus = "Sin configurar"
+    if subtitleApiKeyLoad() <> "" then keyStatus = "Configurada"
+    output += prefix + "Configurar API Key (" + keyStatus + ")"
+    output += chr(10)
+    prefix = "   "
+    if m.subtitleTrackIndex = 2 then prefix = "▶  "
     searchLabel = "Buscar subtítulos en línea (Español)"
     if m.subtitleOnlineBusy
         if m.subtitleOnlineOperation = "download" then searchLabel = "Descargando subtítulo..."
@@ -966,10 +973,10 @@ sub drawSubtitleMenu()
     for i = 0 to m.subtitleOnlineResults.count()-1
         output += chr(10)
         prefix = "   "
-        if i + 2 = m.subtitleTrackIndex then prefix = "▶  "
+        if i + 3 = m.subtitleTrackIndex then prefix = "▶  "
         output += prefix + m.subtitleOnlineResults[i].label + "  (ES · en línea)"
     end for
-    nativeOffset = 2 + m.subtitleOnlineResults.count()
+    nativeOffset = 3 + m.subtitleOnlineResults.count()
     for i = 0 to m.subtitleTracks.count()-1
         output += chr(10)
         prefix = "   "
@@ -991,7 +998,7 @@ sub closeSubtitleMenu()
 end sub
 
 sub moveSubtitleMenuSelection(direction as integer)
-    count = 2 + m.subtitleOnlineResults.count() + m.subtitleTracks.count()
+    count = 3 + m.subtitleOnlineResults.count() + m.subtitleTracks.count()
     m.subtitleTrackIndex = m.subtitleTrackIndex + direction
     if m.subtitleTrackIndex < 0 then m.subtitleTrackIndex = count - 1
     if m.subtitleTrackIndex >= count then m.subtitleTrackIndex = 0
@@ -1012,13 +1019,16 @@ sub selectSubtitleTrack()
         m.notice = "Subtítulos desactivados."
         print "[RokuPlus subtitles] selected=off"
     else if m.subtitleTrackIndex = 1
+        openSubtitleApiKeyDialog()
+        return
+    else if m.subtitleTrackIndex = 2
         m.subtitleOnlineBusy = true
         m.subtitleOnlineOperation = "search"
         drawSubtitleMenu()
         startSubtitleSearchTask("search","")
         return
-    else if m.subtitleTrackIndex < 2 + m.subtitleOnlineResults.count()
-        onlineIndex = m.subtitleTrackIndex - 2
+    else if m.subtitleTrackIndex < 3 + m.subtitleOnlineResults.count()
+        onlineIndex = m.subtitleTrackIndex - 3
         if onlineIndex < 0 or onlineIndex >= m.subtitleOnlineResults.count() then return
         m.subtitleOnlinePendingLabel = m.subtitleOnlineResults[onlineIndex].label
         m.subtitleOnlineBusy = true
@@ -1027,7 +1037,7 @@ sub selectSubtitleTrack()
         startSubtitleSearchTask("download",m.subtitleOnlineResults[onlineIndex].id)
         return
     else
-        nativeIndex = m.subtitleTrackIndex - 2 - m.subtitleOnlineResults.count()
+        nativeIndex = m.subtitleTrackIndex - 3 - m.subtitleOnlineResults.count()
         if nativeIndex < 0 or nativeIndex >= m.subtitleTracks.count() then return
         chosen = m.subtitleTracks[nativeIndex]
         if not m.decoder.hasField("subtitleTrack")
@@ -1050,6 +1060,97 @@ sub selectSubtitleTrack()
     drawTransport()
 end sub
 
+sub openSubtitleApiKeyDialog()
+    scene = m.top.getScene()
+    if scene = invalid then
+        m.notice = "No se pudo abrir la configuración de la API Key."
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
+        return
+    end if
+    dialog = CreateObject("roSGNode","StandardKeyboardDialog")
+    if dialog = invalid then return
+    dialog.title = "API Key · Subtitle Search Engine"
+    dialog.message = ["Pega tu API Key. Se guarda únicamente en este Roku."]
+    dialog.buttons = ["Guardar","Borrar","Cancelar"]
+    dialog.keyboardDomain = "password"
+    dialog.text = ""
+    if dialog.textEditBox <> invalid
+        dialog.textEditBox.secureMode = true
+        dialog.textEditBox.secureLastCharacter = true
+    end if
+    dialog.observeField("buttonSelected","onSubtitleApiKeyDialogButton")
+    m.subtitleApiKeyDialog = dialog
+    scene.dialog = dialog
+end sub
+
+sub onSubtitleApiKeyDialogButton()
+    dialog = m.subtitleApiKeyDialog
+    if dialog = invalid then return
+    selected = dialog.buttonSelected
+    scene = m.top.getScene()
+    if selected = 0
+        value = dialog.text
+        if GetInterface(value,"ifString") = invalid then value = ""
+        value = value.trim()
+        if value <> "" and len(value) <= 512 and instr(1,value,chr(10)) = 0 and instr(1,value,chr(13)) = 0
+            if subtitleApiKeySave(value)
+                m.notice = "API Key guardada en este Roku."
+            else
+                m.notice = "No se pudo guardar la API Key."
+            end if
+        else
+            m.notice = "La API Key está vacía o no es válida."
+        end if
+    else if selected = 1
+        if subtitleApiKeyClear()
+            m.notice = "API Key borrada de este Roku."
+        else
+            m.notice = "No se pudo borrar la API Key."
+        end if
+    end if
+    m.subtitleApiKeyDialog = invalid
+    if scene <> invalid then scene.dialog = invalid
+    m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
+    drawSubtitleMenu()
+    revealTransport()
+    drawTransport()
+end sub
+
+function subtitleApiKeyLoad() as string
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return ""
+    value = section.read("subtitleSearchEngineApiKey")
+    if GetInterface(value,"ifString") = invalid then return ""
+    return value
+end function
+
+function subtitleApiKeySave(value as dynamic) as boolean
+    if GetInterface(value,"ifString") = invalid then return false
+    candidate = value.trim()
+    if candidate = "" or len(candidate) > 512 then return false
+    if instr(1,candidate,chr(10)) > 0 or instr(1,candidate,chr(13)) > 0 then return false
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    previous = section.read("subtitleSearchEngineApiKey")
+    if section.write("subtitleSearchEngineApiKey",candidate) <> true then return false
+    if section.flush() = true then return true
+    if previous = "" then section.delete("subtitleSearchEngineApiKey") else section.write("subtitleSearchEngineApiKey",previous)
+    section.flush()
+    return false
+end function
+
+function subtitleApiKeyClear() as boolean
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    previous = section.read("subtitleSearchEngineApiKey")
+    if previous = "" then return true
+    section.delete("subtitleSearchEngineApiKey")
+    if section.flush() = true then return true
+    section.write("subtitleSearchEngineApiKey",previous)
+    section.flush()
+    return false
+end function
+
 sub startSubtitleSearchTask(operation as string, subtitleId as string)
     cancelSubtitleSearchTask()
     task = CreateObject("roSGNode","SubtitleSearchTask")
@@ -1067,6 +1168,7 @@ sub startSubtitleSearchTask(operation as string, subtitleId as string)
         end if
     end if
     task.subtitleId = subtitleId
+    task.apiKey = subtitleApiKeyLoad()
     task.language = "es"
     task.observeField("result","onSubtitleSearchTaskResult")
     m.subtitleSearchTask = task
