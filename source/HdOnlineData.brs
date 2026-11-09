@@ -1265,5 +1265,5 @@ function rpHdTvmazeText(value as dynamic) as string
     for each pair in [["&amp;","&"],["&quot;",chr(34)],["&#039;","'"],["&#39;","'"],["&nbsp;"," "],["&#8217;","'"],["&#8211;","-"],["&#8212;","-"]]
         text = text.replace(pair[0],pair[1])
     end for
-    return left(CreateObject("roRegex","\\s+","").replaceAll(text," ").trim(),2400)
+    return left(CreateObject("roRegex","\s+","").replaceAll(text," ").trim(),2400)
 end function
