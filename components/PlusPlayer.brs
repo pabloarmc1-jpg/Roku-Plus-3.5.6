@@ -266,6 +266,7 @@ sub openRequest()
     if not m.segmentMode and not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
+    m.loadingTitle.text = m.titleText.text
     ' Compact metadata row: only display values supplied by the catalogue.
     metaParts = []
     if GetInterface(supplied.year, "ifString") <> invalid and len(supplied.year) > 0 then metaParts.push(supplied.year)
