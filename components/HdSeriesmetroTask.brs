@@ -35,19 +35,8 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
             answer.message = "No se encontraron los detalles de SeriesMetro."
             return answer
         end if
-        if item.kind = "series"
-            if item.seasons.count() = 0
-                answer.message = "Esta serie todavía no tiene temporadas disponibles."
-                return answer
-            end if
-            seasonIndex = 0
-            for i = 0 to item.seasons.count()-1
-                if item.seasons[i].number = 1 then seasonIndex = i
-            end for
-            loaded = rpHdSeriesmetroLoadSeason(item,item.seasons[seasonIndex].number,fetcher)
-            if not loaded.ok then return rpHdTaskFailure(answer,loaded)
-            item.seasons[seasonIndex] = loaded.season
-        end if
+        ' Defer episode retrieval until the user opens the episodes view.
+        ' The scene loads the selected season through the existing episodes operation.
         answer.item = item
         answer.ok = true
         answer.message = ""
