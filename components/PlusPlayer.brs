@@ -1053,8 +1053,12 @@ sub startSubtitleSearchTask(operation as string, subtitleId as string)
     task.operation = operation
     task.title = m.titleText.text
     if type(m.current) = "roAssociativeArray"
-        if GetInterface(m.current.title,"ifString") <> invalid and m.current.title <> "" then task.title = m.current.title
-        if GetInterface(m.current.imdbId,"ifString") <> invalid then task.imdbId = m.current.imdbId
+        if m.current.doesExist("title")
+            if GetInterface(m.current.title,"ifString") <> invalid and m.current.title <> "" then task.title = m.current.title
+        end if
+        if m.current.doesExist("imdbId")
+            if GetInterface(m.current.imdbId,"ifString") <> invalid then task.imdbId = m.current.imdbId
+        end if
     end if
     task.subtitleId = subtitleId
     task.language = "es"
@@ -1081,11 +1085,17 @@ sub onSubtitleSearchTaskResult()
     cancelSubtitleSearchTask()
     m.subtitleOnlineBusy = false
     m.subtitleOnlineOperation = ""
-    if type(result) <> "roAssociativeArray" or result.ok <> true
+    if type(result) <> "roAssociativeArray"
+        m.notice = "La búsqueda de subtítulos devolvió una respuesta inválida."
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 5500
+        drawSubtitleMenu()
+        revealTransport()
+        drawTransport()
+        return
+    end if
+    if result.ok <> true
         message = "No se pudo obtener subtítulos en línea."
-        if type(result) = "roAssociativeArray"
-            if GetInterface(result.message,"ifString") <> invalid and result.message <> "" then message = result.message
-        end if
+        if GetInterface(result.message,"ifString") <> invalid and result.message <> "" then message = result.message
         m.notice = message
         m.noticeUntil = m.monotonic.totalMilliseconds() + 5500
         drawSubtitleMenu()
