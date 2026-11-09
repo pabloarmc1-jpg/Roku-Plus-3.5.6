@@ -632,8 +632,9 @@ sub episodeScreen()
             item = season.episodes[n]
             x = 76+i*446
             y = 414
-            imageUri = orbitText(item.background,2048)
-            if imageUri = "" then imageUri = orbitText(item.poster,2048)
+            ' Episode artwork is independent: prefer the episode thumbnail/poster.
+            imageUri = orbitText(item.poster,2048)
+            if imageUri = "" then imageUri = orbitText(item.background,2048)
             thumbnail(imageUri,x,y,416,234,"landscape")
 
             watched = rpWatchGet(m.watchState,item.id)
@@ -650,10 +651,17 @@ sub episodeScreen()
         end if
     end for
 
+    ' The series synopsis stays below the episode carousel.
+    synopsis = orbitText(m.series.description,520)
+    if synopsis <> ""
+        words("SINOPSIS",80,830,400,25,16,"0xA3A3A3FF")
+        words(synopsis,80,862,1750,76,19,"0xD0D0D0FF").wrap = true
+    end if
+
     lastEpisode = firstEpisode+4
     if lastEpisode > season.episodes.count() then lastEpisode = season.episodes.count()
-    words("Episodios "+(firstEpisode+1).toStr()+"–"+lastEpisode.toStr()+" de "+season.episodes.count().toStr(),80,900,800,32,18,"0x808080FF")
-    words("← / →  Elegir episodio     OK  Ver episodio     ↑  Temporadas",950,900,870,32,18,"0x808080FF").horizAlign = "right"
+    words("Episodios "+(firstEpisode+1).toStr()+"–"+lastEpisode.toStr()+" de "+season.episodes.count().toStr(),80,1000,800,32,18,"0x808080FF")
+    words("← / →  Elegir episodio     OK  Ver episodio     ↑  Temporadas",950,1000,870,32,18,"0x808080FF").horizAlign = "right"
 end sub
 
 sub liveChannelBadge(item as object, x as integer, y as integer)
