@@ -109,6 +109,19 @@ function rpHdSeriesmetroEpisodeArt(block as string) as string
     return rpHdSeriesmetroArt(css)
 end function
 
+function rpHdSeriesmetroTmdbId(value as dynamic, kind as string) as string
+    text = orbitText(value,200000)
+    route = "movie"
+    if kind = "series" then route = "tv"
+    ' Prefer explicit TMDB links. Never infer an ID from a poster filename or
+    ' from the provider's own WordPress/content ID.
+    result = rpHdSeriesmetroMatch(text,"(?:https?://)?(?:www[.])?themoviedb[.]org/"+route+"/([0-9]{1,12})")
+    if result <> "" then return result
+    result = rpHdSeriesmetroMatch(text,"(?:data-tmdb-id|data-tmdb|tmdb_id|tmdb-id)\\s*=\\s*["+chr(34)+"']([0-9]{1,12})")
+    if result <> "" then return result
+    return rpHdSeriesmetroMatch(text,"["+chr(34)+"']?(?:tmdb_id|tmdbId)["+chr(34)+"']?\\s*:\\s*["+chr(34)+"']?([0-9]{1,12})")
+end function
+
 function rpHdSeriesmetroCatalog(html as dynamic, kind as string, page as integer) as object
     answer = {valid:false,items:[],hasMore:false,nextPage:page+1,total:0}
     text = orbitText(html,2097153)
@@ -130,7 +143,7 @@ function rpHdSeriesmetroCatalog(html as dynamic, kind as string, page as integer
             if not seen.doesExist(id)
                 year = rpHdSeriesmetroText(rpHdSeriesmetroMatch(block,"<span[^>]*class="+chr(34)+"year"+chr(34)+"[^>]*>(.*?)</span>"),4)
                 poster = rpHdSeriesmetroArt(rpHdSeriesmetroMatch(block,"<img[^>]+src="+chr(34)+"([^"+chr(34)+"]+)"))
-                answer.items.push({id:id,imdbId:"",kind:kind,library:"hd-online",provider:"seriesmetro",providerId:number,providerSlug:path,title:title,poster:poster,background:poster,description:"",year:year,runtime:0,language:"",seasons:[]})
+                answer.items.push({id:id,imdbId:"",providerTmdbId:rpHdSeriesmetroTmdbId(block,kind),kind:kind,library:"hd-online",provider:"seriesmetro",providerId:number,providerSlug:path,title:title,poster:poster,background:poster,description:"",year:year,runtime:0,language:"",seasons:[]})
                 seen[id] = true
             end if
         end if
