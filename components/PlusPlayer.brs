@@ -193,7 +193,9 @@ end function
 
 sub openRequest()
     supplied = m.top.request
+    print "[RokuPlus trace] player-openRequest type="; type(supplied)
     if type(supplied) <> "roAssociativeArray" then return
+    print "[RokuPlus trace] player-request itemId="; orbitText(supplied.itemId,180); " format="; orbitText(supplied.streamFormat,16); " urlPrefix="; left(orbitText(supplied.url,4096),32)
     if GetInterface(supplied.url, "ifString") = invalid then return
     if len(supplied.url) = 0 then return
     ' Stop the preceding decoder without emitting a close for the new request.
