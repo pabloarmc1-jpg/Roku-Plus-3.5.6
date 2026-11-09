@@ -816,8 +816,9 @@ function rpHdTaskAudioGroupCount(master as object, groupId as string) as integer
     return count
 end function
 
-' Native master playback is limited to complete alternate-audio groups whose
-' variants all pass the same conservative AVC/AAC device capability guard.
+' Keep the original master so Roku can expose alternate audio tracks.
+' The selected rendition must pass the device capability guard; the Video node's
+' maxVideoDecodeResolution ceiling is applied before playback to constrain ABR.
 function rpHdTaskNativeAudioMasterSafe(master as object, selected as object, decoderAccept as dynamic) as boolean
     if master.encrypted or selected.audioGroup = "" then return false
     if type(master.audioTracks) <> "roArray" or type(master.variants) <> "roArray" then return false
@@ -834,13 +835,10 @@ function rpHdTaskNativeAudioMasterSafe(master as object, selected as object, dec
         end if
     end for
     if not spanishTrackFound then return false
-    for each variant in master.variants
-        if variant.audioGroup <> selected.audioGroup then return false
-        if variant.height > 720 then return false
-        candidate = {variants:[variant],encrypted:false}
-        if rpHdOnlineSelectVariant(candidate,decoderAccept) = invalid then return false
-    end for
-    return master.variants.count() > 0
+    if selected.audioGroup = "" or selected.height > 720 or selected.width > 1280 then return false
+    candidate = {variants:[selected],encrypted:false}
+    if rpHdOnlineSelectVariant(candidate,decoderAccept) = invalid then return false
+    return true
 end function
 
 function rpHdTaskSpanishAudio(master as object, variant as object) as boolean
