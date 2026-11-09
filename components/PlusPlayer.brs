@@ -10,6 +10,15 @@ sub init()
     end if
     if m.decoder.hasField("decoderStats") then m.decoder.observeField("decoderStats", "onNativeDecoderStats")
     m.audioSelectionPreferenceSet = false
+    ' Prefer Spanish audio when the stream exposes language metadata.
+    ' Keep this before any Video control command, as required by Roku OS.
+    if m.decoder.hasField("audioSelectionPreferences")
+        m.decoder.audioSelectionPreferences = {values:[{language:["es-MX","es-419","es","es-*","spa"]}],overrideSystem:true}
+        m.audioSelectionPreferenceSet = true
+        print "[RokuPlus decoder] audioSelectionPreferences=Spanish es-MX,es-419,es,es-*,spa overrideSystem=true"
+    else
+        print "[RokuPlus decoder] audioSelectionPreferences=unsupported"
+    end if
     if m.decoder.hasField("seamlessAudioTrackSelection")
         m.decoder.seamlessAudioTrackSelection = true
         print "[RokuPlus decoder] seamlessAudioTrackSelection=true"
