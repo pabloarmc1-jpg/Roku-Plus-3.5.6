@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="SubtitleSearchTask" extends="Task">
+  <interface>
+    <field id="operation" type="string" value="search" />
+    <field id="title" type="string" value="" />
+    <field id="imdbId" type="string" value="" />
+    <field id="subtitleId" type="string" value="" />
+    <field id="language" type="string" value="es" />
+    <field id="result" type="assocarray" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="SubtitleSearchTask.brs" />
+</component>
