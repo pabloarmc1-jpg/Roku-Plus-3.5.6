@@ -71,25 +71,35 @@ end function
 
 function rpHdSeriesmetroEpisodeArt(block as string) as string
     quotes = chr(34)+"'"
-    ' Capture the complete first image tag, including its attributes.
-    imageTag = rpHdSeriesmetroMatch(block,"(<img[^>]*>)")
-    if imageTag <> ""
+    ' Do not assume the first image in an episode card is the still:
+    ' themes often place a placeholder/logo before the lazy-loaded artwork.
+    remaining = block
+    while true
+        imageStart = instr(1,lcase(remaining),"<img")
+        if imageStart = 0 then exit while
+        afterStart = mid(remaining,imageStart+4)
+        tagEnd = instr(1,afterStart,">")
+        if tagEnd = 0 then exit while
+        imageTag = "<img"+left(afterStart,tagEnd)
         for each attribute in ["data-src","data-lazy-src","data-original","data-image","src"]
             value = rpHdSeriesmetroAttr(imageTag,attribute)
             art = rpHdSeriesmetroArt(value)
             if art <> "" then return art
         end for
-        sourceSet = rpHdSeriesmetroAttr(imageTag,"srcset")
-        if sourceSet <> ""
-            candidate = CreateObject("roRegex","^\s*([^,\s]+)","").match(sourceSet)
-            if candidate.count() > 1
-                art = rpHdSeriesmetroArt(candidate[1])
-                if art <> "" then return art
+        for each attribute in ["data-srcset","srcset"]
+            sourceSet = rpHdSeriesmetroAttr(imageTag,attribute)
+            if sourceSet <> ""
+                candidate = CreateObject("roRegex","^\\s*([^,\\s]+)","").match(sourceSet)
+                if candidate.count() > 1
+                    art = rpHdSeriesmetroArt(candidate[1])
+                    if art <> "" then return art
+                end if
             end if
-        end if
-    end if
+        end for
+        remaining = mid(afterStart,tagEnd+1)
+    end while
     ' Some templates store the still in an inline background-image.
-    css = rpHdSeriesmetroMatch(block,"background-image\s*:\s*url\(["+quotes+"]?([^'"+chr(34)+")]+)")
+    css = rpHdSeriesmetroMatch(block,"background-image\\s*:\\s*url\\(["+quotes+"]?([^'"+chr(34)+")]+)")
     return rpHdSeriesmetroArt(css)
 end function
 
@@ -197,7 +207,7 @@ function rpHdSeriesmetroEpisodes(html as dynamic, parent as object, requested as
                     if title = "" then title = "Episodio "+episode.toStr()
                     ' Extract the still from this episode's own article.
                     episodePoster = rpHdSeriesmetroEpisodeArt(block)
-                    if episodePoster = "" then episodePoster = parent.poster
+                    ' Never reuse the series poster as an episode still.
                     answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
                     seen[id] = true
                 end if
