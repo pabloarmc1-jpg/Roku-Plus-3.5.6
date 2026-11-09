@@ -122,6 +122,19 @@ function rpHdSeriesmetroTmdbId(value as dynamic, kind as string) as string
     return rpHdSeriesmetroMatch(text,"["+chr(34)+"']?(?:tmdb_id|tmdbId)["+chr(34)+"']?\\s*:\\s*["+chr(34)+"']?([0-9]{1,12})")
 end function
 
+' Narrow, explicit cross-language identity for a known title whose SeriesMetro
+' card omits external IDs. Never use fuzzy matching for catalog identity.
+function rpHdSeriesmetroKnownTmdbId(title as dynamic, kind as string) as string
+    if kind <> "series" then return ""
+    key = lcase(orbitText(title,200).trim())
+    key = CreateObject("roRegex","\\s*\\((?:19|20)[0-9]{2}\\)\\s*$","").replace(key,"").trim()
+    key = key.replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u").replace("ñ","n")
+    if key = "the last man on earth" or key = "el ultimo hombre en la tierra"
+        return "61888"
+    end if
+    return ""
+end function
+
 function rpHdSeriesmetroCatalog(html as dynamic, kind as string, page as integer) as object
     answer = {valid:false,items:[],hasMore:false,nextPage:page+1,total:0}
     text = orbitText(html,2097153)
@@ -143,7 +156,9 @@ function rpHdSeriesmetroCatalog(html as dynamic, kind as string, page as integer
             if not seen.doesExist(id)
                 year = rpHdSeriesmetroText(rpHdSeriesmetroMatch(block,"<span[^>]*class="+chr(34)+"year"+chr(34)+"[^>]*>(.*?)</span>"),4)
                 poster = rpHdSeriesmetroArt(rpHdSeriesmetroMatch(block,"<img[^>]+src="+chr(34)+"([^"+chr(34)+"]+)"))
-                answer.items.push({id:id,imdbId:"",providerTmdbId:rpHdSeriesmetroTmdbId(block,kind),kind:kind,library:"hd-online",provider:"seriesmetro",providerId:number,providerSlug:path,title:title,poster:poster,background:poster,description:"",year:year,runtime:0,language:"",seasons:[]})
+                tmdbId = rpHdSeriesmetroTmdbId(block,kind)
+                if tmdbId = "" then tmdbId = rpHdSeriesmetroKnownTmdbId(title,kind)
+                answer.items.push({id:id,imdbId:"",providerTmdbId:tmdbId,kind:kind,library:"hd-online",provider:"seriesmetro",providerId:number,providerSlug:path,title:title,poster:poster,background:poster,description:"",year:year,runtime:0,language:"",seasons:[]})
                 seen[id] = true
             end if
         end if
@@ -182,6 +197,9 @@ function rpHdSeriesmetroMetadata(html as dynamic, item as object) as dynamic
     if number <> item.providerId then return invalid
     title = rpHdSeriesmetroText(rpHdSeriesmetroMatch(text,"<h1[^>]*>(.*?)</h1>"),200)
     if title <> "" then item.title = title
+    tmdbId = rpHdSeriesmetroTmdbId(text,item.kind)
+    if tmdbId = "" then tmdbId = rpHdSeriesmetroKnownTmdbId(item.title,item.kind)
+    if tmdbId <> "" then item.providerTmdbId = tmdbId
     tags = CreateObject("roRegex","<meta\s+","i").split(text)
     for each tag in tags
         name = rpHdSeriesmetroAttr(tag,"property")
