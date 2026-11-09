@@ -21,6 +21,10 @@ sub init()
     m.titleShade = m.top.findNode("titleShade")
     m.centerSurface = m.top.findNode("centerSurface")
     m.titleText = m.top.findNode("titleText")
+    m.startupOverlay = m.top.findNode("startupOverlay")
+    m.startupTitle = m.top.findNode("startupTitle")
+    m.startupStatus = m.top.findNode("startupStatus")
+    m.startupDots = 0
     m.metaText = m.top.findNode("metaText")
     m.clockText = m.top.findNode("clockText")
     m.modeText = m.top.findNode("modeText")
@@ -161,6 +165,9 @@ sub applyPresentation()
             m.top.setFocus(true)
         end if
     end if
+    if m.startupOverlay <> invalid
+        m.startupOverlay.visible = not preview and m.mediaOpen and m.phase <> "playing" and not m.failed
+    end if
     if m.previewMask <> invalid
         m.previewMask.translation = m.decoder.translation
         m.previewMask.width = m.decoder.width
@@ -258,6 +265,9 @@ sub openRequest()
     if not m.segmentMode and not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
+    if m.startupTitle <> invalid then m.startupTitle.text = m.titleText.text
+    m.startupDots = 0
+    if m.startupStatus <> invalid then m.startupStatus.text = "Preparando reproducción"
     ' Compact metadata row: only display values supplied by the catalogue.
     metaParts = []
     if GetInterface(supplied.year, "ifString") <> invalid and len(supplied.year) > 0 then metaParts.push(supplied.year)
@@ -555,6 +565,7 @@ sub onDecoderState()
     if m.phase = "playing"
         if m.hlsStartupIsolation
             m.hlsStartupIsolation = false
+            if m.startupOverlay <> invalid then m.startupOverlay.visible = false
             revealTransport()
             print "[RokuPlus hls-ui] startup isolation released: playing"
         end if
@@ -577,6 +588,7 @@ sub onDecoderState()
         revealTransport()
     else if m.phase = "error"
         m.hlsStartupIsolation = false
+        if m.startupOverlay <> invalid then m.startupOverlay.visible = false
         m.failed = true
         m.ticket = invalid
         m.pendingSeek = invalid
@@ -950,7 +962,7 @@ sub drawTransport()
     state = m.decoder.state
     mode = "Reproduciendo"
     if state = "paused" then mode = "En pausa"
-    if state = "buffering" or state = "none" or state = "stopped" then mode = "Cargando"
+    if state = "buffering" or state = "none" or state = "stopped" then mode = "Preparando"
     if m.ticket <> invalid or m.pendingSeek <> invalid then mode = "Buscando posición"
     if m.failed then mode = "No se pudo reproducir"
     clock = plusClockText(m.decoder.position)
@@ -1100,6 +1112,14 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
+    if m.startupOverlay <> invalid and m.startupOverlay.visible
+        m.startupDots = (m.startupDots + 1) mod 4
+        dots = ""
+        for dotIndex = 1 to m.startupDots
+            dots += "."
+        end for
+        if m.startupStatus <> invalid then m.startupStatus.text = "Preparando reproducción" + dots
+    end if
     if m.tsRelayPending
         relayStatus = m.tsStreamServer.status
         nowRelay = m.monotonic.totalMilliseconds()
