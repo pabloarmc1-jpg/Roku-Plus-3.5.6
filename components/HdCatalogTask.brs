@@ -342,12 +342,14 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             playbackStreamFormat = "hls"
                             if item.id = "hdo-lamovie-4453"
                                 answer.url = "http://192.168.100.7:8000/4453-test.m3u8"
+                                playbackPlaylistKind = "local-test-4453"
                                 answer.segmentUrls = invalid
                                 answer.segmentDurations = invalid
                                 answer.tsRelayEnabled = false
                                 print "[RokuPlus resolve-stage] local-test=4453 route-ready"
                             else if item.id = "hdo-lamovie-4519"
                                 answer.url = "http://192.168.100.7:8000/4519-test.m3u8"
+                                playbackPlaylistKind = "local-test-4519"
                                 answer.segmentUrls = invalid
                                 answer.segmentDurations = invalid
                                 answer.tsRelayEnabled = false
