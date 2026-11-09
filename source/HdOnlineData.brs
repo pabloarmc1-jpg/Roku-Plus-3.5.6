@@ -1328,7 +1328,7 @@ function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as objec
                             existingTitle = lcase(orbitText(localEpisode.title,200).trim())
                             genericTitle = existingTitle = "" or existingTitle = "episodio "+episodeNumber.toStr() or existingTitle = "episode "+episodeNumber.toStr()
                             if not genericTitle
-                                genericTitle = CreateObject("roRegex","^(temporada\\s*[0-9]+\\s*[-:·,]?\\s*)?(cap[ií]tulo|episodio|episode)\\s*[0-9]+$","i").isMatch(existingTitle)
+                                genericTitle = CreateObject("roRegex","^(temporada\s*[0-9]+\s*[-:·,]?\s*)?(cap[ií]tulo|episodio|episode)\s*[0-9]+$","i").isMatch(existingTitle)
                             end if
                             if not genericTitle
                                 genericTitle = CreateObject("roRegex","^s[0-9]{1,3}e[0-9]{1,4}$","i").isMatch(existingTitle)
