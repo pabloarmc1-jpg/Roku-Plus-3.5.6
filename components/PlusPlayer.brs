@@ -1098,7 +1098,7 @@ sub advanceHlsSoftRestart(now as integer)
         m.hlsRestartStage = 0
         m.hlsRestartAt = 0
         m.watch = plusWatchdogCreate(now)
-        print "[RokuPlus hls-retry] attempt="; m.hlsRetryCount; " action=reattach-prebuffer"
+        print "[RokuPlus hls-retry] attempt="; m.hlsRetryCount; " action=reattach-direct-play"
         emitDiagnostic("hls_soft_restart_play")
     end if
 end sub
