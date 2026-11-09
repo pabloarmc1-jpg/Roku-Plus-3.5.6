@@ -1285,7 +1285,7 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     end if
 
     answer.tvmazeCache = cache
-    print "[RokuPlus tvmaze] cache="; "hit"; " show_id="; showId; " provider="; providerName
+    print "[RokuPlus tvmaze] cache_ready show_id="; showId; " provider="; providerName
     if poster <> "" and operation = "meta" then answer.item.poster = poster
     if summary <> "" and operation = "meta" then answer.item.description = summary
 
