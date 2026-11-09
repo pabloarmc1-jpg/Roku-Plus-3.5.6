@@ -307,12 +307,13 @@ sub openRequest()
             print "[RokuPlus hls-memory] maxVideoDecodeResolution=unsupported"
         end if
         ' Keep startup diagnostics lightweight while testing the decoder memory cap.
+        ' Decoder statistics stay disabled in this lightweight test for every format.
         if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = false
-        print "[RokuPlus hls-minimal] decoderStats=disabled nativePoll=deferred"
+        print "[RokuPlus hls-minimal] decoderStats=disabled"
         print "[RokuPlus hls-ui] startup isolation enabled"
     else
         if m.decoder.hasField("maxVideoDecodeResolution") then m.decoder.maxVideoDecodeResolution = [0, 0]
-        if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = true
+        if m.decoder.hasField("enableDecoderStats") then m.decoder.enableDecoderStats = false
     end if
     ' HLS isolation test: do not force an app-selected audio language over the
     ' Roku system preference. Enable seamless HLS audio-track changes from init.
