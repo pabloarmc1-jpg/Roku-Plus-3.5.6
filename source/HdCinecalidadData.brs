@@ -56,7 +56,7 @@ function rpHdCinecalidadCatalog(raw as dynamic, kind as string, page as integer)
             description = rpHdSeriesmetroText(rpHdSeriesmetroMatch(block,"<p\b[^>]*class\s*=\s*["+quote+"][^"+quote+"]*text-sm[^"+quote+"]*["+quote+"][^>]*>(.*?)</p>"))
             if title <> ""
                 answer.items.push({
-                    id:"hdo-cinecalidad-"+slug,imdbId:"",kind:"movie",library:"hd-online"
+                    id:"hdo-cinecalidad-"+slug,imdbId:"",providerTmdbId:rpHdSeriesmetroTmdbId(block,"movie"),kind:"movie",library:"hd-online"
                     provider:"cinecalidad",providerId:slug,providerSlug:slug,title:title
                     description:description,poster:poster,background:poster,year:year,runtime:0,language:"",seasons:[]
                 })
@@ -89,7 +89,7 @@ function rpHdCinecalidadMetadata(raw as dynamic, expected as object) as dynamic
     if description = "" then description = expected.description
     if year = "" then year = expected.year
     return {
-        id:expected.id,imdbId:"",kind:"movie",library:"hd-online",provider:"cinecalidad"
+        id:expected.id,imdbId:"",providerTmdbId:rpHdSeriesmetroTmdbId(text,"movie"),kind:"movie",library:"hd-online",provider:"cinecalidad"
         providerId:expected.providerSlug,providerSlug:expected.providerSlug,title:title
         description:description,poster:poster,background:poster,year:year,runtime:0,language:"",seasons:[]
     }
