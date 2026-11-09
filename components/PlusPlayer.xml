@@ -66,6 +66,11 @@
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
       <Label id="audioMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
     </Group>
+    <Group id="subtitleMenu" translation="[460,210]" visible="false">
+      <Rectangle width="1000" height="660" color="0x10131BEF" />
+      <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
+      <Label id="subtitleMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    </Group>
 
     <Timer id="uiPulse" duration="0.25" repeat="true" />
     <Timer id="startupTypeTimer" duration="0.08" repeat="true" />
