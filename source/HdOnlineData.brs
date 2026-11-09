@@ -1186,6 +1186,8 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
 
     providerName = orbitText(item.provider,32)
     cacheKey = lcase(title)
+    searchTitle = title
+    if cacheKey = "hora de aventura" then searchTitle = "Adventure Time"
     cache = invalid
     print "[RokuPlus tvmaze] start op="; operation; " provider="; providerName; " title="; title
     if type(request.tvmazeCache) = "roAssociativeArray"
@@ -1198,7 +1200,8 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
 
     if cache = invalid
         ' Search by the source's series title; TVmaze is public and needs no API key.
-        searchUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(title)
+        searchUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(searchTitle)
+        if searchTitle <> title then print "[RokuPlus tvmaze] search_alias local="; title; " query="; searchTitle
         rpHdTaskBeginSlice(3)
         response = fetcher(searchUrl,"tvmaze","https://www.tvmaze.com/")
         if not response.ok
@@ -1233,7 +1236,7 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
             if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
                 candidate = match.show
                 candidateName = lcase(orbitText(candidate.name,200).trim())
-                if candidateName = cacheKey
+                if candidateName = lcase(searchTitle)
                     show = candidate
                     matchMode = "exact"
                     exit for
@@ -1335,7 +1338,7 @@ function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as objec
                             existingTitle = lcase(orbitText(localEpisode.title,200).trim())
                             genericTitle = existingTitle = "" or existingTitle = "episodio "+episodeNumber.toStr() or existingTitle = "episode "+episodeNumber.toStr()
                             if not genericTitle
-                                genericTitle = CreateObject("roRegex","^(temporada\s*[0-9]+\s*[-:·,]?\s*)?(cap[ií]tulo|episodio|episode)\s*[0-9]+$","i").isMatch(existingTitle)
+                                genericTitle = CreateObject("roRegex","^.*:\s*(temporada\s*[0-9]+\s*[-:·,]?\s*)?(cap[ií]tulo|episodio|episode)\s*[0-9]+$","i").isMatch(existingTitle)
                             end if
                             if not genericTitle
                                 genericTitle = CreateObject("roRegex","^s[0-9]{1,3}e[0-9]{1,4}$","i").isMatch(existingTitle)
