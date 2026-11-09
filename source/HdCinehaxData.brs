@@ -191,11 +191,14 @@ function rpHdCinehaxEpisodes(raw as dynamic, parent as object, requested as inte
                 if not seen.doesExist(id)
                     title = orbitText(row.title,200)
                     if title = "" then title = "Episodio "+number.toStr()
+                    episodeStill = rpHdCinehaxArt(row.still_path,true)
+                    episodePoster = episodeStill
+                    if episodePoster = "" then episodePoster = parent.poster
                     item = {
                         id:id, imdbId:"", kind:"episode", library:"hd-online",provider:"cinehax"
                         providerId:parent.providerId,providerTmdbId:parent.providerTmdbId,providerKind:parent.providerKind,providerSlug:parent.providerSlug
                         title:title,seriesTitle:parent.title,season:season,episode:number
-                        poster:parent.poster,background:rpHdCinehaxArt(row.still_path,true)
+                        poster:episodePoster,background:episodeStill
                         description:orbitText(row.overview),year:parent.year,runtime:orbitInteger(row.runtime,1440)*60,language:"",seasons:[]
                     }
                     if item.background = "" then item.background = parent.background
