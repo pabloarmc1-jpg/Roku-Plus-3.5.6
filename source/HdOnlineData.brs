@@ -1164,6 +1164,14 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     response = fetcher(searchUrl,"tvmaze","https://www.tvmaze.com/")
     if not response.ok then return answer
     matches = ParseJson(response.body)
+    if type(matches) <> "roArray" then return answer
+    if matches.count() = 0 and instr(1,lcase(title)," y ") > 0
+        alternateTitle = CreateObject("roRegex"," y ","i").replace(title," and ")
+        alternateUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(alternateTitle)
+        rpHdTaskBeginSlice(2)
+        alternateResponse = fetcher(alternateUrl,"tvmaze","https://www.tvmaze.com/")
+        if alternateResponse.ok then matches = ParseJson(alternateResponse.body)
+    end if
     if type(matches) <> "roArray" or matches.count() = 0 then return answer
 
     show = invalid
