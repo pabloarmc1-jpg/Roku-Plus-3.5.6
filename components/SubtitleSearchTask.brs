@@ -1,4 +1,4 @@
-' Guest subtitle search adapter. No account or API key is required.
+' Subtitle Search Engine adapter with optional local API-key authentication.
 ' Provider documentation: https://subtitles.website/docs/
 sub init()
     m.top.functionName = "runSubtitleSearch"
@@ -17,7 +17,7 @@ sub runSubtitleSearch()
             m.top.result = answer
             return
         end if
-        transfer = subtitleTransfer()
+        transfer = subtitleTransfer(m.top.apiKey)
         endpoint = "https://subtitles.website/strapi/api/search/subtitles?"
         if imdb <> ""
             if not CreateObject("roRegex","^tt[0-9]{5,12}$","").isMatch(imdb)
@@ -88,7 +88,7 @@ sub runSubtitleSearch()
             m.top.result = answer
             return
         end if
-        transfer = subtitleTransfer()
+        transfer = subtitleTransfer(m.top.apiKey)
         endpoint = "https://subtitles.website/strapi/api/search/download/" + subtitleId
         body = subtitleGet(transfer,endpoint)
         if GetInterface(body,"ifString") = invalid or len(body) = 0
@@ -115,7 +115,7 @@ sub runSubtitleSearch()
             return
         end if
         subtitleUrl = "https://subtitles.website/strapi" + path
-        transfer = subtitleTransfer()
+        transfer = subtitleTransfer(m.top.apiKey)
         subtitleText = subtitleGet(transfer,subtitleUrl)
         if GetInterface(subtitleText,"ifString") = invalid
             answer.message = "No se pudo leer el archivo SRT."
@@ -143,7 +143,7 @@ sub runSubtitleSearch()
     m.top.result = answer
 end sub
 
-function subtitleTransfer() as object
+function subtitleTransfer(apiKey as dynamic) as object
     transfer = CreateObject("roUrlTransfer")
     transfer.setCertificatesFile("common:/certs/ca-bundle.crt")
     transfer.enablePeerVerification(true)
@@ -151,6 +151,12 @@ function subtitleTransfer() as object
     transfer.enableEncodings(true)
     transfer.addHeader("User-Agent","RokuPlus/1.0")
     transfer.addHeader("Accept","application/json,text/plain,*/*")
+    if GetInterface(apiKey,"ifString") <> invalid
+        safeKey = apiKey.trim()
+        if safeKey <> "" and len(safeKey) <= 512 and instr(1,safeKey,chr(10)) = 0 and instr(1,safeKey,chr(13)) = 0
+            transfer.addHeader("Authorization","Bearer " + safeKey)
+        end if
+    end if
     return transfer
 end function
 
