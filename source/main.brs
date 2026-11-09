@@ -13,14 +13,14 @@ sub Main(args as dynamic)
 
     ' Observe app memory pressure without changing playback or UI behavior.
     deviceInfo = CreateObject("roDeviceInfo")
-    versionText = deviceInfo.GetVersion()
-    versionParts = versionText.tokenize(".")
+    osVersionInfo = deviceInfo.GetOSVersion()
     osMajor = 0
     osMinor = 0
-    if versionParts.count() >= 2
-        osMajor = val(versionParts[0])
-        osMinor = val(versionParts[1])
+    if type(osVersionInfo) = "roAssociativeArray"
+        osMajor = val(osVersionInfo.major)
+        osMinor = val(osVersionInfo.minor)
     end if
+    print "[RokuPlus system] Roku OS="; osMajor; "."; osMinor
 
     ' Read Roku's native record for the previous app termination.
     ' This is diagnostic only: it does not change playback or app behavior.
@@ -28,12 +28,14 @@ sub Main(args as dynamic)
         appManager = CreateObject("roAppManager")
         if appManager <> invalid
             lastExitInfo = appManager.GetLastExitInfo()
-            if type(lastExitInfo) = "roAssociativeArray"
-                print "[RokuPlus exit-diagnostic] timestamp="; lastExitInfo.lookup("timestamp", "unavailable")
-                print "[RokuPlus exit-diagnostic] exit_code="; lastExitInfo.lookup("exit_code", "unavailable")
-                print "[RokuPlus exit-diagnostic] app_state="; lastExitInfo.lookup("app_state", "unavailable")
-                print "[RokuPlus exit-diagnostic] media_player_state="; lastExitInfo.lookup("media_player_state", "unavailable")
-                if lastExitInfo.doesExist("mem_limit")
+            if lastExitInfo <> invalid and type(lastExitInfo) = "roAssociativeArray"
+                ' GetLastExitInfo returns an associative array; read its keys
+                ' as fields rather than calling a Lookup method.
+                print "[RokuPlus exit-diagnostic] timestamp="; lastExitInfo.timestamp
+                print "[RokuPlus exit-diagnostic] exit_code="; lastExitInfo.exit_code
+                print "[RokuPlus exit-diagnostic] app_state="; lastExitInfo.app_state
+                print "[RokuPlus exit-diagnostic] media_player_state="; lastExitInfo.media_player_state
+                if lastExitInfo.mem_limit <> invalid
                     print "[RokuPlus exit-diagnostic] mem_limit_mb="; lastExitInfo.mem_limit
                 else
                     print "[RokuPlus exit-diagnostic] mem_limit_mb=not-reported"
