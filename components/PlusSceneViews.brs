@@ -592,6 +592,12 @@ sub episodeScreen()
     topBar()
     if m.series = invalid or m.series.seasons.count() = 0 then return
 
+    ' Cinematic series backdrop with a dark overlay for readable text.
+    backdrop = orbitText(m.series.background,2048)
+    if backdrop = "" then backdrop = orbitText(m.series.poster,2048)
+    if backdrop <> "" then art(backdrop,0,112,1920,968)
+    panel(0,112,1920,968,"0x080808B8")
+
     words(m.series.title,76,142,1500,66,43,"0xFFFFFFFF").wrap = true
     words("TEMPORADAS",80,218,420,30,18,"0xA3A3A3FF")
 
