@@ -1,4 +1,12 @@
-sub Main()
+sub Main(args as dynamic)
+    exitReason = "not-provided"
+    if type(args) = "roAssociativeArray"
+        if args.doesExist("lastExitOrTerminationReason")
+            exitReason = args.lastExitOrTerminationReason
+        end if
+    end if
+    print "[RokuPlus startup] lastExitOrTerminationReason="; exitReason
+
     display = CreateObject("roSGScreen")
     messages = CreateObject("roMessagePort")
     display.setMessagePort(messages)
