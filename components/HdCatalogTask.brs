@@ -344,6 +344,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             ' Native HLS diagnostic: local test titles bypass relay parsing completely.
                             playbackPlaylistKind = "native-child-hls-audio-isolation"
                             playbackStreamFormat = "hls"
+                            print "[RokuPlus trace] candidate itemId="; orbitText(item.id,180); " provider="; orbitText(item.provider,32); " providerId="; orbitText(item.providerId,40); " kind="; orbitText(item.kind,20)
                             if item.id = "hdo-lamovie-4453"
                                 answer.url = "http://192.168.100.7:8000/4453-test.m3u8"
                                 playbackPlaylistKind = "local-test-4453"
