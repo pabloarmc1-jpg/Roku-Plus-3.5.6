@@ -43,6 +43,17 @@ sub init()
     m.subtitleMenuOpen = false
     m.subtitleTracks = []
     m.subtitleTrackIndex = 0
+    m.subtitleOnlineResults = []
+    m.subtitleOnlineBusy = false
+    m.subtitleOnlineOperation = ""
+    m.subtitleOnlinePendingLabel = ""
+    m.subtitleSearchTask = invalid
+    m.externalSubtitleCues = []
+    m.externalSubtitleIndex = 0
+    m.externalSubtitleLastPosition = -1
+    m.externalSubtitleSelectedIndex = 0
+    m.externalSubtitleGroup = m.top.findNode("externalSubtitleOverlay")
+    m.externalSubtitleLabel = m.top.findNode("externalSubtitleText")
     m.track = m.top.findNode("timeTrack")
     m.fill = m.top.findNode("timeFill")
     m.thumb = m.top.findNode("timeThumb")
@@ -273,8 +284,17 @@ sub openRequest()
     if m.subtitleMenuGroup <> invalid then m.subtitleMenuGroup.visible = false
     m.audioTracks = []
     m.audioTrackIndex = 0
+    cancelSubtitleSearchTask()
     m.subtitleTracks = []
     m.subtitleTrackIndex = 0
+    m.subtitleOnlineResults = []
+    m.subtitleOnlineBusy = false
+    m.subtitleOnlineOperation = ""
+    m.externalSubtitleCues = []
+    m.externalSubtitleIndex = 0
+    m.externalSubtitleLastPosition = -1
+    m.externalSubtitleSelectedIndex = 0
+    if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
     m.bufferSince = 0
     m.watch = plusWatchdogCreate(0)
     m.lastProgressAt = -1000
@@ -513,6 +533,9 @@ sub closePlayback()
     m.pulse.control = "stop"
     m.decoder.control = "stop"
     m.decoder.content = invalid
+    cancelSubtitleSearchTask()
+    if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
+    m.externalSubtitleCues = []
     m.mediaNode = invalid
     m.hlsRestartStage = 0
     m.current = invalid
@@ -905,7 +928,13 @@ sub refreshSubtitleTracks()
             exit for
         end if
     end for
-    if not found then m.subtitleTrackIndex = 0
+    if not found
+        if m.externalSubtitleCues.count() > 0
+            m.subtitleTrackIndex = m.externalSubtitleSelectedIndex
+        else
+            m.subtitleTrackIndex = 0
+        end if
+    end if
     if m.subtitleMenuOpen then drawSubtitleMenu()
 end sub
 
@@ -925,15 +954,31 @@ sub drawSubtitleMenu()
     prefix = "   "
     if m.subtitleTrackIndex = 0 then prefix = "▶  "
     output += prefix + "Desactivados"
+    output += chr(10)
+    prefix = "   "
+    if m.subtitleTrackIndex = 1 then prefix = "▶  "
+    searchLabel = "Buscar subtítulos en línea (Español)"
+    if m.subtitleOnlineBusy
+        if m.subtitleOnlineOperation = "download" then searchLabel = "Descargando subtítulo..."
+        if m.subtitleOnlineOperation = "search" then searchLabel = "Buscando en línea..."
+    end if
+    output += prefix + searchLabel
+    for i = 0 to m.subtitleOnlineResults.count()-1
+        output += chr(10)
+        prefix = "   "
+        if i + 2 = m.subtitleTrackIndex then prefix = "▶  "
+        output += prefix + m.subtitleOnlineResults[i].label + "  (ES · en línea)"
+    end for
+    nativeOffset = 2 + m.subtitleOnlineResults.count()
     for i = 0 to m.subtitleTracks.count()-1
         output += chr(10)
         prefix = "   "
-        if i + 1 = m.subtitleTrackIndex then prefix = "▶  "
+        if nativeOffset + i = m.subtitleTrackIndex then prefix = "▶  "
         output += prefix + m.subtitleTracks[i].label
         if m.subtitleTracks[i].language <> "" then output += "  (" + m.subtitleTracks[i].language + ")"
     end for
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
-    if m.subtitleTracks.count() = 0 then output += chr(10) + "Esta fuente no anuncia pistas externas."
+    if m.subtitleTracks.count() = 0 and m.subtitleOnlineResults.count() = 0 then output += chr(10) + "También puedes buscar subtítulos en línea."
     m.subtitleMenuItems.text = output
 end sub
 
@@ -943,7 +988,7 @@ sub closeSubtitleMenu()
 end sub
 
 sub moveSubtitleMenuSelection(direction as integer)
-    count = m.subtitleTracks.count() + 1
+    count = 2 + m.subtitleOnlineResults.count() + m.subtitleTracks.count()
     m.subtitleTrackIndex = m.subtitleTrackIndex + direction
     if m.subtitleTrackIndex < 0 then m.subtitleTrackIndex = count - 1
     if m.subtitleTrackIndex >= count then m.subtitleTrackIndex = 0
@@ -951,21 +996,47 @@ sub moveSubtitleMenuSelection(direction as integer)
 end sub
 
 sub selectSubtitleTrack()
+    if m.subtitleOnlineBusy then return
     if m.subtitleTrackIndex = 0
         if m.decoder.hasField("subtitleTrack") then m.decoder.subtitleTrack = ""
         if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "Off"
+        m.externalSubtitleCues = []
+        m.externalSubtitleIndex = 0
+        m.externalSubtitleLastPosition = -1
+        m.externalSubtitleSelectedIndex = 0
+        if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
         closeSubtitleMenu()
         m.notice = "Subtítulos desactivados."
         print "[RokuPlus subtitles] selected=off"
+    else if m.subtitleTrackIndex = 1
+        m.subtitleOnlineBusy = true
+        m.subtitleOnlineOperation = "search"
+        drawSubtitleMenu()
+        startSubtitleSearchTask("search","")
+        return
+    else if m.subtitleTrackIndex < 2 + m.subtitleOnlineResults.count()
+        onlineIndex = m.subtitleTrackIndex - 2
+        if onlineIndex < 0 or onlineIndex >= m.subtitleOnlineResults.count() then return
+        m.subtitleOnlinePendingLabel = m.subtitleOnlineResults[onlineIndex].label
+        m.subtitleOnlineBusy = true
+        m.subtitleOnlineOperation = "download"
+        drawSubtitleMenu()
+        startSubtitleSearchTask("download",m.subtitleOnlineResults[onlineIndex].id)
+        return
     else
-        index = m.subtitleTrackIndex - 1
-        if index < 0 or index >= m.subtitleTracks.count() then return
-        chosen = m.subtitleTracks[index]
+        nativeIndex = m.subtitleTrackIndex - 2 - m.subtitleOnlineResults.count()
+        if nativeIndex < 0 or nativeIndex >= m.subtitleTracks.count() then return
+        chosen = m.subtitleTracks[nativeIndex]
         if not m.decoder.hasField("subtitleTrack")
             m.notice = "Este Roku no permite seleccionar subtítulos en esta reproducción."
         else
             m.decoder.subtitleTrack = chosen.id
             if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "On"
+            m.externalSubtitleCues = []
+            m.externalSubtitleIndex = 0
+            m.externalSubtitleLastPosition = -1
+            m.externalSubtitleSelectedIndex = 0
+            if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
             m.notice = "Subtítulos: " + chosen.label
             print "[RokuPlus subtitles] selected="; chosen.label; " language="; chosen.language
         end if
@@ -974,6 +1045,168 @@ sub selectSubtitleTrack()
     m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
     revealTransport()
     drawTransport()
+end sub
+
+sub startSubtitleSearchTask(operation as string, subtitleId as string)
+    cancelSubtitleSearchTask()
+    task = CreateObject("roSGNode","SubtitleSearchTask")
+    task.operation = operation
+    task.title = m.titleText.text
+    if type(m.current) = "roAssociativeArray"
+        if GetInterface(m.current.title,"ifString") <> invalid and m.current.title <> "" then task.title = m.current.title
+        if GetInterface(m.current.imdbId,"ifString") <> invalid then task.imdbId = m.current.imdbId
+    end if
+    task.subtitleId = subtitleId
+    task.language = "es"
+    task.observeField("result","onSubtitleSearchTaskResult")
+    m.subtitleSearchTask = task
+    m.top.appendChild(task)
+    task.control = "RUN"
+    print "[RokuPlus subtitles-online] operation="; operation
+end sub
+
+sub cancelSubtitleSearchTask()
+    if m.subtitleSearchTask <> invalid
+        m.subtitleSearchTask.unobserveField("result")
+        m.subtitleSearchTask.control = "STOP"
+        m.top.removeChild(m.subtitleSearchTask)
+        m.subtitleSearchTask = invalid
+    end if
+end sub
+
+sub onSubtitleSearchTaskResult()
+    if m.subtitleSearchTask = invalid then return
+    task = m.subtitleSearchTask
+    result = task.result
+    cancelSubtitleSearchTask()
+    m.subtitleOnlineBusy = false
+    m.subtitleOnlineOperation = ""
+    if type(result) <> "roAssociativeArray" or result.ok <> true
+        message = "No se pudo obtener subtítulos en línea."
+        if type(result) = "roAssociativeArray"
+            if GetInterface(result.message,"ifString") <> invalid and result.message <> "" then message = result.message
+        end if
+        m.notice = message
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 5500
+        drawSubtitleMenu()
+        revealTransport()
+        drawTransport()
+        return
+    end if
+    if result.operation = "search"
+        m.subtitleOnlineResults = result.items
+        if m.subtitleOnlineResults.count() > 0
+            m.subtitleTrackIndex = 2
+            m.notice = "Subtítulos encontrados: " + m.subtitleOnlineResults.count().toStr()
+        else
+            m.subtitleTrackIndex = 1
+            m.notice = result.message
+        end if
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
+        drawSubtitleMenu()
+        revealTransport()
+        drawTransport()
+        return
+    end if
+    if result.operation = "download"
+        cues = plusParseSrt(result.subtitleText)
+        if cues.count() = 0
+            m.notice = "El archivo no contiene subtítulos SRT válidos."
+        else
+            m.externalSubtitleCues = cues
+            m.externalSubtitleIndex = 0
+            m.externalSubtitleLastPosition = -1
+            m.externalSubtitleSelectedIndex = m.subtitleTrackIndex
+            if m.decoder.hasField("subtitleTrack") then m.decoder.subtitleTrack = ""
+            if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "Off"
+            m.notice = "Subtítulos en español activados: " + m.subtitleOnlinePendingLabel
+            print "[RokuPlus subtitles-online] active cues="; cues.count()
+            closeSubtitleMenu()
+            updateExternalSubtitle()
+        end if
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 5500
+        revealTransport()
+        drawTransport()
+    end if
+end sub
+
+function plusParseSrt(body as dynamic) as object
+    cues = []
+    if GetInterface(body,"ifString") = invalid then return cues
+    if len(body) = 0 or len(body) > 2097152 then return cues
+    normalized = body.replace(chr(13),"")
+    lines = normalized.split(chr(10))
+    timingRegex = CreateObject("roRegex","^([0-9]{2}:[0-9]{2}:[0-9]{2}[,.][0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}[,.][0-9]{3})","")
+    i = 0
+    while i < lines.count() and cues.count() < 5000
+        match = timingRegex.match(lines[i].trim())
+        if match.count() >= 3
+            startAt = plusSrtTime(match[1])
+            endAt = plusSrtTime(match[2])
+            i++
+            textLines = []
+            while i < lines.count() and lines[i].trim() <> ""
+                if textLines.count() < 8 then textLines.push(left(lines[i].trim(),240))
+                i++
+            end while
+            caption = ""
+            for each line in textLines
+                if caption <> "" then caption += chr(10)
+                caption += line
+            end for
+            if startAt >= 0 and endAt > startAt and caption <> ""
+                cues.push({start:startAt,finish:endAt,text:caption})
+            end if
+        else
+            i++
+        end if
+    end while
+    return cues
+end function
+
+function plusSrtTime(value as string) as float
+    normalized = value.replace(".",",")
+    parts = normalized.split(":")
+    if parts.count() <> 3 then return -1
+    seconds = parts[2].split(",")
+    if seconds.count() <> 2 then return -1
+    hours = val(parts[0])
+    minutes = val(parts[1])
+    whole = val(seconds[0])
+    millis = val(seconds[1])
+    if hours < 0 or hours > 99 or minutes < 0 or minutes > 59 or whole < 0 or whole > 59 or millis < 0 or millis > 999 then return -1
+    return hours * 3600 + minutes * 60 + whole + millis / 1000.0
+end function
+
+sub updateExternalSubtitle()
+    if m.externalSubtitleGroup = invalid or m.externalSubtitleLabel = invalid then return
+    if m.externalSubtitleCues.count() = 0
+        m.externalSubtitleGroup.visible = false
+        return
+    end if
+    position = plusClockValue(m.decoder.position)
+    if position = invalid
+        m.externalSubtitleGroup.visible = false
+        return
+    end if
+    if position < m.externalSubtitleLastPosition then m.externalSubtitleIndex = 0
+    m.externalSubtitleLastPosition = position
+    while m.externalSubtitleIndex < m.externalSubtitleCues.count()
+        if m.externalSubtitleCues[m.externalSubtitleIndex].finish < position
+            m.externalSubtitleIndex++
+        else
+            exit while
+        end if
+    end while
+    if m.externalSubtitleIndex < m.externalSubtitleCues.count()
+        cue = m.externalSubtitleCues[m.externalSubtitleIndex]
+        if position >= cue.start and position <= cue.finish
+            m.externalSubtitleLabel.text = cue.text
+            m.externalSubtitleGroup.visible = true
+            return
+        end if
+    end if
+    m.externalSubtitleGroup.visible = false
 end sub
 
 function nativeStreamSnapshot() as object
@@ -1440,6 +1673,7 @@ sub onPulse()
         end if
         return
     end if
+    updateExternalSubtitle()
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
     advanceSegmentRestart(now)
