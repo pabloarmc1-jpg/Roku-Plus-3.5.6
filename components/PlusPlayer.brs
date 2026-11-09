@@ -13,6 +13,12 @@ sub init()
     end if
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
+    m.loadingOverlay = m.top.findNode("loadingOverlay")
+    m.loadingPoster = m.top.findNode("loadingPoster")
+    m.loadingTitle = m.top.findNode("loadingTitle")
+    m.loadingStatus = m.top.findNode("loadingStatus")
+    m.loadingDots = 0
+    m.loadingPulseCounter = 0
     m.panel = m.top.findNode("transport")
     m.capsule = m.top.findNode("capsule")
     m.titleShade = m.top.findNode("titleShade")
@@ -196,6 +202,17 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    m.loadingOverlay.visible = true
+    m.loadingPoster.uri = ""
+    if GetInterface(supplied.poster,"ifString") <> invalid and len(supplied.poster) > 0
+        m.loadingPoster.uri = supplied.poster
+    else if GetInterface(supplied.background,"ifString") <> invalid and len(supplied.background) > 0
+        m.loadingPoster.uri = supplied.background
+    end if
+    m.loadingTitle.text = m.titleText.text
+    m.loadingStatus.text = "Preparando reproducción"
+    m.loadingDots = 0
+    m.loadingPulseCounter = 0
     m.mediaNode = invalid
     m.hlsRetryCount = 0
     m.hlsPrebufferPending = false
@@ -462,6 +479,7 @@ sub closePlayback()
         if GetInterface(m.current.requestId,"ifString") <> invalid then closedRequest.requestId = m.current.requestId
     end if
     m.closing = true
+    if m.loadingOverlay <> invalid then m.loadingOverlay.visible = false
     emitDiagnostic("close")
     m.mediaOpen = false
     m.ticket = invalid
@@ -545,6 +563,7 @@ sub onDecoderState()
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
+        if m.loadingOverlay <> invalid then m.loadingOverlay.visible = false
         if m.hlsStartupIsolation
             m.hlsStartupIsolation = false
             revealTransport()
@@ -568,6 +587,7 @@ sub onDecoderState()
         end if
         revealTransport()
     else if m.phase = "error"
+        if m.loadingOverlay <> invalid then m.loadingOverlay.visible = false
         m.hlsStartupIsolation = false
         m.failed = true
         m.ticket = invalid
@@ -928,6 +948,7 @@ sub publishProgress(force = false as boolean)
 end sub
 
 sub revealTransport()
+    if m.failed and m.loadingOverlay <> invalid then m.loadingOverlay.visible = false
     if isPreviewPresentation()
         m.panel.visible = false
         return
@@ -1092,6 +1113,17 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
+    if m.loadingOverlay <> invalid and m.loadingOverlay.visible
+        m.loadingPulseCounter++
+        if m.loadingPulseCounter mod 2 = 0
+            m.loadingDots = (m.loadingDots mod 3) + 1
+            dots = ""
+            for dotIndex = 1 to m.loadingDots
+                dots += "."
+            end for
+            m.loadingStatus.text = "Preparando reproducción" + dots
+        end if
+    end if
     if m.tsRelayPending
         relayStatus = m.tsStreamServer.status
         nowRelay = m.monotonic.totalMilliseconds()
