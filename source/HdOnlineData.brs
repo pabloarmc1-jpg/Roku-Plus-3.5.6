@@ -1205,6 +1205,13 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     if cacheKey = "frasier (1993)" then searchTitle = "Frasier"
     if cacheKey = "el rey de queens" then searchTitle = "The King of Queens"
     if cacheKey = "asesinato para principiantes" or cacheKey = "asesinato para principiantes (2024)" then searchTitle = "A Good Girl's Guide to Murder"
+    if cacheKey = "2 chicas quebradas" then searchTitle = "2 Broke Girls"
+    if cacheKey = "el adn del delito" then searchTitle = "DNA do Crime"
+    if cacheKey = "anatomía según grey" then searchTitle = "Grey's Anatomy"
+    if cacheKey = "buscando a wanda" then searchTitle = "Where's Wanda?"
+    if cacheKey = "coraje, el perro cobarde" or cacheKey = "coraje, el perro cobarde (1999)" then searchTitle = "Courage the Cowardly Dog"
+    if cacheKey = "el intercambio" then searchTitle = "Bytet"
+    if cacheKey = "breaking bad (2008)" then searchTitle = "Breaking Bad"
     aliasLookup = searchTitle <> title
     cache = invalid
     print "[RokuPlus tvmaze] start op="; operation; " provider="; providerName; " title="; title
