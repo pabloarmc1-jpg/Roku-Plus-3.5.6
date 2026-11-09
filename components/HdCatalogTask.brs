@@ -84,9 +84,16 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         end if
         if item.kind = "series"
             loaded = rpHdTaskLoadEpisodes(item,1,fetcher)
-            if not loaded.ok then return rpHdTaskFailure(answer,loaded)
-            item.seasons = loaded.seasons
-            item.seasonNumbers = loaded.seasonNumbers
+            if loaded.ok
+                item.seasons = loaded.seasons
+                item.seasonNumbers = loaded.seasonNumbers
+            else
+                ' Keep the series details usable when the first episode request is temporarily unavailable.
+                ' The season browser will retry this season through the normal episodes operation.
+                item.seasons = [{number:1,episodes:[],loaded:false}]
+                item.seasonNumbers = [1]
+                print "[RokuPlus series] meta_episode_load_deferred provider="; provider; " id="; item.id
+            end if
         end if
         answer.item = item
         answer.ok = true
