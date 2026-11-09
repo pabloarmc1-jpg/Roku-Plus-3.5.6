@@ -188,6 +188,28 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if rpHdTaskSliceExpired() then exit for
                         variantIndex = (qualityAttempt+variantOffset) mod choices.count()
                         selected = choices[variantIndex]
+                        ' Keep the master manifest only when it exposes a complete, safe
+                        ' external audio group. Roku needs the master HLS playlist to
+                        ' enumerate and switch alternate audio renditions.
+                        if rpHdTaskNativeAudioMasterSafe(master,selected,decoderAccept)
+                            answer.url = masterUrl
+                            answer.streamFormat = "hls"
+                            answer.tsRelayEnabled = false
+                            answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                            answer.description = "Audio seleccionable · HLS · "+selected.height.toStr()+"p"
+                            answer.language = embed.language
+                            answer.width = selected.width
+                            answer.height = selected.height
+                            answer.codecs = selected.codecs
+                            answer.seekSupport = "native-hls-master-audio"
+                            print "[RokuPlus hls-audio] mode=native-master group="; selected.audioGroup; " tracks="; rpHdTaskAudioGroupCount(master,selected.audioGroup)
+                            print "[RokuPlus resolve] provider="; provider; " format=hls playlist=native-master-audio"
+                            answer.attemptUsed = embedIndex+variantIndex*count
+                            answer.ok = true
+                            answer.message = ""
+                            m.hdProviderDeadline = 0
+                            return answer
+                        end if
                         print "[RokuPlus hls-test] selectedPlaylist="; rpHdTaskSafeUrl(selected.url)
                         answer.variantAttempts++
                         child = fetcher(selected.url,"media",mediaReferer)
@@ -782,6 +804,41 @@ end function
 
 ' A master playlist may link each video variant to an external audio group.
 ' Accept Spanish audio regardless of DEFAULT/AUTOSELECT ordering in the provider manifest.
+function rpHdTaskAudioGroupCount(master as object, groupId as string) as integer
+    count = 0
+    for each track in master.audioTracks
+        if track.group = groupId and track.url <> "" then count++
+    end for
+    return count
+end function
+
+' Native master playback is limited to complete alternate-audio groups whose
+' variants all pass the same conservative AVC/AAC device capability guard.
+function rpHdTaskNativeAudioMasterSafe(master as object, selected as object, decoderAccept as dynamic) as boolean
+    if master.encrypted or selected.audioGroup = "" then return false
+    if type(master.audioTracks) <> "roArray" or type(master.variants) <> "roArray" then return false
+    if rpHdTaskAudioGroupCount(master,selected.audioGroup) < 2 then return false
+    spanishTrackFound = false
+    for each track in master.audioTracks
+        if track.group = selected.audioGroup
+            language = lcase(orbitText(track.language,40))
+            name = lcase(orbitText(track.name,120))
+            if language = "es" or language = "spa" or left(language,3) = "es-" or instr(1,name,"español") > 0 or instr(1,name,"espanol") > 0 or instr(1,name,"spanish") > 0 or instr(1,name,"latino") > 0 or instr(1,name,"castellano") > 0
+                spanishTrackFound = true
+            end if
+            if track.url = "" then return false
+        end if
+    end for
+    if not spanishTrackFound then return false
+    for each variant in master.variants
+        if variant.audioGroup <> selected.audioGroup then return false
+        if variant.height > 720 then return false
+        candidate = {variants:[variant],encrypted:false}
+        if rpHdOnlineSelectVariant(candidate,decoderAccept) = invalid then return false
+    end for
+    return master.variants.count() > 0
+end function
+
 function rpHdTaskSpanishAudio(master as object, variant as object) as boolean
     if variant.audioGroup = "" then return true
     for each track in master.audioTracks
