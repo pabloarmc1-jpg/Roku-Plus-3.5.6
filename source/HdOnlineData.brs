@@ -1212,6 +1212,10 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     if cacheKey = "coraje, el perro cobarde" or cacheKey = "coraje, el perro cobarde (1999)" then searchTitle = "Courage the Cowardly Dog"
     if cacheKey = "el intercambio" then searchTitle = "Bytet"
     if cacheKey = "breaking bad (2008)" then searchTitle = "Breaking Bad"
+    if cacheKey = "marshals: una historia de yellowstone (2026)" then searchTitle = "Marshals"
+    if cacheKey = "la lista terminal (2022)" then searchTitle = "The Terminal List"
+    if cacheKey = "visionquest (2026)" then searchTitle = "VisionQuest"
+    if cacheKey = "2 chicas quebradas (2011)" then searchTitle = "2 Broke Girls"
     aliasLookup = searchTitle <> title
     cache = invalid
     print "[RokuPlus tvmaze] start op="; operation; " provider="; providerName; " title="; title
@@ -1260,7 +1264,7 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
         for each match in matches
             if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
                 candidate = match.show
-                candidateName = lcase(orbitText(candidate.name,200).trim())
+                candidateName = lcase(orbitText(candidate.name,200).trim()).replace("Â·","-").replace("·","-")
                 if candidateName = lcase(searchTitle)
                     show = candidate
                     matchMode = "exact"
