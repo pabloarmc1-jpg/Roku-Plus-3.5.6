@@ -1364,9 +1364,12 @@ function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as objec
                             if checkedCount <= 12
                                 print "[RokuPlus tvmaze] episode_title S"; seasonNumber; "E"; episodeNumber; " local="; orbitText(localEpisode.title,200); " tvmaze="; episodeTitle; " generic="; genericTitle
                             end if
-                            if episodeTitle <> "" and genericTitle
+                            tvmazeGenericTitle = CreateObject("roRegex","^(episodio|episode|cap[ií]tulo|chapter)[ ]*[0-9]+$","i").isMatch(episodeTitle.trim())
+                            if episodeTitle <> "" and genericTitle and not tvmazeGenericTitle
                                 localEpisode.title = episodeTitle
                                 renamedCount++
+                            else if tvmazeGenericTitle and checkedCount <= 12
+                                print "[RokuPlus tvmaze] skip_generic_tvmaze_title S"; seasonNumber; "E"; episodeNumber; " title="; episodeTitle
                             end if
                             episodeDescription = rpHdTvmazeText(tvEpisode.summary)
                             if episodeDescription <> "" then localEpisode.description = episodeDescription
