@@ -33,6 +33,11 @@ sub init()
     m.pauseText = m.top.findNode("pauseText")
     m.keyText = m.top.findNode("keyText")
     m.noticeText = m.top.findNode("noticeText")
+    m.audioMenuGroup = m.top.findNode("audioMenu")
+    m.audioMenuItems = m.top.findNode("audioMenuItems")
+    m.audioMenuOpen = false
+    m.audioTracks = []
+    m.audioTrackIndex = 0
     m.track = m.top.findNode("timeTrack")
     m.fill = m.top.findNode("timeFill")
     m.thumb = m.top.findNode("timeThumb")
@@ -255,6 +260,10 @@ sub openRequest()
     m.panelUntil = 6000
     m.noticeUntil = 0
     m.notice = ""
+    m.audioMenuOpen = false
+    if m.audioMenuGroup <> invalid then m.audioMenuGroup.visible = false
+    m.audioTracks = []
+    m.audioTrackIndex = 0
     m.bufferSince = 0
     m.watch = plusWatchdogCreate(0)
     m.lastProgressAt = -1000
@@ -723,7 +732,121 @@ end sub
 
 sub onNativeAudioTrackDetails()
     if not m.mediaOpen or m.closing then return
+    refreshAudioTracks()
     emitDiagnostic("native_audio_tracks")
+end sub
+
+' Build a safe, user-facing list from the tracks reported by Roku. The Track
+' value is kept unchanged because it is the identifier required by Video.audioTrack.
+sub refreshAudioTracks()
+    if m.decoder = invalid then return
+    tracks = m.decoder.availableAudioTracks
+    updated = []
+    if type(tracks) = "roArray"
+        for each track in tracks
+            if type(track) = "roAssociativeArray"
+                trackId = track["Track"]
+                if GetInterface(trackId,"ifString") <> invalid and trackId <> ""
+                    language = ""
+                    name = ""
+                    if GetInterface(track["Language"],"ifString") <> invalid then language = track["Language"]
+                    if GetInterface(track["Name"],"ifString") <> invalid then name = track["Name"]
+                    label = name
+                    if label = "" then label = plusAudioLanguageName(language)
+                    if label = "" then label = "Pista de audio"
+                    if language <> "" and lcase(label) = lcase(language) then label = plusAudioLanguageName(language)
+                    updated.push({id:trackId,label:label,language:language})
+                end if
+            end if
+        end for
+    end if
+    m.audioTracks = updated
+    if m.audioTracks.count() > 0
+        selected = m.decoder.currentAudioTrack
+        if GetInterface(selected,"ifString") = invalid or selected = "" then selected = m.decoder.audioTrack
+        found = false
+        for i = 0 to m.audioTracks.count()-1
+            if m.audioTracks[i].id = selected
+                m.audioTrackIndex = i
+                found = true
+                exit for
+            end if
+        end for
+        if not found and m.audioTrackIndex >= m.audioTracks.count() then m.audioTrackIndex = 0
+    else
+        m.audioTrackIndex = 0
+    end if
+    if m.audioMenuOpen then drawAudioMenu()
+end sub
+
+function plusAudioLanguageName(code as string) as string
+    value = lcase(code)
+    if value = "spa" or value = "es" or left(value,3) = "es-" then return "Español"
+    if value = "eng" or value = "en" or left(value,3) = "en-" then return "Inglés"
+    if value = "fra" or value = "fre" or value = "fr" or left(value,3) = "fr-" then return "Francés"
+    if value = "por" or value = "pt" or left(value,3) = "pt-" then return "Portugués"
+    if value = "deu" or value = "ger" or value = "de" or left(value,3) = "de-" then return "Alemán"
+    if value = "ita" or value = "it" or left(value,3) = "it-" then return "Italiano"
+    if value = "jpn" or value = "ja" or left(value,3) = "ja-" then return "Japonés"
+    if value = "kor" or value = "ko" or left(value,3) = "ko-" then return "Coreano"
+    if value = "zho" or value = "chi" or value = "zh" or left(value,3) = "zh-" then return "Chino"
+    if value = "rus" or value = "ru" or left(value,3) = "ru-" then return "Ruso"
+    return code
+end function
+
+sub openAudioMenu()
+    refreshAudioTracks()
+    if m.audioTracks.count() = 0
+        m.notice = "Esta fuente no ofrece pistas de audio seleccionables."
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
+        revealTransport()
+        drawTransport()
+        return
+    end if
+    m.audioMenuOpen = true
+    m.audioMenuGroup.visible = true
+    revealTransport()
+    drawAudioMenu()
+end sub
+
+sub drawAudioMenu()
+    if m.audioMenuItems = invalid then return
+    output = "IDIOMA DE AUDIO" + chr(10) + chr(10)
+    for i = 0 to m.audioTracks.count()-1
+        prefix = "   "
+        if i = m.audioTrackIndex then prefix = "▶  "
+        output += prefix + m.audioTracks[i].label
+        if m.audioTracks[i].language <> "" then output += "  (" + m.audioTracks[i].language + ")"
+        if i < m.audioTracks.count()-1 then output += chr(10)
+    end for
+    output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
+    m.audioMenuItems.text = output
+end sub
+
+sub closeAudioMenu()
+    m.audioMenuOpen = false
+    if m.audioMenuGroup <> invalid then m.audioMenuGroup.visible = false
+end sub
+
+sub moveAudioMenuSelection(direction as integer)
+    count = m.audioTracks.count()
+    if count = 0 then return
+    m.audioTrackIndex = m.audioTrackIndex + direction
+    if m.audioTrackIndex < 0 then m.audioTrackIndex = count - 1
+    if m.audioTrackIndex >= count then m.audioTrackIndex = 0
+    drawAudioMenu()
+end sub
+
+sub selectAudioTrack()
+    if m.audioTrackIndex < 0 or m.audioTrackIndex >= m.audioTracks.count() then return
+    chosen = m.audioTracks[m.audioTrackIndex]
+    m.decoder.audioTrack = chosen.id
+    closeAudioMenu()
+    m.notice = "Audio seleccionado: " + chosen.label
+    m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
+    revealTransport()
+    drawTransport()
+    print "[RokuPlus audio] selected="; chosen.label; " language="; chosen.language
 end sub
 
 function nativeStreamSnapshot() as object
@@ -1563,6 +1686,20 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if not m.mediaOpen then return false
     if isPreviewPresentation() then return false
     if not press then return true
+    if m.audioMenuOpen
+        if key = "up"
+            moveAudioMenuSelection(-1)
+        else if key = "down"
+            moveAudioMenuSelection(1)
+        else if key = "OK" or key = "play"
+            selectAudioTrack()
+        else if key = "back"
+            closeAudioMenu()
+            revealTransport()
+            drawTransport()
+        end if
+        return true
+    end if
     if key = "back"
         if m.live and m.top.allowPreviewReturn = true
             m.top.presentation = "preview"
@@ -1576,6 +1713,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
         togglePause()
     else if key = "options"
         skipIntro()
+    else if key = "up"
+        openAudioMenu()
     else if key = "OK"
         if m.panel.visible
             revealTransport()
