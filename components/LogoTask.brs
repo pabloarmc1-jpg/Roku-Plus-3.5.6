@@ -10,7 +10,7 @@ sub runLogoLookup()
     if title = "" or m.top.cancelRequested then return
     encoder = CreateObject("roUrlTransfer")
     search = chr(34) + title + chr(34) + " logo"
-    endpoint = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=" + encoder.escape(search) + "&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url|mime&iiurlwidth=1400&format=json"
+    endpoint = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=" + encoder.escape(search) + "&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url%7Cmime&iiurlwidth=1400&format=json"
     transfer = CreateObject("roUrlTransfer")
     messages = CreateObject("roMessagePort")
     transfer.setMessagePort(messages)
