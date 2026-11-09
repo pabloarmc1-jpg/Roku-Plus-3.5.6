@@ -1184,8 +1184,10 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     title = orbitText(item.title,200).trim()
     if title = "" then return answer
 
+    providerName = orbitText(item.provider,32)
     cacheKey = lcase(title)
     cache = invalid
+    print "[RokuPlus tvmaze] start op="; operation; " provider="; providerName; " title="; title
     if type(request.tvmazeCache) = "roAssociativeArray"
         if orbitText(request.tvmazeCache.key,200) = cacheKey
             if type(request.tvmazeCache.episodes) = "roArray"
@@ -1199,9 +1201,16 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
         searchUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(title)
         rpHdTaskBeginSlice(3)
         response = fetcher(searchUrl,"tvmaze","https://www.tvmaze.com/")
-        if not response.ok then return answer
+        if not response.ok
+            print "[RokuPlus tvmaze] search_failed provider="; providerName; " title="; title
+            return answer
+        end if
         matches = ParseJson(response.body)
-        if type(matches) <> "roArray" then return answer
+        if type(matches) <> "roArray"
+            print "[RokuPlus tvmaze] search_invalid_json title="; title
+            return answer
+        end if
+        print "[RokuPlus tvmaze] search_results="; matches.count(); " title="; title
         if matches.count() = 0 and instr(1,lcase(title)," y ") > 0
             alternateTitle = CreateObject("roRegex"," y ","i").replace(title," and ")
             alternateUrl = "https://api.tvmaze.com/search/shows?q="+rpHdOnlineEscape(alternateTitle)
@@ -1212,12 +1221,14 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
         if type(matches) <> "roArray" or matches.count() = 0 then return answer
 
         show = invalid
+        matchMode = "fallback"
         for each match in matches
             if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
                 candidate = match.show
                 candidateName = lcase(orbitText(candidate.name,200).trim())
                 if candidateName = cacheKey
                     show = candidate
+                    matchMode = "exact"
                     exit for
                 end if
             end if
@@ -1234,9 +1245,16 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
                 end if
             end for
         end if
-        if type(show) <> "roAssociativeArray" then return answer
+        if type(show) <> "roAssociativeArray"
+            print "[RokuPlus tvmaze] show_not_found title="; title
+            return answer
+        end if
         showId = orbitInteger(show.id,999999999)
-        if showId < 1 then return answer
+        if showId < 1
+            print "[RokuPlus tvmaze] invalid_show_id title="; title
+            return answer
+        end if
+        print "[RokuPlus tvmaze] selected_show="; orbitText(show.name,200); " show_id="; showId; " match="; matchMode
 
         poster = ""
         image = show.image
@@ -1246,9 +1264,16 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
         rpHdTaskBeginSlice(2)
         episodesUrl = "https://api.tvmaze.com/shows/"+showId.toStr()+"/episodes"
         episodeResponse = fetcher(episodesUrl,"tvmaze","https://www.tvmaze.com/")
-        if not episodeResponse.ok then return answer
+        if not episodeResponse.ok
+            print "[RokuPlus tvmaze] episodes_fetch_failed show_id="; showId
+            return answer
+        end if
         tvEpisodes = ParseJson(episodeResponse.body)
-        if type(tvEpisodes) <> "roArray" then return answer
+        if type(tvEpisodes) <> "roArray"
+            print "[RokuPlus tvmaze] episodes_invalid_json show_id="; showId
+            return answer
+        end if
+        print "[RokuPlus tvmaze] tvmaze_episode_count="; tvEpisodes.count(); " show_id="; showId
 
         ' Keep only one series in the Scene cache to bound retained memory.
         cache = {key:cacheKey,showId:showId,poster:poster,summary:summary,episodes:tvEpisodes}
@@ -1260,6 +1285,7 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     end if
 
     answer.tvmazeCache = cache
+    print "[RokuPlus tvmaze] cache="; "hit"; " show_id="; showId; " provider="; providerName
     if poster <> "" and operation = "meta" then answer.item.poster = poster
     if summary <> "" and operation = "meta" then answer.item.description = summary
 
@@ -1283,13 +1309,21 @@ function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as objec
     if type(season) <> "roAssociativeArray" then return season
     seasonNumber = orbitInteger(season.number,999,-1)
     if seasonNumber < 0 or type(season.episodes) <> "roArray" then return season
+    matchedCount = 0
+    renamedCount = 0
+    imageCount = 0
+    checkedCount = 0
     for each localEpisode in season.episodes
         if type(localEpisode) = "roAssociativeArray"
             episodeNumber = orbitInteger(localEpisode.episode,9999)
             if episodeNumber > 0
+                checkedCount++
+                foundMatch = false
                 for each tvEpisode in tvEpisodes
                     if type(tvEpisode) = "roAssociativeArray"
                         if orbitInteger(tvEpisode.season,999,-1) = seasonNumber and orbitInteger(tvEpisode.number,9999) = episodeNumber
+                            foundMatch = true
+                            matchedCount++
                             episodeTitle = orbitText(tvEpisode.name,200)
                             existingTitle = lcase(orbitText(localEpisode.title,200).trim())
                             genericTitle = existingTitle = "" or existingTitle = "episodio "+episodeNumber.toStr() or existingTitle = "episode "+episodeNumber.toStr()
@@ -1299,7 +1333,10 @@ function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as objec
                             if not genericTitle
                                 genericTitle = CreateObject("roRegex","^s[0-9]{1,3}e[0-9]{1,4}$","i").isMatch(existingTitle)
                             end if
-                            if episodeTitle <> "" and genericTitle then localEpisode.title = episodeTitle
+                            if episodeTitle <> "" and genericTitle
+                                localEpisode.title = episodeTitle
+                                renamedCount++
+                            end if
                             episodeDescription = rpHdTvmazeText(tvEpisode.summary)
                             if episodeDescription <> "" then localEpisode.description = episodeDescription
                             episodeImage = tvEpisode.image
@@ -1309,15 +1346,20 @@ function rpHdTvmazeEnrichSeason(season as object, tvEpisodes as object) as objec
                                 if still <> ""
                                     localEpisode.poster = still
                                     localEpisode.background = still
+                                    imageCount++
                                 end if
                             end if
                             exit for
                         end if
                     end if
                 end for
+                if not foundMatch and checkedCount <= 12
+                    print "[RokuPlus tvmaze] no_episode_match local=S"; seasonNumber; "E"; episodeNumber
+                end if
             end if
         end if
     end for
+    print "[RokuPlus tvmaze] season_result=S"; seasonNumber; " local="; checkedCount; " matched="; matchedCount; " renamed="; renamedCount; " images="; imageCount
     return season
 end function
 
