@@ -45,8 +45,12 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
                 if item.seasons[i].number = 1 then seasonIndex = i
             end for
             loaded = rpHdSeriesmetroLoadSeason(item,item.seasons[seasonIndex].number,fetcher)
-            if not loaded.ok then return rpHdTaskFailure(answer,loaded)
-            item.seasons[seasonIndex] = loaded.season
+            if loaded.ok
+                item.seasons[seasonIndex] = loaded.season
+            else
+                ' Keep metadata and season list usable; the browser retries this season separately.
+                print "[RokuPlus series] meta_episode_load_deferred provider=seriesmetro id="; item.id; " season="; item.seasons[seasonIndex].number
+            end if
         end if
         answer.item = item
         answer.ok = true
