@@ -22,6 +22,32 @@ sub Main(args as dynamic)
         osMinor = val(versionParts[1])
     end if
 
+    ' Read Roku's native record for the previous app termination.
+    ' This is diagnostic only: it does not change playback or app behavior.
+    if osMajor >= 13
+        appManager = CreateObject("roAppManager")
+        if appManager <> invalid
+            lastExitInfo = appManager.GetLastExitInfo()
+            if type(lastExitInfo) = "roAssociativeArray"
+                print "[RokuPlus exit-diagnostic] timestamp="; lastExitInfo.lookup("timestamp", "unavailable")
+                print "[RokuPlus exit-diagnostic] exit_code="; lastExitInfo.lookup("exit_code", "unavailable")
+                print "[RokuPlus exit-diagnostic] app_state="; lastExitInfo.lookup("app_state", "unavailable")
+                print "[RokuPlus exit-diagnostic] media_player_state="; lastExitInfo.lookup("media_player_state", "unavailable")
+                if lastExitInfo.doesExist("mem_limit")
+                    print "[RokuPlus exit-diagnostic] mem_limit_mb="; lastExitInfo.mem_limit
+                else
+                    print "[RokuPlus exit-diagnostic] mem_limit_mb=not-reported"
+                end if
+            else
+                print "[RokuPlus exit-diagnostic] no-record-available"
+            end if
+        else
+            print "[RokuPlus exit-diagnostic] app-manager-unavailable"
+        end if
+    else
+        print "[RokuPlus exit-diagnostic] requires-roku-os-13-or-newer"
+    end if
+
     memoryMonitor = invalid
     memoryAlertsEnabled = false
     ' EnableMemoryWarningEvent/GetMemoryLimitPercent require Roku OS 15.2+.
