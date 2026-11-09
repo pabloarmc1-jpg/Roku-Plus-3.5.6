@@ -983,6 +983,9 @@ sub drawSubtitleMenu()
 end sub
 
 sub closeSubtitleMenu()
+    if m.subtitleSearchTask <> invalid then cancelSubtitleSearchTask()
+    m.subtitleOnlineBusy = false
+    m.subtitleOnlineOperation = ""
     m.subtitleMenuOpen = false
     if m.subtitleMenuGroup <> invalid then m.subtitleMenuGroup.visible = false
 end sub
