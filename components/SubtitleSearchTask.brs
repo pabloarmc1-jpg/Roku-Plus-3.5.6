@@ -33,6 +33,7 @@ sub runSubtitleSearch()
         body = subtitleGet(transfer,endpoint)
         if GetInterface(body,"ifString") = invalid or len(body) = 0
             answer.message = "El servicio de subtítulos no respondió."
+            if m.subtitleHttpStatus = 429 then answer.message = "Se alcanzó el límite diario de búsquedas gratuitas."
             m.top.result = answer
             return
         end if
@@ -82,6 +83,7 @@ sub runSubtitleSearch()
         body = subtitleGet(transfer,endpoint)
         if GetInterface(body,"ifString") = invalid or len(body) = 0
             answer.message = "No se pudo obtener el enlace del subtítulo."
+            if m.subtitleHttpStatus = 429 then answer.message = "Se alcanzó el límite diario de descargas gratuitas."
             m.top.result = answer
             return
         end if
@@ -141,6 +143,7 @@ function subtitleGet(transfer as object, endpoint as string) as dynamic
     if left(endpoint,37) <> "https://subtitles.website/strapi/api/" and left(endpoint,41) <> "https://subtitles.website/strapi/uploads/"
         if endpoint <> "https://subtitles.website/strapi/api/search/subtitles?" then return invalid
     end if
+    m.subtitleHttpStatus = 0
     port = CreateObject("roMessagePort")
     transfer.setMessagePort(port)
     transfer.setUrl(endpoint)
@@ -148,7 +151,8 @@ function subtitleGet(transfer as object, endpoint as string) as dynamic
     event = wait(12000,port)
     if type(event) = "roUrlEvent"
         if event.getSourceIdentity() = transfer.getIdentity() and event.getInt() = 1
-            if event.getResponseCode() = 200 then return event.getString()
+            m.subtitleHttpStatus = event.getResponseCode()
+            if m.subtitleHttpStatus = 200 then return event.getString()
         end if
     end if
     transfer.asyncCancel()
