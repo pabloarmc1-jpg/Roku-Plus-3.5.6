@@ -342,7 +342,7 @@ sub openRequest()
     if GetInterface(supplied.streamFormat, "ifString") <> invalid then format = lcase(supplied.streamFormat)
     if format = "mpegts" then format = "ts"
     if format = "m3u8" then format = "hls"
-    if supplied.tsRelayEnabled = true and type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
+    if supplied.tsRelayEnabled = true and type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1 and type(m.tsRelayTimeline) = "roArray" and m.tsRelayTimeline.count() = supplied.segmentUrls.count()
         m.tsRelayMode = true
         m.tsRelaySegments = supplied.segmentUrls
         if type(m.tsRelayTimeline) = "roArray" and m.tsRelayTimeline.count() = m.tsRelaySegments.count()
