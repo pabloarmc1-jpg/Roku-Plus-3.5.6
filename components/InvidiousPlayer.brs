@@ -31,8 +31,12 @@ sub openRequest()
     media.live = false
     streamFormat = "mp4"
     if request.doesExist("streamFormat") and request.streamFormat <> "" then streamFormat = lcase(request.streamFormat)
-    if streamFormat <> "hls" then streamFormat = "mp4"
-    media.streamFormat = streamFormat
+    ' This standalone player intentionally supports progressive MP4 only.
+    if streamFormat <> "mp4"
+        m.statusNode.text = "Formato no compatible. Solo se permite MP4 H.264 + AAC."
+        return
+    end if
+    media.streamFormat = "mp4"
     if streamFormat = "mp4"
         bitrate = 0
         if request.doesExist("bitrate") and request.bitrate <> invalid
