@@ -832,7 +832,7 @@ sub genreFilterChosen(event as object)
 end sub
 
 sub genreFilterDismissed(event as object)
-    if m.dialogBox = invalid or event.getData() <> true then return
+    if m.dialogBox = invalid then return
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
     releaseDialog(true)
     m.zone = "grid"
@@ -879,7 +879,7 @@ sub mobileSearchInputChosen(event as object)
 end sub
 
 sub mobileSearchInputDismissed(event as object)
-    if m.dialogBox = invalid or event.getData() <> true then return
+    if m.dialogBox = invalid then return
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
     releaseDialog(true)
     if m.view = "search-keyboard"
@@ -1039,7 +1039,7 @@ sub liveSearchChosen(event as object)
 end sub
 
 sub liveSearchDismissed(event as object)
-    if m.dialogBox = invalid or event.getData() <> true then return
+    if m.dialogBox = invalid then return
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
     releaseDialog(true)
     if m.view <> "live" then return
@@ -1135,7 +1135,7 @@ sub searchChosen(event as object)
 end sub
 
 sub searchDismissed(event as object)
-    if m.dialogBox = invalid or event.getData() <> true then return
+    if m.dialogBox = invalid then return
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
     releaseDialog(true)
     if m.titles.count() = 0 then loadBrowsePage(0)
@@ -1580,7 +1580,7 @@ sub profileNameChosen(event as object)
 end sub
 
 sub profileNameDismissed(event as object)
-    if m.dialogBox = invalid or event.getData() <> true then return
+    if m.dialogBox = invalid then return
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
     releaseDialog(true)
     m.view = "profiles"
@@ -1657,7 +1657,7 @@ sub compatSettingsChosen(event as object)
 end sub
 
 sub compatSettingsDismissed(event as object)
-    if m.dialogBox = invalid or event.getData() <> true then return
+    if m.dialogBox = invalid then return
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
     releaseDialog(true)
     openSettings()
@@ -1721,7 +1721,7 @@ sub apiKeySettingsChosen(event as object)
 end sub
 
 sub apiKeySettingsDismissed(event as object)
-    if m.dialogBox = invalid or event.getData() <> true then return
+    if m.dialogBox = invalid then return
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
     releaseDialog(true)
     openSettings()
