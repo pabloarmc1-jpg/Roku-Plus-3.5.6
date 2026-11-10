@@ -356,7 +356,7 @@ function rpTsRelayAuditPayload(payload as object) as object
                     adaptationFlags = payload[offset+5]
                     if adaptationFlags >= 128 then discontinuity = true
                     if adaptationLength >= 7 and (adaptationFlags mod 32) >= 16
-                        pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \\ 128)
+                        pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \ 128)
                         pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
                         pcrValue = pcrBase + pcrExtension / 300.0
                         if result.pcrCount = 0 then result.firstPcr = pcrValue
