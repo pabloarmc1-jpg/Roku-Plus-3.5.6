@@ -187,7 +187,6 @@ sub rpTsRelayServe(connection as object, server as object)
                 print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
             end if
         end if
-        end if
         if payloadSize <= 0
             DeleteFile(filePath)
             exit for
