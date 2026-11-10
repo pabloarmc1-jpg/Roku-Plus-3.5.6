@@ -143,6 +143,7 @@ sub rpTsRelayServe(connection as object, server as object, request as string)
             return
         end if
         rpTsRelayServeSegment(connection,server,connectionPort,segmentIndex)
+        print "[RokuPlus ts-relay diag] client_close route=segment index="; segmentIndex; " status="; connection.status(); " exception="; connection.isException()
         connection.close()
         return
     end if
@@ -316,7 +317,7 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
                 exit while
             end if
         else
-            print "[RokuPlus ts-relay] send_failed kind=bytes count="; count; " offset="; offset; " total="; total; " status="; connection.status(); " eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock()
+            print "[RokuPlus ts-relay] send_failed kind=bytes count="; count; " offset="; offset; " total="; total; " status="; connection.status(); " eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock(); " exception="; connection.isException(); " writable="; connection.isWritable()
             server.sendOk = false
             exit while
         end if
