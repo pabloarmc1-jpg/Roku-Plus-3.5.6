@@ -267,6 +267,7 @@ sub openRequest()
     m.tsRelaySegments = invalid
     m.tsRelayDurations = invalid
     m.tsRelayDuration = invalid
+    m.tsRelayPositionOffset = 0.0
     m.tsRelayRestartStage = 0
     m.tsRelayRestartAt = 0
     m.tsRelayRestartSegment = -1
@@ -729,7 +730,7 @@ sub applyResumeSeek()
         emitDiagnostic("resume_out_of_range")
         return
     end if
-    currentPosition = plusClockValue(m.decoder.position)
+    currentPosition = playerPosition()
     ' If the native clock is already at the saved point, avoid an unnecessary seek.
     ' Do not discard the bookmark merely because metadata arrived after playback began.
     if currentPosition <> invalid and abs(currentPosition-resumeAt) <= 1.25
@@ -745,7 +746,7 @@ end sub
 
 sub onNativePosition()
     if not m.mediaOpen then return
-    p = plusClockValue(m.decoder.position)
+    p = playerPosition()
     if m.firstNative = invalid and p <> invalid
         m.firstNative = p
         emitDiagnostic("first_native_position")
@@ -1357,7 +1358,7 @@ sub updateExternalSubtitle()
         m.externalSubtitleGroup.visible = false
         return
     end if
-    position = plusClockValue(m.decoder.position)
+    position = playerPosition()
     if position = invalid
         m.externalSubtitleGroup.visible = false
         return
@@ -1568,7 +1569,7 @@ sub publishProgress(force = false as boolean)
     if m.phase = "opening" then state = "opening"
     presentation = "fullscreen"
     if isPreviewPresentation() then presentation = "preview"
-    nativePosition = plusClockValue(m.decoder.position)
+    nativePosition = playerPosition()
     nativeDuration = playerDuration()
     resumeInFlight = m.resumePending <> invalid
     if m.pendingSeek <> invalid
@@ -1631,9 +1632,9 @@ sub drawTransport()
     if state = "buffering" or state = "none" or state = "stopped" then mode = "Preparando"
     if m.ticket <> invalid or m.pendingSeek <> invalid then mode = "Buscando posición"
     if m.failed then mode = "No se pudo reproducir"
-    clock = plusClockText(m.decoder.position)
+    clock = plusClockText(playerPosition())
     d = playerDuration()
-    p = plusClockValue(m.decoder.position)
+    p = playerPosition()
     ' Show the last requested destination while a command is queued; this is
     ' a preview only and is never substituted for the decoder's media clock.
     if m.pendingSeek <> invalid
@@ -1671,7 +1672,7 @@ sub drawTransport()
     if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
         introStart = plusClockValue(m.current.introStart)
         introEnd = plusClockValue(m.current.introEnd)
-        currentPosition = plusClockValue(m.decoder.position)
+        currentPosition = playerPosition()
         if introStart <> invalid and introEnd <> invalid and currentPosition <> invalid
             if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "OPTIONS · Saltar introducción"
         end if
@@ -1868,7 +1869,7 @@ sub onPulse()
     if m.resumePending <> invalid and now - m.resumeStartedAt >= 15000
         m.resumePending = invalid
         m.resumeFailed = true
-        m.resumeFailedPosition = plusClockValue(m.decoder.position)
+        m.resumeFailedPosition = playerPosition()
         m.resumeFailedAt = now
         emitDiagnostic("resume_metadata_timeout")
     end if
@@ -1949,7 +1950,7 @@ sub skipIntro()
     if not m.current.doesExist("introStart") or not m.current.doesExist("introEnd") then return
     startAt = plusClockValue(m.current.introStart)
     endAt = plusClockValue(m.current.introEnd)
-    currentAt = plusClockValue(m.decoder.position)
+    currentAt = playerPosition()
     if startAt = invalid or endAt = invalid or currentAt = invalid or endAt <= startAt then return
     if currentAt < startAt or currentAt >= endAt then return
     if m.failed then return
@@ -1970,7 +1971,7 @@ sub shiftTen(backwards as boolean)
         return
     end if
     state = m.decoder.state
-    origin = plusClockValue(m.decoder.position)
+    origin = playerPosition()
     if m.failed then return
     ' During an outstanding seek a source normally buffers. Keep accepting
     ' remote intent there, but never start a seek during initial loading.
@@ -2011,6 +2012,31 @@ sub cancelPendingResumeForUserSeek()
     m.resumeFailedPosition = invalid
     m.resumeFailedAt = 0
 end sub
+
+function playerPosition() as dynamic
+    nativePosition = plusClockValue(m.decoder.position)
+    if nativePosition = invalid then return invalid
+    if m.tsRelayMode
+        offset = plusClockValue(m.tsRelayPositionOffset)
+        if offset = invalid then offset = 0.0
+        return offset + nativePosition
+    end if
+    return nativePosition
+end function
+
+function plusTsRelayOffsetForSegment(segmentIndex as integer) as dynamic
+    if type(m.tsRelayDurations) <> "roArray" then return invalid
+    if segmentIndex < 0 or segmentIndex >= m.tsRelayDurations.count() then return invalid
+    elapsed = 0.0
+    if segmentIndex > 0
+        for index = 0 to segmentIndex - 1
+            segmentDuration = plusClockValue(m.tsRelayDurations[index])
+            if segmentDuration = invalid or segmentDuration <= 0 then return invalid
+            elapsed += segmentDuration
+        end for
+    end if
+    return elapsed
+end function
 
 function playerDuration() as dynamic
     if m.tsRelayMode and m.tsRelayDuration <> invalid and m.tsRelayDuration > 0 then return m.tsRelayDuration
@@ -2062,6 +2088,19 @@ sub advanceTsRelayRestart(now as integer)
         m.tsRelayRestartStage = 0
         return
     end if
+    relayOffset = plusTsRelayOffsetForSegment(m.tsRelayRestartSegment)
+    if relayOffset = invalid
+        m.ticket = invalid
+        m.failed = true
+        m.notice = "No se pudo calcular el tiempo global del segmento."
+        m.noticeUntil = 2147483647
+        m.decoder.visible = false
+        revealTransport()
+        emitDiagnostic("ts_relay_restart_offset_unavailable")
+        m.tsRelayRestartStage = 0
+        return
+    end if
+    m.tsRelayPositionOffset = relayOffset
     relayMedia = CreateObject("roSGNode","ContentNode")
     relayMedia.url = "http://" + m.tsRelayLocalIp + ":49322/stream.ts?key=" + m.tsRelayAccessKey + "&segment=" + m.tsRelayRestartSegment.toStr()
     relayMedia.title = m.titleText.text
@@ -2085,7 +2124,7 @@ sub dispatchPendingSeek()
     if m.monotonic.totalMilliseconds() < m.pendingSeek.dueAt then return
     state = m.decoder.state
     if state <> "playing" and state <> "paused" then return
-    origin = plusClockValue(m.decoder.position)
+    origin = playerPosition()
     if origin = invalid then return
     target = m.pendingSeek.target
     isResumeSeek = false
@@ -2133,9 +2172,10 @@ sub verifySeekResult()
     state = m.decoder.state
     if state <> "playing" and state <> "paused" then return
     if m.wantPaused and state <> "paused" then return
-    p = plusClockValue(m.decoder.position)
+    p = playerPosition()
     if p = invalid then return
     sample = renderedFields()
+    if m.tsRelayMode then m.ticket.verifyRendered = false
     candidate = plusSeekLanding(m.ticket,p,sample.video,now,state)
     if not candidate.ready then return
     result = {id: m.ticket.id, requested: m.ticket.target, observed: p, difference: p - m.ticket.target, pauseRequested: m.ticket.paused, state: state}
