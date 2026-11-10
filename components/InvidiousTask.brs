@@ -288,7 +288,14 @@ function invidiousDeviceSupportsAudio(info as object) as boolean
     deviceInfo = CreateObject("roDeviceInfo")
     capability = deviceInfo.CanDecodeAudio({codec:info.codec})
     if type(capability) = "roAssociativeArray" and capability.doesExist("result")
-        return capability.result = true
+        if capability.result = true then return true
+    end if
+    ' Dolby and DTS may be available through the connected HDMI receiver as passthrough.
+    if info.codec = "ac3" or info.codec = "eac3" or info.codec = "dts" or info.codec = "dtse"
+        passCapability = deviceInfo.CanDecodeAudio({codec:info.codec,passthru:1})
+        if type(passCapability) = "roAssociativeArray" and passCapability.doesExist("result")
+            if passCapability.result = true and deviceInfo.IsPassthruCodecActive() = true then return true
+        end if
     end if
     return false
 end function
