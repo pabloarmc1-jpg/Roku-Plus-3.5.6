@@ -109,16 +109,8 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
                     end if
                 end if
             end if
-            ' Roku needs a positive bitrate for progressive MP4 metadata.
-            if bitrateKbps <= 0
-                if height >= 720
-                    bitrateKbps = 2500
-                else if height >= 480
-                    bitrateKbps = 1400
-                else
-                    bitrateKbps = 800
-                end if
-            end if
+            ' Do not invent bitrate values: Roku requires a valid progressive stream bitrate.
+            if bitrateKbps <= 0 then continue for
             if score > bestScore
                 bestScore = score
                 chosenUrl = streamUrl
