@@ -436,7 +436,7 @@ sub homeScreen()
 
     continueY = 520
     discoveryY = 700
-    savedY = 850
+    savedY = 900
     if m.continueItems.count() = 0
         discoveryY = 555
         savedY = 755
@@ -497,10 +497,10 @@ sub homeScreen()
                 x = 250+i*270
                 uri = item.background
                 if uri = "" then uri = item.poster
-                if uri <> "" then art(uri,x+8,savedY+40,260,146)
-                homeProgressOverlay(item,x+8,savedY+40,260,146)
-                if m.zone = "home-list" and m.listCover = i then panel(x+4,savedY+36,268,154,"0xFFFFFF20")
-                focusTarget("home-list",i,x,savedY+32,276,162,"landscape")
+                if uri <> "" then art(uri,x+8,savedY+40,260,126)
+                homeProgressOverlay(item,x+8,savedY+40,260,126)
+                if m.zone = "home-list" and m.listCover = i then panel(x+4,savedY+36,268,134,"0xFFFFFF20")
+                focusTarget("home-list",i,x,savedY+32,276,142,"landscape")
             end if
         end for
     else if m.homeSeries.count() > 0
