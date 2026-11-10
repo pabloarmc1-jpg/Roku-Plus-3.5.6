@@ -110,7 +110,6 @@ sub init()
     m.hdSourceCursor = 0
     ' Local file access and JSON parsing run in a Task, never on the Render thread.
     m.hdLibrary = {movies: [], series: []}
-    m.creditsText = ""
     m.hdDataTask = CreateObject("roSGNode", "HdLocalDataTask")
     m.hdDataTask.observeField("result", "hdLocalDataLoaded")
     m.hdDataTask.control = "RUN"
@@ -139,7 +138,6 @@ sub hdLocalDataLoaded(event as object)
     m.hdDataTask = invalid
     if type(answer) <> "roAssociativeArray" then return
     if type(answer.library) = "roAssociativeArray" then m.hdLibrary = answer.library
-    if GetInterface(answer.creditsText, "ifString") <> invalid then m.creditsText = answer.creditsText
     if m.catalogMode = "hd" and not usesOnlineHd()
         refreshHome()
         drawScreen()
@@ -1447,7 +1445,7 @@ end sub
 
 sub openCredits()
     m.creditsPages = []
-    text = m.creditsText
+    text = "ROKU PLUS - CATALOGO HD" + chr(10) + chr(10) + "CORTOS DE BLENDER STUDIO / BLENDER INSTITUTE" + chr(10) + "Caminandes: Llama Drama, Gran Dillama y Llamigos; Glass Half." + chr(10) + "Los cortos se enlazan desde las fuentes oficiales bajo licencia CC BY 4.0." + chr(10) + "https://creativecommons.org/licenses/by/4.0/" + chr(10) + chr(10) + "NASA EN ESPANOL - ARCHIVO 2023" + chr(10) + "Ocho capsulas documentales del archivo de NASA / Goddard Space Flight Center." + chr(10) + "El material de NASA puede incluir excepciones y contenido de terceros." + chr(10) + "Condiciones de uso: https://www.nasa.gov/nasa-brand-center/images-and-media/" + chr(10) + "NASA no patrocina ni respalda esta aplicacion."
     page = ""
     for each line in text.split(chr(10))
         if len(page)+len(line) > 1250
