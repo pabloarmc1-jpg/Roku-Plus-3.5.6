@@ -264,6 +264,7 @@ sub openRequest()
     m.nativePlaylistMode = false
     m.tsRelayMode = false
     m.tsRelayPending = false
+    m.tsRelayResumeSuppressed = false
     m.tsRelaySegments = invalid
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
@@ -344,6 +345,13 @@ sub openRequest()
         m.nativePlaylistMode = false
         format = "ts"
         print "[RokuPlus ts-relay] mode=single-http-connection segments="; m.tsRelaySegments.count()
+        ' Diagnostic isolation: do not seek to the saved bookmark on this
+        ' sequential relay stream. Keep resumePending so progress updates do
+        ' not overwrite the user's saved position during this test.
+        m.tsRelayResumeSuppressed = m.resumePending <> invalid
+        if m.tsRelayResumeSuppressed
+            print "[RokuPlus ts-relay diag] automatic_resume_seek=suppressed savedPosition="; m.resumePending
+        end if
     end if
     ' A clean-TS diagnostic is opt-in. Never replace a provider stream merely
     ' because a diagnostic URL happens to be present in a playback descriptor.
@@ -687,6 +695,7 @@ sub onDecoderState()
 end sub
 
 sub applyResumeSeek()
+    if m.tsRelayResumeSuppressed then return
     if m.resumePending = invalid or not m.mediaOpen or m.failed or m.live then return
     state = m.decoder.state
     if state <> "playing" and state <> "paused" then return
@@ -1833,7 +1842,7 @@ sub onPulse()
             emitDiagnostic("native_poll")
         end if
     end if
-    if m.resumePending <> invalid and now - m.resumeStartedAt >= 15000
+    if m.resumePending <> invalid and not m.tsRelayResumeSuppressed and now - m.resumeStartedAt >= 15000
         m.resumePending = invalid
         m.resumeFailed = true
         m.resumeFailedPosition = plusClockValue(m.decoder.position)
