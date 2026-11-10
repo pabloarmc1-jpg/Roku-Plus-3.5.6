@@ -146,6 +146,11 @@ sub init()
     m.homeCache = {}
     m.homeLoading = false
     m.settingsCursor = 0
+    m.youtubeTask = invalid
+    m.youtubeItems = []
+    m.youtubeCursor = 0
+    m.youtubeQuery = ""
+    m.youtubeBusy = false
     m.creditsPage = 0
     m.creditsPages = []
     if not m.configured
@@ -889,6 +894,129 @@ sub mobileSearchInputDismissed(event as object)
     scheduleDialogFocusRestore()
 end sub
 
+sub openYoutube()
+    cancelYoutubeTask()
+    m.view = "youtube"
+    m.zone = "youtube"
+    m.nav = 9
+    m.youtubeCursor = 0
+    m.note = ""
+    if rpLoadYoutubeApiKey() = ""
+        m.note = "Configura YouTube Data API v3 Key en Ajustes para buscar videos."
+        drawScreen()
+        return
+    end if
+    drawScreen()
+    openYoutubeSearch()
+end sub
+
+sub openYoutubeSearch()
+    dialog = CreateObject("roSGNode","StandardKeyboardDialog")
+    if dialog = invalid then return
+    dialog.title = "Buscar en YouTube"
+    dialog.message = ["Busca videos públicos de YouTube."]
+    dialog.buttons = ["Buscar","Cancelar"]
+    dialog.text = m.youtubeQuery
+    dialog.observeField("buttonSelected","youtubeSearchChosen")
+    dialog.observeField("wasClosed","youtubeSearchDismissed")
+    m.dialogBox = dialog
+    m.dialogPurpose = "youtube-search"
+    m.top.dialog = dialog
+end sub
+
+sub youtubeSearchChosen(event as object)
+    if m.dialogBox = invalid then return
+    if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    choice = event.getData()
+    query = m.dialogBox.text
+    if GetInterface(query,"ifString") = invalid then query = ""
+    query = left(query.trim(),160)
+    releaseDialog()
+    if choice = 0
+        if query = ""
+            m.note = "Escribe algo para buscar en YouTube."
+            drawScreen()
+        else
+            m.youtubeQuery = query
+            startYoutubeSearch(query)
+        end if
+    else
+        m.view = "youtube"
+        m.zone = "youtube"
+        drawScreen()
+    end if
+    m.top.setFocus(true)
+end sub
+
+sub youtubeSearchDismissed(event as object)
+    if m.dialogBox = invalid then return
+    if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    releaseDialog(true)
+    m.view = "youtube"
+    m.zone = "youtube"
+    drawScreen()
+    scheduleDialogFocusRestore()
+end sub
+
+sub startYoutubeSearch(query as string)
+    cancelYoutubeTask()
+    apiKey = rpLoadYoutubeApiKey()
+    if apiKey = ""
+        m.note = "Configura YouTube Data API v3 Key en Ajustes."
+        drawScreen()
+        return
+    end if
+    task = CreateObject("roSGNode","YoutubeTask")
+    if task = invalid
+        m.note = "No se pudo iniciar la búsqueda de YouTube."
+        drawScreen()
+        return
+    end if
+    task.operation = "search"
+    task.query = query
+    task.apiKey = apiKey
+    task.maxResults = 20
+    task.observeField("result","youtubeSearchResult")
+    m.youtubeTask = task
+    m.youtubeBusy = true
+    m.youtubeItems = []
+    m.youtubeCursor = 0
+    m.note = ""
+    drawScreen()
+    task.control = "RUN"
+end sub
+
+sub cancelYoutubeTask()
+    if m.youtubeTask <> invalid
+        m.youtubeTask.unobserveField("result")
+        m.youtubeTask.cancelRequested = true
+    end if
+    m.youtubeTask = invalid
+    m.youtubeBusy = false
+end sub
+
+sub youtubeSearchResult(event as object)
+    if m.youtubeTask = invalid then return
+    if not m.youtubeTask.isSameNode(event.getRoSGNode()) then return
+    answer = event.getData()
+    m.youtubeTask.unobserveField("result")
+    m.youtubeTask = invalid
+    m.youtubeBusy = false
+    if type(answer) = "roAssociativeArray"
+        if answer.ok
+            m.youtubeItems = answer.items
+            m.youtubeCursor = 0
+            m.note = answer.message
+        else
+            m.youtubeItems = []
+            m.note = answer.message
+        end if
+    else
+        m.note = "YouTube devolvió una respuesta inesperada."
+    end if
+    drawScreen()
+end sub
+
 sub openSearch()
     cancelRequest()
     m.searchOriginView = m.view
@@ -1210,6 +1338,7 @@ sub activateNav()
     if m.nav = 6 then openLibrary("history")
     if m.nav = 7 then openSettings()
     if m.nav = 8 then openProfiles()
+    if m.nav = 9 then openYoutube()
 end sub
 
 sub selectLiveFilter(filter as integer)
@@ -2274,6 +2403,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
     end if
     if key = "back"
+        if m.view = "youtube"
+            cancelYoutubeTask()
+            goHome()
+            return true
+        end if
         if m.view = "search-keyboard"
             closeSearchKeyboard()
             return true
@@ -2435,7 +2569,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if m.busy and m.view <> "live" then return true
     if m.zone = "nav"
         if key = "up" and m.nav > 0 then m.nav--
-        if key = "down" and m.nav < 8 then m.nav++
+        if key = "down" and m.nav < 9 then m.nav++
         if key = "OK" then activateNav(): return true
         if key = "right"
             if m.view = "home" then m.zone = "hero"
@@ -2449,6 +2583,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
             if m.view = "settings" then m.zone = "settings"
             if m.view = "profiles" then m.zone = "profiles"
+            if m.view = "youtube" then m.zone = "youtube"
         end if
         drawScreen()
         return true

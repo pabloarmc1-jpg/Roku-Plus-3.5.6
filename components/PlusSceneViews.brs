@@ -164,7 +164,7 @@ function modeName() as string
 end function
 
 sub topBar()
-    labels = ["Inicio","Películas","Series","TV en vivo","Buscar","Mi lista","Historial","Ajustes","Perfiles"]
+    labels = ["Inicio","Películas","Series","TV en vivo","Buscar","Mi lista","Historial","Ajustes","Perfiles","YouTube"]
     active = 0
     if m.view = "browse" or m.view = "detail" or m.view = "episodes"
         active = 1
@@ -179,6 +179,8 @@ sub topBar()
         active = 7
     else if m.view = "profiles"
         active = 8
+    else if m.view = "youtube"
+        active = 9
     end if
     if m.view = "live"
         panel(0,0,1920,52,"0x080808F2")
@@ -200,9 +202,9 @@ sub topBar()
         words("ROKU PLUS",91,34,174,34,21,"0xFFFFFFFF")
     end if
     panel(18,94,56,2,"0xFFFFFF30")
-    iconFiles = ["nav-home.png","nav-movies.png","nav-series.png","nav-live.png","nav-search.png","nav-favorites.png","nav-history.png","nav-settings.png","nav-profile.png"]
-    for i = 0 to 8
-        y = 132+i*91
+    iconFiles = ["nav-home.png","nav-movies.png","nav-series.png","nav-live.png","nav-search.png","nav-favorites.png","nav-history.png","nav-settings.png","nav-profile.png","nav-search.png"]
+    for i = 0 to 9
+        y = 112+i*88
         isSelected = (active = i)
         if m.zone = "nav" and m.nav = i then isSelected = true
         if isSelected
@@ -252,6 +254,7 @@ sub drawScreen()
         if m.view = "appearance" then appearanceScreen()
         if m.view = "credits" then creditsScreen()
         if m.view = "hd-source" then hdSourceScreen()
+        if m.view = "youtube" then youtubeScreen()
         if m.busy or m.note <> ""
             panel(72,970,1770,86,"0x181818F5")
             text = m.note
@@ -1089,6 +1092,35 @@ sub liveScreen()
     words(rpLivePopularityNote(),1351,944,525,66,18,"0xACB9AAFF").wrap = true
     words("↑ ↓  Cambiar canal     OK  Pantalla completa     *  Favorito",305,1025,1035,36,21,"0xDCE1D9FF")
     words("Atrás  Volver",1560,1025,316,36,21,"0xDCE1D9FF").horizAlign = "right"
+end sub
+
+sub youtubeScreen()
+    topBar()
+    words("YouTube",320,118,1400,72,48,"0xFFFFFFFF")
+    words("Búsqueda de videos públicos · datos oficiales de YouTube",324,188,1450,42,23,"0xB3B3B3FF")
+    if m.youtubeQuery <> "" then words("Resultados para: " + m.youtubeQuery,324,244,1400,42,24,"0xE5E5E5FF")
+    if m.youtubeBusy
+        words("Buscando videos…",324,360,1400,55,32,"0xD0D0D0FF")
+    else if m.youtubeItems.count() = 0
+        words("Pulsa OPTIONS (*) para buscar videos.",324,360,1400,55,30,"0xD0D0D0FF")
+        focusTarget("youtube",0,314,344,1500,88,"wide")
+    else
+        for i = 0 to 9
+            if i < m.youtubeItems.count()
+                item = m.youtubeItems[i]
+                col = i mod 5
+                row = i \ 5
+                x = 320+col*304
+                y = 310+row*292
+                panel(x,y,276,244,"0x181818FF")
+                if item.thumbnail <> "" then art(item.thumbnail,x+8,y+8,260,146)
+                words(item.title,x+12,y+162,252,47,18,"0xFFFFFFFF").wrap = true
+                words(item.channelTitle,x+12,y+211,252,25,15,"0xB3B3B3FF")
+                if i = m.youtubeCursor then focusTarget("youtube",i,x-5,y-5,286,254,"card")
+            end if
+        end for
+    end if
+    words("↑ ↓ ← →  Elegir video     OK  Ver detalles     OPTIONS (*)  Buscar otra vez     Atrás  Inicio",324,930,1500,44,19,"0xB3B3B3FF")
 end sub
 
 sub settingsScreen()
