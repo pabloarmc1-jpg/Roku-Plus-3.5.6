@@ -923,7 +923,7 @@ function rpHdTaskSegmentTimeline(body as string, baseUrl as string, segmentUrls 
                 mediaSequence = mid(line,23).trim().toInt()
             else if left(line,22) = "#EXT-X-TARGETDURATION:"
                 targetDuration = mid(line,23).trim().toInt()
-            else if left(line,21) = "#EXT-X-DISCONTINUITY"
+            else if line = "#EXT-X-DISCONTINUITY"
                 discontinuityPending = true
             else if left(line,1) <> "#"
                 if pendingDuration = invalid then return invalid
