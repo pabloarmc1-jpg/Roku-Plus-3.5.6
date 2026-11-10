@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="InvidiousPlayer" extends="Group">
+  <interface>
+    <field id="request" type="assocarray" onChange="openRequest" />
+    <field id="active" type="boolean" value="false" />
+    <field id="closed" type="boolean" value="false" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="InvidiousPlayer.brs" />
+  <children>
+    <Rectangle width="1920" height="1080" color="0x000000FF" />
+    <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
+    <Rectangle width="1920" height="124" color="0x080A0FCC" />
+    <Label id="titleText" translation="[88,30]" width="1744" height="56" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+    <Rectangle translation="[0,900]" width="1920" height="180" color="0x080A0FCC" />
+    <Label id="statusText" translation="[92,928]" width="1736" height="42" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+    <Label id="helpText" translation="[92,982]" width="1736" height="42" font="font:SmallSystemFont" color="0xD5D9E2FF" />
+    <Label id="errorText" translation="[92,840]" width="1736" height="48" font="font:MediumBoldSystemFont" color="0xFF7777FF" />
+  </children>
+</component>
