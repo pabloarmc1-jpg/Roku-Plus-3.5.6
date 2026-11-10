@@ -609,7 +609,13 @@ sub onDecoderState()
     m.phase = m.decoder.state
     if m.phase = "buffering"
         m.bufferSince = m.monotonic.totalMilliseconds()
-        if m.ticket <> invalid then m.ticket.sawBuffering = true
+        if m.ticket <> invalid
+            m.ticket.sawBuffering = true
+            ' A seek can legitimately take longer while Roku is buffering.
+            ' Keep a hard 30-second limit for this buffering interval.
+            m.ticket.deadlineAt = m.bufferSince + 30000
+            m.ticket.bufferingTimeoutExtended = true
+        end if
         if m.startupOverlay = invalid or not m.startupOverlay.visible
             if not m.hlsStartupIsolation then revealTransport()
         else
@@ -618,6 +624,11 @@ sub onDecoderState()
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
+        if m.ticket <> invalid and m.ticket.bufferingTimeoutExtended = true
+            ' Once playback resumes, allow a fresh 12 seconds for confirmation.
+            m.ticket.deadlineAt = m.monotonic.totalMilliseconds() + 12000
+            m.ticket.bufferingTimeoutExtended = false
+        end if
         if m.startupTimer <> invalid then m.startupTimer.control = "stop"
         if m.startupOverlay <> invalid then m.startupOverlay.visible = false
         if m.hlsStartupIsolation
@@ -638,6 +649,10 @@ sub onDecoderState()
         end if
         m.panelUntil = m.monotonic.totalMilliseconds() + 6000
     else if m.phase = "paused"
+        if m.ticket <> invalid and m.ticket.bufferingTimeoutExtended = true
+            m.ticket.deadlineAt = m.monotonic.totalMilliseconds() + 12000
+            m.ticket.bufferingTimeoutExtended = false
+        end if
         m.bufferSince = invalid
         if not m.wantPaused
             m.decoder.control = "resume"
@@ -1826,7 +1841,9 @@ sub onPulse()
         emitDiagnostic("resume_metadata_timeout")
     end if
     if m.ticket <> invalid
-        if now - m.ticket.issuedAt >= 12000
+        timeoutAt = m.ticket.issuedAt + 12000
+        if m.ticket.doesExist("deadlineAt") then timeoutAt = m.ticket.deadlineAt
+        if now >= timeoutAt
             isResumeSeek = false
             resumeTarget = m.ticket.target
             if m.ticket.doesExist("isResume") then isResumeSeek = m.ticket.isResume = true
@@ -1987,7 +2004,8 @@ sub dispatchPendingSeek()
     v = plusClockValue(sample.video)
     verifyRendered = false
     if v <> invalid then verifyRendered = abs(v-origin) <= 2
-    m.ticket = {id:m.sequence,origin:origin,target:target,paused:m.wantPaused,issuedPaused:state="paused",issuedAt:m.monotonic.totalMilliseconds(),sawBuffering:false,logs:0,verifyRendered:verifyRendered,landingAt:invalid,landingPosition:invalid,sawClockJump:false,isResume:isResumeSeek}
+    seekIssuedAt = m.monotonic.totalMilliseconds()
+    m.ticket = {id:m.sequence,origin:origin,target:target,paused:m.wantPaused,issuedPaused:state="paused",issuedAt:seekIssuedAt,deadlineAt:seekIssuedAt+12000,bufferingTimeoutExtended:false,sawBuffering:false,logs:0,verifyRendered:verifyRendered,landingAt:invalid,landingPosition:invalid,sawClockJump:false,isResume:isResumeSeek}
     m.decoder.autoplayAfterSeek = not m.wantPaused
     emitDiagnostic("seek_request")
     m.decoder.seek = target
@@ -2158,7 +2176,7 @@ sub emitDiagnostic(reason as string)
     if m.firstRendered <> invalid then entry.firstRenderedVideo = m.firstRendered
     if m.lastBuffer <> invalid then entry.buffer = m.lastBuffer
     if m.ticket <> invalid
-        entry.seek = {id: m.ticket.id, origin: m.ticket.origin, target: m.ticket.target, issuedAt: m.ticket.issuedAt, paused: m.ticket.paused, sawBuffering: m.ticket.sawBuffering}
+        entry.seek = {id: m.ticket.id, origin: m.ticket.origin, target: m.ticket.target, issuedAt: m.ticket.issuedAt, deadlineAt: m.ticket.deadlineAt, bufferingTimeoutExtended: m.ticket.bufferingTimeoutExtended, paused: m.ticket.paused, sawBuffering: m.ticket.sawBuffering}
         if m.ticket.actualStart <> invalid then entry.seek.actualStart = m.ticket.actualStart
         if m.ticket.result <> invalid then entry.seek.result = m.ticket.result
         if reason = "position" or reason = "rendered"
