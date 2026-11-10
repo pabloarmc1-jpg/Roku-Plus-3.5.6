@@ -2385,6 +2385,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.view = "invidious"
+        previousCursor = m.invidiousCursor
         if key = "up" and m.invidiousCursor > 0 then m.invidiousCursor--
         if key = "down" and m.invidiousCursor+1 < m.invidiousItems.count() then m.invidiousCursor++
         if key = "OK" and m.invidiousItems.count() > 0
@@ -2403,7 +2404,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
             m.top.setFocus(true)
             return true
         end if
-        paintFocus()
+        ' Invidious rows are drawn directly, not registered in m.focusItems.
+        ' Redraw the view so the selected-row highlight follows the cursor.
+        if previousCursor <> m.invidiousCursor
+            drawScreen()
+            m.top.setFocus(true)
+        end if
         return true
     end if
     if m.view = "appearance"
