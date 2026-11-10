@@ -122,7 +122,11 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
             audioAllowed = invidiousContainerAllowsAudio(container,audioInfo.name)
             videoOk = false
             audioOk = false
-            if videoAllowed then videoOk = invidiousDeviceSupportsVideo(videoInfo)
+            if videoInfo.name = "av1"
+                videoOk = invidiousDeviceSupportsVideo(videoInfo)
+            else if videoAllowed
+                videoOk = invidiousDeviceSupportsVideo(videoInfo)
+            end if
             if audioAllowed then audioOk = invidiousDeviceSupportsAudio(audioInfo)
             print "[RokuPlus Invidious codecs] FORMAT container="; container; " video="; videoInfo.name; " videoDevice="; videoOk; " audio="; audioInfo.name; " audioDevice="; audioOk
 
@@ -346,7 +350,24 @@ sub invidiousLogAdaptiveFormats(parsed as object)
         if stream.doesExist("type") then streamType = lcase(invidiousTextValue(stream.type,200))
         tokens = invidiousParseCodecTokens(streamType)
         codecLabel = "unknown"
-        if tokens <> invalid then codecLabel = invidiousJoin(tokens)
+        if tokens <> invalid
+            codecLabel = invidiousJoin(tokens)
+            for each token in tokens
+                videoInfo = invidiousClassifyVideoCodec(token)
+                if videoInfo <> invalid
+                    deviceOk = invidiousDeviceSupportsVideo(videoInfo)
+                    transport = "PROGRESSIVE_CAPABILITY_ONLY"
+                    if videoInfo.name = "av1" then transport = "DASH_ONLY"
+                    if videoInfo.name = "vp9" then transport = "NOT_LISTED_BY_ROKU"
+                    print "[RokuPlus Invidious codecs] ADAPTIVE_VIDEO codec="; videoInfo.name; " deviceCanDecode="; deviceOk; " transport="; transport
+                end if
+                audioInfo = invidiousClassifyAudioCodec(token)
+                if audioInfo <> invalid
+                    audioOk = invidiousDeviceSupportsAudio(audioInfo)
+                    print "[RokuPlus Invidious codecs] ADAPTIVE_AUDIO codec="; audioInfo.name; " deviceCanDecode="; audioOk
+                end if
+            end for
+        end if
         print "[RokuPlus Invidious codecs] ADAPTIVE_TRACK container="; container; " codecs="; codecLabel; " action=separate_track_not_muxed"
     end for
 end sub
