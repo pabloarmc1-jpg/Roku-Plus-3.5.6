@@ -929,7 +929,7 @@ function rpHdTaskSegmentTimeline(body as string, baseUrl as string, segmentUrls 
                 if pendingDuration = invalid then return invalid
                 url = rpHdOnlineJoin(baseUrl,line)
                 if url = "" or timeline.count() >= segmentUrls.count() then return invalid
-                timeline.push({index:timeline.count(),sequence:mediaSequence+timeline.count(),url:url,start:position,duration:pendingDuration,end:position+pendingDuration,discontinuity:discontinuityPending})
+                timeline.push({index:timeline.count(),sequence:mediaSequence+timeline.count(),url:url,start:position,duration:pendingDuration,endTime:position+pendingDuration,discontinuity:discontinuityPending})
                 position += pendingDuration
                 pendingDuration = invalid
                 discontinuityPending = false
