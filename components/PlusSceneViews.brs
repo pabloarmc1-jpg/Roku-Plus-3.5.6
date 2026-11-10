@@ -1114,13 +1114,13 @@ sub settingsScreen()
         if display.videoMode <> "" then displayValue = displayValue+" · "+display.videoMode
         if display.uiName <> "" then displayValue = displayValue+" · interfaz "+display.uiName
     end if
-    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue]
-    for i = 0 to 9
-        y = 260+i*68
-        panel(320,y,1522,62,"0x181818FF")
+    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue,"YouTube mediante yt.chocolatemoo53.com"]
+    for i = 0 to 10
+        y = 250+i*63
+        panel(320,y,1522,58,"0x181818FF")
         words(labels[i],352,y+4,900,29,23,"0xFFFFFFFF")
         words(values[i],354,y+33,1130,23,17,"0xB3B3B3FF")
-        focusTarget("settings",i,314,y-4,1534,70)
+        focusTarget("settings",i,314,y-4,1534,66)
     end for
     words("Las claves se guardan en el registro local de este Roku y se muestran ocultas.",324,990,1480,36,19,"0xB1BEB3FF")
 end sub
