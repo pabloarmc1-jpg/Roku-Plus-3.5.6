@@ -851,8 +851,16 @@ sub addSearchSuggestion(item as object, query as string)
         end if
     end for
     if insertAt < 5
-        m.searchSuggestions.insert(insertAt,item)
-        m.searchSuggestionScores.insert(insertAt,score)
+        ' roArray has no Insert() method. Append, then shift entries right.
+        m.searchSuggestions.push(item)
+        m.searchSuggestionScores.push(score)
+        lastIndex = m.searchSuggestions.count()-1
+        for moveIndex = lastIndex to insertAt+1 step -1
+            m.searchSuggestions[moveIndex] = m.searchSuggestions[moveIndex-1]
+            m.searchSuggestionScores[moveIndex] = m.searchSuggestionScores[moveIndex-1]
+        end for
+        m.searchSuggestions[insertAt] = item
+        m.searchSuggestionScores[insertAt] = score
         if m.searchSuggestions.count() > 5
             m.searchSuggestions.delete(5)
             m.searchSuggestionScores.delete(5)
