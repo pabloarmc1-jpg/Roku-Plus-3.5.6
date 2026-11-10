@@ -242,7 +242,7 @@ sub rpTsRelayServeSegment(connection as object, server as object, port as object
     else
         print "[RokuPlus hls-relay] segment_send_failed index="; segmentIndex; " bytes="; payloadSize
     end if
-    if payloadSize > 0 and segmentIndex = 0
+    if payloadSize > 0
         syncErrors = 0
         packetCount = 0
         for offset = 0 to payloadSize - 1 step 188
@@ -379,8 +379,11 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
     nal5 = 0
     firstIdrPacket = -1
 
+    ' Inspect only the leading packets of each segment. This captures PAT/PMT,
+    ' initial PES timestamps and a keyframe near the segment boundary without
+    ' the multi-second full-segment scan that delayed playback startup.
     scanLimit = size - 188
-    maxDiagnosticPackets = 1500
+    maxDiagnosticPackets = 48
     if scanLimit > (maxDiagnosticPackets * 188) - 188 then scanLimit = (maxDiagnosticPackets * 188) - 188
     for offset = 0 to scanLimit step 188
         if payload[offset] <> &h47 then continue for
