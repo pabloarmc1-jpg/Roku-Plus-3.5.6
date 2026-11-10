@@ -2437,6 +2437,14 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.view = "youtube"
+        if m.zone = "nav"
+            if key = "up" and m.nav > 0 then m.nav--
+            if key = "down" and m.nav < 9 then m.nav++
+            if key = "right" then m.zone = "youtube"
+            if key = "OK" then activateNav(): return true
+            drawScreen()
+            return true
+        end if
         if key = "options" or key = "*"
             openYoutubeSearch()
             return true

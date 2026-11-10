@@ -1276,6 +1276,7 @@ sub paintFocus()
         chosen = false
         if entry.zone = m.zone
             if m.zone = "nav" then chosen = entry.index = m.nav
+            if m.zone = "youtube" then chosen = entry.index = m.youtubeCursor
             if m.zone = "search-key" then chosen = entry.index = m.searchCursor
             if m.zone = "search-suggestion" then chosen = entry.index = m.searchCursor
             if m.zone = "search-action" then chosen = entry.index = m.searchCursor
