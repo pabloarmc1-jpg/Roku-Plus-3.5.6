@@ -170,9 +170,11 @@ sub rpTsRelayServe(connection as object, server as object)
             print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " aligned="; tsAudit.aligned; " syncErrors="; tsAudit.syncErrors; " firstBad="; tsAudit.firstBadOffset
             print "[RokuPlus ts-audit] pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors
             print "[RokuPlus ts-audit] pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
+            print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps; " ptsCount="; tsAudit.ptsCount; " firstPts="; tsAudit.firstPts; " lastPts="; tsAudit.lastPts
         else if sentSegments mod 25 = 0
             print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked
             print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
+            print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps; " ptsCount="; tsAudit.ptsCount; " firstPts="; tsAudit.firstPts; " lastPts="; tsAudit.lastPts
         end if
         if payloadSize <= 0
             DeleteFile(filePath)
@@ -291,7 +293,7 @@ end function
 ' Read-only MPEG-TS packet audit. The payload is forwarded unchanged.
 ' PSI inspection is intentionally limited to sections contained in one TS packet.
 function rpTsRelayAuditPayload(payload as object) as object
-    result = {aligned:false,packetCount:0,syncErrors:0,firstBadOffset:-1,patPackets:0,nullPackets:0,continuityErrors:0,continuityChecked:0,pmtPid:-1,pmtPackets:0,videoPid:-1,audioPid:-1,h264:false,aac:false}
+    result = {aligned:false,packetCount:0,syncErrors:0,firstBadOffset:-1,patPackets:0,nullPackets:0,continuityErrors:0,continuityChecked:0,pmtPid:-1,pmtPackets:0,videoPid:-1,audioPid:-1,h264:false,aac:false,idrCount:0,firstIdrPacket:-1,sps:false,pps:false,ptsCount:0,firstPts:-1,lastPts:-1}
     total = payload.Count()
     if total <= 0 then return result
     result.aligned = (total mod 188) = 0
@@ -384,8 +386,60 @@ function rpTsRelayAuditPayload(payload as object) as object
                         end if
                     end if
                 end if
+                if pid = result.videoPid and result.videoPid >= 0
+                    dataStart = payloadStart
+                    if payload[offset+1] >= 64 and payload[offset+1] < 128
+                        if payloadStart + 9 < offset + 188
+                            if payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
+                                pesFlags = (payload[payloadStart+7] \ 64) mod 4
+                                pesHeaderLength = payload[payloadStart+8]
+                                if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5
+                                    if payloadStart + 14 <= offset + 188
+                                        pts = rpTsRelayReadPts(payload,payloadStart+9)
+                                        if pts >= 0
+                                            if result.ptsCount = 0 then result.firstPts = pts
+                                            result.lastPts = pts
+                                            result.ptsCount++
+                                        end if
+                                    end if
+                                end if
+                                dataStart = payloadStart + 9 + pesHeaderLength
+                            end if
+                        end if
+                    end if
+                    if dataStart < offset + 188
+                        for nalOffset = dataStart to offset + 184
+                            if payload[nalOffset] = 0 and payload[nalOffset+1] = 0
+                                nalType = -1
+                                if payload[nalOffset+2] = 1
+                                    nalType = payload[nalOffset+3] mod 32
+                                else if payload[nalOffset+2] = 0 and payload[nalOffset+3] = 1
+                                    nalType = payload[nalOffset+4] mod 32
+                                end if
+                                if nalType = 5
+                                    result.idrCount++
+                                    if result.firstIdrPacket < 0 then result.firstIdrPacket = offset \ 188
+                                else if nalType = 7
+                                    result.sps = true
+                                else if nalType = 8
+                                    result.pps = true
+                                end if
+                            end if
+                        end for
+                    end if
+                end if
             end if
         end if
     end for
     return result
+end function
+
+function rpTsRelayReadPts(payload as object, offset as integer) as dynamic
+    if offset < 0 or offset + 4 >= payload.Count() then return -1
+    b0 = payload[offset]
+    b1 = payload[offset+1]
+    b2 = payload[offset+2]
+    b3 = payload[offset+3]
+    b4 = payload[offset+4]
+    return (b0 mod 16) * 536870912 + b1 * 4194304 + (b2 \ 4) * 32768 + b3 * 128 + (b4 \ 2)
 end function
