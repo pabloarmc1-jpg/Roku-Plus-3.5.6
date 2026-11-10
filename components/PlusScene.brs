@@ -335,7 +335,7 @@ sub fetched(event as object)
             m.playbackMode = "direct"
             m.detail = context.item
             m.detailOrigin = "invidious"
-            launchInvidiousVideo(context.item,answer.url)
+            launchInvidiousVideo(context.item,answer.url,answer.streamFormat)
             return
         else
             m.note = answer.message
@@ -478,7 +478,7 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
     end if
 end sub
 
-sub launchInvidiousVideo(item as object, url as string)
+sub launchInvidiousVideo(item as object, url as string, format as string)
     ' Dedicated decoder: Invidious playback never enters PlusPlayer or its TS/seek pipeline.
     stopLivePreview()
     m.viewBeforeInvidiousPlayer = "invidious"
@@ -486,7 +486,7 @@ sub launchInvidiousVideo(item as object, url as string)
     m.canvas.visible = false
     eraseScreen()
     m.invidiousPlayer.visible = true
-    m.invidiousPlayer.request = {title:orbitText(item.title,180),url:url}
+    m.invidiousPlayer.request = {title:orbitText(item.title,180),url:url,streamFormat:format}
     m.invidiousPlayer.setFocus(true)
 end sub
 
