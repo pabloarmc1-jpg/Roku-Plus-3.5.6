@@ -1,4 +1,4 @@
-' Original Liquid Glass-inspired Roku Plus chrome. All coordinates use FHD units.
+' Roku Plus monochrome chrome. All coordinates use FHD units.
 ' The glass is a static translucent treatment; it does not blur video at runtime.
 function panel(x as float, y as float, w as float, h as float, color as string) as object
     node = m.canvas.createChild("Rectangle")
@@ -129,7 +129,7 @@ end sub
 
 sub brand(x as integer, y as integer)
     art("pkg:/images/ui/logo.png",x,y,52,52)
-    words("ROKU PLUS",x+66,y+6,260,48,31,"0xE50914FF")
+    words("ROKU PLUS",x+66,y+6,260,48,31,"0xFFFFFFFF")
 end sub
 
 function countryName() as string
@@ -144,7 +144,7 @@ function modeName() as string
 end function
 
 sub topBar()
-    ' Netflix-inspired horizontal navigation; live TV keeps a compact rail so its preview remains unobstructed.
+    ' Monochrome navigation: white marks the active section; live TV keeps its compact layout.
     barHeight = 118
     logoX = 52 : logoY = 30 : logoSize = 46
     brandX = 106 : brandY = 31 : brandSize = 29
@@ -159,7 +159,7 @@ sub topBar()
     end if
     panel(0,0,1920,barHeight,"0x080808F2")
     art("pkg:/images/ui/logo.png",logoX,logoY,logoSize,logoSize)
-    words("ROKU PLUS",brandX,brandY,145,44,brandSize,"0xE50914FF")
+    words("ROKU PLUS",brandX,brandY,145,44,brandSize,"0xFFFFFFFF")
     labels = ["Inicio","Películas","Series","TV en vivo","Buscar","Mi lista","Historial","Ajustes","Perfiles"]
     active = 0
     if m.view = "browse" or m.view = "detail" or m.view = "episodes"
@@ -181,8 +181,9 @@ sub topBar()
     for i = 0 to 8
         w = widths[i]
         if active = i
-            panel(x-10,underlineY,w+20,4,"0xE50914FF")
-            words(labels[i],x,labelY,w,38,labelSize,"0xFFFFFFFF")
+            panel(x-10,underlineY,w+20,4,"0xFFFFFFFF")
+            panel(x-10,focusY,w+20,focusH,"0xFFFFFFFF")
+            words(labels[i],x,labelY,w,38,labelSize,"0x080808FF")
         else
             words(labels[i],x,labelY,w,38,labelSize-1,"0xD0D0D0FF")
         end if
@@ -379,7 +380,7 @@ sub homeScreen()
         panel(0,112,1920,8,"0xFFFFFF12")
         featureCount = m.features.count()
         featureLabel = "ROKU PLUS ORIGINAL  ·  DESTACADO  "+(heroIndex+1).toStr()+" / "+featureCount.toStr()
-        words(featureLabel,78,160,1100,34,19,"0xF04450FF")
+        words(featureLabel,78,160,1100,34,19,"0xFFFFFFFF")
         words(item.title,72,205,1120,112,62,"0xFFFFFFFF").wrap = true
         facts = item.year
         if m.catalogMode = "hd"
@@ -395,14 +396,14 @@ sub homeScreen()
             for dot = 0 to 3
                 if dot < featureCount
                     dotColor = "0x777777FF"
-                    if dot = heroIndex then dotColor = "0xE50914FF"
+                    if dot = heroIndex then dotColor = "0xFFFFFFFF"
                     panel(78+dot*22,500,14,5,dotColor)
                 end if
             end for
         end if
     else
         panel(0,118,1920,420,"0x111116FF")
-        words("TU PRÓXIMA HISTORIA",78,210,1400,38,22,"0xE50914FF")
+        words("TU PRÓXIMA HISTORIA",78,210,1400,38,22,"0xFFFFFFFF")
         words("Todo empieza aquí.",76,264,1400,82,58,"0xFFFFFFFF")
         text = "Estamos preparando tus películas y series populares…"
         if not m.homeLoading then text = "Explora Películas o Series para descubrir algo nuevo."
@@ -490,7 +491,7 @@ sub homeScreen()
                 if uri = "" then uri = item.background
                 if uri <> "" then art(uri,x,savedY+44,92,80,"scaleToFit")
                 words(item.title,x+108,savedY+50,390,40,21,"0xFFFFFFFF").wrap = true
-                words("EXPLORAR EPISODIOS  ›",x+108,savedY+88,380,22,15,"0xF04450FF")
+                words("EXPLORAR EPISODIOS  ›",x+108,savedY+88,380,22,15,"0xFFFFFFFF")
                 focusTarget("home-series",i,x-14,savedY+32,546,104,"card")
             end if
         end for
@@ -523,7 +524,7 @@ sub libraryScreen()
             state = "En historial"
             if item.watched then state = "✓ Vista"
             if item.listed then state += " · ♥ Mi lista"
-            words(state,1450,y+25,350,36,20,"0xE50914FF").horizAlign = "right"
+            words(state,1450,y+25,350,36,20,"0xFFFFFFFF").horizAlign = "right"
             focusTarget("library",n,66,y-4,1782,102,"live")
         end if
     end for
@@ -620,10 +621,10 @@ sub browseScreen()
                         if saved.listed then status += " · ♥"
                     end if
                     panel(x+12,y+337,306,4,"0x777777FF")
-                    panel(x+12,y+337,306*ratio,4,"0xE50914FF")
+                    panel(x+12,y+337,306*ratio,4,"0xFFFFFFFF")
                 end if
             end if
-            if status <> "" then words(status,x+8,y+326,314,22,14,"0xE50914FF")
+            if status <> "" then words(status,x+8,y+326,314,22,14,"0xFFFFFFFF")
             focusTarget("grid",n,x-5,y-5,340,354,"catalog")
         end if
     end for
@@ -676,7 +677,7 @@ sub detailScreen()
     if item.kind = "episode" then heading = "EPISODIO"
     if m.catalogMode = "hd" then heading = "BIBLIOTECA HD"
     if usesOnlineHd() then heading = "BIBLIOTECA HD · "+hdProviderName(item.provider)
-    words(heading,540,222,1160,36,20,"0xE50914FF")
+    words(heading,540,222,1160,36,20,"0xFFFFFFFF")
     words(orbitText(item.title,240),536,270,1190,122,52,"0xFFFFFFFF").wrap = true
 
     facts = ""
@@ -722,7 +723,7 @@ sub detailScreen()
     end if
     statusY = 485
     if genre = "" then statusY = 455
-    if statusText <> "" then words(statusText,542,statusY,1100,32,19,"0xE50914FF")
+    if statusText <> "" then words(statusText,542,statusY,1100,32,19,"0xFFFFFFFF")
 
     summaryY = statusY+48
     ' Provider descriptions are optional and may arrive as Invalid or another type.
@@ -737,7 +738,7 @@ sub detailScreen()
         progressWidth = int(1050*saved.position/saved.duration)
         if progressWidth < 1 then progressWidth = 1
         if progressWidth > 1050 then progressWidth = 1050
-        panel(542,summaryY+132,progressWidth,8,"0xE50914FF")
+        panel(542,summaryY+132,progressWidth,8,"0xFFFFFFFF")
         words("PROGRESO · "+timeText(saved.position)+" / "+timeText(saved.duration),542,summaryY+148,1050,30,18,"0xC5CBD4FF")
     end if
 
@@ -829,7 +830,7 @@ sub episodeScreen()
             if season.number = 0 then seasonName = "Especiales"
             if n = m.season
                 words(seasonName,x,260,278,48,24,"0xFFFFFFFF")
-                panel(x,310,278,4,"0xE50914FF")
+                panel(x,310,278,4,"0xFFFFFFFF")
             else
                 words(seasonName,x,260,278,48,23,"0xB3B3B3FF")
             end if
@@ -862,14 +863,14 @@ sub episodeScreen()
 
             watched = rpWatchGet(m.watchState,item.id)
             if watched <> invalid
-                if watched.watched = true then words("VISTO",x+278,y+10,126,24,15,"0xE50914FF").horizAlign = "right"
+                if watched.watched = true then words("VISTO",x+278,y+10,126,24,15,"0xFFFFFFFF").horizAlign = "right"
             end if
 
             ' Show the episode's actual title, not a generic season/episode label.
             episodeTitle = orbitText(item.title,150)
             if episodeTitle = "" then episodeTitle = "Episodio "+item.episode.toStr()
             words(episodeTitle,x+2,y+252,412,88,25,"0xFFFFFFFF").wrap = true
-            if n = m.episode then panel(x,y+346,416,4,"0xE50914FF")
+            if n = m.episode then panel(x,y+346,416,4,"0xFFFFFFFF")
             focusTarget("episodes",n,x-7,y-7,430,366,"landscape")
         end if
     end for
@@ -1112,7 +1113,7 @@ sub profilesScreen()
         x = 72+(i mod 2)*900
         y = 320+(i \ 2)*260
         panel(x,y,850,214,"0x181818FF")
-        avatarColors = ["0xE50914FF","0x2457A6FF","0x16845BFF","0x7B3FA1FF","0xB36A19FF","0x287E91FF"]
+        avatarColors = ["0xFFFFFFFF","0x2457A6FF","0x16845BFF","0x7B3FA1FF","0xB36A19FF","0x287E91FF"]
         avatarIndex = rpProfileAvatar(ids[i])
         panel(x+32,y+35,82,82,avatarColors[avatarIndex])
         avatar = words("P"+(i+1).toStr(),x+32,y+51,82,48,30,"0xFFFFFFFF")
@@ -1120,7 +1121,7 @@ sub profilesScreen()
         words(names[i],x+132,y+36,540,55,35,"0xFFFFFFFF")
         words(descriptions[i],x+34,y+126,660,48,23,"0xB7C7BEFF").wrap = true
         ids = ["p1","p2","p3","p4"]
-        if m.profileId = ids[i] then words("ACTIVO",x+565,y+36,130,35,19,"0xE50914FF").horizAlign = "right"
+        if m.profileId = ids[i] then words("ACTIVO",x+565,y+36,130,35,19,"0xFFFFFFFF").horizAlign = "right"
         focusTarget("profiles",i,x-6,y-6,862,226,"setup")
     end for
     words("Flechas: elegir · OK: activar · OPTIONS: cambiar nombre · PLAY/PAUSE: cambiar imagen · Atrás: volver",76,945,1740,54,20,"0x808080FF")
@@ -1234,5 +1235,5 @@ sub homeProgressOverlay(item as object, x as integer, y as integer, w as integer
     fillW = int(w*ratio)
     if fillW < 1 then fillW = 1
     if fillW > w then fillW = w
-    panel(x,barY,fillW,5,"0xE50914FF")
+    panel(x,barY,fillW,5,"0xFFFFFFFF")
 end sub
