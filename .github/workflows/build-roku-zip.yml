@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/catalog-rows-replay-genre
+      - feature/roku-plus-next
       - ts-segment-seek-integration
       - fix/hls-native-startup-diagnostics-3.5.20
       - test/hls-first-frame-3.5.21
