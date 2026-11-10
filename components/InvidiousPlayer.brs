@@ -29,6 +29,12 @@ sub openRequest()
     media.title = m.titleNode.text
     media.streamFormat = "mp4"
     media.live = false
+    streamFormat = "mp4"
+    if request.doesExist("streamFormat") and request.streamFormat <> "" then streamFormat = lcase(request.streamFormat)
+    if streamFormat <> "hls" then streamFormat = "mp4"
+    media.streamFormat = streamFormat
+    m.video.control = "stop"
+    m.video.content = invalid
     m.video.content = media
     m.top.active = true
     m.video.control = "play"
