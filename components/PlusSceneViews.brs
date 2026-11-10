@@ -190,6 +190,8 @@ sub drawScreen()
         setupTvScreen()
     else if m.view = "setup-country"
         setupCountryScreen()
+    else if m.view = "search-keyboard"
+        searchKeyboardScreen()
     else
         if m.view = "home" then homeScreen()
         if m.view = "library" then libraryScreen()
@@ -264,6 +266,50 @@ sub setupCountryScreen()
     end for
     words((m.setupCountry+1).toStr()+" de "+countries.count().toStr(),800,936,1000,39,22,"0x9595A1FF")
     words("↑ / ↓: elegir     OK: guardar y entrar     Atrás: volver",87,1004,1730,42,24,"0xB9B9C2FF")
+end sub
+
+sub searchKeyboardScreen()
+    panel(0,0,1920,1080,"0x080808FF")
+    brand(76,54)
+    words("BUSCAR PELÍCULAS Y SERIES",76,150,1500,62,42,"0xFFFFFFFF")
+    panel(76,235,1768,76,"0x202024FF")
+    words(m.searchText+"▏",104,249,1700,48,30,"0xFFFFFFFF")
+    if m.searchSuggestions.count() > 0
+        words("SUGERENCIAS",78,330,360,30,18,"0xA0A0A8FF")
+        for i = 0 to 4
+            if i < m.searchSuggestions.count()
+                item = m.searchSuggestions[i]
+                x = 76+i*354
+                panel(x,370,330,72,"0x242428FF")
+                words(item.title,x+14,382,300,48,19,"0xFFFFFFFF").wrap = true
+                focusTarget("search-suggestion",i,x-4,366,338,80,"wide")
+            end if
+        end for
+    else
+        words("Escribe para buscar. Las sugerencias aparecen mientras escribes.",80,350,1600,40,21,"0x9A9AA2FF")
+    end if
+    rows = ["ABCDEFGHIJ","KLMNOPQRST","UVWXYZ0123","456789.-_⌫"]
+    for row = 0 to 3
+        for col = 0 to 9
+            x = 270+col*140
+            y = 470+row*88
+            ch = mid(rows[row],col+1,1)
+            panel(x,y,118,68,"0x29292EFF")
+            label = ch
+            if ch = "⌫" then label = "BORRAR"
+            words(label,x+5,y+13,108,42,25,"0xFFFFFFFF").horizAlign = "center"
+            focusTarget("search-key",row*10+col,x-4,y-4,126,76,"wide")
+        end for
+    end for
+    actions = ["BUSCAR","CANCELAR","ESPACIO"]
+    widths = [270,270,360]
+    xPositions = [410,720,1030]
+    for i = 0 to 2
+        panel(xPositions[i],850,widths[i],76,"0x3A3A40FF")
+        words(actions[i],xPositions[i]+8,865,widths[i]-16,44,24,"0xFFFFFFFF").horizAlign = "center"
+        focusTarget("search-action",i,xPositions[i]-4,846,widths[i]+8,84,"wide")
+    end for
+    words("← → ↑ ↓: navegar     OK: escribir / seleccionar     Atrás: cerrar",78,1000,1700,38,20,"0x8C8C94FF")
 end sub
 
 sub homeScreen()
@@ -1051,6 +1097,9 @@ sub paintFocus()
         chosen = false
         if entry.zone = m.zone
             if m.zone = "nav" then chosen = entry.index = m.nav
+            if m.zone = "search-key" then chosen = entry.index = m.searchCursor
+            if m.zone = "search-suggestion" then chosen = entry.index = m.searchCursor
+            if m.zone = "search-action" then chosen = entry.index = m.searchCursor
             if m.zone = "hero" then chosen = entry.index = m.hero
             if m.zone = "covers" then chosen = entry.index = m.cover
             if m.zone = "continue" then chosen = entry.index = m.cover
