@@ -452,6 +452,23 @@ sub openRequest()
     media.httpHeaders = requestHeaders
 
     if m.tsRelayMode
+        ' Preserve the provider's actual HLS manifest separately. The media node
+        ' below is deliberately marked TS for the relay experiment and must not
+        ' be reused as the native-HLS fallback.
+        nativeFallback = CreateObject("roSGNode", "ContentNode")
+        nativeFallback.url = supplied.url
+        nativeFallback.title = m.titleText.text
+        nativeFallback.streamFormat = "hls"
+        nativeFallback.live = false
+        nativeFallback.httpCertificatesFile = "common:/certs/ca-bundle.crt"
+        fallbackHeaders = CreateObject("roArray", 2, true)
+        for each header in requestHeaders
+            fallbackHeaders.push(header)
+        end for
+        nativeFallback.httpHeaders = fallbackHeaders
+        m.tsRelayFallbackMedia = nativeFallback
+        print "[RokuPlus hls-relay] fallback_source_saved format=hls"
+
         m.tsStreamServer.segments = m.tsRelaySegments
         m.tsStreamServer.timeline = m.tsRelayTimeline
         m.tsStreamServer.mediaHeaders = supplied.mediaHeaders
@@ -1853,7 +1870,6 @@ sub onPulse()
                 emitDiagnostic("ts_relay_ip_unavailable")
                 return
             end if
-            m.tsRelayFallbackMedia = m.mediaNode
             relayMedia = CreateObject("roSGNode","ContentNode")
             relayMedia.url = "http://" + localIp + ":49322/playlist.m3u8?key=" + m.tsRelayAccessKey
             relayMedia.title = m.titleText.text
