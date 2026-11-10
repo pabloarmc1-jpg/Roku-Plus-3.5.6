@@ -322,7 +322,7 @@ sub openRequest()
     m.resumeFailedPosition = invalid
     m.resumeFailedAt = 0
     resumeValue = plusClockValue(supplied.resumePosition)
-    if not m.segmentMode and not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
+    if (not m.segmentMode or supplied.tsRelayEnabled = true) and not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
     if m.startupTitle <> invalid then m.startupTitle.text = ""
