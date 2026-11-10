@@ -169,30 +169,28 @@ sub topBar()
         words(rpProfileName(m.profileId),1560,10,280,30,18,"0xFFFFFFFF").horizAlign = "right"
         return
     end if
-    panel(0,0,224,1080,"0x080808F8")
-    panel(218,0,6,1080,"0xFFFFFF18")
-    art("pkg:/images/ui/logo.png",26,28,48,48)
-    words("ROKU PLUS",82,34,130,38,22,"0xFFFFFFFF")
-    panel(28,100,168,2,"0xFFFFFF30")
+    ' Compact auto-collapsed rail: icons only. Red marks the active/focused section.
+    panel(0,0,92,1080,"0x080808F8")
+    panel(88,0,4,1080,"0xFFFFFF18")
+    art("pkg:/images/ui/logo.png",24,28,44,44)
+    panel(18,94,56,2,"0xFFFFFF30")
     icons = ["⌂","▣","▤","▹","⌕","♡","◷","⚙","●"]
     for i = 0 to 8
         y = 132+i*91
-        if active = i
-            panel(18,y-8,188,66,"0xFFFFFFFF")
-            words(icons[i],34,y+3,38,42,27,"0x080808FF").horizAlign = "center"
-            words(labels[i],80,y+8,116,36,18,"0x080808FF")
+        isSelected = (active = i)
+        if m.zone = "nav" and m.nav = i then isSelected = true
+        if isSelected
+            panel(12,y-7,68,64,"0xE50914FF")
+            words(icons[i],24,y+2,44,46,29,"0xFFFFFFFF").horizAlign = "center"
         else
-            words(icons[i],34,y+3,38,42,27,"0xFFFFFFFF").horizAlign = "center"
-            words(labels[i],80,y+8,116,36,18,"0xD8D8D8FF")
+            words(icons[i],24,y+2,44,46,29,"0xFFFFFFFF").horizAlign = "center"
         end if
         if m.zone = "nav" and m.nav = i
-            panel(12,y-13,200,76,"0xFFFFFF22")
-            focusTarget("nav",i,10,y-15,204,80,"wide")
+            focusTarget("nav",i,8,y-11,76,72,"wide")
         end if
     end for
-    panel(22,1004,180,48,"0xFFFFFF12")
-    words("PERFIL",32,1009,54,18,12,"0xB8B8B8FF")
-    words(rpProfileName(m.profileId),32,1027,158,22,15,"0xFFFFFFFF")
+    panel(20,1002,52,52,"0xFFFFFF12")
+    words("●",24,1007,44,42,24,"0xFFFFFFFF").horizAlign = "center"
 end sub
 
 
