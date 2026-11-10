@@ -52,6 +52,10 @@ sub init()
     m.focusItems = []
     m.kind = "movie"
     m.query = ""
+    m.searchText = ""
+    m.searchCursor = 0
+    m.searchSuggestions = []
+    m.searchOriginView = "home"
     m.offset = 0
     m.nextOffset = 0
     m.more = false
@@ -816,20 +820,97 @@ end sub
 
 sub openSearch()
     cancelRequest()
-    m.kind = "movie"
-    m.view = "browse"
-    m.zone = "nav"
-    m.nav = 4
+    m.searchOriginView = m.view
+    if m.searchOriginView <> "home" and m.searchOriginView <> "browse" then m.searchOriginView = "home"
+    m.searchText = m.query
+    m.searchCursor = 0
+    m.searchSuggestions = []
+    m.view = "search-keyboard"
+    m.zone = "search-key"
+    refreshSearchSuggestions()
     drawScreen()
-    dialog = CreateObject("roSGNode","StandardKeyboardDialog")
-    dialog.title = "Buscar películas y series"
-    dialog.text = m.query
-    dialog.buttons = ["Buscar","Cancelar"]
-    dialog.observeField("buttonSelected","searchChosen")
-    dialog.observeField("wasClosed","searchDismissed")
-    m.dialogBox = dialog
-    m.dialogPurpose = "search"
-    m.top.dialog = dialog
+    m.top.setFocus(true)
+end sub
+
+sub refreshSearchSuggestions()
+    m.searchSuggestions = []
+    query = lcase(m.searchText.trim())
+    if query = "" then return
+    pools = [m.features,m.homeSeries,m.homeListItems,m.continueItems]
+    for each pool in pools
+        if type(pool) = "roArray"
+            for each item in pool
+                if type(item) = "roAssociativeArray" and item.doesExist("title")
+                    title = orbitText(item.title,180)
+                    if title <> "" and instr(1,lcase(title),query) > 0
+                        duplicate = false
+                        for each existing in m.searchSuggestions
+                            if lcase(existing.title) = lcase(title) then duplicate = true
+                        end for
+                        if not duplicate and m.searchSuggestions.count() < 5 then m.searchSuggestions.push(item)
+                    end if
+                end if
+            end for
+        end if
+    end for
+    if type(m.hdLibrary) = "roAssociativeArray"
+        for each field in ["movies","series"]
+            if type(m.hdLibrary[field]) = "roArray"
+                for each item in m.hdLibrary[field]
+                    if type(item) = "roAssociativeArray" and item.doesExist("title")
+                        title = orbitText(item.title,180)
+                        if title <> "" and instr(1,lcase(title),query) > 0
+                            duplicate = false
+                            for each existing in m.searchSuggestions
+                                if lcase(existing.title) = lcase(title) then duplicate = true
+                            end for
+                            if not duplicate and m.searchSuggestions.count() < 5 then m.searchSuggestions.push(item)
+                        end if
+                    end if
+                end for
+            end if
+        end for
+    end if
+end sub
+
+sub chooseSearchSuggestion(index as integer)
+    if index < 0 or index >= m.searchSuggestions.count() then return
+    item = m.searchSuggestions[index]
+    m.searchText = orbitText(item.title,120)
+    submitGlobalSearch()
+end sub
+
+sub submitGlobalSearch()
+    query = left(m.searchText.trim(),120)
+    m.query = query
+    m.genreFilter = "Todos"
+    m.pageTitles = []
+    m.titles = []
+    m.offset = 0
+    m.nextOffset = 0
+    m.more = false
+    m.cursor = 0
+    m.view = "browse"
+    m.zone = "grid"
+    if query = ""
+        m.kind = "movie"
+        loadBrowsePage(0)
+    else if m.catalogMode = "hd" and not usesOnlineHd()
+        m.kind = "all"
+        loadBrowsePage(0)
+    else
+        m.kind = "movie"
+        fetch({operation:"search",kind:"all",query:query,offset:0})
+    end if
+    drawScreen()
+    m.top.setFocus(true)
+end sub
+
+sub closeSearchKeyboard()
+    m.view = m.searchOriginView
+    if m.view = "home" then m.zone = "hero" else m.zone = "grid"
+    drawScreen()
+    m.top.setFocus(true)
 end sub
 
 sub openLiveSearch()
@@ -935,33 +1016,14 @@ end sub
 sub searchChosen(event as object)
     if m.dialogBox = invalid then return
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
-    query = left(m.dialogBox.text.trim(),120)
+    m.searchText = left(m.dialogBox.text.trim(),120)
     choice = event.getData()
     releaseDialog()
     if choice = 0
-        m.query = query
-        m.genreFilter = "Todos"
-        m.pageTitles = []
-        m.titles = []
-        m.offset = 0
-        m.nextOffset = 0
-        m.more = false
-        m.cursor = 0
-        if query = ""
-            m.kind = "movie"
-            loadBrowsePage(0)
-        else if m.catalogMode = "hd" and not usesOnlineHd()
-            m.kind = "all"
-            loadBrowsePage(0)
-        else
-            fetch({operation:"search",kind:"all",query:query,offset:0})
-        end if
+        submitGlobalSearch()
     else if m.titles.count() = 0
         loadBrowsePage(0)
     end if
-    m.zone = "grid"
-    drawScreen()
-    m.top.setFocus(true)
 end sub
 
 sub searchDismissed(event as object)
@@ -1862,6 +1924,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
     end if
     if key = "back"
+        if m.view = "search-keyboard"
+            closeSearchKeyboard()
+            return true
+        end if
         if m.busy
             cancelRequest()
             m.autoplay = false
@@ -1937,6 +2003,50 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
         end if
         openSearch()
+        return true
+    end if
+    if m.view = "search-keyboard"
+        rows = ["ABCDEFGHIJ","KLMNOPQRST","UVWXYZ0123","456789.-_⌫"]
+        if m.zone = "search-suggestion"
+            if key = "left" and m.searchCursor > 0 then m.searchCursor--
+            if key = "right" and m.searchCursor+1 < m.searchSuggestions.count() then m.searchCursor++
+            if key = "down" then m.zone = "search-key": m.searchCursor = 0
+            if key = "OK" then chooseSearchSuggestion(m.searchCursor): return true
+            if key = "up" then m.zone = "search-action": m.searchCursor = 0
+        else if m.zone = "search-action"
+            if key = "left" and m.searchCursor > 0 then m.searchCursor--
+            if key = "right" and m.searchCursor < 2 then m.searchCursor++
+            if key = "down" then m.zone = "search-key": m.searchCursor = 0
+            if key = "OK"
+                if m.searchCursor = 0 then submitGlobalSearch() else if m.searchCursor = 1 then closeSearchKeyboard() else closeSearchKeyboard()
+                return true
+            end if
+            if key = "up" and m.searchSuggestions.count() > 0 then m.zone = "search-suggestion": m.searchCursor = 0
+        else
+            row = m.searchCursor \ 10
+            col = m.searchCursor mod 10
+            if key = "left" and col > 0 then m.searchCursor--
+            if key = "right" and col < 9 then m.searchCursor++
+            if key = "up"
+                if row > 0 then m.searchCursor -= 10 else if m.searchSuggestions.count() > 0 then m.zone = "search-suggestion": m.searchCursor = 0 else m.zone = "search-action": m.searchCursor = 0
+            end if
+            if key = "down"
+                if row < 3 then m.searchCursor += 10 else m.zone = "search-action": m.searchCursor = 0
+                if m.searchCursor > 39 then m.searchCursor = 39
+            end if
+            if key = "OK"
+                keyChar = mid(rows[row],col+1,1)
+                if keyChar = "⌫"
+                    if len(m.searchText) > 0 then m.searchText = left(m.searchText,len(m.searchText)-1)
+                else if len(m.searchText) < 120
+                    m.searchText += keyChar
+                end if
+                refreshSearchSuggestions()
+                drawScreen()
+                return true
+            end if
+        end if
+        drawScreen()
         return true
     end if
     if m.busy and m.view <> "live" then return true
