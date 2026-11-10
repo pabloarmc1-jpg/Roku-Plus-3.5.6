@@ -445,5 +445,7 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
         if nalType = 8 then nal8++
         if nalType = 5 then nal5++
     end for
-    print "[RokuPlus hls-relay diag] ts_map index="; segmentIndex; " pids="; pidSummary; " pat="; patFound; " pmtPid="; pmtPid; " pmt="; pmtFound; " videoPid="; videoPid; " audioPid="; audioPid; " ccErrors="; continuityErrors; " annexB_sps="; nal7; " annexB_pps="; nal8; " annexB_idr="; nal5
+    print "[RokuPlus hls-relay diag] ts_map index="; segmentIndex; " pids="; pidSummary; " pat="; patFound; " pmtPid="; pmtPid; " pmt="; pmtFound
+    print "[RokuPlus hls-relay diag] ts_streams videoPid="; videoPid; " audioPid="; audioPid; " ccErrors="; continuityErrors
+    print "[RokuPlus hls-relay diag] ts_h264 annexB_sps="; nal7; " annexB_pps="; nal8; " annexB_idr="; nal5
 end sub
