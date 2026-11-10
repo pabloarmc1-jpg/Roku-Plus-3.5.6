@@ -285,16 +285,20 @@ function rpTsRelayHex(value as integer) as string
 end function
 
 ' Read-only MPEG-TS packet audit. The payload is forwarded unchanged.
+' Read-only MPEG-TS packet audit. The payload is forwarded unchanged.
+' PSI inspection is intentionally limited to sections contained in one TS packet.
 function rpTsRelayAuditPayload(payload as object) as object
-    result = {aligned:false,packetCount:0,syncErrors:0,firstBadOffset:-1,patPackets:0,nullPackets:0}
+    result = {aligned:false,packetCount:0,syncErrors:0,firstBadOffset:-1,patPackets:0,nullPackets:0,continuityErrors:0,continuityChecked:0,pmtPid:-1,pmtPackets:0,videoPid:-1,audioPid:-1,h264:false,aac:false}
     total = payload.Count()
     if total <= 0 then return result
     result.aligned = (total mod 188) = 0
-    if not result.aligned then
+    if not result.aligned
         result.firstBadOffset = total - (total mod 188)
         return result
     end if
-    result.packetCount = total \ 188
+    result.packetCount = total \\ 188
+    lastCounters = {}
+    haveCounters = {}
     for offset = 0 to total - 188 step 188
         if payload[offset] <> &H47
             result.syncErrors++
@@ -303,6 +307,81 @@ function rpTsRelayAuditPayload(payload as object) as object
             pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
             if pid = 0 then result.patPackets++
             if pid = 8191 then result.nullPackets++
+            header = payload[offset+3]
+            adaptationControl = (header \\ 16) mod 4
+            continuity = header mod 16
+            hasPayload = adaptationControl = 1 or adaptationControl = 3
+            discontinuity = false
+            if adaptationControl = 2 or adaptationControl = 3
+                adaptationLength = payload[offset+4]
+                if adaptationLength > 0 and offset + 5 < total
+                    if payload[offset+5] >= 128 then discontinuity = true
+                end if
+            end if
+            if hasPayload and pid <> 8191
+                key = pid.toStr()
+                if haveCounters[key] = true
+                    result.continuityChecked++
+                    expected = (lastCounters[key] + 1) mod 16
+                    if continuity <> expected and not discontinuity
+                        result.continuityErrors++
+                    end if
+                end if
+                lastCounters[key] = continuity
+                haveCounters[key] = true
+            end if
+            if hasPayload
+                payloadStart = offset + 4
+                if adaptationControl = 3
+                    payloadStart = offset + 5 + payload[offset+4]
+                end if
+                if payloadStart < offset + 188 and payloadStart < total
+                    if pid = 0 and payload[payloadStart] = 0
+                        pointer = payload[payloadStart]
+                        sectionStart = payloadStart + 1 + pointer
+                        if sectionStart + 12 <= offset + 188
+                            sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
+                            sectionEnd = sectionStart + 3 + sectionLength
+                            if sectionEnd <= offset + 188
+                                entry = sectionStart + 8
+                                while entry + 4 <= sectionEnd - 4
+                                    programNumber = payload[entry] * 256 + payload[entry+1]
+                                    if programNumber > 0
+                                        result.pmtPid = (payload[entry+2] mod 32) * 256 + payload[entry+3]
+                                        exit while
+                                    end if
+                                    entry += 4
+                                end while
+                            end if
+                        end if
+                    else if pid = result.pmtPid and payload[payloadStart] = 0
+                        pointer = payload[payloadStart]
+                        sectionStart = payloadStart + 1 + pointer
+                        if sectionStart + 12 <= offset + 188 and payload[sectionStart] = 2
+                            sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
+                            sectionEnd = sectionStart + 3 + sectionLength
+                            if sectionEnd <= offset + 188
+                                result.pmtPackets++
+                                programInfoLength = (payload[sectionStart+10] mod 16) * 256 + payload[sectionStart+11]
+                                entry = sectionStart + 12 + programInfoLength
+                                while entry + 5 <= sectionEnd - 4
+                                    streamType = payload[entry]
+                                    elementaryPid = (payload[entry+1] mod 32) * 256 + payload[entry+2]
+                                    esInfoLength = (payload[entry+3] mod 16) * 256 + payload[entry+4]
+                                    if streamType = 27
+                                        result.h264 = true
+                                        result.videoPid = elementaryPid
+                                    else if streamType = 15 or streamType = 17
+                                        result.aac = true
+                                        result.audioPid = elementaryPid
+                                    end if
+                                    entry += 5 + esInfoLength
+                                end while
+                            end if
+                        end if
+                    end if
+                end if
+            end if
         end if
     end for
     return result
