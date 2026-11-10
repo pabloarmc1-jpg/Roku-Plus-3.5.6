@@ -905,38 +905,59 @@ function rpHdTaskSegmentList(body as string, baseUrl as string) as object
 end function
 
 function rpHdTaskSegmentTimeline(body as string, baseUrl as string, segmentUrls as object) as object
+    ' Build a timeline only when every media URI maps one-to-one to a complete
+    ' EXTINF entry. Reject playlist features that this TS-only relay cannot
+    ' faithfully represent instead of silently producing incorrect seek times.
     timeline = []
     pendingDuration = invalid
     discontinuityPending = false
     position = 0.0
     mediaSequence = 0
-    targetDuration = 0
+    discontinuitySequence = 0
     for each raw in body.split(chr(10))
         line = raw.trim()
         if line <> ""
             if left(line,8) = "#EXTINF:"
+                if pendingDuration <> invalid then return invalid
                 durationText = mid(line,9).split(",")[0].trim()
+                if durationText = "" then return invalid
                 duration = durationText.toFloat()
                 if duration <= 0 then return invalid
                 pendingDuration = duration
             else if left(line,22) = "#EXT-X-MEDIA-SEQUENCE:"
-                mediaSequence = mid(line,23).trim().toInt()
-            else if left(line,22) = "#EXT-X-TARGETDURATION:"
-                targetDuration = mid(line,23).trim().toInt()
+                sequenceText = mid(line,23).trim()
+                mediaSequence = sequenceText.toInt()
+                if mediaSequence < 0 then return invalid
+            else if left(line,30) = "#EXT-X-DISCONTINUITY-SEQUENCE:"
+                discontinuityText = mid(line,31).trim()
+                discontinuitySequence = discontinuityText.toInt()
+                if discontinuitySequence < 0 then return invalid
             else if line = "#EXT-X-DISCONTINUITY"
                 discontinuityPending = true
+            else if left(line,17) = "#EXT-X-BYTERANGE:"
+                return invalid
+            else if left(line,11) = "#EXT-X-MAP:"
+                return invalid
+            else if left(line,11) = "#EXT-X-KEY:"
+                if instr(1,line,"METHOD=NONE") = 0 then return invalid
+            else if line = "#EXT-X-GAP" or line = "#EXT-X-I-FRAMES-ONLY"
+                return invalid
             else if left(line,1) <> "#"
                 if pendingDuration = invalid then return invalid
+                index = timeline.count()
+                if index >= segmentUrls.count() then return invalid
                 url = rpHdOnlineJoin(baseUrl,line)
-                if url = "" or timeline.count() >= segmentUrls.count() then return invalid
-                timeline.push({index:timeline.count(),sequence:mediaSequence+timeline.count(),url:url,start:position,duration:pendingDuration,endTime:position+pendingDuration,discontinuity:discontinuityPending})
+                if url = "" or url <> segmentUrls[index] then return invalid
+                timeline.push({index:index,sequence:mediaSequence+index,discontinuitySequence:discontinuitySequence,url:url,start:position,duration:pendingDuration,endTime:position+pendingDuration,discontinuity:discontinuityPending})
                 position += pendingDuration
+                if discontinuityPending then discontinuitySequence++
                 pendingDuration = invalid
                 discontinuityPending = false
             end if
         end if
     end for
-    if pendingDuration <> invalid or timeline.count() <> segmentUrls.count() or timeline.count() = 0 then return invalid
+    if pendingDuration <> invalid or discontinuityPending then return invalid
+    if timeline.count() <> segmentUrls.count() or timeline.count() = 0 then return invalid
     return timeline
 end function
 
