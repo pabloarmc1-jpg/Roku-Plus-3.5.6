@@ -295,7 +295,28 @@ end function
 ' Read-only MPEG-TS packet audit. The payload is forwarded unchanged.
 ' PSI inspection is intentionally limited to sections contained in one TS packet.
 function rpTsRelayAuditPayload(payload as object) as object
-    result = {aligned:false,packetCount:0,syncErrors:0,firstBadOffset:-1,patPackets:0,nullPackets:0,continuityErrors:0,continuityChecked:0,pmtPid:-1,pmtPackets:0,videoPid:-1,audioPid:-1,h264:false,aac:false,idrCount:0,firstIdrPacket:-1,sps:false,pps:false,ptsCount:0,firstPts:-1,lastPts:-1}
+    result = CreateObject("roAssociativeArray")
+    result.aligned = false
+    result.packetCount = 0
+    result.syncErrors = 0
+    result.firstBadOffset = -1
+    result.patPackets = 0
+    result.nullPackets = 0
+    result.continuityErrors = 0
+    result.continuityChecked = 0
+    result.pmtPid = -1
+    result.pmtPackets = 0
+    result.videoPid = -1
+    result.audioPid = -1
+    result.h264 = false
+    result.aac = false
+    result.idrCount = 0
+    result.firstIdrPacket = -1
+    result.sps = false
+    result.pps = false
+    result.ptsCount = 0
+    result.firstPts = -1
+    result.lastPts = -1
     total = payload.Count()
     if total <= 0 then return result
     result.aligned = (total mod 188) = 0
