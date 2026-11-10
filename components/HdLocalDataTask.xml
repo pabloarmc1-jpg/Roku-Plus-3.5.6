@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="HdLocalDataTask" extends="Task">
+    <interface>
+        <field id="result" type="assocarray" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/source/CatalogData.brs" />
+    <script type="text/brightscript" uri="pkg:/source/HdData.brs" />
+    <script type="text/brightscript" uri="HdLocalDataTask.brs" />
+</component>
