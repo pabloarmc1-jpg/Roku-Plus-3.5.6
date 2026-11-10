@@ -358,6 +358,17 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
     audioPid = -1
     patFound = false
     pmtFound = false
+    videoPes = 0
+    audioPes = 0
+    ptsCount = 0
+    dtsCount = 0
+    firstPts = -1
+    firstDts = -1
+    nal7 = 0
+    nal8 = 0
+    nal5 = 0
+    firstIdrPacket = -1
+
     for offset = 0 to size - 188 step 188
         if payload[offset] <> &h47 then continue for
         b1 = payload[offset+1]
@@ -370,6 +381,7 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
         else
             pidCounts[pidKey] = 1
         end if
+
         adaptationControl = int(b3 / 16) mod 4
         cc = b3 mod 16
         hasPayload = adaptationControl = 1 or adaptationControl = 3
@@ -380,12 +392,14 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
             end if
             continuity[pidKey] = cc
         end if
+
         payloadOffset = offset + 4
         if adaptationControl = 2 or adaptationControl = 0 then payloadOffset = offset + 188
         if adaptationControl = 3 and payloadOffset < offset + 188
             payloadOffset += 1 + payload[payloadOffset]
         end if
         if payloadOffset >= offset + 188 then continue for
+
         unitStart = (int(b1 / 64) mod 2) = 1
         if pid = 0 and unitStart and not patFound
             pointer = payload[payloadOffset]
@@ -397,7 +411,7 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
                     entry = section + 8
                     while entry + 3 < sectionEnd - 4
                         programNumber = payload[entry] * 256 + payload[entry+1]
-                        candidatePid = (payload[entry+2] and &h1F) * 256 + payload[entry+3]
+                        candidatePid = (payload[entry+2] mod 32) * 256 + payload[entry+3]
                         if programNumber > 0 then pmtPid = candidatePid
                         entry += 4
                     end while
@@ -425,27 +439,71 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
                 end if
             end if
         end if
+
+        scanStart = payloadOffset
+        if unitStart and (pid = videoPid or pid = audioPid)
+            if payloadOffset + 8 < offset + 188 and payload[payloadOffset] = 0 and payload[payloadOffset+1] = 0 and payload[payloadOffset+2] = 1
+                if pid = videoPid then videoPes++
+                if pid = audioPid then audioPes++
+                flags = int(payload[payloadOffset+7] / 64) mod 4
+                headerLength = payload[payloadOffset+8]
+                scanStart = payloadOffset + 9 + headerLength
+                if flags = 2 or flags = 3
+                    if payloadOffset + 13 < offset + 188
+                        ptsValue = rpTsRelayReadTimestamp(payload,payloadOffset+9)
+                        ptsCount++
+                        if firstPts < 0 then firstPts = ptsValue
+                    end if
+                end if
+                if flags = 3
+                    if payloadOffset + 18 < offset + 188
+                        dtsValue = rpTsRelayReadTimestamp(payload,payloadOffset+14)
+                        dtsCount++
+                        if firstDts < 0 then firstDts = dtsValue
+                    end if
+                end if
+            end if
+        end if
+
+        if pid = videoPid and scanStart < offset + 188
+            for i = scanStart to offset + 183
+                nalType = -1
+                if i + 3 < offset + 188 and payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 1
+                    nalType = payload[i+3] mod 32
+                else if i + 4 < offset + 188 and payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 1
+                    nalType = payload[i+4] mod 32
+                end if
+                if nalType = 7 then nal7++
+                if nalType = 8 then nal8++
+                if nalType = 5
+                    nal5++
+                    if firstIdrPacket < 0 then firstIdrPacket = int(offset / 188)
+                end if
+            end for
+        end if
     end for
+
     pidSummary = ""
     for each key in pidCounts
         if pidSummary <> "" then pidSummary += ","
         pidSummary += key + ":" + pidCounts[key].toStr()
     end for
-    nal7 = 0
-    nal8 = 0
-    nal5 = 0
-    for i = 0 to size - 5
-        nalType = -1
-        if payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 1
-            nalType = payload[i+3] mod 32
-        else if i + 5 < size and payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 1
-            nalType = payload[i+4] mod 32
-        end if
-        if nalType = 7 then nal7++
-        if nalType = 8 then nal8++
-        if nalType = 5 then nal5++
-    end for
     print "[RokuPlus hls-relay diag] ts_map index="; segmentIndex; " pids="; pidSummary; " pat="; patFound; " pmtPid="; pmtPid; " pmt="; pmtFound
-    print "[RokuPlus hls-relay diag] ts_streams videoPid="; videoPid; " audioPid="; audioPid; " ccErrors="; continuityErrors
-    print "[RokuPlus hls-relay diag] ts_h264 annexB_sps="; nal7; " annexB_pps="; nal8; " annexB_idr="; nal5
+    print "[RokuPlus hls-relay diag] ts_streams videoPid="; videoPid; " audioPid="; audioPid; " ccErrors="; continuityErrors; " videoPes="; videoPes; " audioPes="; audioPes
+    print "[RokuPlus hls-relay diag] ts_timestamps ptsCount="; ptsCount; " dtsCount="; dtsCount; " firstPts90k="; firstPts; " firstDts90k="; firstDts
+    print "[RokuPlus hls-relay diag] ts_h264 videoPid="; videoPid; " annexB_sps="; nal7; " annexB_pps="; nal8; " annexB_idr="; nal5; " firstIdrPacket="; firstIdrPacket
 end sub
+
+function rpTsRelayReadTimestamp(payload as object, offset as integer)
+    a = payload[offset]
+    b = payload[offset+1]
+    c = payload[offset+2]
+    d = payload[offset+3]
+    e = payload[offset+4]
+    value = (int(a / 2) mod 8) * 536870912
+    value += b * 4194304
+    value += int(c / 2) * 16384
+    value += d * 128
+    value += int(e / 2)
+    return value
+end function
