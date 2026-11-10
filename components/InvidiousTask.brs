@@ -54,7 +54,7 @@ sub runInvidiousRequest()
                     answer.ok = true
                     answer.message = ""
                 else
-                    answer.message = "La instancia no entregó un MP4 o HLS reproducible para este video. Prueba otro resultado."
+                    answer.message = "Este video no ofrece un MP4 compatible identificado como H.264 + AAC. HLS y códecs no identificados están deshabilitados."
                 end if
             else
                 answer.message = response.message
@@ -80,12 +80,19 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
             if GetInterface(streamUrl,"ifString") = invalid or left(streamUrl,8) <> "https://" then continue for
             if lcase(stream.container) <> "mp4" then continue for
             streamType = ""
-            if stream.doesExist("type") then streamType = lcase(stream.type)
-            if streamType <> "" and instr(1,streamType,"video/mp4") = 0 then continue for
+            if not stream.doesExist("type") then continue for
+            if GetInterface(stream.type,"ifString") = invalid then continue for
+            streamType = lcase(stream.type)
+            ' Require an explicit MP4 MIME type and an explicit codecs declaration.
+            if instr(1,streamType,"video/mp4") = 0 then continue for
+            if instr(1,streamType,"codecs=") = 0 then continue for
+            ' Strict allow-list: H.264 video (avc1) AND AAC audio (mp4a).
+            if instr(1,streamType,"avc1") = 0 then continue for
+            if instr(1,streamType,"mp4a") = 0 then continue for
+            ' Explicitly reject HEVC, AV1, VP9 and other codec families.
+            if instr(1,streamType,"hvc1") > 0 or instr(1,streamType,"hev1") > 0 then continue for
+            if instr(1,streamType,"av01") > 0 or instr(1,streamType,"vp09") > 0 then continue for
             score = 100
-            if instr(1,streamType,"avc1") > 0 then score = score + 35
-            if instr(1,streamType,"mp4a") > 0 then score = score + 30
-            if instr(1,streamType,"av01") > 0 or instr(1,streamType,"vp09") > 0 then score = score - 100
             qualityText = ""
             if stream.doesExist("qualityLabel") then qualityText = stream.qualityLabel
             if qualityText = "" and stream.doesExist("quality") then qualityText = stream.quality
@@ -120,13 +127,7 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
         end for
     end if
     if chosenUrl <> "" then return {url:chosenUrl,streamFormat:chosenFormat,bitrate:chosenBitrate}
-    ' HLS is a useful fallback for live streams when the instance exposes it.
-    if parsed.doesExist("hlsUrl")
-        hlsUrl = parsed.hlsUrl
-        if GetInterface(hlsUrl,"ifString") <> invalid and left(hlsUrl,8) = "https://"
-            return {url:hlsUrl,streamFormat:"hls"}
-        end if
-    end if
+    ' HLS is intentionally disabled. Only explicitly identified MP4 H.264 + AAC is accepted.
     return invalid
 end function
 
