@@ -344,8 +344,8 @@ sub homeScreen()
         item = m.features[heroIndex]
         heroUri = item.background
         if heroUri = "" then heroUri = item.poster
-        if heroUri <> "" then art(heroUri,0,0,1920,570)
-        art("pkg:/images/ui/hero-shade.png",0,0,1920,625)
+        if heroUri <> "" then art(heroUri,0,0,1920,1080)
+        art("pkg:/images/ui/hero-shade.png",0,0,1920,1080)
         panel(0,112,1920,8,"0xFFFFFF12")
         featureCount = m.features.count()
         featureLabel = "ROKU PLUS ORIGINAL  ·  DESTACADO  "+(heroIndex+1).toStr()+" / "+featureCount.toStr()
