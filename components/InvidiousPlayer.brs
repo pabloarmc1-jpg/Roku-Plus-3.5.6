@@ -5,6 +5,7 @@ sub init()
     m.statusNode = m.top.findNode("statusText")
     m.helpNode = m.top.findNode("helpText")
     m.errorNode = m.top.findNode("errorText")
+    m.video.asyncStopSemantics = true
     m.video.observeField("state","videoStateChanged")
     m.video.observeField("errorCode","videoErrorChanged")
     m.video.observeField("position","videoPositionChanged")
@@ -59,7 +60,6 @@ sub openRequest()
         if bitrate >= 1500 then quality = true
         media.streams = [{url:request.url,bitrate:int(bitrate),quality:quality,contentid:"invidious-" + invidiousText(request.title,80)}]
     end if
-    m.video.control = "stop"
     m.video.content = media
     m.top.active = true
     m.video.control = "play"
@@ -112,6 +112,8 @@ sub videoStateChanged(event as object)
         m.statusNode.text = "VIDEO FINALIZADO  ·  Atrás para volver a los resultados"
     else if state = "error"
         m.statusNode.text = "No se pudo reproducir este formato de video."
+    else if state = "stopping" and m.closing
+        m.statusNode.text = "Finalizando reproducción…"
     else if state = "stopped" and m.closing
         finishInvidiousClose()
     else if state = "stopped" and m.top.active
@@ -143,18 +145,27 @@ sub closeInvidiousPlayback()
     ' native adaptive pipeline is tearing down. Stop first and close async.
     m.closing = true
     m.statusNode.text = "Cerrando reproductor…"
-    m.closeTimer.duration = 0.6
     m.video.control = "stop"
-    m.closeTimer.control = "start"
+    if m.video.state = "stopped" or m.video.state = "none"
+        finishInvidiousClose()
+    else
+        m.closeTimer.duration = 0.5
+        m.closeTimer.control = "start"
+    end if
 end sub
 
 sub finishInvidiousClose()
     if not m.closing then return
+    if m.video.state <> "stopped" and m.video.state <> "none"
+        ' Never return to the parent while the native DASH pipeline is stopping.
+        m.closeTimer.duration = 0.5
+        m.closeTimer.control = "start"
+        return
+    end if
     m.closeTimer.control = "stop"
     m.closing = false
     m.top.active = false
-    ' Keep the last ContentNode attached. Replacing it on the next open avoids
-    ' forcing a synchronous DASH detach on the UI thread during BACK.
+    ' Keep the last ContentNode attached; it is safe to reuse after async stop completes.
     m.top.closed = true
 end sub
 
