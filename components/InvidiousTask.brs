@@ -201,6 +201,48 @@ function invidiousParseCodecTokens(streamType as string) as dynamic
     return clean
 end function
 
+function invidiousVp9LevelName(levelId as integer) as string
+    if levelId = 10 then return "1.0"
+    if levelId = 11 then return "1.1"
+    if levelId = 20 then return "2.0"
+    if levelId = 21 then return "2.1"
+    if levelId = 30 then return "3.0"
+    if levelId = 31 then return "3.1"
+    if levelId = 40 then return "4.0"
+    if levelId = 41 then return "4.1"
+    if levelId = 50 then return "5.0"
+    if levelId = 51 then return "5.1"
+    if levelId = 52 then return "5.2"
+    if levelId = 60 then return "6.0"
+    if levelId = 61 then return "6.1"
+    if levelId = 62 then return "6.2"
+    return ""
+end function
+
+function invidiousAv1LevelName(levelId as integer) as string
+    if levelId = 0 then return "2.0"
+    if levelId = 1 then return "2.1"
+    if levelId = 2 then return "2.2"
+    if levelId = 3 then return "2.3"
+    if levelId = 4 then return "3.0"
+    if levelId = 5 then return "3.1"
+    if levelId = 6 then return "3.2"
+    if levelId = 7 then return "3.3"
+    if levelId = 8 then return "4.0"
+    if levelId = 9 then return "4.1"
+    if levelId = 10 then return "4.2"
+    if levelId = 11 then return "4.3"
+    if levelId = 12 then return "5.0"
+    if levelId = 13 then return "5.1"
+    if levelId = 14 then return "5.2"
+    if levelId = 15 then return "5.3"
+    if levelId = 16 then return "6.0"
+    if levelId = 17 then return "6.1"
+    if levelId = 18 then return "6.2"
+    if levelId = 19 then return "6.3"
+    return ""
+end function
+
 function invidiousAvcLevelName(levelId as integer) as string
     if levelId = 10 then return "1.0"
     if levelId = 11 then return "1.1"
@@ -274,10 +316,43 @@ function invidiousClassifyVideoCodec(token as string) as dynamic
         return {name:"hevc",codec:"hevc",profile:profile,level:level}
     end if
     if left(token,5) = "av01."
-        return {name:"av1",codec:"av1",profile:"main",level:"5.1",dashOnly:true}
+        parts = token.split(".")
+        if parts.count() < 4 then return invalid
+        profileId = val(parts[1])
+        if profileId = 0
+            profile = "main"
+        else if profileId = 1
+            profile = "high"
+        else if profileId = 2
+            profile = "professional"
+        else
+            return invalid
+        end if
+        levelToken = parts[2]
+        if len(levelToken) < 2 then return invalid
+        levelId = val(left(levelToken,2))
+        level = invidiousAv1LevelName(levelId)
+        if level = "" then return invalid
+        bitDepth = val(parts[3])
+        if profile = "main" and bitDepth = 10 then profile = "main 10"
+        return {name:"av1",codec:"av1",profile:profile,level:level,dashOnly:true}
     end if
-    if left(token,4) = "vp09" then return {name:"vp9",codec:"vp9",unsupported:true}
-    if left(token,3) = "vp8" then return {name:"vp8",codec:"vp8",unsupported:true}
+    if left(token,5) = "vp09."
+        parts = token.split(".")
+        if parts.count() < 4 then return invalid
+        profileId = val(parts[1])
+        if profileId = 0
+            profile = "profile 0"
+        else if profileId = 2
+            profile = "profile 2"
+        else
+            return invalid
+        end if
+        level = invidiousVp9LevelName(val(parts[2]))
+        if level = "" then return invalid
+        return {name:"vp9",codec:"vp9",profile:profile,level:level}
+    end if
+    if left(token,4) = "vp08" then return {name:"vp8",codec:"vp8",unsupported:true}
     return invalid
 end function
 
@@ -298,15 +373,27 @@ function invidiousClassifyAudioCodec(token as string) as dynamic
 end function
 
 function invidiousContainerAllowsVideo(container as string, codecName as string) as boolean
-    if container <> "mp4" and container <> "mkv" and container <> "webm" then return false
-    return codecName = "avc" or codecName = "hevc"
+    if container = "mp4"
+        return codecName = "avc" or codecName = "hevc"
+    end if
+    if container = "mkv"
+        return codecName = "avc" or codecName = "hevc" or codecName = "vp9"
+    end if
+    if container = "webm"
+        return codecName = "vp9"
+    end if
+    ' AV1 is DASH-only in Roku's streaming specification; this selector handles progressive files.
+    return false
 end function
 
 function invidiousContainerAllowsAudio(container as string, codecName as string) as boolean
     if container = "mp4"
         return codecName = "aac" or codecName = "ac3" or codecName = "eac3" or codecName = "ac4" or codecName = "alac" or codecName = "mp3" or codecName = "pcm"
     end if
-    if container = "mkv" or container = "webm"
+    if container = "webm"
+        return codecName = "opus" or codecName = "vorbis"
+    end if
+    if container = "mkv"
         return codecName = "aac" or codecName = "ac3" or codecName = "eac3" or codecName = "alac" or codecName = "mp3" or codecName = "pcm" or codecName = "opus" or codecName = "vorbis" or codecName = "flac" or codecName = "dts" or codecName = "dtse"
     end if
     return false
@@ -367,6 +454,8 @@ function invidiousLogDeviceInfo()
     candidates = [
         {name:"avc-main",codec:"mpeg4 avc",profile:"main",level:"4.2"},
         {name:"avc-high",codec:"mpeg4 avc",profile:"high",level:"4.2"},
+        {name:"vp9-profile-0",codec:"vp9",profile:"profile 0",level:"4.1"},
+        {name:"vp9-profile-2",codec:"vp9",profile:"profile 2",level:"4.1"},
         {name:"hevc-main",codec:"hevc",profile:"main",level:"5.1"},
         {name:"hevc-main10",codec:"hevc",profile:"main 10",level:"5.1"},
         {name:"av1-main",codec:"av1",profile:"main",level:"5.1"}
@@ -402,7 +491,7 @@ sub invidiousLogAdaptiveFormats(parsed as object)
                     deviceOk = invidiousDeviceSupportsVideo(videoInfo)
                     transport = "PROGRESSIVE_CAPABILITY_ONLY"
                     if videoInfo.name = "av1" then transport = "DASH_ONLY"
-                    if videoInfo.name = "vp9" or videoInfo.name = "vp8" then transport = "NOT_LISTED_BY_ROKU"
+                    if videoInfo.name = "vp8" then transport = "NOT_SUPPORTED_BY_SELECTOR"
                     print "[RokuPlus Invidious codecs] ADAPTIVE_VIDEO codec="; videoInfo.name; " deviceCanDecode="; deviceOk; " transport="; transport
                 end if
                 audioInfo = invidiousClassifyAudioCodec(token)
