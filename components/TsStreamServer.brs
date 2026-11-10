@@ -523,14 +523,14 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
                 if nalType = 7
                     nal7++
                     if spsProfile < 0
-                        if i + 6 < offset + 188 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 1
+                        if i + 6 < offset + 188 and payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 1
+                            spsProfile = payload[i+4]
+                            spsConstraint = payload[i+5]
+                            spsLevel = payload[i+6]
+                        else if i + 7 < offset + 188 and payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 1
                             spsProfile = payload[i+5]
                             spsConstraint = payload[i+6]
-                            if i + 7 < offset + 188 then spsLevel = payload[i+7]
-                        else if i + 7 < offset + 188 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 0 and payload[i+4] = 1
-                            spsProfile = payload[i+6]
-                            spsConstraint = payload[i+7]
-                            if i + 8 < offset + 188 then spsLevel = payload[i+8]
+                            spsLevel = payload[i+7]
                         end if
                     end if
                 end if
