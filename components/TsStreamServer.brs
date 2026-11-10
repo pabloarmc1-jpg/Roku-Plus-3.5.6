@@ -336,10 +336,10 @@ function rpTsRelayAuditPayload(payload as object) as object
                     payloadStart = offset + 5 + payload[offset+4]
                 end if
                 if payloadStart < offset + 188 and payloadStart < total
-                    if pid = 0 and payload[payloadStart] = 0
+                    if pid = 0
                         pointer = payload[payloadStart]
                         sectionStart = payloadStart + 1 + pointer
-                        if sectionStart + 12 <= offset + 188
+                        if sectionStart + 12 <= offset + 188 and payload[sectionStart] = 0
                             sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
                             sectionEnd = sectionStart + 3 + sectionLength
                             if sectionEnd <= offset + 188
@@ -354,7 +354,7 @@ function rpTsRelayAuditPayload(payload as object) as object
                                 end while
                             end if
                         end if
-                    else if pid = result.pmtPid and payload[payloadStart] = 0
+                    else if pid = result.pmtPid
                         pointer = payload[payloadStart]
                         sectionStart = payloadStart + 1 + pointer
                         if sectionStart + 12 <= offset + 188 and payload[sectionStart] = 2
