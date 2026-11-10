@@ -1286,10 +1286,12 @@ sub refreshHomeListItems()
     m.homeListItems = []
     if type(m.watchState) <> "roArray" then return
     for each record in m.watchState
-        if type(record) = "roAssociativeArray" and record.doesExist("listed")
-            if record.listed = true
-                m.homeListItems.push(record)
-                if m.homeListItems.count() >= 3 then exit for
+        if type(record) = "roAssociativeArray"
+            if record.doesExist("listed")
+                if record.listed = true
+                    m.homeListItems.push(record)
+                    if m.homeListItems.count() >= 3 then exit for
+                end if
             end if
         end if
     end for
