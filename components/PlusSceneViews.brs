@@ -145,7 +145,7 @@ sub topBar()
     end if
     panel(0,0,1920,barHeight,"0x080808F2")
     art("pkg:/images/ui/logo.png",logoX,logoY,logoSize,logoSize)
-    words("ROKU",brandX,brandY,112,44,brandSize,"0xE50914FF")
+    words("ROKU PLUS",brandX,brandY,145,44,brandSize,"0xE50914FF")
     labels = ["Inicio","Películas","Series","TV en vivo","Buscar","Mi lista","Historial","Ajustes","Perfiles"]
     active = 0
     if m.view = "browse" or m.view = "detail" or m.view = "episodes"
@@ -180,7 +180,9 @@ sub topBar()
     end for
     profileY = 43
     if m.view = "live" then profileY = 7
-    words(rpProfileName(m.profileId),1580,profileY,275,38,20,"0xD0D0D0FF").horizAlign = "right"
+    panel(1548,profileY-5,308,46,"0xFFFFFF12")
+    words("PERFIL",1560,profileY+2,62,25,13,"0x888891FF")
+    words(rpProfileName(m.profileId),1625,profileY,215,32,19,"0xF0F0F0FF").horizAlign = "right"
 end sub
 
 sub drawScreen()
@@ -457,7 +459,7 @@ sub homeScreen()
                 focusTarget("continue",i,x-14,960,546,114,"card")
             end if
         end for
-    else if m.homeSeries.count() > 0 and m.homeListItems.count() = 0
+    else if m.homeSeries.count() > 0
         words("Series para descubrir",76,930,1500,30,25,"0xFFFFFFFF")
         for i = 0 to 2
             if i < m.homeSeries.count()
