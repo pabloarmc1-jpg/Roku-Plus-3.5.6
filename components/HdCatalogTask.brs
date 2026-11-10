@@ -243,23 +243,14 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
                         if playable
-                            relaySegments = rpHdTaskSegmentList(child.body,selected.url)
-                            if relaySegments.count() > 1
-                                answer.segmentUrls = relaySegments
-                                answer.tsRelayEnabled = true
-                                segmentDurations = rpHdTaskSegmentDurations(child.body,relaySegments.count())
-                                if segmentDurations.count() = relaySegments.count()
-                                    answer.segmentDurations = segmentDurations
-                                    print "[RokuPlus ts-relay] candidate_segments="; relaySegments.count(); " duration_entries="; segmentDurations.count()
-                                else
-                                    answer.segmentDurations = []
-                                    print "[RokuPlus ts-relay] duration_metadata_unavailable segments="; relaySegments.count()
-                                end if
-                            else
-                                answer.tsRelayEnabled = false
-                                print "[RokuPlus ts-relay] disabled reason=segment_list_unavailable"
-                            end if
-                            ' Diagnostic 3.5.38: return the selected child HLS manifest as one native stream.
+                            ' Keep the validated child manifest intact. Passing its TS segment
+                            ' URLs as well would make PlusPlayer replace native HLS with the
+                            ' experimental concatenated-TS relay, losing HLS seek/duration data.
+                            answer.tsRelayEnabled = false
+                            answer.segmentUrls = invalid
+                            answer.segmentDurations = invalid
+                            print "[RokuPlus hls] playback=native-child-manifest relay=disabled"
+                            ' Return the selected child HLS manifest as one native stream.
                             ' The TS playlist path was confirmed to create visible clip boundaries.
                             ' Isolate Roku HLS audio selection while preserving the validated variant.
                             playbackPlaylistKind = "native-child-hls-audio-isolation"
