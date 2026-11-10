@@ -68,6 +68,7 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
     chosenUrl = ""
     chosenFormat = ""
     bestScore = -999999
+    chosenBitrate = 0
     streams = invalid
     if parsed.doesExist("formatStreams") and type(parsed.formatStreams) = "roArray" then streams = parsed.formatStreams
     if type(streams) = "roArray"
@@ -96,14 +97,36 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
                 if height > 720 then score = score - ((height - 720) / 10)
                 else score = score + (height / 10)
             end if
+            bitrateKbps = 0
+            if stream.doesExist("bitrate")
+                rawBitrate = val(stream.bitrate)
+                if rawBitrate > 0
+                    if rawBitrate > 10000
+                        bitrateKbps = int((rawBitrate + 999) / 1000)
+                    else
+                        bitrateKbps = int(rawBitrate)
+                    end if
+                end if
+            end if
+            ' Roku needs a positive bitrate for progressive MP4 metadata.
+            if bitrateKbps <= 0
+                if height >= 720
+                    bitrateKbps = 2500
+                else if height >= 480
+                    bitrateKbps = 1400
+                else
+                    bitrateKbps = 800
+                end if
+            end if
             if score > bestScore
                 bestScore = score
                 chosenUrl = streamUrl
                 chosenFormat = "mp4"
+                chosenBitrate = bitrateKbps
             end if
         end for
     end if
-    if chosenUrl <> "" then return {url:chosenUrl,streamFormat:chosenFormat}
+    if chosenUrl <> "" then return {url:chosenUrl,streamFormat:chosenFormat,bitrate:chosenBitrate}
     ' HLS is a useful fallback for live streams when the instance exposes it.
     if parsed.doesExist("hlsUrl")
         hlsUrl = parsed.hlsUrl
