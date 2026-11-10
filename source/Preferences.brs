@@ -190,6 +190,24 @@ function rpClearApiSecret(sectionName as string, keyName as string) as boolean
     return false
 end function
 
+
+' YouTube Data API credentials are isolated from other provider keys.
+function rpLoadYoutubeApiKey() as string
+    section = CreateObject("roRegistrySection","RokuPlusYouTubeSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return ""
+    value = section.read("youtubeDataApiKeyV1")
+    if GetInterface(value,"ifString") = invalid then return ""
+    return value
+end function
+
+function rpSaveYoutubeApiKey(value as dynamic) as boolean
+    return rpStoreApiSecret("RokuPlusYouTubeSecrets","youtubeDataApiKeyV1",value)
+end function
+
+function rpClearYoutubeApiKey() as boolean
+    return rpClearApiSecret("RokuPlusYouTubeSecrets","youtubeDataApiKeyV1")
+end function
+
 ' Active household profile. Four isolated local watch-state namespaces.
 function rpNormalizeProfileId(value as dynamic) as string
     if GetInterface(value,"ifString") <> invalid

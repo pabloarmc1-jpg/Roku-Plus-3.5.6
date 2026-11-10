@@ -1097,13 +1097,15 @@ sub settingsScreen()
     words("Puedes corregir tus elecciones cuando quieras.",324,218,1480,55,25,"0xB3B3B3FF")
     appearance = "Vidrio"
     if m.theme = "classic" then appearance = "Clásico"
-    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Resolución detectada"]
+    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","YouTube Data API v3 Key","Resolución detectada"]
     helperValue = m.compatBase
     if helperValue = "" then helperValue = "No configurado"
     tmdbStatus = "No configurada"
     if rpLoadTmdbApiKey() <> "" then tmdbStatus = "Configurada · oculta"
     subtitleStatus = "No configurada"
     if rpLoadSubtitleSearchEngineApiKey() <> "" then subtitleStatus = "Configurada · oculta"
+    youtubeStatus = "No configurada"
+    if rpLoadYoutubeApiKey() <> "" then youtubeStatus = "Configurada · oculta"
     displayValue = "No disponible"
     if type(m.capabilities.display) = "roAssociativeArray"
         display = m.capabilities.display
@@ -1113,13 +1115,13 @@ sub settingsScreen()
         if display.videoMode <> "" then displayValue = displayValue+" · "+display.videoMode
         if display.uiName <> "" then displayValue = displayValue+" · interfaz "+display.uiName
     end if
-    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue]
-    for i = 0 to 9
-        y = 260+i*68
-        panel(320,y,1522,62,"0x181818FF")
-        words(labels[i],352,y+4,900,29,23,"0xFFFFFFFF")
-        words(values[i],354,y+33,1130,23,17,"0xB3B3B3FF")
-        focusTarget("settings",i,314,y-4,1534,70)
+    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,youtubeStatus,displayValue]
+    for i = 0 to 10
+        y = 260+i*61
+        panel(320,y,1522,56,"0x181818FF")
+        words(labels[i],352,y+2,900,27,21,"0xFFFFFFFF")
+        words(values[i],354,y+29,1130,21,16,"0xB3B3B3FF")
+        focusTarget("settings",i,314,y-4,1534,64)
     end for
     words("Las claves se guardan en el registro local de este Roku y se muestran ocultas.",324,990,1480,36,19,"0xB1BEB3FF")
 end sub

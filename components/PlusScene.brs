@@ -1670,6 +1670,9 @@ sub openApiKeySettings(service as string)
     if service = "tmdb"
         dialog.title = "TMDB API Key"
         dialog.message = ["Pega tu clave API de TMDB. Se guarda localmente en este Roku."]
+    else if service = "youtube"
+        dialog.title = "YouTube Data API v3 Key"
+        dialog.message = ["Pega tu clave de Google Cloud con YouTube Data API v3 habilitada. Se guarda localmente en este Roku."]
     else
         dialog.title = "Subtitle Search Engine API Key"
         dialog.message = ["Pega tu clave API de Subtitle Search Engine. Se guarda localmente en este Roku."]
@@ -1694,6 +1697,7 @@ sub apiKeySettingsChosen(event as object)
     choice = event.getData()
     service = "tmdb"
     if m.dialogPurpose = "api-key-subtitle" then service = "subtitle"
+    if m.dialogPurpose = "api-key-youtube" then service = "youtube"
     value = m.dialogBox.text
     if GetInterface(value,"ifString") = invalid then value = ""
     value = value.trim()
@@ -1703,12 +1707,16 @@ sub apiKeySettingsChosen(event as object)
             message = "La API Key está vacía o no es válida."
         else if service = "tmdb"
             if rpSaveTmdbApiKey(value) then message = "TMDB API Key guardada en este Roku." else message = "No se pudo guardar la clave de TMDB."
+        else if service = "youtube"
+            if rpSaveYoutubeApiKey(value) then message = "YouTube Data API v3 Key guardada en este Roku." else message = "No se pudo guardar la clave de YouTube."
         else
             if rpSaveSubtitleSearchEngineApiKey(value) then message = "Subtitle Search Engine API Key guardada en este Roku." else message = "No se pudo guardar la clave de subtítulos."
         end if
     else if choice = 1
         if service = "tmdb"
             if rpClearTmdbApiKey() then message = "TMDB API Key borrada." else message = "No se pudo borrar la clave de TMDB."
+        else if service = "youtube"
+            if rpClearYoutubeApiKey() then message = "YouTube Data API v3 Key borrada." else message = "No se pudo borrar la clave de YouTube."
         else
             if rpClearSubtitleSearchEngineApiKey() then message = "Subtitle Search Engine API Key borrada." else message = "No se pudo borrar la clave de subtítulos."
         end if
@@ -2476,7 +2484,7 @@ if m.view = "profiles"
     else if m.view = "settings"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up" and m.settingsCursor > 0 then m.settingsCursor--
-        if key = "down" and m.settingsCursor < 9 then m.settingsCursor++
+        if key = "down" and m.settingsCursor < 10 then m.settingsCursor++
         if key = "OK"
             if m.settingsCursor = 0 then beginSetup(true,false)
             if m.settingsCursor = 1 then beginSetup(true,true)
@@ -2487,6 +2495,7 @@ if m.view = "profiles"
             if m.settingsCursor = 6 then openCompatSettings()
             if m.settingsCursor = 7 then openApiKeySettings("tmdb")
             if m.settingsCursor = 8 then openApiKeySettings("subtitle")
+            if m.settingsCursor = 9 then openApiKeySettings("youtube")
             return true
         end if
         paintFocus()
