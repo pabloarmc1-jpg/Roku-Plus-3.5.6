@@ -291,27 +291,28 @@ sub searchKeyboardScreen()
     else
         words("Escribe para buscar. Las sugerencias aparecen mientras escribes.",80,350,1600,40,21,"0x9A9AA2FF")
     end if
-    rows = ["ABCDEFGHIJ","KLMNOPQRST","UVWXYZ0123","456789.-_⌫"]
+    rows = ["0123456789","ABCDEFGHIJ","KLMNOPQRST","UVWXYZ.-_⌫"]
     for row = 0 to 3
         for col = 0 to 9
             x = 270+col*140
-            y = 470+row*88
+            y = 430+row*82
             ch = mid(rows[row],col+1,1)
-            panel(x,y,118,68,"0x29292EFF")
+            panel(x,y,118,64,"0x29292EFF")
             label = ch
             if ch = "⌫" then label = "BORRAR"
-            words(label,x+5,y+13,108,42,25,"0xFFFFFFFF").horizAlign = "center"
-            focusTarget("search-key",row*10+col,x-4,y-4,126,76,"wide")
+            words(label,x+5,y+11,108,42,25,"0xFFFFFFFF").horizAlign = "center"
+            focusTarget("search-key",row*10+col,x-4,y-4,126,72,"wide")
         end for
     end for
-    actions = ["BUSCAR","CANCELAR","ESPACIO"]
-    widths = [270,270,360]
-    xPositions = [410,720,1030]
+    actions = ["BUSCAR","CANCELAR","ESPACIO","CELULAR"]
+    widths = [230,230,280,230]
+    xPositions = [250,500,750,1050]
     for i = 0 to 2
         panel(xPositions[i],850,widths[i],76,"0x3A3A40FF")
         words(actions[i],xPositions[i]+8,865,widths[i]-16,44,24,"0xFFFFFFFF").horizAlign = "center"
         focusTarget("search-action",i,xPositions[i]-4,846,widths[i]+8,84,"wide")
     end for
+    words("Mantén OK en BORRAR para limpiar todo · CELULAR: escribir desde la app Roku",78,955,1760,34,18,"0xA5A5ADFF")
     words("← → ↑ ↓: navegar     OK: escribir / seleccionar     Atrás: cerrar",78,1000,1700,38,20,"0x8C8C94FF")
 end sub
 
