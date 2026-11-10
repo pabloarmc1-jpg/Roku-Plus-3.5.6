@@ -341,7 +341,9 @@ sub homeScreen()
                     ratio = resumePosition / resumeDuration
                     if ratio < 0 then ratio = 0
                     if ratio > 1 then ratio = 1
-                    progressText = timeText(resumePosition)+" de "+timeText(resumeDuration)
+                    resumePercent = Int(ratio * 100)
+                    remainingSeconds = Int(resumeDuration - resumePosition)
+                    progressText = resumePercent.toStr()+"% visto · "+timeText(remainingSeconds)+" restantes"
                     panel(x+198,944,310,5,"0x777777FF")
                     panel(x+198,944,310*ratio,5,"0xE50914FF")
                 end if
