@@ -236,7 +236,10 @@ sub rpTsRelayServeSegment(connection as object, server as object, port as object
             end if
         end for
         print "[RokuPlus hls-relay diag] ts_check index="; segmentIndex; " bytes="; payloadSize; " remainder188="; payloadSize mod 188; " packets="; packetCount; " syncErrors="; syncErrors; " first16="; firstHex
+        analysisTimer = CreateObject("roTimespan")
+        analysisTimer.Mark()
         rpTsRelayAnalyzeTs(payload,segmentIndex)
+        print "[RokuPlus hls-relay diag] ts_analysis_done index="; segmentIndex; " ms="; analysisTimer.TotalMilliseconds()
     end if
     if payloadSize <= 0
         DeleteFile(filePath)
@@ -250,7 +253,10 @@ sub rpTsRelayServeSegment(connection as object, server as object, port as object
     response += "Cache-Control: no-store"+chr(13)+chr(10)
     response += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
     rpTsRelaySendString(connection,response,server,port)
+    sendTimer = CreateObject("roTimespan")
+    sendTimer.Mark()
     if server.sendOk then rpTsRelaySendBytes(connection,payload,server,port)
+    print "[RokuPlus hls-relay diag] segment_send_done index="; segmentIndex; " ok="; server.sendOk; " ms="; sendTimer.TotalMilliseconds()
     if server.sendOk
         server.segmentsSent = server.segmentsSent + 1
         server.bytesSent = server.bytesSent + payloadSize
@@ -296,8 +302,11 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
     offset = 0
     total = value.Count()
     server.sendOk = true
+    chunkLimit = 65536
     while offset < total
-        count = connection.send(value,offset,total-offset)
+        chunkSize = total - offset
+        if chunkSize > chunkLimit then chunkSize = chunkLimit
+        count = connection.send(value,offset,chunkSize)
         if count > 0
             offset += count
         else if count < 0 and (connection.eAgain() or connection.eWouldBlock())
