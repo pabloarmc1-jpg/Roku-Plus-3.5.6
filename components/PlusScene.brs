@@ -882,9 +882,6 @@ sub openSearch()
     refreshSearchSuggestions()
     drawScreen()
     m.top.setFocus(true)
-    ' Open the native Roku text-entry dialog immediately so the Roku mobile app
-    ' can send phone keyboard input without an extra on-screen CELULAR button.
-    openMobileSearchInput()
 end sub
 
 sub addSearchSuggestion(item as object, query as string)
@@ -2010,6 +2007,27 @@ function onKeyEvent(key as string, press as boolean) as boolean
             return true
         end if
     end if
+    if m.view = "search-keyboard"
+        ' Play/Pause confirma la búsqueda desde el teclado personalizado.
+        if key = "play" or key = "playpause" or key = "pause"
+            submitGlobalSearch()
+            return true
+        end if
+        ' Return/Back borra un carácter; Cancelar sigue cerrando el teclado.
+        if key = "back" or key = "return" or key = "backspace"
+            if len(m.searchText) > 0 then m.searchText = left(m.searchText,len(m.searchText)-1)
+            refreshSearchSuggestions()
+            drawScreen()
+            return true
+        end if
+        ' Options (*) inserta un espacio en el texto.
+        if key = "options" or key = "*"
+            if len(m.searchText) < 120 then m.searchText += " "
+            refreshSearchSuggestions()
+            drawScreen()
+            return true
+        end if
+    end if
     if key = "back"
         if m.view = "search-keyboard"
             closeSearchKeyboard()
@@ -2093,6 +2111,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.view = "search-keyboard" and left(key,4) = "Lit_"
+        ' Literal characters sent by the Roku mobile app/ECP go straight into
+        ' this custom keyboard; no StandardKeyboardDialog is required.
         literal = mid(key,5)
         if literal = "Backspace"
             if len(m.searchText) > 0 then m.searchText = left(m.searchText,len(m.searchText)-1)
