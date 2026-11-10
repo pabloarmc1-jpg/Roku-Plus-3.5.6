@@ -112,6 +112,8 @@ sub init()
     m.hlsStartupIsolation = false
     m.hlsPrebufferPending = false
     m.mediaNode = invalid
+    m.tsRelayFallbackMedia = invalid
+    m.tsRelaySeekBlocked = false
     m.hlsRetryCount = 0
     m.hlsRestartStage = 0
     m.hlsRestartAt = 0
@@ -250,6 +252,8 @@ sub openRequest()
     m.monotonic.mark()
     m.current = supplied
     m.mediaNode = invalid
+    m.tsRelayFallbackMedia = invalid
+    m.tsRelaySeekBlocked = false
     m.hlsRetryCount = 0
     m.hlsPrebufferPending = false
     m.hlsRestartStage = 0
@@ -264,6 +268,8 @@ sub openRequest()
     m.nativePlaylistMode = false
     m.tsRelayMode = false
     m.tsRelayPending = false
+    m.tsRelayFallbackMedia = invalid
+    m.tsRelaySeekBlocked = false
     m.tsRelayResumeSuppressed = false
     m.tsRelaySegments = invalid
     m.tsRelayTimeline = invalid
@@ -344,6 +350,7 @@ sub openRequest()
     if format = "m3u8" then format = "hls"
     if supplied.tsRelayEnabled = true and type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1 and type(m.tsRelayTimeline) = "roArray" and m.tsRelayTimeline.count() = supplied.segmentUrls.count()
         m.tsRelayMode = true
+        m.tsRelaySeekBlocked = true
         m.tsRelaySegments = supplied.segmentUrls
         if type(m.tsRelayTimeline) = "roArray" and m.tsRelayTimeline.count() = m.tsRelaySegments.count()
             print "[RokuPlus ts-relay] timeline_ready segments="; m.tsRelayTimeline.count(); " duration="; m.tsRelayTimeline[m.tsRelayTimeline.count()-1].endTime
@@ -1689,6 +1696,34 @@ sub advanceSegmentRestart(now as integer)
     end if
 end sub
 
+' If the local TS-to-HLS relay buffers but never renders, fall back to the
+' provider's already validated native HLS playlist instead of leaving playback dead.
+' Seeking remains blocked for this request until the relay path is proven stable.
+sub beginTsRelayFallback(now as integer)
+    if m.tsRelayFallbackMedia = invalid
+        m.tsRelayActive = false
+        m.tsRelayPending = false
+        m.failed = true
+        m.watchdogReason = "ts_relay_fallback_missing_source"
+        m.notice = "El relay no inició y no hay una fuente alternativa disponible."
+        m.noticeUntil = 2147483647
+        revealTransport()
+        emitDiagnostic("ts_relay_fallback_missing_source")
+        return
+    end if
+    m.tsStreamServer.stopRequested = true
+    m.tsRelayActive = false
+    m.tsRelayPending = false
+    m.tsRelayMode = false
+    m.mediaNode = m.tsRelayFallbackMedia
+    m.tsRelayFallbackMedia = invalid
+    m.hlsStartupIsolation = true
+    m.hlsRetryCount = 0
+    print "[RokuPlus hls-relay] fallback=native-provider-hls"
+    emitDiagnostic("ts_relay_fallback_begin")
+    beginHlsSoftRestart(now)
+end sub
+
 ' Retry one stalled native HLS startup by fully detaching and reattaching
 ' the same ContentNode to the Video node. This is deliberately limited to one
 ' retry per request; the second timeout returns to the normal error surface.
@@ -1811,6 +1846,7 @@ sub onPulse()
                 emitDiagnostic("ts_relay_ip_unavailable")
                 return
             end if
+            m.tsRelayFallbackMedia = m.mediaNode
             relayMedia = CreateObject("roSGNode","ContentNode")
             relayMedia.url = "http://" + localIp + ":49322/playlist.m3u8?key=" + m.tsRelayAccessKey
             relayMedia.title = m.titleText.text
@@ -1886,7 +1922,9 @@ sub onPulse()
         sample = renderedFields()
         reason = plusWatchdogObserve(m.watch,m.decoder.state,m.decoder.position,sample.video,m.wantPaused,m.ticket <> invalid,now)
         if reason <> ""
-            if reason = "loading_timeout" and m.hlsStartupIsolation and m.hlsRetryCount < 1
+            if reason = "loading_timeout" and m.tsRelayActive
+                beginTsRelayFallback(now)
+            else if reason = "loading_timeout" and m.hlsStartupIsolation and m.hlsRetryCount < 1
                 beginHlsSoftRestart(now)
             else
                 m.watchdogReason = reason
@@ -2002,7 +2040,7 @@ end sub
 
 sub dispatchPendingSeek()
     if m.pendingSeek = invalid or m.ticket <> invalid or m.failed or not m.mediaOpen then return
-    if m.tsRelayActive
+    if m.tsRelaySeekBlocked
         m.pendingSeek = invalid
         m.notice = "Los saltos no están disponibles en este formato."
         m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
