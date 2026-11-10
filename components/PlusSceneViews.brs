@@ -248,6 +248,7 @@ sub drawScreen()
         if m.view = "episodes" then episodeScreen()
         if m.view = "live" then liveScreen()
         if m.view = "settings" then settingsScreen()
+        if m.view = "invidious" then invidiousScreen()
         if m.view = "profiles" then profilesScreen()
         if m.view = "appearance" then appearanceScreen()
         if m.view = "credits" then creditsScreen()
@@ -1097,7 +1098,7 @@ sub settingsScreen()
     words("Puedes corregir tus elecciones cuando quieras.",324,218,1480,55,25,"0xB3B3B3FF")
     appearance = "Vidrio"
     if m.theme = "classic" then appearance = "Clásico"
-    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Resolución detectada"]
+    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Resolución detectada","Buscar videos · Invidious"]
     helperValue = m.compatBase
     if helperValue = "" then helperValue = "No configurado"
     tmdbStatus = "No configurada"
@@ -1122,6 +1123,26 @@ sub settingsScreen()
         focusTarget("settings",i,314,y-4,1534,70)
     end for
     words("Las claves se guardan en el registro local de este Roku y se muestran ocultas.",324,990,1480,36,19,"0xB1BEB3FF")
+end sub
+
+
+sub invidiousScreen()
+    topBar()
+    words("YouTube · Invidious",72,142,1500,76,46,"0xFFFFFFFF")
+    words("Instancia: yt.chocolatemoo53.com · Búsqueda: "+m.invidiousQuery,76,218,1740,48,23,"0xB3B3B3FF")
+    words("OK: intentar reproducir · Atrás: volver · ↑ / ↓: elegir video",76,270,1740,38,20,"0x888888FF")
+    if m.invidiousItems.count() = 0 and not m.busy
+        words("No hay resultados para mostrar. Abre Configuración y vuelve a Buscar videos · Invidious.",100,410,1600,90,30,"0xB3B3B3FF").wrap = true
+    end if
+    for i = 0 to 9
+        if i < m.invidiousItems.count()
+            item = m.invidiousItems[i]
+            y = 330+i*63
+            if i = m.invidiousCursor then panel(72,y-4,1770,58,"0x34343CFF") else panel(72,y-4,1770,58,"0x181818FF")
+            words(item.title,96,y+2,1370,30,22,"0xFFFFFFFF").wrap = true
+            words(item.author,98,y+32,1350,20,15,"0xA8A8B2FF")
+        end if
+    end for
 end sub
 
 sub profilesScreen()
