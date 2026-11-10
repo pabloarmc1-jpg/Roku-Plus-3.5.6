@@ -525,12 +525,12 @@ sub libraryScreen()
     topBar()
     heading = "Historial de reproducción"
     if m.libraryMode = "list" then heading = "Mi lista"
-    words(heading,72,142,1500,76,46,"0xFFFFFFFF")
-    words("Perfil: "+rpProfileName(m.profileId)+" · Tu actividad se guarda en esta Roku.",76,218,1450,40,22,"0xB3B3B3FF")
+    words(heading,320,142,1500,76,46,"0xFFFFFFFF")
+    words("Perfil: "+rpProfileName(m.profileId)+" · Tu actividad se guarda en esta Roku.",324,218,1480,40,22,"0xB3B3B3FF")
     if m.libraryItems.count() = 0
         empty = "Todavía no hay títulos en tu historial."
         if m.libraryMode = "list" then empty = "Añade películas o series con INFO desde su ficha."
-        words(empty,350,380,1400,100,31,"0xB8CEE1FF").wrap = true
+        words(empty,598,380,1400,100,31,"0xB8CEE1FF").wrap = true
         return
     end if
     first = (m.libraryCursor \ 6)*6
@@ -539,19 +539,19 @@ sub libraryScreen()
         if n < m.libraryItems.count()
             item = m.libraryItems[n]
             y = 290+i*112
-            panel(72,y,1770,94,"0x18181800")
+            panel(320,y,1522,94,"0x18181800")
             uri = item.poster
             if uri = "" then uri = item.background
-            if uri <> "" then thumbnail(uri,84,y+7,138,80)
-            words(item.title,244,y+12,930,42,26,"0xFFFFFFFF").wrap = true
+            if uri <> "" then thumbnail(uri,332,y+7,138,80)
+            words(item.title,492,y+12,790,42,26,"0xFFFFFFFF").wrap = true
             state = "En historial"
             if item.watched then state = "✓ Vista"
             if item.listed then state += " · ♥ Mi lista"
-            words(state,1450,y+25,350,36,20,"0xFFFFFFFF").horizAlign = "right"
-            focusTarget("library",n,66,y-4,1782,102,"live")
+            words(state,1450,y+25,360,36,20,"0xFFFFFFFF").horizAlign = "right"
+            focusTarget("library",n,314,y-4,1534,102,"live")
         end if
     end for
-    words("↑ / ↓: seleccionar     OK: abrir ficha     OPTIONS: eliminar del perfil",76,1010,1480,34,20,"0x808080FF")
+    words("↑ / ↓: seleccionar     OK: abrir ficha     OPTIONS: eliminar del perfil",324,1010,1480,34,20,"0x808080FF")
 end sub
 
 sub browseScreen()
@@ -1103,8 +1103,8 @@ end sub
 
 sub settingsScreen()
     topBar()
-    words("Configuración",72,142,1500,76,46,"0xFFFFFFFF")
-    words("Puedes corregir tus elecciones cuando quieras.",76,218,1480,55,25,"0xB3B3B3FF")
+    words("Configuración",320,142,1500,76,46,"0xFFFFFFFF")
+    words("Puedes corregir tus elecciones cuando quieras.",324,218,1480,55,25,"0xB3B3B3FF")
     appearance = "Vidrio"
     if m.theme = "classic" then appearance = "Clásico"
     labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Resolución detectada"]
@@ -1126,18 +1126,18 @@ sub settingsScreen()
     values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue]
     for i = 0 to 9
         y = 260+i*68
-        panel(72,y,1770,62,"0x181818FF")
-        words(labels[i],104,y+4,1150,29,23,"0xFFFFFFFF")
-        words(values[i],106,y+33,1450,23,17,"0xB3B3B3FF")
-        focusTarget("settings",i,66,y-4,1782,70)
+        panel(320,y,1522,62,"0x181818FF")
+        words(labels[i],352,y+4,900,29,23,"0xFFFFFFFF")
+        words(values[i],354,y+33,1130,23,17,"0xB3B3B3FF")
+        focusTarget("settings",i,314,y-4,1534,70)
     end for
-    words("Las claves se guardan en el registro local de este Roku y se muestran ocultas.",76,990,1740,36,19,"0xB1BEB3FF")
+    words("Las claves se guardan en el registro local de este Roku y se muestran ocultas.",324,990,1480,36,19,"0xB1BEB3FF")
 end sub
 
 sub profilesScreen()
     topBar()
-    words("¿Quién está viendo?",72,142,1500,76,46,"0xFFFFFFFF")
-    words("Cada perfil conserva su propio historial, Mi lista y progreso de reproducción en esta Roku.",76,218,1480,55,24,"0xB3B3B3FF").wrap = true
+    words("¿Quién está viendo?",320,142,1500,76,46,"0xFFFFFFFF")
+    words("Cada perfil conserva su propio historial, Mi lista y progreso de reproducción en esta Roku.",324,218,1480,55,24,"0xB3B3B3FF").wrap = true
     ids = ["p1","p2","p3","p4"]
     names = []
     descriptions = ["Perfil principal de este dispositivo","Historial y favoritos independientes","Historial y favoritos independientes","Historial y favoritos independientes"]
@@ -1145,21 +1145,21 @@ sub profilesScreen()
         names.push(rpProfileName(profileId))
     end for
     for i = 0 to 3
-        x = 72+(i mod 2)*900
+        x = 320+(i mod 2)*760
         y = 320+(i \ 2)*260
-        panel(x,y,850,214,"0x181818FF")
+        panel(x,y,720,214,"0x181818FF")
         avatarColors = ["0xFFFFFFFF","0x2457A6FF","0x16845BFF","0x7B3FA1FF","0xB36A19FF","0x287E91FF"]
         avatarIndex = rpProfileAvatar(ids[i])
         panel(x+32,y+35,82,82,avatarColors[avatarIndex])
         avatar = words("P"+(i+1).toStr(),x+32,y+51,82,48,30,"0xFFFFFFFF")
         avatar.horizAlign = "center"
-        words(names[i],x+132,y+36,540,55,35,"0xFFFFFFFF")
-        words(descriptions[i],x+34,y+126,660,48,23,"0xB7C7BEFF").wrap = true
+        words(names[i],x+132,y+36,370,55,35,"0xFFFFFFFF")
+        words(descriptions[i],x+34,y+126,650,48,23,"0xB7C7BEFF").wrap = true
         ids = ["p1","p2","p3","p4"]
-        if m.profileId = ids[i] then words("ACTIVO",x+565,y+36,130,35,19,"0xFFFFFFFF").horizAlign = "right"
-        focusTarget("profiles",i,x-6,y-6,862,226,"setup")
+        if m.profileId = ids[i] then words("ACTIVO",x+520,y+36,150,35,19,"0xFFFFFFFF").horizAlign = "right"
+        focusTarget("profiles",i,x-6,y-6,732,226,"setup")
     end for
-    words("Flechas: elegir · OK: activar · OPTIONS: cambiar nombre · PLAY/PAUSE: cambiar imagen · Atrás: volver",76,945,1740,54,20,"0x808080FF")
+    words("Flechas: elegir · OK: activar · OPTIONS: cambiar nombre · PLAY/PAUSE: cambiar imagen · Atrás: volver",324,945,1480,54,20,"0x808080FF")
 end sub
 
 sub appearanceScreen()
