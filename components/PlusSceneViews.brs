@@ -281,7 +281,10 @@ sub searchKeyboardScreen()
                 item = m.searchSuggestions[i]
                 x = 76+i*354
                 panel(x,370,330,72,"0x242428FF")
-                words(item.title,x+14,382,300,48,19,"0xFFFFFFFF").wrap = true
+                words(item.title,x+14,378,300,36,18,"0xFFFFFFFF").wrap = true
+                suggestionKind = "PELÍCULA"
+                if item.doesExist("kind") and item.kind = "series" then suggestionKind = "SERIE"
+                words(suggestionKind,x+14,414,290,18,12,"0xB3B3B3FF")
                 focusTarget("search-suggestion",i,x-4,366,338,80,"wide")
             end if
         end for
