@@ -199,7 +199,7 @@ sub topBar()
         if isSelected
             selectedWidth = 68
             if navExpanded then selectedWidth = 266
-            art("pkg:/images/ui/nav-active.png",12,y-7,selectedWidth,64)
+            art("pkg:/images/ui/nav-active-red.png",12,y-7,selectedWidth,64)
         end if
         art("pkg:/images/ui/"+iconFiles[i],30,y+7,32,32,"scaleToFit")
         if navExpanded
