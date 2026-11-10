@@ -269,52 +269,68 @@ sub setupCountryScreen()
 end sub
 
 sub searchKeyboardScreen()
-    panel(0,0,1920,1080,"0x080808FF")
-    brand(76,54)
-    words("BUSCAR PELÍCULAS Y SERIES",76,150,1500,62,42,"0xFFFFFFFF")
-    panel(76,235,1768,76,"0x202024FF")
-    words(m.searchText+"▏",104,249,1700,48,30,"0xFFFFFFFF")
+    previewIndex = 0
+    if m.zone = "search-suggestion" and m.searchCursor >= 0 and m.searchCursor < m.searchSuggestions.count()
+        previewIndex = m.searchCursor
+    end if
     if m.searchSuggestions.count() > 0
-        words("SUGERENCIAS",78,330,360,30,18,"0xA0A0A8FF")
+        previewItem = m.searchSuggestions[previewIndex]
+        previewBackground = ""
+        if previewItem.doesExist("background") then previewBackground = orbitText(previewItem.background,2048)
+        if previewBackground = "" and previewItem.doesExist("poster") then previewBackground = orbitText(previewItem.poster,2048)
+        if previewBackground <> "" then art(previewBackground,0,0,1920,1080)
+        panel(0,0,1920,1080,"0x080808D8")
+    else
+        panel(0,0,1920,1080,"0x080808FF")
+    end if
+    brand(76,38)
+    words("BUSCAR PELÍCULAS Y SERIES",76,112,1500,54,38,"0xFFFFFFFF")
+    panel(76,178,1768,68,"0x202024EE")
+    words(m.searchText+"▏",104,190,1700,46,28,"0xFFFFFFFF")
+    if m.searchSuggestions.count() > 0
+        words("SUGERENCIAS",78,264,360,26,17,"0xE0E0E0FF")
         for i = 0 to 4
             if i < m.searchSuggestions.count()
                 item = m.searchSuggestions[i]
                 x = 76+i*354
-                panel(x,370,330,72,"0x242428FF")
-                words(item.title,x+14,378,300,36,18,"0xFFFFFFFF").wrap = true
+                posterUri = ""
+                if item.doesExist("poster") then posterUri = orbitText(item.poster,2048)
+                panel(x+82,296,166,194,"0x242428FF")
+                if posterUri <> "" then art(posterUri,x+82,296,166,194,"scaleToFit")
+                words(item.title,x+8,496,314,28,17,"0xFFFFFFFF").horizAlign = "center"
                 suggestionKind = "PELÍCULA"
                 if item.doesExist("kind") and item.kind = "series" then suggestionKind = "SERIE"
-                words(suggestionKind,x+14,414,290,18,12,"0xB3B3B3FF")
-                focusTarget("search-suggestion",i,x-4,366,338,80,"wide")
+                words(suggestionKind,x+8,525,314,20,13,"0xD0D0D0FF").horizAlign = "center"
+                focusTarget("search-suggestion",i,x-2,292,334,258,"card")
             end if
         end for
     else
-        words("Escribe para buscar. Las sugerencias aparecen mientras escribes.",80,350,1600,40,21,"0x9A9AA2FF")
+        words("Escribe para buscar. Las sugerencias aparecen mientras escribes.",80,300,1600,36,20,"0xD0D0D0FF")
     end if
     rows = ["0123456789","ABCDEFGHIJ","KLMNOPQRST","UVWXYZ.-_⌫"]
     for row = 0 to 3
         for col = 0 to 9
             x = 270+col*140
-            y = 430+row*82
+            y = 562+row*68
             ch = mid(rows[row],col+1,1)
-            panel(x,y,118,64,"0x29292EFF")
+            panel(x,y,118,56,"0x29292EF2")
             label = ch
             if ch = "⌫" then label = "BORRAR"
-            words(label,x+5,y+11,108,42,25,"0xFFFFFFFF").horizAlign = "center"
-            focusTarget("search-key",row*10+col,x-4,y-4,126,72,"wide")
+            words(label,x+5,y+8,108,40,23,"0xFFFFFFFF").horizAlign = "center"
+            focusTarget("search-key",row*10+col,x-4,y-4,126,64,"wide")
         end for
     end for
     actions = ["BUSCAR","CANCELAR","ESPACIO"]
     widths = [260,260,320]
     xPositions = [390,700,1010]
     for i = 0 to 2
-        panel(xPositions[i],850,widths[i],76,"0x3A3A40FF")
-        words(actions[i],xPositions[i]+8,865,widths[i]-16,44,24,"0xFFFFFFFF").horizAlign = "center"
-        focusTarget("search-action",i,xPositions[i]-4,846,widths[i]+8,84,"wide")
+        panel(xPositions[i],842,widths[i],66,"0x3A3A40F2")
+        words(actions[i],xPositions[i]+8,854,widths[i]-16,42,22,"0xFFFFFFFF").horizAlign = "center"
+        focusTarget("search-action",i,xPositions[i]-4,838,widths[i]+8,74,"wide")
     end for
-    words("PLAY / PAUSE: BUSCAR     RELOAD / REPLAY: BORRAR     *: ESPACIO",78,944,1760,30,19,"0xE5E5E5FF")
-    words("OK: escribir / seleccionar     Mantén OK en BORRAR para limpiar todo     BACK: cerrar",78,980,1760,30,18,"0xA5A5ADFF")
-    words("Flechas: navegar     También puedes escribir directamente desde la app móvil Roku",78,1016,1760,30,18,"0x8C8C94FF")
+    words("PLAY / PAUSE: BUSCAR     RELOAD / REPLAY: BORRAR     *: ESPACIO",78,930,1760,28,18,"0xFFFFFFFF")
+    words("OK: escribir / seleccionar     Mantén OK en BORRAR para limpiar todo     BACK: cerrar",78,966,1760,28,17,"0xE0E0E0FF")
+    words("Flechas: navegar     También puedes escribir directamente desde la app móvil Roku",78,1002,1760,28,17,"0xC0C0C0FF")
 end sub
 
 sub homeScreen()
