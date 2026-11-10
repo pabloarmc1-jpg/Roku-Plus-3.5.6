@@ -16,6 +16,7 @@
     <Rectangle width="1920" height="1080" color="0x09090BFF" />
     <Group id="canvas" />
     <PlusPlayer id="player" visible="false" />
+    <InvidiousPlayer id="invidiousPlayer" visible="false" />
     <Timer id="catalogDeadline" duration="25" repeat="false" />
     <Timer id="playbackLease" duration="30" repeat="true" />
     <Timer id="livePreviewDelay" duration="0.7" repeat="false" />
