@@ -2127,7 +2127,7 @@ sub advanceTsRelayRestart(now as integer)
     m.decoder.control = "play"
     localTarget = plusClockValue(m.ticket.target) - relayOffset
     if localTarget < 0 then localTarget = 0.0
-    m.tsRelayLocalSeekPending = {target:localTarget,segment:m.tsRelayRestartSegment,createdAt:m.monotonic.totalMilliseconds(),lastPosition:invalid,advanceCount:0,firstPosition:invalid}
+    m.tsRelayLocalSeekPending = {target:localTarget,segment:m.tsRelayRestartSegment,createdAt:m.monotonic.totalMilliseconds(),clockWaitStartedAt:0,lastPosition:invalid,advanceCount:0,firstPosition:invalid}
     print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment; " localTarget="; localTarget
     emitDiagnostic("ts_relay_seek_restart")
     m.tsRelayRestartStage = 0
@@ -2145,9 +2145,15 @@ sub advanceTsRelayLocalSeek(now as integer)
     state = m.decoder.state
     if state <> "playing" and state <> "paused" then return
 
+    ' Decoder startup can spend several seconds buffering before its clock is usable.
+    ' Start the readiness timeout only after playback actually enters playing/paused.
+    if m.tsRelayLocalSeekPending.clockWaitStartedAt = 0
+        m.tsRelayLocalSeekPending.clockWaitStartedAt = now
+    end if
+
     localTarget = m.tsRelayLocalSeekPending.target
     segmentIndex = m.tsRelayLocalSeekPending.segment
-    elapsed = now - m.tsRelayLocalSeekPending.createdAt
+    elapsed = now - m.tsRelayLocalSeekPending.clockWaitStartedAt
     nativePosition = plusClockValue(m.decoder.position)
     ready = false
     reason = "clock_advancing"
