@@ -388,7 +388,7 @@ sub homeScreen()
         savedY = 755
     end if
 
-    ' Poster-only cards: larger vertical artwork, without text or progress labels.
+    ' Wide cinematic banners keep the Home rows clean and artwork-only.
     if m.continueItems.count() > 0
         words("Continuar viendo",76,continueY,1500,30,26,"0xFFFFFFFF")
         words("RETOMA DONDE TE QUEDASTE",1390,continueY+4,450,22,14,"0x888891FF").horizAlign = "right"
@@ -396,11 +396,11 @@ sub homeScreen()
             if i < m.continueItems.count()
                 item = m.continueItems[i]
                 x = 76+i*294
-                uri = item.poster
-                if uri = "" then uri = item.background
-                if uri <> "" then art(uri,x+85,continueY+40,110,135,"scaleToFit")
-                if m.zone = "continue" and m.cover = i then panel(x+79,continueY+34,122,147,"0xFFFFFF20")
-                focusTarget("continue",i,x+76,continueY+31,128,153,"card")
+                uri = item.background
+                if uri = "" then uri = item.poster
+                if uri <> "" then art(uri,x+8,continueY+40,260,146)
+                if m.zone = "continue" and m.cover = i then panel(x+4,continueY+36,268,154,"0xFFFFFF20")
+                focusTarget("continue",i,x,continueY+32,276,162,"landscape")
             end if
         end for
     end if
@@ -416,11 +416,11 @@ sub homeScreen()
         if i < m.features.count()
             item = m.features[i]
             x = 76+i*294
-            uri = item.poster
-            if uri = "" then uri = item.background
-            if uri <> "" then art(uri,x+85,discoveryY+40,110,135,"scaleToFit")
-            if m.zone = "covers" and m.cover = i then panel(x+79,discoveryY+34,122,147,"0xFFFFFF20")
-            focusTarget("covers",i,x+76,discoveryY+31,128,153,"card")
+            uri = item.background
+            if uri = "" then uri = item.poster
+            if uri <> "" then art(uri,x+8,discoveryY+40,260,146)
+            if m.zone = "covers" and m.cover = i then panel(x+4,discoveryY+36,268,154,"0xFFFFFF20")
+            focusTarget("covers",i,x,discoveryY+32,276,162,"landscape")
         end if
     end for
 
@@ -431,11 +431,11 @@ sub homeScreen()
             if i < m.homeListItems.count()
                 item = m.homeListItems[i]
                 x = 76+i*294
-                uri = item.poster
-                if uri = "" then uri = item.background
-                if uri <> "" then art(uri,x+85,savedY+40,110,135,"scaleToFit")
-                if m.zone = "home-list" and m.listCover = i then panel(x+79,savedY+34,122,147,"0xFFFFFF20")
-                focusTarget("home-list",i,x+76,savedY+31,128,153,"card")
+                uri = item.background
+                if uri = "" then uri = item.poster
+                if uri <> "" then art(uri,x+8,savedY+40,260,146)
+                if m.zone = "home-list" and m.listCover = i then panel(x+4,savedY+36,268,154,"0xFFFFFF20")
+                focusTarget("home-list",i,x,savedY+32,276,162,"landscape")
             end if
         end for
     else if m.homeSeries.count() > 0
