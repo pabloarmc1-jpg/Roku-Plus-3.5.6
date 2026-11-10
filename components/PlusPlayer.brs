@@ -476,6 +476,8 @@ sub openRequest()
         logVideoCapability("h264_high_3_1", h264High31)
         h264High41 = deviceInfo.CanDecodeVideo({codec:"h264",profile:"high",level:"4.1"})
         logVideoCapability("h264_high_4_1", h264High41)
+        h264High42 = deviceInfo.CanDecodeVideo({codec:"h264",profile:"high",level:"4.2"})
+        logVideoCapability("h264_high_4_2", h264High42)
         h264Main31 = deviceInfo.CanDecodeVideo({codec:"h264",profile:"main",level:"3.1"})
         logVideoCapability("h264_main_3_1", h264Main31)
         m.tsStreamServer.segments = m.tsRelaySegments
@@ -2375,7 +2377,31 @@ sub logVideoCapability(label as String, capability as Object)
         return
     end if
     print "[RokuPlus codec diag] "; label; " result="; capability["result"]; " updated="; capability["updated"]
-    if capability.doesExist("codec") then print "[RokuPlus codec diag] "; label; " supportedCodec="; capability["codec"]
-    if capability.doesExist("profile") then print "[RokuPlus codec diag] "; label; " supportedProfile="; capability["profile"]
-    if capability.doesExist("level") then print "[RokuPlus codec diag] "; label; " supportedLevel="; capability["level"]
+    if capability.doesExist("codec")
+        if type(capability["codec"]) = "roArray"
+            for each supportedCodec in capability["codec"]
+                print "[RokuPlus codec diag] "; label; " supportedCodec="; supportedCodec
+            end for
+        else
+            print "[RokuPlus codec diag] "; label; " supportedCodec="; capability["codec"]
+        end if
+    end if
+    if capability.doesExist("profile")
+        if type(capability["profile"]) = "roArray"
+            for each supportedProfile in capability["profile"]
+                print "[RokuPlus codec diag] "; label; " supportedProfile="; supportedProfile
+            end for
+        else
+            print "[RokuPlus codec diag] "; label; " supportedProfile="; capability["profile"]
+        end if
+    end if
+    if capability.doesExist("level")
+        if type(capability["level"]) = "roArray"
+            for each supportedLevel in capability["level"]
+                print "[RokuPlus codec diag] "; label; " supportedLevel="; supportedLevel
+            end for
+        else
+            print "[RokuPlus codec diag] "; label; " supportedLevel="; capability["level"]
+        end if
+    end if
 end sub
