@@ -152,7 +152,9 @@ sub init()
     m.youtubeQuery = ""
     m.youtubeBusy = false
     m.youtubeDetailOpen = false
+    m.youtubeDetailBusy = false
     m.youtubeDetail = invalid
+    m.invidiousBase = "https://yt.chocolatemoo53.com"
     m.creditsPage = 0
     m.creditsPages = []
     if not m.configured
@@ -903,13 +905,9 @@ sub openYoutube()
     m.nav = 9
     m.youtubeCursor = 0
     m.youtubeDetailOpen = false
+    m.youtubeDetailBusy = false
     m.youtubeDetail = invalid
     m.note = ""
-    if rpLoadYoutubeApiKey() = ""
-        m.note = "Configura YouTube Data API v3 Key en Ajustes para buscar videos."
-        drawScreen()
-        return
-    end if
     drawScreen()
     openYoutubeSearch()
 end sub
@@ -964,21 +962,16 @@ end sub
 
 sub startYoutubeSearch(query as string)
     cancelYoutubeTask()
-    apiKey = rpLoadYoutubeApiKey()
-    if apiKey = ""
-        m.note = "Configura YouTube Data API v3 Key en Ajustes."
-        drawScreen()
-        return
-    end if
-    task = CreateObject("roSGNode","YoutubeTask")
+    task = CreateObject("roSGNode","InvidiousTask")
     if task = invalid
-        m.note = "No se pudo iniciar la búsqueda de YouTube."
+        m.note = "No se pudo iniciar la búsqueda de Invidious."
         drawScreen()
         return
     end if
     task.operation = "search"
+    task.instance = m.invidiousBase
     task.query = query
-    task.apiKey = apiKey
+    task.region = "MX"
     task.maxResults = 10
     task.observeField("result","youtubeSearchResult")
     m.youtubeTask = task
@@ -986,7 +979,29 @@ sub startYoutubeSearch(query as string)
     m.youtubeItems = []
     m.youtubeCursor = 0
     m.youtubeDetailOpen = false
+    m.youtubeDetailBusy = false
     m.youtubeDetail = invalid
+    m.note = ""
+    drawScreen()
+    task.control = "RUN"
+end sub
+
+sub startYoutubeVideoDetails(videoId as string)
+    cancelYoutubeTask()
+    task = CreateObject("roSGNode","InvidiousTask")
+    if task = invalid
+        m.youtubeDetailBusy = false
+        m.note = "No se pudo consultar el video en Invidious."
+        drawScreen()
+        return
+    end if
+    task.operation = "video"
+    task.instance = m.invidiousBase
+    task.videoId = videoId
+    task.region = "MX"
+    task.observeField("result","youtubeVideoResult")
+    m.youtubeTask = task
+    m.youtubeDetailBusy = true
     m.note = ""
     drawScreen()
     task.control = "RUN"
@@ -999,6 +1014,7 @@ sub cancelYoutubeTask()
     end if
     m.youtubeTask = invalid
     m.youtubeBusy = false
+    m.youtubeDetailBusy = false
 end sub
 
 sub youtubeSearchResult(event as object)
@@ -1018,7 +1034,25 @@ sub youtubeSearchResult(event as object)
             m.note = answer.message
         end if
     else
-        m.note = "YouTube devolvió una respuesta inesperada."
+        m.note = "Invidious devolvió una respuesta inesperada."
+    end if
+    drawScreen()
+end sub
+
+sub youtubeVideoResult(event as object)
+    if m.youtubeTask = invalid then return
+    if not m.youtubeTask.isSameNode(event.getRoSGNode()) then return
+    answer = event.getData()
+    m.youtubeTask.unobserveField("result")
+    m.youtubeTask = invalid
+    m.youtubeDetailBusy = false
+    if type(answer) = "roAssociativeArray" and answer.ok and type(answer.item) = "roAssociativeArray"
+        m.youtubeDetail = answer.item
+        m.note = answer.message
+    else if type(answer) = "roAssociativeArray"
+        m.note = answer.message
+    else
+        m.note = "Invidious devolvió una respuesta inesperada."
     end if
     drawScreen()
 end sub
@@ -2450,7 +2484,26 @@ function onKeyEvent(key as string, press as boolean) as boolean
             return true
         end if
         if m.youtubeDetailOpen
-            if key = "OK" or key = "left" or key = "right" or key = "up" or key = "down"
+            if key = "OK"
+                if m.youtubeDetailBusy then return true
+                if type(m.youtubeDetail) = "roAssociativeArray" and GetInterface(m.youtubeDetail.streamUrl,"ifString") <> invalid and m.youtubeDetail.streamUrl <> ""
+                    if GetInterface(m.youtubeDetail.streamFormat,"ifString") <> invalid and m.youtubeDetail.streamFormat = "mp4"
+                        playbackItem = {id:"invidious-"+m.youtubeDetail.id,title:m.youtubeDetail.title,kind:"movie",provider:"invidious",poster:m.youtubeDetail.thumbnail,background:m.youtubeDetail.thumbnail}
+                        playbackItem.mediaHeaders = {"Referer":m.invidiousBase+"/"}
+                        m.detail = invalid
+                        m.playbackMode = "direct"
+                        launchVideo(playbackItem,m.youtubeDetail.streamUrl,m.youtubeDetail.streamFormat)
+                    else
+                        m.note = "El formato de este video no es compatible con el reproductor."
+                        drawScreen()
+                    end if
+                else
+                    m.note = "Este video no tiene un MP4 compatible disponible en el servidor."
+                    drawScreen()
+                end if
+                return true
+            else if key = "left" or key = "right" or key = "up" or key = "down"
+                cancelYoutubeTask()
                 m.youtubeDetailOpen = false
                 m.youtubeDetail = invalid
                 drawScreen()
@@ -2473,6 +2526,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
             else if key = "OK"
                 m.youtubeDetail = m.youtubeItems[m.youtubeCursor]
                 m.youtubeDetailOpen = true
+                m.youtubeDetailBusy = true
+                startYoutubeVideoDetails(m.youtubeDetail.id)
             end if
             drawScreen()
             return true
@@ -2688,7 +2743,6 @@ if m.view = "profiles"
             if m.settingsCursor = 6 then openCompatSettings()
             if m.settingsCursor = 7 then openApiKeySettings("tmdb")
             if m.settingsCursor = 8 then openApiKeySettings("subtitle")
-            if m.settingsCursor = 9 then openApiKeySettings("youtube")
             return true
         end if
         paintFocus()
