@@ -832,24 +832,45 @@ sub openSearch()
     m.top.setFocus(true)
 end sub
 
+sub addSearchSuggestion(item as object, query as string)
+    if type(item) <> "roAssociativeArray" or not item.doesExist("title") then return
+    title = orbitText(item.title,180)
+    if title = "" then return
+    lowered = lcase(title)
+    if instr(1,lowered,query) = 0 then return
+    for each existing in m.searchSuggestions
+        if lcase(orbitText(existing.title,180)) = lowered then return
+    end for
+    score = 2
+    if left(lowered,len(query)) = query then score = 1
+    entry = {item:item,score:score}
+    insertAt = m.searchSuggestions.count()
+    for i = 0 to m.searchSuggestions.count()-1
+        if score < m.searchSuggestionScores[i]
+            insertAt = i
+            exit for
+        end if
+    end for
+    if insertAt < 5
+        m.searchSuggestions.insert(insertAt,item)
+        m.searchSuggestionScores.insert(insertAt,score)
+        if m.searchSuggestions.count() > 5
+            m.searchSuggestions.delete(5)
+            m.searchSuggestionScores.delete(5)
+        end if
+    end if
+end sub
+
 sub refreshSearchSuggestions()
     m.searchSuggestions = []
+    m.searchSuggestionScores = []
     query = lcase(m.searchText.trim())
     if query = "" then return
     pools = [m.features,m.homeSeries,m.homeListItems,m.continueItems,m.pageTitles]
     for each pool in pools
         if type(pool) = "roArray"
             for each item in pool
-                if type(item) = "roAssociativeArray" and item.doesExist("title")
-                    title = orbitText(item.title,180)
-                    if title <> "" and instr(1,lcase(title),query) > 0
-                        duplicate = false
-                        for each existing in m.searchSuggestions
-                            if lcase(existing.title) = lcase(title) then duplicate = true
-                        end for
-                        if not duplicate and m.searchSuggestions.count() < 5 then m.searchSuggestions.push(item)
-                    end if
-                end if
+                addSearchSuggestion(item,query)
             end for
         end if
     end for
@@ -857,16 +878,7 @@ sub refreshSearchSuggestions()
         for each field in ["movies","series"]
             if type(m.hdLibrary[field]) = "roArray"
                 for each item in m.hdLibrary[field]
-                    if type(item) = "roAssociativeArray" and item.doesExist("title")
-                        title = orbitText(item.title,180)
-                        if title <> "" and instr(1,lcase(title),query) > 0
-                            duplicate = false
-                            for each existing in m.searchSuggestions
-                                if lcase(existing.title) = lcase(title) then duplicate = true
-                            end for
-                            if not duplicate and m.searchSuggestions.count() < 5 then m.searchSuggestions.push(item)
-                        end if
-                    end if
+                    addSearchSuggestion(item,query)
                 end for
             end if
         end for
@@ -1985,7 +1997,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         openGenreFilter()
         return true
     end if
-    if key = "options" or key = "info"
+    if (key = "options" or key = "info") and m.view <> "search-keyboard"
         if m.view = "library" and key = "options" then removeLibraryItem(): return true
         if m.view = "profiles" and key = "options" then openProfileEditor(m.profileCursor): return true
         if m.view = "browse" and key = "options" then openGenreFilter(): return true
@@ -2012,7 +2024,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "right" and m.searchCursor+1 < m.searchSuggestions.count() then m.searchCursor++
             if key = "down" then m.zone = "search-key": m.searchCursor = 0
             if key = "OK" then chooseSearchSuggestion(m.searchCursor): return true
-            if key = "up" then m.searchCursor = 0
+            if key = "up" then m.zone = "search-key": m.searchCursor = 30
         else if m.zone = "search-action"
             if key = "left" and m.searchCursor > 0 then m.searchCursor--
             if key = "right" and m.searchCursor < 2 then m.searchCursor++
