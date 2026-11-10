@@ -104,127 +104,146 @@ sub rpTsRelayServe(connection as object, server as object, request as string)
     accessKey = server.accessKey
     requestPath = ""
     if parts.count() >= 2 then requestPath = parts[1]
-    if GetInterface(accessKey,"ifString") = invalid or len(accessKey) < 16 or requestPath <> "/stream.ts?key="+accessKey
+    keySuffix = "?key="+accessKey
+    if GetInterface(accessKey,"ifString") = invalid or len(accessKey) < 16 or right(requestPath,len(keySuffix)) <> keySuffix
         rpTsRelaySendString(connection,"HTTP/1.1 403 Forbidden"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
         connection.close()
         print "[RokuPlus ts-relay] rejected_client"
         return
     end if
-    sessionTimer = CreateObject("roTimespan")
-    sessionTimer.Mark()
-    print "[RokuPlus ts-relay diag] client_connected socketStatus="; connection.status()
-    header = "HTTP/1.1 200 OK"+chr(13)+chr(10)
-    header += "Content-Type: video/mp2t"+chr(13)+chr(10)
-    header += "Transfer-Encoding: chunked"+chr(13)+chr(10)
-    header += "Cache-Control: no-store"+chr(13)+chr(10)
-    header += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
-    rpTsRelaySendString(connection,header,server,connectionPort)
-    if not server.sendOk
-        print "[RokuPlus ts-relay diag] client_disconnected stage=response_header elapsedMs="; sessionTimer.TotalMilliseconds(); " socketStatus="; connection.status()
+    if requestPath = "/playlist.m3u8"+keySuffix
+        playlist = rpTsRelayBuildPlaylist(server)
+        rpTsRelaySendHttpBody(connection,server,connectionPort,"200 OK","application/vnd.apple.mpegurl",playlist)
+        connection.close()
+        print "[RokuPlus hls-relay] playlist_sent segments="; server.timeline.count(); " bytes="; len(playlist)
+        return
+    end if
+    prefix = "/segment/"
+    if left(requestPath,len(prefix)) = prefix
+        route = mid(requestPath,len(prefix)+1)
+        route = left(route,len(route)-len(keySuffix))
+        if right(route,3) <> ".ts"
+            rpTsRelaySendString(connection,"HTTP/1.1 404 Not Found"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
+            connection.close()
+            return
+        end if
+        indexText = left(route,len(route)-3)
+        if indexText = "" or not CreateObject("roRegex","^[0-9]{1,4}$","").isMatch(indexText)
+            rpTsRelaySendString(connection,"HTTP/1.1 404 Not Found"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
+            connection.close()
+            return
+        end if
+        segmentIndex = indexText.toInt()
+        if segmentIndex < 0 or segmentIndex >= server.segments.count() or segmentIndex >= server.timeline.count()
+            rpTsRelaySendString(connection,"HTTP/1.1 404 Not Found"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
+            connection.close()
+            return
+        end if
+        rpTsRelayServeSegment(connection,server,connectionPort,segmentIndex)
         connection.close()
         return
     end if
-    print "[RokuPlus ts-relay diag] response_header_sent elapsedMs="; sessionTimer.TotalMilliseconds()
-    segments = server.segments
-    headers = server.mediaHeaders
-    sentSegments = 0
-    sentBytes = 0
-    startIndex = server.nextSegmentIndex
-    if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
-    endReason = "all_segments_sent"
-    failedStage = ""
-    for segmentIndex = startIndex to segments.count() - 1
-        if server.stopRequested
-            endReason = "stop_requested"
-            exit for
-        end if
-        segmentUrl = segments[segmentIndex]
-        if GetInterface(segmentUrl,"ifString") = invalid
-            endReason = "invalid_segment_url"
-            exit for
-        end if
-        if left(segmentUrl,8) <> "https://"
-            endReason = "unsupported_segment_scheme"
-            exit for
-        end if
-        segmentTimer = CreateObject("roTimespan")
-        segmentTimer.Mark()
-        xfer = CreateObject("roUrlTransfer")
-        xfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
-        xfer.SetUrl(segmentUrl)
-        if type(headers) = "roAssociativeArray"
-            agent = headers["User-Agent"]
-            referer = headers["Referer"]
-            if GetInterface(agent,"ifString") <> invalid and len(agent) > 0 then xfer.AddHeader("User-Agent",agent)
-            if GetInterface(referer,"ifString") <> invalid and len(referer) > 0 then xfer.AddHeader("Referer",referer)
-        end if
-        filePath = "tmp:/rp_ts_relay_segment.ts"
-        DeleteFile(filePath)
-        code = xfer.GetToFile(filePath)
-        downloadMs = segmentTimer.TotalMilliseconds()
-        if code < 200 or code >= 300
-            endReason = "upstream_http_error"
-            failedStage = "download"
-            print "[RokuPlus ts-relay] upstream_failed index="; segmentIndex+1; " status="; code; " downloadMs="; downloadMs
-            DeleteFile(filePath)
-            exit for
-        end if
-        payload = CreateObject("roByteArray")
-        if not payload.ReadFile(filePath)
-            endReason = "segment_file_read_failed"
-            failedStage = "file_read"
-            print "[RokuPlus ts-relay] file_read_failed index="; segmentIndex+1; " downloadMs="; downloadMs
-            DeleteFile(filePath)
-            exit for
-        end if
-        payloadSize = payload.Count()
-        if payloadSize <= 0
-            endReason = "empty_segment"
-            failedStage = "file_read"
-            print "[RokuPlus ts-relay diag] empty_segment index="; segmentIndex+1; " downloadMs="; downloadMs
-            DeleteFile(filePath)
-            exit for
-        end if
-        print "[RokuPlus ts-relay diag] segment_ready index="; segmentIndex+1; " bytes="; payloadSize; " downloadMs="; downloadMs
-        failedStage = "chunk_size"
-        rpTsRelaySendString(connection,rpTsRelayHex(payloadSize)+chr(13)+chr(10),server,connectionPort)
-        if not server.sendOk
-            endReason = "client_send_failed"
-            DeleteFile(filePath)
-            exit for
-        end if
-        failedStage = "segment_payload"
-        rpTsRelaySendBytes(connection,payload,server,connectionPort)
-        if not server.sendOk
-            endReason = "client_send_failed"
-            DeleteFile(filePath)
-            exit for
-        end if
-        failedStage = "chunk_terminator"
-        rpTsRelaySendString(connection,chr(13)+chr(10),server,connectionPort)
-        if not server.sendOk
-            endReason = "client_send_failed"
-            DeleteFile(filePath)
-            exit for
-        end if
-        sentSegments++
-        sentBytes += payloadSize
-        server.nextSegmentIndex = segmentIndex + 1
-        server.segmentsSent = server.nextSegmentIndex
-        server.bytesSent = server.bytesSent + payloadSize
-        if sentSegments = 1 or sentSegments mod 25 = 0
-            print "[RokuPlus ts-relay] forwarded segments="; sentSegments; " bytes="; sentBytes
-        end if
-        DeleteFile(filePath)
-    end for
-    if server.nextSegmentIndex >= segments.count()
-        rpTsRelaySendString(connection,"0"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
-        print "[RokuPlus ts-relay] stream_complete segments="; sentSegments; " bytes="; sentBytes
-    else
-        print "[RokuPlus ts-relay] stream_incomplete segments="; sentSegments; " total="; segments.count()
-    end if
-    print "[RokuPlus ts-relay diag] session_end reason="; endReason; " stage="; failedStage; " sentSegments="; sentSegments; " nextIndex="; server.nextSegmentIndex; " totalSegments="; segments.count(); " sentBytes="; sentBytes; " elapsedMs="; sessionTimer.TotalMilliseconds(); " socketStatus="; connection.status()
+    rpTsRelaySendString(connection,"HTTP/1.1 404 Not Found"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
     connection.close()
+end sub
+
+function rpTsRelayBuildPlaylist(server as object) as string
+    timeline = server.timeline
+    if type(timeline) <> "roArray" or timeline.count() = 0 then return ""
+    targetDuration = 1
+    for each entry in timeline
+        rounded = int(entry.duration)
+        if entry.duration > rounded then rounded++
+        if rounded > targetDuration then targetDuration = rounded
+    end for
+    firstSequence = timeline[0].sequence
+    firstDiscontinuity = timeline[0].discontinuitySequence
+    if timeline[0].discontinuity then firstDiscontinuity--
+    if firstDiscontinuity < 0 then firstDiscontinuity = 0
+    body = "#EXTM3U"+chr(10)
+    body += "#EXT-X-VERSION:3"+chr(10)
+    body += "#EXT-X-PLAYLIST-TYPE:VOD"+chr(10)
+    body += "#EXT-X-TARGETDURATION:"+targetDuration.toStr()+chr(10)
+    body += "#EXT-X-MEDIA-SEQUENCE:"+firstSequence.toStr()+chr(10)
+    if firstDiscontinuity > 0 then body += "#EXT-X-DISCONTINUITY-SEQUENCE:"+firstDiscontinuity.toStr()+chr(10)
+    for each entry in timeline
+        if entry.discontinuity then body += "#EXT-X-DISCONTINUITY"+chr(10)
+        body += "#EXTINF:"+entry.duration.toStr()+","+chr(10)
+        body += "segment/"+entry.index.toStr()+".ts?key="+server.accessKey+chr(10)
+    end for
+    body += "#EXT-X-ENDLIST"+chr(10)
+    return body
+end function
+
+sub rpTsRelayServeSegment(connection as object, server as object, port as object, segmentIndex as integer)
+    segmentUrl = server.segments[segmentIndex]
+    if GetInterface(segmentUrl,"ifString") = invalid or left(segmentUrl,8) <> "https://"
+        rpTsRelaySendString(connection,"HTTP/1.1 502 Bad Gateway"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,port)
+        print "[RokuPlus hls-relay] invalid_segment_url index="; segmentIndex
+        return
+    end if
+    timer = CreateObject("roTimespan")
+    timer.Mark()
+    xfer = CreateObject("roUrlTransfer")
+    xfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
+    xfer.enablePeerVerification(true)
+    xfer.enableHostVerification(true)
+    xfer.SetUrl(segmentUrl)
+    headers = server.mediaHeaders
+    if type(headers) = "roAssociativeArray"
+        agent = headers["User-Agent"]
+        referer = headers["Referer"]
+        if GetInterface(agent,"ifString") <> invalid and len(agent) > 0 then xfer.AddHeader("User-Agent",agent)
+        if GetInterface(referer,"ifString") <> invalid and len(referer) > 0 then xfer.AddHeader("Referer",referer)
+    end if
+    filePath = "tmp:/rp_hls_relay_"+CreateObject("roDeviceInfo").getRandomUUID()+".ts"
+    code = xfer.GetToFile(filePath)
+    downloadMs = timer.TotalMilliseconds()
+    if code < 200 or code >= 300
+        DeleteFile(filePath)
+        rpTsRelaySendString(connection,"HTTP/1.1 502 Bad Gateway"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,port)
+        print "[RokuPlus hls-relay] upstream_failed index="; segmentIndex; " status="; code; " ms="; downloadMs
+        return
+    end if
+    payload = CreateObject("roByteArray")
+    if not payload.ReadFile(filePath)
+        DeleteFile(filePath)
+        rpTsRelaySendString(connection,"HTTP/1.1 502 Bad Gateway"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,port)
+        print "[RokuPlus hls-relay] file_read_failed index="; segmentIndex
+        return
+    end if
+    payloadSize = payload.Count()
+    if payloadSize <= 0
+        DeleteFile(filePath)
+        rpTsRelaySendString(connection,"HTTP/1.1 502 Bad Gateway"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,port)
+        print "[RokuPlus hls-relay] empty_segment index="; segmentIndex
+        return
+    end if
+    response = "HTTP/1.1 200 OK"+chr(13)+chr(10)
+    response += "Content-Type: video/mp2t"+chr(13)+chr(10)
+    response += "Content-Length: "+payloadSize.toStr()+chr(13)+chr(10)
+    response += "Cache-Control: no-store"+chr(13)+chr(10)
+    response += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
+    rpTsRelaySendString(connection,response,server,port)
+    if server.sendOk then rpTsRelaySendBytes(connection,payload,server,port)
+    if server.sendOk
+        server.segmentsSent = server.segmentsSent + 1
+        server.bytesSent = server.bytesSent + payloadSize
+        print "[RokuPlus hls-relay] segment_sent index="; segmentIndex; " bytes="; payloadSize; " downloadMs="; downloadMs
+    else
+        print "[RokuPlus hls-relay] segment_send_failed index="; segmentIndex; " bytes="; payloadSize
+    end if
+    DeleteFile(filePath)
+end sub
+
+sub rpTsRelaySendHttpBody(connection as object, server as object, port as object, status as string, contentType as string, body as string)
+    response = "HTTP/1.1 "+status+chr(13)+chr(10)
+    response += "Content-Type: "+contentType+chr(13)+chr(10)
+    response += "Content-Length: "+len(body).toStr()+chr(13)+chr(10)
+    response += "Cache-Control: no-store"+chr(13)+chr(10)
+    response += "Connection: close"+chr(13)+chr(10)+chr(13)+chr(10)
+    rpTsRelaySendString(connection,response,server,port)
+    if server.sendOk then rpTsRelaySendString(connection,body,server,port)
 end sub
 
 sub rpTsRelaySendString(connection as object, value as string, server as object, port as object)
