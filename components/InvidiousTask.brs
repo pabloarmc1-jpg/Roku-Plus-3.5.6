@@ -201,6 +201,29 @@ function invidiousParseCodecTokens(streamType as string) as dynamic
     return clean
 end function
 
+function invidiousAvcLevelName(levelId as integer) as string
+    if levelId = 10 then return "1.0"
+    if levelId = 11 then return "1.1"
+    if levelId = 12 then return "1.2"
+    if levelId = 13 then return "1.3"
+    if levelId = 20 then return "2.0"
+    if levelId = 21 then return "2.1"
+    if levelId = 22 then return "2.2"
+    if levelId = 30 then return "3.0"
+    if levelId = 31 then return "3.1"
+    if levelId = 32 then return "3.2"
+    if levelId = 40 then return "4.0"
+    if levelId = 41 then return "4.1"
+    if levelId = 42 then return "4.2"
+    if levelId = 50 then return "5.0"
+    if levelId = 51 then return "5.1"
+    if levelId = 52 then return "5.2"
+    if levelId = 60 then return "6.0"
+    if levelId = 61 then return "6.1"
+    if levelId = 62 then return "6.2"
+    return ""
+end function
+
 function invidiousHexValue(hexText as string) as integer
     if len(hexText) = 0 or len(hexText) > 2 then return -1
     digits = "0123456789abcdef"
