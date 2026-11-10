@@ -266,7 +266,7 @@ sub setupCountryScreen()
 end sub
 
 sub homeScreen()
-    ' Full-width cinematic hero followed by Netflix-inspired horizontal content rails.
+    ' Three compact content rails keep featured titles, Mi lista and resume playback visible.
     panel(0,0,1920,1080,"0x080808FF")
     if m.features.count() > 0
         heroIndex = m.heroFeature
@@ -296,42 +296,63 @@ sub homeScreen()
         selectable("hero",0,"Actualizar",76,382,270,62,true)
     end if
 
-    ' First rail: featured titles. Large posters use a consistent 2:3 treatment.
+    ' Featured rail.
     heading = "Populares en Roku Plus"
     if m.catalogMode = "hd"
         heading = "Cortos en HD"
         if usesOnlineHd() then heading = "Películas para explorar"
     end if
-    words(heading,76,510,1500,42,30,"0xFFFFFFFF")
+    words(heading,76,466,1500,34,27,"0xFFFFFFFF")
     for i = 0 to 3
         if i < m.features.count()
             item = m.features[i]
             x = 76+i*450
             uri = item.poster
             if uri = "" then uri = item.background
-            panel(x-8,560,420,220,"0x171717FF")
-            if uri <> "" then art(uri,x,568,122,184,"scaleToFit")
-            words(item.title,x+138,580,270,70,23,"0xFFFFFFFF").wrap = true
+            panel(x-8,504,420,132,"0x171717FF")
+            if uri <> "" then art(uri,x,512,88,116,"scaleToFit")
+            words(item.title,x+102,516,300,48,21,"0xFFFFFFFF").wrap = true
             facts = item.year
             if item.kind = "series" then facts += " · Serie"
-            words(facts,x+140,656,260,34,18,"0xB3B3B3FF")
-            words("Ver detalles  ›",x+140,710,260,34,18,"0xE50914FF")
-            focusTarget("covers",i,x-14,552,436,236,"card")
+            words(facts,x+104,566,290,28,17,"0xB3B3B3FF")
+            words("Ver detalles  ›",x+104,600,290,27,17,"0xE50914FF")
+            focusTarget("covers",i,x-14,496,436,148,"card")
         end if
     end for
 
-    ' Second rail: resume playback, or discover series when there is no progress yet.
+    ' Mi lista is built from the current profile's saved watch records.
+    if m.homeListItems.count() > 0
+        words("Mi lista",76,650,1500,34,27,"0xFFFFFFFF")
+        for i = 0 to 2
+            if i < m.homeListItems.count()
+                item = m.homeListItems[i]
+                x = 76+i*590
+                panel(x-8,688,530,112,"0x171717FF")
+                uri = item.poster
+                if uri = "" then uri = item.background
+                if uri <> "" then art(uri,x,696,112,96,"scaleToFit")
+                words(item.title,x+128,700,382,48,22,"0xFFFFFFFF").wrap = true
+                kindLabel = "Película"
+                if item.kind = "series" then kindLabel = "Serie"
+                if item.kind = "episode" then kindLabel = "Episodio"
+                words(kindLabel+"  ·  ♥ Guardado",x+130,752,380,28,17,"0xB3B3B3FF")
+                focusTarget("home-list",i,x-14,680,546,128,"card")
+            end if
+        end for
+    end if
+
+    ' Continue watching remains available below Mi lista.
     if m.continueItems.count() > 0
-        words("Continuar viendo",76,806,1500,42,30,"0xFFFFFFFF")
+        words("Continuar viendo",76,824,1500,34,27,"0xFFFFFFFF")
         for i = 0 to 2
             if i < m.continueItems.count()
                 item = m.continueItems[i]
                 x = 76+i*590
-                panel(x-8,856,530,142,"0x171717FF")
+                panel(x-8,862,530,126,"0x171717FF")
                 uri = item.background
                 if uri = "" then uri = item.poster
-                if uri <> "" then art(uri,x,864,180,116,"scaleToFill")
-                words(item.title,x+198,870,315,48,23,"0xFFFFFFFF").wrap = true
+                if uri <> "" then art(uri,x,870,150,108,"scaleToFill")
+                words(item.title,x+168,874,345,42,21,"0xFFFFFFFF").wrap = true
                 progressText = "Reanudar reproducción"
                 resumeDuration = 0
                 resumePosition = 0
@@ -344,26 +365,26 @@ sub homeScreen()
                     resumePercent = Int(ratio * 100)
                     remainingSeconds = Int(resumeDuration - resumePosition)
                     progressText = resumePercent.toStr()+"% visto · "+timeText(remainingSeconds)+" restantes"
-                    panel(x+198,944,310,5,"0x777777FF")
-                    panel(x+198,944,310*ratio,5,"0xE50914FF")
+                    panel(x+168,932,330,5,"0x777777FF")
+                    panel(x+168,932,330*ratio,5,"0xE50914FF")
                 end if
-                words(progressText,x+198,960,315,27,17,"0xB3B3B3FF")
-                focusTarget("continue",i,x-14,848,546,158,"card")
+                words(progressText,x+168,946,345,26,16,"0xB3B3B3FF")
+                focusTarget("continue",i,x-14,854,546,142,"card")
             end if
         end for
     else if m.homeSeries.count() > 0
-        words("Series para descubrir",76,806,1500,42,30,"0xFFFFFFFF")
+        words("Series para descubrir",76,824,1500,34,27,"0xFFFFFFFF")
         for i = 0 to 2
             if i < m.homeSeries.count()
                 item = m.homeSeries[i]
                 x = 76+i*590
+                panel(x-8,862,530,126,"0x171717FF")
                 uri = item.poster
                 if uri = "" then uri = item.background
-                panel(x-8,856,530,142,"0x171717FF")
-                if uri <> "" then art(uri,x,864,180,116,"scaleToFill")
-                words(item.title,x+198,880,315,54,24,"0xFFFFFFFF").wrap = true
-                words("Explorar episodios  ›",x+198,948,315,30,18,"0xE50914FF")
-                focusTarget("home-series",i,x-14,848,546,158,"card")
+                if uri <> "" then art(uri,x,870,150,108,"scaleToFill")
+                words(item.title,x+168,880,345,48,22,"0xFFFFFFFF").wrap = true
+                words("Explorar episodios  ›",x+168,940,345,28,17,"0xE50914FF")
+                focusTarget("home-series",i,x-14,854,546,142,"card")
             end if
         end for
     end if
