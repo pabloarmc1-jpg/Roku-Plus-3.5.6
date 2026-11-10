@@ -2416,12 +2416,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         drawScreen()
         return true
     end if
-if m.view = "profiles" then m.zone = "profiles"
-        end if
-        drawScreen()
-        return true
-    end if
-    if m.view = "profiles"
+if m.view = "profiles"
         if key = "left"
             if m.profileCursor mod 2 = 1 then m.profileCursor-- else m.zone = "nav"
         end if
