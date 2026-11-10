@@ -166,17 +166,21 @@ sub rpTsRelayServe(connection as object, server as object)
             exit for
         end if
         tsAudit = rpTsRelayAuditPayload(payload)
-        if sentSegments = 0 or not tsAudit.aligned or tsAudit.syncErrors > 0 or tsAudit.patPackets = 0 or tsAudit.continuityErrors > 0 or tsAudit.pmtPackets > 0
+        if sentSegments < 3 or not tsAudit.aligned or tsAudit.syncErrors > 0 or tsAudit.patPackets = 0 or tsAudit.continuityErrors > 0 or tsAudit.pmtPackets > 0
             print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " aligned="; tsAudit.aligned; " syncErrors="; tsAudit.syncErrors; " firstBad="; tsAudit.firstBadOffset
             print "[RokuPlus ts-audit] pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors
             print "[RokuPlus ts-audit] pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
             print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
-            print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts="; tsAudit.firstPts; " lastPts="; tsAudit.lastPts
+            print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
+            print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " firstPcr90k="; tsAudit.firstPcr; " lastPcr90k="; tsAudit.lastPcr
+            print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
         else if sentSegments mod 25 = 0
             print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked
             print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
             print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
-            print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts="; tsAudit.firstPts; " lastPts="; tsAudit.lastPts
+            print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
+            print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " firstPcr90k="; tsAudit.firstPcr; " lastPcr90k="; tsAudit.lastPcr
+            print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
         end if
         if payloadSize <= 0
             DeleteFile(filePath)
@@ -317,6 +321,12 @@ function rpTsRelayAuditPayload(payload as object) as object
     result.ptsCount = 0
     result.firstPts = -1
     result.lastPts = -1
+    result.pcrCount = 0
+    result.firstPcr = -1
+    result.lastPcr = -1
+    result.dtsCount = 0
+    result.firstDts = -1
+    result.lastDts = -1
     total = payload.Count()
     if total <= 0 then return result
     result.aligned = (total mod 188) = 0
@@ -343,7 +353,16 @@ function rpTsRelayAuditPayload(payload as object) as object
             if adaptationControl = 2 or adaptationControl = 3
                 adaptationLength = payload[offset+4]
                 if adaptationLength > 0 and offset + 5 < total
-                    if payload[offset+5] >= 128 then discontinuity = true
+                    adaptationFlags = payload[offset+5]
+                    if adaptationFlags >= 128 then discontinuity = true
+                    if adaptationLength >= 7 and (adaptationFlags mod 32) >= 16
+                        pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \\ 128)
+                        pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
+                        pcrValue = pcrBase + pcrExtension / 300.0
+                        if result.pcrCount = 0 then result.firstPcr = pcrValue
+                        result.lastPcr = pcrValue
+                        result.pcrCount++
+                    end if
                 end if
             end if
             if hasPayload and pid <> 8191
@@ -423,6 +442,14 @@ function rpTsRelayAuditPayload(payload as object) as object
                                             if result.ptsCount = 0 then result.firstPts = pts
                                             result.lastPts = pts
                                             result.ptsCount++
+                                        end if
+                                    end if
+                                    if pesFlags = 3 and pesHeaderLength >= 10 and payloadStart + 19 <= offset + 188
+                                        dts = rpTsRelayReadPts(payload,payloadStart+14)
+                                        if dts >= 0
+                                            if result.dtsCount = 0 then result.firstDts = dts
+                                            result.lastDts = dts
+                                            result.dtsCount++
                                         end if
                                     end if
                                 end if
