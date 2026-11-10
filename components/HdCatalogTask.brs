@@ -538,7 +538,7 @@ function rpHdTaskGlobalSearch(request as object, answer as object, fetcher as dy
         partAnswer = {
             ok:false, cancelled:false, requestId:answer.requestId
             operation:"catalog", kind:searchKind, provider:answer.provider
-            message:""
+            items:[], message:""
         }
         if answer.provider = "all"
             partAnswer = rpHdTaskCombinedCatalog(partRequest,partAnswer,fetcher,sources)
