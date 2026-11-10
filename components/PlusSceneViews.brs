@@ -184,9 +184,8 @@ sub topBar()
     navExpanded = (m.zone = "nav")
     navWidth = 92
     if navExpanded then navWidth = 286
-    ' Translucent glass lets the current screen artwork tint the navigation rail.
-    panel(0,0,navWidth,1080,"0x101010B8")
-    panel(navWidth-4,0,4,1080,"0xFFFFFF28")
+    ' Rounded translucent rail adapts to the collapsed or expanded navigation width.
+    art("pkg:/images/ui/rail-glass.png",0,0,navWidth,1080)
     art("pkg:/images/ui/logo.png",24,28,44,44)
     if navExpanded
         words("ROKU PLUS",91,34,174,34,21,"0xFFFFFFFF")
@@ -200,7 +199,7 @@ sub topBar()
         if isSelected
             selectedWidth = 68
             if navExpanded then selectedWidth = 266
-            panel(12,y-7,selectedWidth,64,"0xE50914FF")
+            art("pkg:/images/ui/nav-active.png",12,y-7,selectedWidth,64)
         end if
         art("pkg:/images/ui/"+iconFiles[i],30,y+7,32,32,"scaleToFit")
         if navExpanded
