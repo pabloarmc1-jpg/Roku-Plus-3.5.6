@@ -55,8 +55,8 @@ function glassSurface(name as string, x as float, y as float, w as float, h as f
 end function
 
 sub thumbnail(uri as string, x as float, y as float, w as float, h as float, shape = "landscape" as string)
-    base = "0x1B221EFF"
-    if m.theme = "classic" then base = "0x101D2DFF"
+    base = "0x1B221E00"
+    if m.theme = "classic" then base = "0x101D2D00"
     panel(x,y,w,h,base)
     if uri <> ""
         if shape = "poster" then art(uri,x,y,w,h,"scaleToFit") else art(uri,x,y,w,h)
@@ -397,7 +397,7 @@ sub homeScreen()
             if i < m.continueItems.count()
                 item = m.continueItems[i]
                 x = 76+i*590
-                panel(x-8,continueY+38,530,124,"0x19191FFF")
+                panel(x-8,continueY+38,530,124,"0x19191F00")
                 uri = item.background
                 if uri = "" then uri = item.poster
                 if uri <> "" then art(uri,x,continueY+44,124,112,"scaleToFill")
@@ -438,7 +438,7 @@ sub homeScreen()
             x = 76+i*450
             uri = item.poster
             if uri = "" then uri = item.background
-            panel(x-8,discoveryY+44,420,150,"0x19191FFF")
+            panel(x-8,discoveryY+44,420,150,"0x19191F00")
             if uri <> "" then art(uri,x,discoveryY+52,112,134,"scaleToFit")
             words(item.title,x+128,discoveryY+58,278,54,22,"0xFFFFFFFF").wrap = true
             facts = item.year
@@ -458,7 +458,7 @@ sub homeScreen()
             if i < m.homeListItems.count()
                 item = m.homeListItems[i]
                 x = 76+i*590
-                panel(x-8,savedY+38,530,92,"0x19191FFF")
+                panel(x-8,savedY+38,530,92,"0x19191F00")
                 uri = item.poster
                 if uri = "" then uri = item.background
                 if uri <> "" then art(uri,x,savedY+44,92,80,"scaleToFit")
@@ -477,7 +477,7 @@ sub homeScreen()
             if i < m.homeSeries.count()
                 item = m.homeSeries[i]
                 x = 76+i*590
-                panel(x-8,savedY+38,530,92,"0x19191FFF")
+                panel(x-8,savedY+38,530,92,"0x19191F00")
                 uri = item.poster
                 if uri = "" then uri = item.background
                 if uri <> "" then art(uri,x,savedY+44,92,80,"scaleToFit")
@@ -508,7 +508,7 @@ sub libraryScreen()
         if n < m.libraryItems.count()
             item = m.libraryItems[n]
             y = 290+i*112
-            panel(72,y,1770,94,"0x181818FF")
+            panel(72,y,1770,94,"0x18181800")
             uri = item.poster
             if uri = "" then uri = item.background
             if uri <> "" then thumbnail(uri,84,y+7,138,80)
@@ -560,7 +560,7 @@ sub browseScreen()
             y = 270+row*360
             uri = item.poster
             if uri = "" then uri = item.background
-            panel(x,y,330,344,"0x151515FF")
+            panel(x,y,330,344,"0x15151500")
             if uri <> "" then thumbnail(uri,x+56,y+7,218,276,"poster")
             words(item.title,x+8,y+288,314,42,21,"0xFFFFFFFF").wrap = true
             if m.query <> ""
