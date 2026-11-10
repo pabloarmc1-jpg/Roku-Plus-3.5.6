@@ -192,6 +192,11 @@ end sub
 
 sub drawScreen()
     if m.view = "player" then return
+    previousView = m.lastRenderedView
+    pageChanged = previousView <> invalid and previousView <> m.view and previousView <> "player"
+    if m.pageTransitionTimer <> invalid then m.pageTransitionTimer.control = "stop"
+    m.canvas.translation = [0,0]
+    m.canvas.opacity = 1.0
     eraseScreen()
     if m.view = "setup-tv"
         setupTvScreen()
@@ -223,6 +228,14 @@ sub drawScreen()
         end if
     end if
     paintFocus()
+    if pageChanged
+        m.pageTransitionStep = 0
+        m.canvas.translation = [48,0]
+        m.canvas.opacity = 0.70
+        m.pageTransitionTimer.duration = 0.08
+        m.pageTransitionTimer.control = "start"
+    end if
+    m.lastRenderedView = m.view
 end sub
 
 sub setupTvScreen()
@@ -506,6 +519,15 @@ sub libraryScreen()
 end sub
 
 sub browseScreen()
+    ' The selected movie or series supplies a cinematic, changing backdrop.
+    browseBackdrop = ""
+    if m.cursor >= 0 and m.cursor < m.titles.count()
+        selectedBackdrop = m.titles[m.cursor]
+        browseBackdrop = orbitText(selectedBackdrop.background,2048)
+        if browseBackdrop = "" then browseBackdrop = orbitText(selectedBackdrop.poster,2048)
+    end if
+    if browseBackdrop <> "" then art(browseBackdrop,0,0,1920,1080)
+    panel(0,0,1920,1080,"0x080808D8")
     topBar()
     title = "Películas populares"
     if m.kind = "series" then title = "Series populares"
@@ -613,6 +635,7 @@ sub detailScreen()
     if m.detail = invalid then return
     item = m.detail
     backdrop = orbitText(item.background,2048)
+    if backdrop = "" then backdrop = orbitText(item.poster,2048)
     if backdrop <> "" then art(backdrop,0,112,1920,968)
     panel(0,112,1920,968,"0x080808E8")
     uri = orbitText(item.poster,2048)

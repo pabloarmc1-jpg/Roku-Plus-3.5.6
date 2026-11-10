@@ -31,6 +31,10 @@ sub init()
     m.discoveryRotation = m.top.findNode("discoveryRotation")
     m.discoveryRotation.observeField("fire","discoveryRotationTick")
     m.discoveryRotation.control = "start"
+    m.pageTransitionTimer = m.top.findNode("pageTransition")
+    m.pageTransitionTimer.observeField("fire","pageTransitionTick")
+    m.pageTransitionStep = 0
+    m.lastRenderedView = invalid
     m.discoveryOffset = 0
     m.nextEpisode = invalid
     m.nextEpisodeCountdown = 0
@@ -1786,6 +1790,22 @@ sub startHomeCatalogTask(kind as string, skip as integer)
     task.control = "RUN"
 end sub
 
+sub pageTransitionTick(event as object)
+    if m.view = "player"
+        m.pageTransitionTimer.control = "stop"
+        return
+    end if
+    m.pageTransitionStep++
+    if m.pageTransitionStep >= 6
+        m.canvas.translation = [0,0]
+        m.canvas.opacity = 1.0
+        m.pageTransitionTimer.control = "stop"
+        return
+    end if
+    m.canvas.translation = [48-m.pageTransitionStep*8,0]
+    m.canvas.opacity = 0.70 + m.pageTransitionStep*0.05
+end sub
+
 sub discoveryRotationTick(event as object)
     if m.view <> "home" then return
     if type(m.features) <> "roArray" or m.features.count() <= 6 then return
@@ -2557,6 +2577,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "OK" and m.homeSeries.count() > 0 then openDetails(m.homeSeries[m.seriesCover],"home"): return true
         end if
     else if m.view = "browse"
+        previousCursor = m.cursor
         window = m.cursor \ 10
         if key = "left"
             if m.cursor mod 5 > 0 then m.cursor-- else m.zone = "nav": drawScreen(): return true
@@ -2587,7 +2608,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
         end if
         if key = "OK" and m.titles.count() > 0 then openDetails(m.titles[m.cursor],"browse"): return true
-        if window <> m.cursor \ 10 then drawScreen(): return true
+        if window <> m.cursor \ 10 or previousCursor <> m.cursor then drawScreen(): return true
     else if m.view = "detail"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up"
