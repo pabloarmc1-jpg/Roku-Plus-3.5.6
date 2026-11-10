@@ -121,6 +121,11 @@ sub selectable(zone as string, index as integer, text as string, x as integer, y
         surface = "0xFFFFFFFF"
         ink = "0x080808FF"
     end if
+    ' Home hero Play action uses the familiar Roku Plus red primary treatment.
+    if zone = "hero" and index = 0
+        surface = "0xE50914FF"
+        ink = "0xFFFFFFFF"
+    end if
     panel(x,y,w,h,surface)
     if icon <> ""
         art("pkg:/images/ui/"+icon,x+16,y+13,36,36,"scaleToFit")
