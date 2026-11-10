@@ -161,15 +161,10 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if rpHdTaskSpanishAudio(master,variant) then candidates.variants.push(variant)
                     end for
                     print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
-                    ' Diagnostic build 3.5.67: isolate the alternate 1280x528 provider rendition.
-                    ' Filter the original master variants first, then apply the normal decoder/codec guards.
-                    diagnosticHeight = 528
-                    diagnosticCandidates = {variants:[],encrypted:candidates.encrypted}
-                    for each diagnosticChoice in candidates.variants
-                        if diagnosticChoice.height = diagnosticHeight then diagnosticCandidates.variants.push(diagnosticChoice)
-                    end for
-                    choices = rpHdTaskStableVariants(diagnosticCandidates,decoderAccept)
-                    print "[RokuPlus hls-test] targetHeight="; diagnosticHeight; " eligibleVariants="; choices.count()
+                    ' Use every Spanish-compatible H.264/AAC variant.
+                    ' Do not require an exact 528p rendition: some providers only offer 360p/480p.
+                    choices = rpHdTaskStableVariants(candidates,decoderAccept)
+                    print "[RokuPlus hls-test] compatibleVariants="; choices.count()
                     variantOffset = 0
                     if choices.count() > 0 then variantOffset = (retry \ count) mod choices.count()
                     for qualityAttempt = 0 to choices.count()-1
