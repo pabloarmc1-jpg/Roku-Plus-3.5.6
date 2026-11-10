@@ -1341,6 +1341,7 @@ sub switchProfile(index as integer)
     m.profileId = selected
     m.watchState = rpWatchLoad(m.profileId)
     m.continueItems = rpWatchContinue(m.watchState)
+    refreshHomeListItems()
     m.lastPlaybackProgress = invalid
     m.note = "Perfil cambiado: " + rpProfileName(m.profileId)
     goHome()
