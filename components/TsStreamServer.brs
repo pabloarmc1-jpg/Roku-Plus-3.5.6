@@ -148,7 +148,9 @@ sub rpTsRelayServe(connection as object, server as object)
         sentSegments++
         sentBytes += payloadSize
         server.nextSegmentIndex = segmentIndex + 1
-        print "[RokuPlus ts-relay diag] segment index="; segmentIndex; " http="; code; " bytes="; payloadSize; " downloadMs="; downloadMs; " sendMs="; sendMs
+        if sentSegments = 1 or sentSegments mod 10 = 0
+            print "[RokuPlus ts-relay diag] segment index="; segmentIndex; " http="; code; " bytes="; payloadSize; " downloadMs="; downloadMs; " sendMs="; sendMs
+        end if
         server.segmentsSent = server.nextSegmentIndex
         server.bytesSent = server.bytesSent + payloadSize
         if sentSegments = 1 or sentSegments mod 25 = 0
