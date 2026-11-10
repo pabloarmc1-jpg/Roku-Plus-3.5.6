@@ -176,6 +176,26 @@ function rpTsRelayBuildPlaylist(server as object) as string
         body += "segment/"+entry.index.toStr()+".ts?key="+server.accessKey+chr(10)
     end for
     body += "#EXT-X-ENDLIST"+chr(10)
+    minDiagnostic = timeline[0].duration
+    maxDiagnostic = timeline[0].duration
+    discontinuityCount = 0
+    for each entry in timeline
+        if entry.duration < minDiagnostic then minDiagnostic = entry.duration
+        if entry.duration > maxDiagnostic then maxDiagnostic = entry.duration
+        if entry.discontinuity then discontinuityCount++
+    end for
+    print "[RokuPlus hls-relay diag] timeline_summary segments="; timeline.count(); " minDuration="; minDiagnostic; " maxDuration="; maxDiagnostic; " discontinuities="; discontinuityCount
+    diagnosticCount = timeline.count()
+    if diagnosticCount > 24 then diagnosticCount = 24
+    for diagnosticIndex = 0 to diagnosticCount - 1
+        entry = timeline[diagnosticIndex]
+        print "[RokuPlus hls-relay diag] timeline_entry index="; diagnosticIndex; " duration="; entry.duration; " start="; entry.start; " discontinuity="; entry.discontinuity; " discontinuitySequence="; entry.discontinuitySequence
+    end for
+    for each entry in timeline
+        if entry.discontinuity
+            print "[RokuPlus hls-relay diag] timeline_discontinuity index="; entry.index; " start="; entry.start; " sequence="; entry.discontinuitySequence
+        end if
+    end for
     return body
 end function
 
@@ -366,6 +386,11 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
     pmtPid = -1
     videoPid = -1
     audioPid = -1
+    videoStreamType = -1
+    audioStreamType = -1
+    spsProfile = -1
+    spsConstraint = -1
+    spsLevel = -1
     patFound = false
     pmtFound = false
     videoPes = 0
@@ -447,8 +472,14 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
                         streamType = payload[entry]
                         elementaryPid = (payload[entry+1] mod 32) * 256 + payload[entry+2]
                         esInfoLength = (payload[entry+3] mod 16) * 256 + payload[entry+4]
-                        if streamType = &h1B or streamType = &h24 then videoPid = elementaryPid
-                        if streamType = &h0F or streamType = &h11 then audioPid = elementaryPid
+                        if streamType = &h1B or streamType = &h24
+                            videoPid = elementaryPid
+                            videoStreamType = streamType
+                        end if
+                        if streamType = &h0F or streamType = &h11
+                            audioPid = elementaryPid
+                            audioStreamType = streamType
+                        end if
                         entry += 5 + esInfoLength
                     end while
                     pmtFound = true
@@ -489,7 +520,20 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
                 else if i + 4 < offset + 188 and payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 1
                     nalType = payload[i+4] mod 32
                 end if
-                if nalType = 7 then nal7++
+                if nalType = 7
+                    nal7++
+                    if spsProfile < 0
+                        if i + 6 < offset + 188 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 1
+                            spsProfile = payload[i+5]
+                            spsConstraint = payload[i+6]
+                            if i + 7 < offset + 188 then spsLevel = payload[i+7]
+                        else if i + 7 < offset + 188 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 0 and payload[i+4] = 1
+                            spsProfile = payload[i+6]
+                            spsConstraint = payload[i+7]
+                            if i + 8 < offset + 188 then spsLevel = payload[i+8]
+                        end if
+                    end if
+                end if
                 if nalType = 8 then nal8++
                 if nalType = 5
                     nal5++
@@ -505,9 +549,9 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
         pidSummary += key + ":" + pidCounts[key].toStr()
     end for
     print "[RokuPlus hls-relay diag] ts_map index="; segmentIndex; " pids="; pidSummary; " pat="; patFound; " pmtPid="; pmtPid; " pmt="; pmtFound
-    print "[RokuPlus hls-relay diag] ts_streams videoPid="; videoPid; " audioPid="; audioPid; " ccErrors="; continuityErrors; " videoPes="; videoPes; " audioPes="; audioPes
+    print "[RokuPlus hls-relay diag] ts_streams videoPid="; videoPid; " videoType="; videoStreamType; " audioPid="; audioPid; " audioType="; audioStreamType; " ccErrors="; continuityErrors; " videoPes="; videoPes; " audioPes="; audioPes
     print "[RokuPlus hls-relay diag] ts_timestamps ptsCount="; ptsCount; " dtsCount="; dtsCount; " firstPts90k="; firstPts; " firstDts90k="; firstDts
-    print "[RokuPlus hls-relay diag] ts_h264 videoPid="; videoPid; " annexB_sps="; nal7; " annexB_pps="; nal8; " annexB_idr="; nal5; " firstIdrPacket="; firstIdrPacket
+    print "[RokuPlus hls-relay diag] ts_h264 videoPid="; videoPid; " annexB_sps="; nal7; " spsProfile="; spsProfile; " spsConstraint="; spsConstraint; " spsLevel="; spsLevel; " annexB_pps="; nal8; " annexB_idr="; nal5; " firstIdrPacket="; firstIdrPacket
 end sub
 
 function rpTsRelayReadTimestamp(payload as object, offset as integer)
