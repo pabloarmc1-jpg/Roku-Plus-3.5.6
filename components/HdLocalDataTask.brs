@@ -5,9 +5,7 @@ end sub
 
 sub loadHdLocalData()
     library = rpHdLibrary()
-    creditsText = ReadAsciiFile("pkg:/CREDITS-HD.txt")
     m.top.result = {
         library: library
-        creditsText: creditsText
     }
 end sub
