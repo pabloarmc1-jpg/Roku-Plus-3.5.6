@@ -4,7 +4,7 @@
 
 function rpHdLibrary() as object
     path = "pkg:/data/hd-library.json"
-    ' Do not create roFileSystem here: this function can run on the RENDER thread.
+    ' File access and ParseJson are Task-thread-only in SceneGraph applications.
     body = ReadAsciiFile(path)
     return rpHdLibraryFromText(body)
 end function
