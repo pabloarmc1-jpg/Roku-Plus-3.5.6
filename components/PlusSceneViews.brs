@@ -174,23 +174,17 @@ sub topBar()
     panel(88,0,4,1080,"0xFFFFFF18")
     art("pkg:/images/ui/logo.png",24,28,44,44)
     panel(18,94,56,2,"0xFFFFFF30")
-    icons = ["⌂","▣","▤","▹","⌕","♡","◷","⚙","●"]
+    iconFiles = ["nav-home.png","nav-movies.png","nav-series.png","nav-live.png","nav-search.png","nav-favorites.png","nav-history.png","nav-settings.png","nav-profile.png"]
     for i = 0 to 8
         y = 132+i*91
         isSelected = (active = i)
         if m.zone = "nav" and m.nav = i then isSelected = true
-        if isSelected
-            panel(12,y-7,68,64,"0xE50914FF")
-            words(icons[i],24,y+2,44,46,29,"0xFFFFFFFF").horizAlign = "center"
-        else
-            words(icons[i],24,y+2,44,46,29,"0xFFFFFFFF").horizAlign = "center"
-        end if
+        if isSelected then panel(12,y-7,68,64,"0xE50914FF")
+        art("pkg:/images/ui/"+iconFiles[i],30,y+7,32,32,"scaleToFit")
         if m.zone = "nav" and m.nav = i
             focusTarget("nav",i,8,y-11,76,72,"wide")
         end if
     end for
-    panel(20,1002,52,52,"0xFFFFFF12")
-    words("●",24,1007,44,42,24,"0xFFFFFFFF").horizAlign = "center"
 end sub
 
 
