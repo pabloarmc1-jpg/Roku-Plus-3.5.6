@@ -312,8 +312,9 @@ sub searchKeyboardScreen()
         words(actions[i],xPositions[i]+8,865,widths[i]-16,44,24,"0xFFFFFFFF").horizAlign = "center"
         focusTarget("search-action",i,xPositions[i]-4,846,widths[i]+8,84,"wide")
     end for
-    words("Escribe directamente desde la app móvil Roku o usa el teclado de la TV · Mantén OK en BORRAR para limpiar todo",78,955,1760,34,18,"0xA5A5ADFF")
-    words("← → ↑ ↓: navegar     OK: escribir / seleccionar     Atrás: cerrar",78,1000,1700,38,20,"0x8C8C94FF")
+    words("PLAY / PAUSE: BUSCAR     RELOAD / REPLAY: BORRAR     *: ESPACIO",78,944,1760,30,19,"0xE5E5E5FF")
+    words("OK: escribir / seleccionar     Mantén OK en BORRAR para limpiar todo     BACK: cerrar",78,980,1760,30,18,"0xA5A5ADFF")
+    words("Flechas: navegar     También puedes escribir directamente desde la app móvil Roku",78,1016,1760,30,18,"0x8C8C94FF")
 end sub
 
 sub homeScreen()
