@@ -149,6 +149,7 @@ sub init()
     m.invidiousItems = []
     m.invidiousCursor = 0
     m.invidiousQuery = ""
+    m.invidiousQuery = ""
     m.creditsPage = 0
     m.creditsPages = []
     if not m.configured
@@ -330,6 +331,8 @@ sub fetched(event as object)
     else if context.operation = "invidious-resolve"
         if answer.ok
             m.playbackMode = "direct"
+            m.detail = context.item
+            m.detailOrigin = "invidious"
             launchVideo(context.item,answer.url,"mp4")
             return
         else
