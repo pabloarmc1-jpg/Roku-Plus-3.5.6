@@ -388,7 +388,7 @@ sub homeScreen()
         savedY = 755
     end if
 
-    ' Poster cards: artwork above, readable title directly underneath.
+    ' Poster-only cards: larger vertical artwork, without text or progress labels.
     if m.continueItems.count() > 0
         words("Continuar viendo",76,continueY,1500,30,26,"0xFFFFFFFF")
         words("RETOMA DONDE TE QUEDASTE",1390,continueY+4,450,22,14,"0x888891FF").horizAlign = "right"
@@ -396,31 +396,11 @@ sub homeScreen()
             if i < m.continueItems.count()
                 item = m.continueItems[i]
                 x = 76+i*294
-                panel(x,continueY+38,280,142,"0x19191F00")
                 uri = item.poster
                 if uri = "" then uri = item.background
-                if uri <> "" then art(uri,x+96,continueY+44,88,84,"scaleToFit")
-                titleLabel = words(item.title,x+8,continueY+131,264,24,16,"0xFFFFFFFF")
-                titleLabel.horizAlign = "center"
-                titleLabel.wrap = false
-                progressText = "Reanudar"
-                resumeDuration = 0
-                resumePosition = 0
-                if item.doesExist("duration") then resumeDuration = rpWatchNumber(item.duration)
-                if item.doesExist("position") then resumePosition = rpWatchNumber(item.position)
-                if resumeDuration > 0
-                    ratio = resumePosition / resumeDuration
-                    if ratio < 0 then ratio = 0
-                    if ratio > 1 then ratio = 1
-                    resumePercent = Int(ratio * 100)
-                    remainingSeconds = Int(resumeDuration - resumePosition)
-                    progressText = resumePercent.toStr()+"% visto · "+timeText(remainingSeconds)
-                    panel(x+104,continueY+124,158,3,"0x777777FF")
-                    panel(x+104,continueY+124,158*ratio,3,"0xE50914FF")
-                end if
-                words(progressText,x+8,continueY+155,264,18,11,"0xB7B7C0FF").horizAlign = "center"
-                if m.zone = "continue" and m.cover = i then panel(x-4,continueY+34,288,150,"0xFFFFFF20")
-                focusTarget("continue",i,x-6,continueY+32,292,154,"card")
+                if uri <> "" then art(uri,x+85,continueY+40,110,135,"scaleToFit")
+                if m.zone = "continue" and m.cover = i then panel(x+79,continueY+34,122,147,"0xFFFFFF20")
+                focusTarget("continue",i,x+76,continueY+31,128,153,"card")
             end if
         end for
     end if
@@ -438,16 +418,9 @@ sub homeScreen()
             x = 76+i*294
             uri = item.poster
             if uri = "" then uri = item.background
-            panel(x,discoveryY+38,280,142,"0x19191F00")
-            if uri <> "" then art(uri,x+96,discoveryY+44,88,84,"scaleToFit")
-            titleLabel = words(item.title,x+8,discoveryY+131,264,24,16,"0xFFFFFFFF")
-            titleLabel.horizAlign = "center"
-            titleLabel.wrap = false
-            facts = item.year
-            if item.kind = "series" then facts += " · Serie"
-            words(facts,x+8,discoveryY+155,264,18,11,"0xB7B7C0FF").horizAlign = "center"
-            if m.zone = "covers" and m.cover = i then panel(x-4,discoveryY+34,288,150,"0xFFFFFF20")
-            focusTarget("covers",i,x-6,discoveryY+32,292,154,"card")
+            if uri <> "" then art(uri,x+85,discoveryY+40,110,135,"scaleToFit")
+            if m.zone = "covers" and m.cover = i then panel(x+79,discoveryY+34,122,147,"0xFFFFFF20")
+            focusTarget("covers",i,x+76,discoveryY+31,128,153,"card")
         end if
     end for
 
@@ -458,19 +431,11 @@ sub homeScreen()
             if i < m.homeListItems.count()
                 item = m.homeListItems[i]
                 x = 76+i*294
-                panel(x,savedY+38,280,142,"0x19191F00")
                 uri = item.poster
                 if uri = "" then uri = item.background
-                if uri <> "" then art(uri,x+96,savedY+44,88,84,"scaleToFit")
-                titleLabel = words(item.title,x+8,savedY+131,264,24,16,"0xFFFFFFFF")
-                titleLabel.horizAlign = "center"
-                titleLabel.wrap = false
-                kindLabel = "Película"
-                if item.kind = "series" then kindLabel = "Serie"
-                if item.kind = "episode" then kindLabel = "Episodio"
-                words(kindLabel+"  ·  ♥ GUARDADO",x+8,savedY+155,264,18,11,"0xB7B7C0FF").horizAlign = "center"
-                if m.zone = "home-list" and m.listCover = i then panel(x-4,savedY+34,288,150,"0xFFFFFF20")
-                focusTarget("home-list",i,x-6,savedY+32,292,154,"card")
+                if uri <> "" then art(uri,x+85,savedY+40,110,135,"scaleToFit")
+                if m.zone = "home-list" and m.listCover = i then panel(x+79,savedY+34,122,147,"0xFFFFFF20")
+                focusTarget("home-list",i,x+76,savedY+31,128,153,"card")
             end if
         end for
     else if m.homeSeries.count() > 0
