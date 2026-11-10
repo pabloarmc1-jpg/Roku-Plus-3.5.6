@@ -33,9 +33,18 @@ sub openRequest()
     if request.doesExist("streamFormat") and request.streamFormat <> "" then streamFormat = lcase(request.streamFormat)
     if streamFormat <> "hls" then streamFormat = "mp4"
     media.streamFormat = streamFormat
-    if streamFormat = "mp4" and request.doesExist("bitrate") and request.bitrate <> invalid
-        bitrate = val(request.bitrate.toStr())
-        if bitrate > 0 then media.bitrate = int(bitrate)
+    if streamFormat = "mp4"
+        bitrate = 0
+        if request.doesExist("bitrate") and request.bitrate <> invalid
+            bitrate = val(request.bitrate.toStr())
+        end if
+        if bitrate <= 0
+            m.statusNode.text = "La fuente MP4 no incluye un bitrate válido."
+            return
+        end if
+        quality = false
+        if bitrate >= 1500 then quality = true
+        media.streams = [{url:request.url,bitrate:int(bitrate),quality:quality,contentid:"invidious-" + invidiousText(request.title,80)}]
     end if
     m.video.control = "stop"
     m.video.content = invalid
