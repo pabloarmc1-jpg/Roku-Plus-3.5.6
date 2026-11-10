@@ -27,34 +27,69 @@ sub runTsStreamServer()
     end if
     m.top.status = "listening"
     print "[RokuPlus ts-relay] listening port=49322 segments="; m.top.segments.count()
+    connections = {}
+    requests = {}
     while not m.top.stopRequested
         event = wait(250,port)
         if type(event) = "roSocketEvent"
-            if event.getSocketID() = listener.getID() and listener.isReadable()
-                connection = listener.accept()
-                if connection <> invalid then rpTsRelayServe(connection,m.top)
+            changedId = event.getSocketID()
+            if changedId = listener.getID()
+                if listener.isReadable()
+                    connection = listener.accept()
+                    if connection <> invalid
+                        connection.setMessagePort(port)
+                        connection.notifyReadable(true)
+                        connection.notifyException(true)
+                        key = connection.getID().toStr()
+                        connections[key] = connection
+                        requests[key] = ""
+                        print "[RokuPlus ts-relay diag] client_accepted socketId="; key
+                    end if
+                end if
+            else
+                key = changedId.toStr()
+                if connections.DoesExist(key)
+                    connection = connections[key]
+                    if connection.isException()
+                        print "[RokuPlus ts-relay diag] client_request_exception bytes="; len(requests[key]); " socketStatus="; connection.status()
+                        connection.close()
+                        connections.Delete(key)
+                        requests.Delete(key)
+                    else if connection.isReadable()
+                        part = connection.receiveStr(4096)
+                        if part <> ""
+                            requests[key] += part
+                            if len(requests[key]) > 8192
+                                print "[RokuPlus ts-relay diag] client_request_too_large socketId="; key
+                                connection.close()
+                                connections.Delete(key)
+                                requests.Delete(key)
+                            else if instr(1,requests[key],chr(13)+chr(10)+chr(13)+chr(10)) > 0
+                                request = requests[key]
+                                connections.Delete(key)
+                                requests.Delete(key)
+                                rpTsRelayServe(connection,m.top,request)
+                            end if
+                        else if not connection.eOK()
+                            print "[RokuPlus ts-relay diag] client_request_closed bytes="; len(requests[key]); " socketStatus="; connection.status()
+                            connection.close()
+                            connections.Delete(key)
+                            requests.Delete(key)
+                        end if
+                    end if
+                end if
             end if
         end if
     end while
+    for each key in connections
+        connections[key].close()
+    end for
     listener.close()
     m.top.status = "stopped"
     print "[RokuPlus ts-relay] stopped"
 end sub
 
-sub rpTsRelayServe(connection as object, server as object)
-    request = ""
-    complete = false
-    while len(request) < 8192 and not complete
-        part = connection.receiveStr(2048)
-        if part = "" then exit while
-        request += part
-        if instr(1,request,chr(13)+chr(10)+chr(13)+chr(10)) > 0 then complete = true
-    end while
-    if not complete
-        print "[RokuPlus ts-relay diag] client_request_incomplete bytes="; len(request); " socketStatus="; connection.status()
-        connection.close()
-        return
-    end if
+sub rpTsRelayServe(connection as object, server as object, request as string)
     connectionPort = CreateObject("roMessagePort")
     connection.setMessagePort(connectionPort)
     connection.notifyWritable(true)
