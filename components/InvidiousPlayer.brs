@@ -27,17 +27,16 @@ sub openRequest()
     media = CreateObject("roSGNode","ContentNode")
     media.url = request.url
     media.title = m.titleNode.text
-    media.streamFormat = "mp4"
     media.live = false
     streamFormat = "mp4"
     if request.doesExist("streamFormat") and request.streamFormat <> "" then streamFormat = lcase(request.streamFormat)
-    ' This standalone player intentionally supports progressive MP4 only.
-    if streamFormat <> "mp4"
-        m.statusNode.text = "Formato no compatible. Solo se permite MP4 H.264 + AAC."
+    ' Progressive muxed containers documented by Roku.
+    if streamFormat <> "mp4" and streamFormat <> "mkv" and streamFormat <> "webm"
+        m.statusNode.text = "Contenedor no compatible. Se permiten MP4, MKV y WebM progresivos."
         return
     end if
-    media.streamFormat = "mp4"
-    if streamFormat = "mp4"
+    media.streamFormat = streamFormat
+    if streamFormat = "mp4" or streamFormat = "mkv" or streamFormat = "webm"
         bitrate = 0
         if request.doesExist("bitrate") and request.bitrate <> invalid
             bitrate = val(request.bitrate.toStr())
