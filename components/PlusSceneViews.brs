@@ -404,6 +404,7 @@ sub homeScreen()
                 uri = item.background
                 if uri = "" then uri = item.poster
                 if uri <> "" then art(uri,x+8,continueY+40,260,146)
+                homeProgressOverlay(item,x+8,continueY+40,260,146)
                 if m.zone = "continue" and m.cover = i then panel(x+4,continueY+36,268,154,"0xFFFFFF20")
                 focusTarget("continue",i,x,continueY+32,276,162,"landscape")
             end if
@@ -428,6 +429,7 @@ sub homeScreen()
             if uri = "" then uri = item.poster
             if uri <> ""
                 banner = art(uri,x+8,m.discoveryRowY,260,146)
+                homeProgressOverlay(item,x+8,m.discoveryRowY,260,146)
                 m.discoveryPosters.push(banner)
             end if
             if i < 6
@@ -447,6 +449,7 @@ sub homeScreen()
                 uri = item.background
                 if uri = "" then uri = item.poster
                 if uri <> "" then art(uri,x+8,savedY+40,260,146)
+                homeProgressOverlay(item,x+8,savedY+40,260,146)
                 if m.zone = "home-list" and m.listCover = i then panel(x+4,savedY+36,268,154,"0xFFFFFF20")
                 focusTarget("home-list",i,x,savedY+32,276,162,"landscape")
             end if
@@ -1158,4 +1161,26 @@ sub paintFocus()
         end if
         entry.edge.visible = chosen
     end for
+end sub
+
+ 
+sub homeProgressOverlay(item as object, x as integer, y as integer, w as integer, h as integer)
+    if type(item) <> "roAssociativeArray" then return
+    if not item.doesExist("id") then return
+    itemId = orbitText(item.id,180)
+    if itemId = "" then return
+    saved = rpWatchGet(m.watchState,itemId)
+    if type(saved) <> "roAssociativeArray" then return
+    if not saved.doesExist("position") or not saved.doesExist("duration") then return
+    if saved.duration <= 0 or saved.position <= 15 or saved.position >= saved.duration*0.92 then return
+    ratio = saved.position / saved.duration
+    if ratio < 0 then ratio = 0
+    if ratio > 1 then ratio = 1
+    ' Draw inside the existing artwork bounds so the poster/banner size never changes.
+    barY = y+h-5
+    panel(x,barY,w,5,"0x171717E8")
+    fillW = int(w*ratio)
+    if fillW < 1 then fillW = 1
+    if fillW > w then fillW = w
+    panel(x,barY,fillW,5,"0xE50914FF")
 end sub
