@@ -68,11 +68,50 @@ sub rpTsRelayServe(connection as object, server as object)
     accessKey = server.accessKey
     requestPath = ""
     if parts.count() >= 2 then requestPath = parts[1]
-    if GetInterface(accessKey,"ifString") = invalid or len(accessKey) < 16 or requestPath <> "/stream.ts?key="+accessKey
+    queryStart = instr(1,requestPath,"?")
+    pathOnly = requestPath
+    query = ""
+    if queryStart > 0
+        pathOnly = left(requestPath,queryStart-1)
+        query = mid(requestPath,queryStart+1)
+    end if
+    suppliedKey = ""
+    requestedSegment = ""
+    queryValid = true
+    if query <> ""
+        for each parameter in query.split("&")
+            pair = parameter.split("=")
+            if pair.count() <> 2
+                queryValid = false
+                exit for
+            end if
+            if pair[0] = "key"
+                suppliedKey = pair[1]
+            else if pair[0] = "segment"
+                requestedSegment = pair[1]
+            else
+                queryValid = false
+                exit for
+            end if
+        end for
+    else
+        queryValid = false
+    end if
+    if GetInterface(accessKey,"ifString") = invalid or len(accessKey) < 16 or pathOnly <> "/stream.ts" or suppliedKey <> accessKey or not queryValid
         rpTsRelaySendString(connection,"HTTP/1.1 403 Forbidden"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
         connection.close()
         print "[RokuPlus ts-relay] rejected_client"
         return
+    end if
+    requestedIndex = -1
+    if requestedSegment <> ""
+        requestedIndex = requestedSegment.toInt()
+        if requestedIndex < 0 or requestedIndex.toStr() <> requestedSegment or requestedIndex >= server.segments.count()
+            rpTsRelaySendString(connection,"HTTP/1.1 400 Bad Request"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
+            connection.close()
+            print "[RokuPlus ts-relay] rejected_segment_request"
+            return
+        end if
     end if
     print "[RokuPlus ts-relay] client_connected"
     header = "HTTP/1.1 200 OK"+chr(13)+chr(10)
@@ -91,6 +130,8 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
+    if requestedIndex >= 0 then startIndex = requestedIndex
+    print "[RokuPlus ts-relay] stream_start segment="; startIndex
     for segmentIndex = startIndex to segments.count() - 1
         if server.stopRequested then exit for
         segmentUrl = segments[segmentIndex]
