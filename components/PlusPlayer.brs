@@ -1856,7 +1856,6 @@ sub onPulse()
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
     advanceTsRelayRestart(now)
-    advanceTsRelayLocalSeek(now)
     advanceSegmentRestart(now)
     advanceHlsSoftRestart(now)
     ' 3.5.55: sample native Video fields during HLS startup as well as normal playback.
@@ -2065,12 +2064,10 @@ end function
 sub beginTsRelaySeek(segmentIndex as integer, target as dynamic)
     if segmentIndex < 0 or segmentIndex >= m.tsRelaySegments.count() then return
     m.tsRelayPrerollRetryUsed = false
-    ' A TS segment may begin between video keyframes. Include up to three
-    ' preceding segments as decoder preroll before applying the local seek.
-    ' This gives the decoder more opportunity to encounter an IDR/random-access
-    ' frame when the immediately preceding segment is not independently decodable.
-    startSegmentIndex = segmentIndex - 3
-    if startSegmentIndex < 0 then startSegmentIndex = 0
+    ' Resume from the beginning of the target TS segment. The segment boundary
+    ' provides a nearby landing point; do not issue a native seek on the relay
+    ' connection because this HTTP endpoint does not implement byte ranges.
+    startSegmentIndex = segmentIndex
     m.tsRelayRestartSegment = startSegmentIndex
     m.tsRelayRestartStage = 1
     m.tsRelayRestartAt = m.monotonic.totalMilliseconds() + 450
@@ -2113,6 +2110,12 @@ sub advanceTsRelayRestart(now as integer)
         m.tsRelayRestartStage = 0
         return
     end if
+    ' The relay can only restart at a segment boundary. Verify against that
+    ' actual landing point while retaining the originally requested position
+    ' for diagnostics and user-facing context.
+    if m.ticket.doesExist("requestedTarget") = false then m.ticket.requestedTarget = m.ticket.target
+    m.ticket.target = relayOffset
+    m.tsRelayLocalSeekPending = invalid
     m.tsRelayPositionOffset = relayOffset
     relayMedia = CreateObject("roSGNode","ContentNode")
     relayMedia.url = "http://" + m.tsRelayLocalIp + ":49322/stream.ts?key=" + m.tsRelayAccessKey + "&segment=" + m.tsRelayRestartSegment.toStr()
@@ -2125,10 +2128,7 @@ sub advanceTsRelayRestart(now as integer)
     m.decoder.content = relayMedia
     m.decoder.autoplayAfterSeek = not m.wantPaused
     m.decoder.control = "play"
-    localTarget = plusClockValue(m.ticket.target) - relayOffset
-    if localTarget < 0 then localTarget = 0.0
-    m.tsRelayLocalSeekPending = {target:localTarget,segment:m.tsRelayRestartSegment,createdAt:m.monotonic.totalMilliseconds(),clockWaitStartedAt:0,lastPosition:invalid,advanceCount:0,firstPosition:invalid}
-    print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment; " localTarget="; localTarget
+    print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment; " landingOffset="; relayOffset; " requestedTarget="; m.ticket.requestedTarget
     emitDiagnostic("ts_relay_seek_restart")
     m.tsRelayRestartStage = 0
     m.tsRelayRestartAt = 0
@@ -2300,7 +2300,9 @@ sub verifySeekResult()
     nativePosition = plusClockValue(m.decoder.position)
     candidate = plusSeekLanding(m.ticket,p,sample.video,now,state,nativePosition)
     if not candidate.ready then return
-    result = {id: m.ticket.id, requested: m.ticket.target, observed: p, difference: p - m.ticket.target, pauseRequested: m.ticket.paused, state: state}
+    requestedTarget = m.ticket.target
+    if m.ticket.doesExist("requestedTarget") then requestedTarget = m.ticket.requestedTarget
+    result = {id: m.ticket.id, requested: requestedTarget, observed: p, difference: p - m.ticket.target, pauseRequested: m.ticket.paused, state: state}
     result.withinOneSecond = abs(result.difference) <= 1
     m.ticket.result = result
     isResumeSeek = false
