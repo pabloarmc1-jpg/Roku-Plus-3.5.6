@@ -2258,7 +2258,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
             if key = "right" and m.features.count() > 0 then m.hero = 1
             if key = "up" then m.zone = "nav": drawScreen(): return true
-            if key = "down" then m.zone = "covers"
+            if key = "down"
+                if m.continueItems.count() > 0 then m.zone = "continue" else m.zone = "covers"
+                m.cover = 0
+            end if
             if key = "OK"
                 if m.features.count() > 0 then openDetails(m.features[m.heroFeature],"home",m.hero=0) else refreshHome(): drawScreen()
                 return true
@@ -2268,14 +2271,13 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 if m.cover > 0 then m.cover-- else m.zone = "nav": drawScreen(): return true
             end if
             if key = "right" and m.cover < 3 and m.cover+1 < m.features.count() then m.cover++
-            if key = "up" then m.zone = "hero"
+            if key = "up"
+                if m.continueItems.count() > 0 then m.zone = "continue" else m.zone = "hero"
+            end if
             if key = "down"
                 if m.homeListItems.count() > 0
                     m.zone = "home-list"
                     m.listCover = 0
-                else if m.continueItems.count() > 0
-                    m.zone = "continue"
-                    m.cover = 0
                 else if m.homeSeries.count() > 0
                     m.zone = "home-series"
                     m.seriesCover = 0
@@ -2289,10 +2291,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "right" and m.listCover < m.homeListItems.count()-1 and m.listCover < 2 then m.listCover++
             if key = "up" then m.zone = "covers"
             if key = "down"
-                if m.continueItems.count() > 0
-                    m.zone = "continue"
-                    m.cover = 0
-                else if m.homeSeries.count() > 0
+                if m.homeSeries.count() > 0
                     m.zone = "home-series"
                     m.seriesCover = 0
                 end if
@@ -2308,9 +2307,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 if m.cover > 0 then m.cover-- else m.zone = "nav": drawScreen(): return true
             end if
             if key = "right" and m.cover < m.continueItems.count()-1 and m.cover < 2 then m.cover++
-            if key = "up"
-                if m.homeListItems.count() > 0 then m.zone = "home-list" else m.zone = "covers"
-            end if
+            if key = "up" then m.zone = "hero"
+            if key = "down" then m.zone = "covers"
             if key = "OK" and m.cover < m.continueItems.count()
                 saved = m.continueItems[m.cover]
                 if type(saved) <> "roAssociativeArray" then return true
@@ -2402,7 +2400,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
             if key = "right" and m.seriesCover < 2 and m.seriesCover+1 < m.homeSeries.count() then m.seriesCover++
             if key = "up"
-                if m.continueItems.count() > 0 then m.zone = "continue" else if m.homeListItems.count() > 0 then m.zone = "home-list" else m.zone = "covers"
+                if m.homeListItems.count() > 0 then m.zone = "home-list" else m.zone = "covers"
             end if
             if key = "OK" and m.homeSeries.count() > 0 then openDetails(m.homeSeries[m.seriesCover],"home"): return true
         end if
