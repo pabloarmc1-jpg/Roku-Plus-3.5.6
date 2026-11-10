@@ -555,7 +555,7 @@ sub libraryScreen()
 end sub
 
 sub browseScreen()
-    ' Horizontal poster carousel: artwork fills the complete focus surface.
+    ' Two-row poster carousel: ten titles remain visible while navigating.
     browseBackdrop = ""
     if m.cursor >= 0 and m.cursor < m.titles.count()
         selectedBackdrop = m.titles[m.cursor]
@@ -578,84 +578,86 @@ sub browseScreen()
         end if
     end if
     if m.query <> "" then title = "Resultados: " + m.query
-    words(title,252,135,1500,72,46,"0xFFFFFFFF").wrap = true
-    hint = "Carrusel · ◀ ▶ para recorrer · OK para abrir la ficha"
-    if m.query <> "" then hint = "Resultados combinados de películas y series · ◀ ▶ para recorrer"
+    words(title,252,112,1500,64,42,"0xFFFFFFFF").wrap = true
+    hint = "Carrusel · ◀ ▶ recorrer · ↑ ↓ cambiar fila · OK abrir ficha"
+    if m.query <> "" then hint = "Resultados combinados · ◀ ▶ recorrer · ↑ ↓ cambiar fila"
     if m.genreFilter <> "Todos" then hint += " · Género: "+m.genreFilter
-    words(hint,256,208,1480,42,22,"0xB3B3B3FF").wrap = true
-    words("OPTIONS: filtrar por género",256,245,720,28,17,"0x888888FF")
+    words(hint,256,177,1480,34,20,"0xB3B3B3FF").wrap = true
+    words("REPLAY: filtrar por género",256,214,720,26,17,"0x888888FF")
 
-    first = (m.cursor \ 5)*5
+    first = (m.cursor \ 10)*10
     cardX = 252
-    cardY = 300
     posterW = 292
-    posterH = 390
-    for i = 0 to 4
-        n = first+i
-        if n < m.titles.count()
-            item = m.titles[n]
-            x = cardX+i*316
-            uri = orbitText(item.poster,2048)
-            if uri = "" then uri = orbitText(item.background,2048)
-            if uri <> ""
-                if m.catalogFadePending
-                    poster = art(uri,x,cardY,posterW,posterH)
-                    poster.opacity = 0.0
-                    poster.translation = [28,0]
-                    poster.observeField("loadStatus","catalogPosterLoadStatusChanged")
-                    fadeEntry = {poster:poster,ready:false,done:false,step:0,delay:i}
-                    m.catalogFadePosters.push(fadeEntry)
-                    if poster.loadStatus = "ready"
-                        poster.unobserveField("loadStatus")
-                        fadeEntry.ready = true
-                        m.catalogFadeTimer.control = "start"
+    posterH = 250
+    for row = 0 to 1
+        cardY = 258+row*365
+        for col = 0 to 4
+            n = first+row*5+col
+            if n < m.titles.count()
+                item = m.titles[n]
+                x = cardX+col*316
+                uri = orbitText(item.poster,2048)
+                if uri = "" then uri = orbitText(item.background,2048)
+                if uri <> ""
+                    if m.catalogFadePending
+                        poster = art(uri,x,cardY,posterW,posterH)
+                        poster.opacity = 0.0
+                        poster.translation = [28,0]
+                        poster.observeField("loadStatus","catalogPosterLoadStatusChanged")
+                        fadeEntry = {poster:poster,ready:false,done:false,step:0,delay:col+row*5}
+                        m.catalogFadePosters.push(fadeEntry)
+                        if poster.loadStatus = "ready"
+                            poster.unobserveField("loadStatus")
+                            fadeEntry.ready = true
+                            m.catalogFadeTimer.control = "start"
+                        end if
+                    else
+                        art(uri,x,cardY,posterW,posterH)
                     end if
                 else
-                    art(uri,x,cardY,posterW,posterH)
+                    panel(x,cardY,posterW,posterH,"0x25252BFF")
                 end if
-            else
-                panel(x,cardY,posterW,posterH,"0x25252BFF")
-            end if
 
-            saved = rpWatchGet(m.watchState,item.id)
-            if saved <> invalid
-                if saved.watched
-                    panel(x+10,cardY+10,92,26,"0x080808D8")
-                    words("✓ VISTA",x+16,cardY+13,82,19,13,"0xFFFFFFFF")
-                else if saved.listed
-                    panel(x+10,cardY+10,108,26,"0x080808D8")
-                    words("♥ MI LISTA",x+16,cardY+13,98,19,13,"0xFFFFFFFF")
+                saved = rpWatchGet(m.watchState,item.id)
+                if saved <> invalid
+                    if saved.watched
+                        panel(x+10,cardY+10,92,26,"0x080808D8")
+                        words("✓ VISTA",x+16,cardY+13,82,19,13,"0xFFFFFFFF")
+                    else if saved.listed
+                        panel(x+10,cardY+10,108,26,"0x080808D8")
+                        words("♥ MI LISTA",x+16,cardY+13,98,19,13,"0xFFFFFFFF")
+                    end if
+                end if
+                homeProgressOverlay(item,x,cardY,posterW,posterH)
+                focusTarget("grid",n,x-6,cardY-6,posterW+12,posterH+12,"catalog")
+                label = words(item.title,x,cardY+posterH+9,posterW,58,20,"0xFFFFFFFF")
+                label.wrap = true
+                if m.query <> ""
+                    kindLabel = "PELÍCULA"
+                    if item.kind = "series" then kindLabel = "SERIE"
+                    words(kindLabel,x,cardY+posterH+65,posterW,18,13,"0xB3B3B3FF")
                 end if
             end if
-            homeProgressOverlay(item,x,cardY,posterW,posterH)
-            focusTarget("grid",n,x-6,cardY-6,posterW+12,posterH+12,"catalog")
-            label = words(item.title,x,cardY+posterH+14,posterW,64,22,"0xFFFFFFFF")
-            label.wrap = true
-            if m.query <> ""
-                kindLabel = "PELÍCULA"
-                if item.kind = "series" then kindLabel = "SERIE"
-                words(kindLabel,x,cardY+posterH+78,posterW,22,14,"0xB3B3B3FF")
-            end if
-        end if
+        end for
     end for
     m.catalogFadePending = false
 
-    last = first+5
+    last = first+10
     if last > m.titles.count() then last = m.titles.count()
     if last > first
         caption = "Títulos "+(m.offset+first+1).toStr()+"–"+(m.offset+last).toStr()
         if usesOnlineHd() and (m.hdProvider = "all" or m.hdProvider = "seriesmetro" or m.hdProvider = "cinecalidad") then caption = "Opciones "+(first+1).toStr()+"–"+last.toStr()+" · Página "+((m.offset\20)+1).toStr()
-        words(caption,256,1015,1000,34,19,"0x808080FF")
+        words(caption,256,1008,1000,30,18,"0x808080FF")
     end if
     if m.titles.count() = 0 and not m.busy
         empty = "No se encontraron títulos."
-        if m.genreFilter <> "Todos" then empty = "No hay títulos de " + m.genreFilter + " en esta página. Pulsa OPTIONS para cambiar el filtro."
+        if m.genreFilter <> "Todos" then empty = "No hay títulos de "+m.genreFilter+". Pulsa REPLAY para cambiar el filtro."
         if m.more then empty = "Sin opciones en esta página. Pulsa → para consultar la siguiente."
         words(empty,272,420,1410,104,32,"0xB6B6B6FF").wrap = true
     end if
-    hint = "▶ Siguiente"
-    if first+5 >= m.titles.count() and not m.more then hint = "Fin del catálogo"
-    words(hint,1330,1015,500,34,19,"0xB3B3B3FF").horizAlign = "right"
+    nextHint = "▶ Siguiente"
+    if first+10 >= m.titles.count() and not m.more then nextHint = "Fin del catálogo"
+    words(nextHint,1330,1008,500,30,18,"0xB3B3B3FF").horizAlign = "right"
 end sub
 
 sub detailSelectable(index as integer, text as string, x as integer, y as integer, w as integer, h as integer, primary = false as boolean, icon = "" as string)

@@ -2323,6 +2323,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
         end if
     end if
+    if (key = "replay" or key = "instantreplay" or key = "reload") and m.view = "browse"
+        openGenreFilter()
+        return true
+    end if
     if key = "info" and m.view = "browse"
         openGenreFilter()
         return true
@@ -2680,13 +2684,30 @@ if m.view = "profiles"
                 loadBrowsePage(m.nextOffset)
                 return true
             end if
-        else if key = "up" or key = "rewind"
+        else if key = "up"
+            if m.cursor >= 5
+                m.cursor -= 5
+            else
+                m.zone = "nav"
+                m.nav = 1
+                if m.kind = "series" then m.nav = 2
+                drawScreen()
+                return true
+            end if
+        else if key = "down"
+            if m.cursor+5 < m.titles.count()
+                m.cursor += 5
+            else if m.more
+                loadBrowsePage(m.nextOffset)
+                return true
+            end if
+        else if key = "rewind"
             m.zone = "nav"
             m.nav = 1
             if m.kind = "series" then m.nav = 2
             drawScreen()
             return true
-        else if key = "down" or key = "fastforward"
+        else if key = "fastforward"
             if m.cursor+1 < m.titles.count()
                 m.cursor++
             else if m.more
