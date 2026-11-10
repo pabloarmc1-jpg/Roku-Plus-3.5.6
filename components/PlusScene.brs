@@ -836,7 +836,7 @@ sub refreshSearchSuggestions()
     m.searchSuggestions = []
     query = lcase(m.searchText.trim())
     if query = "" then return
-    pools = [m.features,m.homeSeries,m.homeListItems,m.continueItems]
+    pools = [m.features,m.homeSeries,m.homeListItems,m.continueItems,m.pageTitles]
     for each pool in pools
         if type(pool) = "roArray"
             for each item in pool
@@ -2018,7 +2018,15 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "right" and m.searchCursor < 2 then m.searchCursor++
             if key = "down" then m.zone = "search-key": m.searchCursor = 0
             if key = "OK"
-                if m.searchCursor = 0 then submitGlobalSearch() else if m.searchCursor = 1 then closeSearchKeyboard() else closeSearchKeyboard()
+                if m.searchCursor = 0
+                    submitGlobalSearch()
+                else if m.searchCursor = 1
+                    closeSearchKeyboard()
+                else
+                    if len(m.searchText) < 120 then m.searchText += " "
+                    refreshSearchSuggestions()
+                    drawScreen()
+                end if
                 return true
             end if
             if key = "up" and m.searchSuggestions.count() > 0 then m.zone = "search-suggestion": m.searchCursor = 0
