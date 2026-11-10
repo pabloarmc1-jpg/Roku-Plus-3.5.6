@@ -1739,6 +1739,10 @@ sub beginTsRelayFallback(now as integer)
     m.tsRelayActive = false
     m.tsRelayPending = false
     m.tsRelayMode = false
+    if m.decoder.hasField("enableDecoderStats")
+        m.decoder.enableDecoderStats = true
+        print "[RokuPlus hls-relay] fallback_decoder_stats=enabled"
+    end if
     m.mediaNode = m.tsRelayFallbackMedia
     m.tsRelayFallbackMedia = invalid
     m.hlsStartupIsolation = true
