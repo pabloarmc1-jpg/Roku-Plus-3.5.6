@@ -2649,8 +2649,8 @@ if m.view = "profiles" then m.zone = "profiles"
         end if
         if key = "right" and m.cursor mod 4 < 3 and m.cursor+1 < m.titles.count() then m.cursor++
         if key = "up" or key = "rewind"
-            if m.cursor >= 5
-                m.cursor -= 5
+            if m.cursor >= 4
+                m.cursor -= 4
             else if m.offset > 0
                 previous = m.offset-20
                 if previous < 0 then previous = 0
@@ -2665,8 +2665,8 @@ if m.view = "profiles" then m.zone = "profiles"
             end if
         end if
         if key = "down" or key = "fastforward"
-            if m.cursor+5 < m.titles.count()
-                m.cursor += 5
+            if m.cursor+4 < m.titles.count()
+                m.cursor += 4
             else if m.more
                 loadBrowsePage(m.nextOffset)
                 return true
