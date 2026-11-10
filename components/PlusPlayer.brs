@@ -446,6 +446,7 @@ sub openRequest()
 
     if m.tsRelayMode
         m.tsStreamServer.segments = m.tsRelaySegments
+        m.tsStreamServer.timeline = m.tsRelayTimeline
         m.tsStreamServer.mediaHeaders = supplied.mediaHeaders
         m.tsRelayAccessKey = CreateObject("roDeviceInfo").getRandomUUID()
         m.tsStreamServer.accessKey = m.tsRelayAccessKey
@@ -1811,9 +1812,9 @@ sub onPulse()
                 return
             end if
             relayMedia = CreateObject("roSGNode","ContentNode")
-            relayMedia.url = "http://" + localIp + ":49322/stream.ts?key=" + m.tsRelayAccessKey
+            relayMedia.url = "http://" + localIp + ":49322/playlist.m3u8?key=" + m.tsRelayAccessKey
             relayMedia.title = m.titleText.text
-            relayMedia.streamFormat = "ts"
+            relayMedia.streamFormat = "hls"
             relayMedia.live = false
             relayMedia.httpHeaders = CreateObject("roArray",0,true)
             m.mediaNode = relayMedia
@@ -1822,7 +1823,7 @@ sub onPulse()
             m.decoder.control = "play"
             m.tsRelayPending = false
             m.tsRelayActive = true
-            print "[RokuPlus ts-relay] player_attached format=ts segments="; m.tsRelaySegments.count()
+            print "[RokuPlus hls-relay] player_attached format=hls segments="; m.tsRelaySegments.count()
             emitDiagnostic("ts_relay_attached")
         else if relayStatus = "address_error" or relayStatus = "bind_error" or relayStatus = "listen_error" or nowRelay - m.tsRelayStartedAt >= 10000
             m.tsRelayPending = false
