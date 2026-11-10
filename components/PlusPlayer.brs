@@ -469,6 +469,15 @@ sub openRequest()
         m.tsRelayFallbackMedia = nativeFallback
         print "[RokuPlus hls-relay] fallback_source_saved format=hls"
 
+        ' Query the actual device decoder instead of assuming that every Roku
+        ' model supports the H.264 profile reported by the transport stream.
+        deviceInfo = CreateObject("roDeviceInfo")
+        h264Capability = deviceInfo.CanDecodeVideo({codec:"h264",profile:"high",level:"3.1"})
+        if type(h264Capability) = "roAssociativeArray"
+            print "[RokuPlus codec diag] h264_high_3_1 result="; h264Capability.result; " updated="; h264Capability.updated
+        else
+            print "[RokuPlus codec diag] h264_high_3_1 result=unavailable"
+        end if
         m.tsStreamServer.segments = m.tsRelaySegments
         m.tsStreamServer.timeline = m.tsRelayTimeline
         m.tsStreamServer.mediaHeaders = supplied.mediaHeaders
