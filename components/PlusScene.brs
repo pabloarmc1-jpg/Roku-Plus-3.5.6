@@ -562,15 +562,20 @@ end sub
 
 sub toggleCurrentWatch(field as string)
     if m.detail = invalid then return
-    m.watchState = rpWatchToggle(m.watchState,m.detail,field)
+    toggleWatchItem(m.detail,field)
+end sub
+
+sub toggleWatchItem(item as object, field as string)
+    if type(item) <> "roAssociativeArray" then return
+    if not item.doesExist("id") then return
+    m.watchState = rpWatchToggle(m.watchState,item,field)
     rpWatchSave(m.watchState,m.profileId)
     m.continueItems = rpWatchContinue(m.watchState)
     refreshHomeListItems()
+    record = rpWatchGet(m.watchState,item.id)
     if field = "watched"
-        record = rpWatchGet(m.watchState,m.detail.id)
         if record <> invalid and record.watched then m.note = "Marcada como vista." else m.note = "Marcada como no vista."
     else
-        record = rpWatchGet(m.watchState,m.detail.id)
         if record <> invalid and record.listed then m.note = "Añadida a Mi lista." else m.note = "Eliminada de Mi lista."
     end if
     drawScreen()
@@ -1853,6 +1858,31 @@ function onKeyEvent(key as string, press as boolean) as boolean
         if key = "down" and m.hdSourceCursor+1 < hdProviderChoices().count() then m.hdSourceCursor++
         if key = "OK" then commitHdSource(): return true
         paintFocus()
+        return true
+    end if
+    ' Roku remote * is reported as the "options" key.
+    ' On Home it opens search; in movie/series grids it toggles Mi lista.
+    if key = "options" or key = "*"
+        if m.view = "home"
+            openSearch()
+            return true
+        end if
+        if m.view = "browse" and m.titles.count() > 0 and m.cursor >= 0 and m.cursor < m.titles.count()
+            toggleWatchItem(m.titles[m.cursor],"listed")
+            return true
+        end if
+        if m.view = "episodes" and m.episodeMode = "episodes" and m.series <> invalid
+            if m.season >= 0 and m.season < m.series.seasons.count()
+                episodes = m.series.seasons[m.season].episodes
+                if m.episode >= 0 and m.episode < episodes.count()
+                    toggleWatchItem(episodes[m.episode],"listed")
+                    return true
+                end if
+            end if
+        end if
+    end if
+    if key = "info" and m.view = "browse"
+        openGenreFilter()
         return true
     end if
     if key = "options" or key = "info"
