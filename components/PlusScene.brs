@@ -108,7 +108,12 @@ sub init()
     m.theme = rpLoadTheme()
     m.themeCursor = 0
     m.hdSourceCursor = 0
-    m.hdLibrary = rpHdLibrary()
+    ' Local file access and JSON parsing run in a Task, never on the Render thread.
+    m.hdLibrary = {movies: [], series: []}
+    m.creditsText = ""
+    m.hdDataTask = CreateObject("roSGNode", "HdLocalDataTask")
+    m.hdDataTask.observeField("result", "hdLocalDataLoaded")
+    m.hdDataTask.control = "RUN"
     m.features = []
     m.homeSeries = []
     m.homeJobs = []
@@ -124,6 +129,21 @@ sub init()
     end if
     drawScreen()
     m.top.setFocus(true)
+end sub
+
+sub hdLocalDataLoaded(event as object)
+    if m.hdDataTask = invalid then return
+    if not m.hdDataTask.isSameNode(event.getRoSGNode()) then return
+    answer = event.getData()
+    m.hdDataTask.unobserveField("result")
+    m.hdDataTask = invalid
+    if type(answer) <> "roAssociativeArray" then return
+    if type(answer.library) = "roAssociativeArray" then m.hdLibrary = answer.library
+    if GetInterface(answer.creditsText, "ifString") <> invalid then m.creditsText = answer.creditsText
+    if m.catalogMode = "hd" and not usesOnlineHd()
+        refreshHome()
+        drawScreen()
+    end if
 end sub
 
 function timeText(seconds as integer) as string
@@ -1427,7 +1447,7 @@ end sub
 
 sub openCredits()
     m.creditsPages = []
-    text = ReadAsciiFile("pkg:/CREDITS-HD.txt")
+    text = m.creditsText
     page = ""
     for each line in text.split(chr(10))
         if len(page)+len(line) > 1250
