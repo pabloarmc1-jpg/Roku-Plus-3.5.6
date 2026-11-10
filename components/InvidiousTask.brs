@@ -46,27 +46,14 @@ sub runInvidiousRequest()
             response = invidiousDownload(endpoint)
             if response.ok
                 parsed = ParseJson(response.body)
-                chosen = invalid
-                if type(parsed) = "roAssociativeArray" and type(parsed.formatStreams) = "roArray"
-                    for each stream in parsed.formatStreams
-                        if type(stream) = "roAssociativeArray" and stream.doesExist("url") and stream.doesExist("container")
-                            container = lcase(stream.container)
-                            streamUrl = stream.url
-                            streamType = ""
-                            if stream.doesExist("type") then streamType = lcase(stream.type)
-                            if container = "mp4" and GetInterface(streamUrl,"ifString") <> invalid and left(streamUrl,8) = "https://" and (streamType = "" or instr(1,streamType,"video/mp4") > 0)
-                                chosen = streamUrl
-                                exit for
-                            end if
-                        end if
-                    end for
-                end if
-                if chosen <> invalid
-                    answer.url = chosen
+                selected = invidiousSelectStream(parsed)
+                if selected <> invalid
+                    answer.url = selected.url
+                    answer.streamFormat = selected.streamFormat
                     answer.ok = true
                     answer.message = ""
                 else
-                    answer.message = "Este video no ofrece un MP4 directo compatible en la instancia. Prueba otro resultado."
+                    answer.message = "La instancia no entregó un MP4 o HLS reproducible para este video. Prueba otro resultado."
                 end if
             else
                 answer.message = response.message
@@ -75,6 +62,57 @@ sub runInvidiousRequest()
     end if
     if not m.top.cancelRequested then m.top.result = answer
 end sub
+
+function invidiousSelectStream(parsed as dynamic) as dynamic
+    if type(parsed) <> "roAssociativeArray" then return invalid
+    chosenUrl = ""
+    chosenFormat = ""
+    bestScore = -999999
+    streams = invalid
+    if parsed.doesExist("formatStreams") and type(parsed.formatStreams) = "roArray" then streams = parsed.formatStreams
+    if type(streams) = "roArray"
+        for each stream in streams
+            if type(stream) <> "roAssociativeArray" then continue for
+            if not stream.doesExist("url") or not stream.doesExist("container") then continue for
+            streamUrl = stream.url
+            if GetInterface(streamUrl,"ifString") = invalid or left(streamUrl,8) <> "https://" then continue for
+            if lcase(stream.container) <> "mp4" then continue for
+            streamType = ""
+            if stream.doesExist("type") then streamType = lcase(stream.type)
+            if streamType <> "" and instr(1,streamType,"video/mp4") = 0 then continue for
+            score = 100
+            if instr(1,streamType,"avc1") > 0 then score = score + 35
+            if instr(1,streamType,"mp4a") > 0 then score = score + 30
+            if instr(1,streamType,"av01") > 0 or instr(1,streamType,"vp09") > 0 then score = score - 100
+            qualityText = ""
+            if stream.doesExist("qualityLabel") then qualityText = stream.qualityLabel
+            if qualityText = "" and stream.doesExist("quality") then qualityText = stream.quality
+            height = val(qualityText)
+            if height = 0 and stream.doesExist("resolution")
+                dimensions = stream.resolution.split("x")
+                if dimensions.count() = 2 then height = val(dimensions[1])
+            end if
+            if height > 0
+                if height > 720 then score = score - ((height - 720) / 10)
+                else score = score + (height / 10)
+            end if
+            if score > bestScore
+                bestScore = score
+                chosenUrl = streamUrl
+                chosenFormat = "mp4"
+            end if
+        end for
+    end if
+    if chosenUrl <> "" then return {url:chosenUrl,streamFormat:chosenFormat}
+    ' HLS is a useful fallback for live streams when the instance exposes it.
+    if parsed.doesExist("hlsUrl")
+        hlsUrl = parsed.hlsUrl
+        if GetInterface(hlsUrl,"ifString") <> invalid and left(hlsUrl,8) = "https://"
+            return {url:hlsUrl,streamFormat:"hls"}
+        end if
+    end if
+    return invalid
+end function
 
 function invidiousDownload(endpoint as string) as object
     reply = {ok:false,body:"",message:"No se pudo conectar con la instancia Invidious."}
