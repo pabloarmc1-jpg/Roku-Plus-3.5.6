@@ -2663,19 +2663,9 @@ if m.view = "profiles"
         end if
     else if m.view = "browse"
         previousCursor = m.cursor
-        window = m.cursor \ 8
         if key = "left"
-            if m.cursor mod 4 > 0 then m.cursor-- else m.zone = "nav": drawScreen(): return true
-        end if
-        if key = "right" and m.cursor mod 4 < 3 and m.cursor+1 < m.titles.count() then m.cursor++
-        if key = "up" or key = "rewind"
-            if m.cursor >= 4
-                m.cursor -= 4
-            else if m.offset > 0
-                previous = m.offset-20
-                if previous < 0 then previous = 0
-                loadBrowsePage(previous,true)
-                return true
+            if m.cursor > 0
+                m.cursor--
             else
                 m.zone = "nav"
                 m.nav = 1
@@ -2683,17 +2673,29 @@ if m.view = "profiles"
                 drawScreen()
                 return true
             end if
-        end if
-        if key = "down" or key = "fastforward"
-            if m.cursor+4 < m.titles.count()
-                m.cursor += 4
+        else if key = "right"
+            if m.cursor+1 < m.titles.count()
+                m.cursor++
+            else if m.more
+                loadBrowsePage(m.nextOffset)
+                return true
+            end if
+        else if key = "up" or key = "rewind"
+            m.zone = "nav"
+            m.nav = 1
+            if m.kind = "series" then m.nav = 2
+            drawScreen()
+            return true
+        else if key = "down" or key = "fastforward"
+            if m.cursor+1 < m.titles.count()
+                m.cursor++
             else if m.more
                 loadBrowsePage(m.nextOffset)
                 return true
             end if
         end if
         if key = "OK" and m.titles.count() > 0 then openDetails(m.titles[m.cursor],"browse"): return true
-        if window <> m.cursor \ 8 or previousCursor <> m.cursor then drawScreen(): return true
+        if previousCursor <> m.cursor then drawScreen(): return true
     else if m.view = "detail"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up"

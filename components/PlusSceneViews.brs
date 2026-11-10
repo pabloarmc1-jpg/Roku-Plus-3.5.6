@@ -555,7 +555,7 @@ sub libraryScreen()
 end sub
 
 sub browseScreen()
-    ' The selected movie or series supplies a cinematic, changing backdrop.
+    ' Horizontal poster carousel: artwork fills the complete focus surface.
     browseBackdrop = ""
     if m.cursor >= 0 and m.cursor < m.titles.count()
         selectedBackdrop = m.titles[m.cursor]
@@ -563,8 +563,9 @@ sub browseScreen()
         if browseBackdrop = "" then browseBackdrop = orbitText(selectedBackdrop.poster,2048)
     end if
     if browseBackdrop <> "" then art(browseBackdrop,0,0,1920,1080)
-    panel(0,0,1920,1080,"0x080808D8")
+    panel(0,0,1920,1080,"0x080808E8")
     topBar()
+
     title = "Películas populares"
     if m.kind = "series" then title = "Series populares"
     if m.catalogMode = "hd"
@@ -578,32 +579,27 @@ sub browseScreen()
     end if
     if m.query <> "" then title = "Resultados: " + m.query
     words(title,252,135,1500,72,46,"0xFFFFFFFF").wrap = true
-    hint = "Explora el catálogo y selecciona un título para ver sus detalles."
-    if m.query <> "" then hint = "Resultados combinados de películas y series. Selecciona uno para abrir su ficha."
-    if m.query = "" and usesOnlineHd() and m.hdProvider = "all" then hint = "Opciones de varias fuentes. Si una falla, prueba la misma película en otra."
-    words(hint,256,208,1185,42,22,"0xB3B3B3FF").wrap = true
-    searchHint = "Buscar con OK en Buscar"
-    if m.genreFilter <> "Todos" then searchHint = "Género: " + m.genreFilter
-    words(searchHint,1260,210,577,38,19,"0xE5E5E5FF").horizAlign = "right"
+    hint = "Carrusel · ◀ ▶ para recorrer · OK para abrir la ficha"
+    if m.query <> "" then hint = "Resultados combinados de películas y series · ◀ ▶ para recorrer"
+    if m.genreFilter <> "Todos" then hint += " · Género: "+m.genreFilter
+    words(hint,256,208,1480,42,22,"0xB3B3B3FF").wrap = true
     words("OPTIONS: filtrar por género",256,245,720,28,17,"0x888888FF")
 
-    ' Four columns by two rows. Each visible window contains exactly eight cards.
-    ' The remote cursor and the rendered window use the same eight-item stride.
-    first = (m.cursor \ 8)*8
-    for i = 0 to 7
+    first = (m.cursor \ 5)*5
+    cardX = 252
+    cardY = 300
+    posterW = 292
+    posterH = 390
+    for i = 0 to 4
         n = first+i
         if n < m.titles.count()
             item = m.titles[n]
-            col = i mod 4
-            row = i \ 4
-            x = 252+col*410
-            y = 270+row*360
-            uri = item.poster
-            if uri = "" then uri = item.background
-            panel(x,y,380,344,"0x15151500")
+            x = cardX+i*316
+            uri = orbitText(item.poster,2048)
+            if uri = "" then uri = orbitText(item.background,2048)
             if uri <> ""
                 if m.catalogFadePending
-                    poster = art(uri,x+81,y+7,218,276,"scaleToFit")
+                    poster = art(uri,x,cardY,posterW,posterH)
                     poster.opacity = 0.0
                     poster.translation = [28,0]
                     poster.observeField("loadStatus","catalogPosterLoadStatusChanged")
@@ -615,44 +611,36 @@ sub browseScreen()
                         m.catalogFadeTimer.control = "start"
                     end if
                 else
-                    thumbnail(uri,x+81,y+7,218,276,"poster")
+                    art(uri,x,cardY,posterW,posterH)
+                end if
+            else
+                panel(x,cardY,posterW,posterH,"0x25252BFF")
+            end if
+
+            saved = rpWatchGet(m.watchState,item.id)
+            if saved <> invalid
+                if saved.watched
+                    panel(x+10,cardY+10,92,26,"0x080808D8")
+                    words("✓ VISTA",x+16,cardY+13,82,19,13,"0xFFFFFFFF")
+                else if saved.listed
+                    panel(x+10,cardY+10,108,26,"0x080808D8")
+                    words("♥ MI LISTA",x+16,cardY+13,98,19,13,"0xFFFFFFFF")
                 end if
             end if
-            words(item.title,x+8,y+288,364,42,21,"0xFFFFFFFF").wrap = true
+            homeProgressOverlay(item,x,cardY,posterW,posterH)
+            focusTarget("grid",n,x-6,cardY-6,posterW+12,posterH+12,"catalog")
+            label = words(item.title,x,cardY+posterH+14,posterW,64,22,"0xFFFFFFFF")
+            label.wrap = true
             if m.query <> ""
                 kindLabel = "PELÍCULA"
                 if item.kind = "series" then kindLabel = "SERIE"
-                panel(x+10,y+10,92,25,"0x080808DD")
-                words(kindLabel,x+15,y+13,82,18,12,"0xFFFFFFFF")
+                words(kindLabel,x,cardY+posterH+78,posterW,22,14,"0xB3B3B3FF")
             end if
-            saved = rpWatchGet(m.watchState,item.id)
-            status = ""
-            if saved <> invalid
-                if saved.watched then status = "✓ VISTA"
-                if saved.listed
-                    if status <> "" then status += "  ·  "
-                    status += "♥ MI LISTA"
-                end if
-                if saved.position > 15 and saved.duration > 0 and saved.position < saved.duration*0.92
-                    ratio = saved.position / saved.duration
-                    if ratio < 0 then ratio = 0
-                    if ratio > 1 then ratio = 1
-                    progressPercent = Int(ratio * 100)
-                    remainingSeconds = Int(saved.duration - saved.position)
-                    if saved.watched <> true
-                        status = "▶ "+progressPercent.toStr()+"% · "+timeText(remainingSeconds)
-                        if saved.listed then status += " · ♥"
-                    end if
-                    panel(x+12,y+337,306,4,"0x777777FF")
-                    panel(x+12,y+337,306*ratio,4,"0xFFFFFFFF")
-                end if
-            end if
-            if status <> "" then words(status,x+8,y+326,364,22,14,"0xFFFFFFFF")
-            focusTarget("grid",n,x-5,y-5,390,354,"catalog")
         end if
     end for
     m.catalogFadePending = false
-    last = first+8
+
+    last = first+5
     if last > m.titles.count() then last = m.titles.count()
     if last > first
         caption = "Títulos "+(m.offset+first+1).toStr()+"–"+(m.offset+last).toStr()
@@ -662,11 +650,11 @@ sub browseScreen()
     if m.titles.count() = 0 and not m.busy
         empty = "No se encontraron títulos."
         if m.genreFilter <> "Todos" then empty = "No hay títulos de " + m.genreFilter + " en esta página. Pulsa OPTIONS para cambiar el filtro."
-        if m.more then empty = "Sin opciones en esta página. Pulsa ↓ para consultar la siguiente."
+        if m.more then empty = "Sin opciones en esta página. Pulsa → para consultar la siguiente."
         words(empty,272,420,1410,104,32,"0xB6B6B6FF").wrap = true
     end if
-    hint = "↓ Más títulos"
-    if first+8 >= m.titles.count() and not m.more then hint = "Fin del catálogo"
+    hint = "▶ Siguiente"
+    if first+5 >= m.titles.count() and not m.more then hint = "Fin del catálogo"
     words(hint,1330,1015,500,34,19,"0xB3B3B3FF").horizAlign = "right"
 end sub
 
