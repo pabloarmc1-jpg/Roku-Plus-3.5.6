@@ -843,7 +843,6 @@ sub addSearchSuggestion(item as object, query as string)
     end for
     score = 2
     if left(lowered,len(query)) = query then score = 1
-    entry = {item:item,score:score}
     insertAt = m.searchSuggestions.count()
     for i = 0 to m.searchSuggestions.count()-1
         if score < m.searchSuggestionScores[i]
