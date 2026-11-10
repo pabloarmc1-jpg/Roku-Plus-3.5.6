@@ -975,7 +975,7 @@ sub startYoutubeSearch(query as string)
     task.operation = "search"
     task.query = query
     task.apiKey = apiKey
-    task.maxResults = 20
+    task.maxResults = 10
     task.observeField("result","youtubeSearchResult")
     m.youtubeTask = task
     m.youtubeBusy = true
