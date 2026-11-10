@@ -341,8 +341,8 @@ function invidiousLogDeviceInfo()
     end for
     audioCandidates = ["aac","ac3","eac3","ac4","alac","mp3","pcm","opus","vorbis","flac","dts","dtse"]
     for each audioCodec in audioCandidates
-        result = deviceInfo.CanDecodeAudio({codec:audioCodec})
-        supported = type(result) = "roAssociativeArray" and result.doesExist("result") and result.result = true
+        audioInfo = {codec:audioCodec}
+        supported = invidiousDeviceSupportsAudio(audioInfo)
         print "[RokuPlus Invidious codecs] PROBE_AUDIO codec="; audioCodec; " supported="; supported
     end for
 end function
