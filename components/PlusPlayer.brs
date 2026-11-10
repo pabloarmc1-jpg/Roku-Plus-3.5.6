@@ -269,6 +269,7 @@ sub openRequest()
     m.tsRelayDuration = invalid
     m.tsRelayPositionOffset = 0.0
     m.tsRelayLocalSeekPending = invalid
+    m.tsRelayPrerollRetryUsed = false
     m.tsRelayRestartStage = 0
     m.tsRelayRestartAt = 0
     m.tsRelayRestartSegment = -1
@@ -2063,6 +2064,7 @@ end function
 
 sub beginTsRelaySeek(segmentIndex as integer, target as dynamic)
     if segmentIndex < 0 or segmentIndex >= m.tsRelaySegments.count() then return
+    m.tsRelayPrerollRetryUsed = false
     ' A TS segment may begin between video keyframes. Include up to three
     ' preceding segments as decoder preroll before applying the local seek.
     ' This gives the decoder more opportunity to encounter an IDR/random-access
@@ -2171,8 +2173,29 @@ sub advanceTsRelayLocalSeek(now as integer)
         end if
     end if
 
-    ' Do not let a stalled clock block the seek indefinitely. After 2.5 seconds,
-    ' issue it once and preserve the before/after samples for diagnosis.
+    ' If the restarted stream has not established a moving clock, try one
+    ' deeper decoder preroll before issuing a local seek into an uninitialized
+    ' transport stream. Keep the same absolute ticket target; restart computes
+    ' the new local offset from the earlier segment.
+    if not ready and elapsed >= 2500 and m.tsRelayLocalSeekPending.advanceCount = 0 and not m.tsRelayPrerollRetryUsed
+        deeperStartSegment = segmentIndex - 5
+        if deeperStartSegment < 0 then deeperStartSegment = 0
+        if deeperStartSegment < segmentIndex
+            m.tsRelayPrerollRetryUsed = true
+            m.tsRelayLocalSeekPending = invalid
+            m.tsRelayRestartSegment = deeperStartSegment
+            m.tsRelayRestartStage = 1
+            m.tsRelayRestartAt = now + 450
+            m.tsStreamServer.nextSegmentIndex = deeperStartSegment
+            print "[RokuPlus ts-relay] preroll_retry oldSegment="; segmentIndex; " newSegment="; deeperStartSegment; " waitMs="; elapsed
+            emitDiagnostic("ts_relay_preroll_retry")
+            m.decoder.control = "stop"
+            return
+        end if
+    end if
+
+    ' Preserve the bounded fallback for the second attempt, but never repeat
+    ' the deeper-preroll restart more than once for a single manual seek.
     if not ready and elapsed < 2500 then return
     if not ready then reason = "clock_wait_timeout"
 
