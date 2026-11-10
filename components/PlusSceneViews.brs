@@ -286,14 +286,14 @@ sub setupTvScreen()
     descriptions = ["Películas y series con selección de fuentes H.264 compatibles.","El catálogo ampliado de películas y series que ya conoces."]
     for i = 0 to 1
         x = 84 + i * 912
-        panel(x,466,838,300,"0x181818FF")
+        panel(x,466,838,370,"0x181818FF")
         art("pkg:/images/ui/tv.png",x+34,496,72,72)
         words(tags[i],x+132,492,620,77,60)
         words(names[i],x+38,588,760,54,34)
         words(descriptions[i],x+38,654,760,91,25,"0xAFAFB9FF").wrap = true
         recommended = (i = 0 and m.capabilities.recommendedCatalog = "hd") or (i = 1 and m.capabilities.recommendedCatalog = "hevc")
         if recommended then words("Recomendado para esta Roku",x+38,785,790,44,24,"0xE5E5EAFF")
-        focusTarget("setup",i,x-6,460,850,312,"setup")
+        focusTarget("setup",i,x-6,460,850,382,"setup")
     end for
     words("La opción 4K describe el equipo. La calidad disponible depende de cada video.",87,881,1730,59,24,"0x888893FF").wrap = true
     words("← / →: elegir     OK: continuar",87,1004,1730,42,24,"0xB9B9C2FF")
@@ -436,7 +436,7 @@ sub homeScreen()
 
     continueY = 520
     discoveryY = 700
-    savedY = 900
+    savedY = 850
     if m.continueItems.count() = 0
         discoveryY = 555
         savedY = 755
@@ -515,7 +515,7 @@ sub homeScreen()
                 if uri <> "" then art(uri,x,savedY+44,92,80,"scaleToFit")
                 words(item.title,x+108,savedY+50,390,40,21,"0xFFFFFFFF").wrap = true
                 words("EXPLORAR EPISODIOS  ›",x+108,savedY+88,380,22,15,"0xFFFFFFFF")
-                focusTarget("home-series",i,x-14,savedY+32,546,104,"card")
+                focusTarget("home-series",i,x-14,savedY+32,546,104,"wide")
             end if
         end for
     end if
@@ -674,13 +674,19 @@ sub detailSelectable(index as integer, text as string, x as integer, y as intege
     surface = "0x30343BFF"
     ink = "0xFFFFFFFF"
     if primary
-        surface = "0xFFFFFFFF"
-        ink = "0x101114FF"
+        surface = "0xE50914FF"
+        ink = "0xFFFFFFFF"
     end if
-    panel(x,y,w,h,surface)
+    if primary and icon <> "action-play.png"
+        panel(x,y,w,h,surface)
+    else if primary
+        art("pkg:/images/ui/play-button-red.png",x,y,w,h)
+    else
+        panel(x,y,w,h,surface)
+    end if
     if icon <> ""
-        art("pkg:/images/ui/"+icon,x+22,y+18,36,36,"scaleToFit")
-        label = words(text,x+78,y+17,w-96,h-20,27,ink)
+        art("pkg:/images/ui/"+icon,x+16,y+13,36,36,"scaleToFit")
+        label = words(text,x+60,y+15,w-72,h-18,25,ink)
         label.horizAlign = "left"
     else
         label = words(text,x+14,y+17,w-28,h-20,28,ink)
@@ -773,7 +779,7 @@ sub detailScreen()
 
     actionY = 724
     if summaryY > 500 then actionY = 752
-    title = "▶  Reproducir"
+    title = "Reproducir"
     if item.kind = "series" then title = "Ver episodios"
     detailSelectable(0,title,542,actionY,500,72,true,"action-play.png")
     if detailActionCount() = 3
@@ -1118,11 +1124,11 @@ sub settingsScreen()
         if display.uiName <> "" then displayValue = displayValue+" · interfaz "+display.uiName
     end if
     values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue]
-    for i = 0 to 7
-        y = 260+i*70
+    for i = 0 to 9
+        y = 260+i*68
         panel(72,y,1770,62,"0x181818FF")
-        words(labels[i],104,y+5,1150,31,25,"0xFFFFFFFF")
-        words(values[i],106,y+34,1450,23,18,"0xB3B3B3FF")
+        words(labels[i],104,y+4,1150,29,23,"0xFFFFFFFF")
+        words(values[i],106,y+33,1450,23,17,"0xB3B3B3FF")
         focusTarget("settings",i,66,y-4,1782,70)
     end for
     words("Las claves se guardan en el registro local de este Roku y se muestran ocultas.",76,990,1740,36,19,"0xB1BEB3FF")
