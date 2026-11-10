@@ -2063,11 +2063,16 @@ end function
 
 sub beginTsRelaySeek(segmentIndex as integer, target as dynamic)
     if segmentIndex < 0 or segmentIndex >= m.tsRelaySegments.count() then return
-    m.tsRelayRestartSegment = segmentIndex
+    ' A TS segment may begin between video keyframes. Include one preceding
+    ' segment as decoder preroll so the resumed connection has a better chance
+    ' of receiving a usable video random-access frame before the local seek.
+    startSegmentIndex = segmentIndex
+    if startSegmentIndex > 0 then startSegmentIndex--
+    m.tsRelayRestartSegment = startSegmentIndex
     m.tsRelayRestartStage = 1
     m.tsRelayRestartAt = m.monotonic.totalMilliseconds() + 450
-    m.tsStreamServer.nextSegmentIndex = segmentIndex
-    print "[RokuPlus ts-relay] seek_restart_requested target="; target; " segment="; segmentIndex
+    m.tsStreamServer.nextSegmentIndex = startSegmentIndex
+    print "[RokuPlus ts-relay] seek_restart_requested target="; target; " targetSegment="; segmentIndex; " startSegment="; startSegmentIndex
     emitDiagnostic("ts_relay_seek_restart_requested")
     ' Stop the old HTTP response first. The relay task accepts the replacement
     ' connection after Roku closes the previous socket.
