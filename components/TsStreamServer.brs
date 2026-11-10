@@ -170,11 +170,13 @@ sub rpTsRelayServe(connection as object, server as object)
             print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " aligned="; tsAudit.aligned; " syncErrors="; tsAudit.syncErrors; " firstBad="; tsAudit.firstBadOffset
             print "[RokuPlus ts-audit] pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors
             print "[RokuPlus ts-audit] pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
-            print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps; " ptsCount="; tsAudit.ptsCount; " firstPts="; tsAudit.firstPts; " lastPts="; tsAudit.lastPts
+            print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
+            print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts="; tsAudit.firstPts; " lastPts="; tsAudit.lastPts
         else if sentSegments mod 25 = 0
             print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked
             print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
-            print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps; " ptsCount="; tsAudit.ptsCount; " firstPts="; tsAudit.firstPts; " lastPts="; tsAudit.lastPts
+            print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
+            print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts="; tsAudit.firstPts; " lastPts="; tsAudit.lastPts
         end if
         if payloadSize <= 0
             DeleteFile(filePath)
@@ -408,7 +410,7 @@ function rpTsRelayAuditPayload(payload as object) as object
                         end if
                     end if
                     if dataStart < offset + 188
-                        for nalOffset = dataStart to offset + 184
+                        for nalOffset = dataStart to offset + 183
                             if payload[nalOffset] = 0 and payload[nalOffset+1] = 0
                                 nalType = -1
                                 if payload[nalOffset+2] = 1
