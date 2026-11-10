@@ -21,6 +21,37 @@ sub runCatalogRequest()
         answer.countryCode = selectedCode
         if selectedCountry <> invalid then answer.countryName = selectedCountry.name
         if endpoint = "" then answer.message = "Elige un país o región válido para ver sus canales."
+    else if operation = "search"
+        query = left(m.top.query.trim(),120)
+        if query = ""
+            answer.message = "Escribe un título para buscar."
+        else
+            merged = []
+            failures = 0
+            for each searchKind in ["movie","series"]
+                endpoint = "https://v3-cinemeta.strem.io/catalog/" + searchKind + "/top/search=" + CreateObject("roUrlTransfer").escape(query) + ".json"
+                responsePart = orbitDownloadText(endpoint)
+                if responsePart.ok
+                    parsed = ParseJson(responsePart.body)
+                    if type(parsed) = "roAssociativeArray"
+                        page = orbitCatalog(parsed,searchKind,0)
+                        for each resultItem in page.items
+                            merged.push(resultItem)
+                        end for
+                    else
+                        failures++
+                    end if
+                else
+                    failures++
+                end if
+                if m.top.cancelRequested then return
+            end for
+            answer.items = orbitUniqueCatalogItems(merged)
+            answer.ok = answer.items.count() > 0 or failures < 2
+            answer.partial = failures > 0
+            answer.message = ""
+            if not answer.ok then answer.message = "No se pudo consultar el catálogo. Vuelve a intentar."
+        end if
     else if kind <> "movie" and kind <> "series"
         answer.message = "El tipo de catálogo no es válido."
     else if operation = "catalog"
