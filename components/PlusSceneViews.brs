@@ -151,6 +151,7 @@ sub topBar()
     if m.view = "browse" or m.view = "detail" or m.view = "episodes"
         active = 1
         if m.kind = "series" then active = 2
+        if m.query <> "" then active = 4
     else if m.view = "live"
         active = 3
     else if m.view = "library"
