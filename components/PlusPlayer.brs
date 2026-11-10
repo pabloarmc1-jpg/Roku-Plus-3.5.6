@@ -346,7 +346,7 @@ sub openRequest()
         m.tsRelayMode = true
         m.tsRelaySegments = supplied.segmentUrls
         if type(m.tsRelayTimeline) = "roArray" and m.tsRelayTimeline.count() = m.tsRelaySegments.count()
-            print "[RokuPlus ts-relay] timeline_ready segments="; m.tsRelayTimeline.count(); " duration="; m.tsRelayTimeline[m.tsRelayTimeline.count()-1].end
+            print "[RokuPlus ts-relay] timeline_ready segments="; m.tsRelayTimeline.count(); " duration="; m.tsRelayTimeline[m.tsRelayTimeline.count()-1].endTime
         else
             m.tsRelayTimeline = invalid
             print "[RokuPlus ts-relay] timeline_unavailable seek_mode=disabled"
