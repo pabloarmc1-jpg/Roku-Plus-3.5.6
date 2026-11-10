@@ -1140,7 +1140,6 @@ sub youtubeDetailScreen()
     words(item.channelTitle,1004,354,760,50,25,"0xFFFFFFFF").wrap = true
     words("PUBLICADO",1004,420,180,24,16,"0xA0A0A0FF")
     published = item.publishedAt
-    if len(published) >= 10 then published = left(published,10)
     words(published,1004,448,760,40,22,"0xE0E0E0FF")
     words("DESCRIPCIÓN",324,590,400,30,18,"0xA0A0A0FF")
     description = item.description
