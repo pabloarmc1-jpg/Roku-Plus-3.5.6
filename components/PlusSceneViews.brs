@@ -194,6 +194,9 @@ sub drawScreen()
     if m.view = "player" then return
     previousView = m.lastRenderedView
     pageChanged = previousView <> invalid and previousView <> m.view and previousView <> "player"
+    ' Keep movie and series catalog/detail screens static; their dynamic backdrop remains.
+    if m.view = "browse" or m.view = "detail" or m.view = "episodes" then pageChanged = false
+    if previousView = "browse" or previousView = "detail" or previousView = "episodes" then pageChanged = false
     if m.pageTransitionTimer <> invalid then m.pageTransitionTimer.control = "stop"
     m.canvas.translation = [0,0]
     m.canvas.opacity = 1.0
