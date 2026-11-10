@@ -334,93 +334,110 @@ sub searchKeyboardScreen()
 end sub
 
 sub homeScreen()
-    ' Three compact content rails keep featured titles, Mi lista and resume playback visible.
-    panel(0,0,1920,1080,"0x080808FF")
+    ' Cinematic home: full-width hero, poster rail and compact personal rows.
+    panel(0,0,1920,1080,"0x070709FF")
     if m.features.count() > 0
         heroIndex = m.heroFeature
         if heroIndex < 0 or heroIndex >= m.features.count() then heroIndex = 0
         item = m.features[heroIndex]
         heroUri = item.background
         if heroUri = "" then heroUri = item.poster
-        if heroUri <> "" then art(heroUri,0,0,1920,500)
-        art("pkg:/images/ui/hero-shade.png",0,0,1920,560)
+        if heroUri <> "" then art(heroUri,0,0,1920,570)
+        art("pkg:/images/ui/hero-shade.png",0,0,1920,625)
+        panel(0,112,1920,8,"0xFFFFFF12")
         featureCount = m.features.count()
-        featureLabel = "DESTACADO  ·  "+(heroIndex+1).toStr()+" / "+featureCount.toStr()
-        words(featureLabel,76,160,900,36,21,"0xE50914FF")
-        words(item.title,72,205,1080,112,58,"0xFFFFFFFF").wrap = true
+        featureLabel = "ROKU PLUS ORIGINAL  ·  DESTACADO  "+(heroIndex+1).toStr()+" / "+featureCount.toStr()
+        words(featureLabel,78,160,1100,34,19,"0xF04450FF")
+        words(item.title,72,205,1120,112,62,"0xFFFFFFFF").wrap = true
         facts = item.year
         if m.catalogMode = "hd"
             if usesOnlineHd() then facts += " · "+hdProviderName(item.provider) else facts += " · Corto"
         end if
-        if facts <> "" then words(facts,78,326,850,36,23,"0xE5E5E5FF")
-        selectable("hero",0,"▶  Reproducir",76,382,270,62,true)
-        selectable("hero",1,"ⓘ  Más información",365,382,320,62)
-        words("⏮ / ⏭  Cambiar destacado",1180,405,650,32,18,"0xD0D0D0FF").horizAlign = "right"
+        if item.kind = "series" then facts += " · Serie"
+        if facts <> "" then words(facts,80,326,900,34,22,"0xE2E2E2FF")
+        words("Descubre historias para disfrutar en Roku Plus.",80,365,1000,38,21,"0xC9C9CFFF")
+        selectable("hero",0,"▶  REPRODUCIR",76,425,270,62,true)
+        selectable("hero",1,"ⓘ  MÁS INFORMACIÓN",365,425,320,62)
+        words("⏮ / ⏭  CAMBIAR DESTACADO",1190,445,650,30,17,"0xE0E0E0FF").horizAlign = "right"
+        if featureCount > 1
+            for dot = 0 to 3
+                if dot < featureCount
+                    dotColor = "0x777777FF"
+                    if dot = heroIndex then dotColor = "0xE50914FF"
+                    panel(78+dot*22,500,14,5,dotColor)
+                end if
+            end for
+        end if
     else
-        words("Tu próxima historia",76,208,1400,82,56)
-        text = "Actualizando las películas y series populares…"
-        if not m.homeLoading then text = "Abre Películas o Series para explorar el catálogo."
-        words(text,80,316,1470,76,28,"0xB8B8B8FF").wrap = true
-        selectable("hero",0,"Actualizar",76,382,270,62,true)
+        panel(0,118,1920,420,"0x111116FF")
+        words("TU PRÓXIMA HISTORIA",78,210,1400,38,22,"0xE50914FF")
+        words("Todo empieza aquí.",76,264,1400,82,58,"0xFFFFFFFF")
+        text = "Estamos preparando tus películas y series populares…"
+        if not m.homeLoading then text = "Explora Películas o Series para descubrir algo nuevo."
+        words(text,80,360,1450,76,27,"0xB8B8C2FF").wrap = true
+        selectable("hero",0,"ACTUALIZAR CATÁLOGO",76,435,330,62,true)
     end if
 
-    ' Featured rail.
+    ' Popular titles: larger artwork with clear hierarchy.
     heading = "Populares en Roku Plus"
     if m.catalogMode = "hd"
         heading = "Cortos en HD"
         if usesOnlineHd() then heading = "Películas para explorar"
     end if
-    words(heading,76,466,1500,34,27,"0xFFFFFFFF")
+    words(heading,76,548,1500,34,27,"0xFFFFFFFF")
+    words("SELECCIÓN PARA TI",1510,552,330,26,15,"0x888891FF").horizAlign = "right"
     for i = 0 to 3
         if i < m.features.count()
             item = m.features[i]
             x = 76+i*450
             uri = item.poster
             if uri = "" then uri = item.background
-            panel(x-8,504,420,132,"0x171717FF")
-            if uri <> "" then art(uri,x,512,88,116,"scaleToFit")
-            words(item.title,x+102,516,300,48,21,"0xFFFFFFFF").wrap = true
+            panel(x-8,592,420,150,"0x19191FFF")
+            if uri <> "" then art(uri,x,600,112,134,"scaleToFit")
+            words(item.title,x+128,606,278,54,22,"0xFFFFFFFF").wrap = true
             facts = item.year
             if item.kind = "series" then facts += " · Serie"
-            words(facts,x+104,566,290,28,17,"0xB3B3B3FF")
-            words("Ver detalles  ›",x+104,600,290,27,17,"0xE50914FF")
-            focusTarget("covers",i,x-14,496,436,148,"card")
+            words(facts,x+130,662,275,26,17,"0xB7B7C0FF")
+            words("VER DETALLES  ›",x+130,704,275,25,16,"0xF04450FF")
+            if m.zone = "covers" and m.cover = i then panel(x-12,588,428,158,"0xFFFFFF18")
+            focusTarget("covers",i,x-14,584,436,166,"card")
         end if
     end for
 
-    ' Mi lista is built from the current profile's saved watch records.
+    ' Saved titles.
     if m.homeListItems.count() > 0
-        words("Mi lista",76,650,1500,34,27,"0xFFFFFFFF")
+        words("Mi lista",76,770,1500,32,26,"0xFFFFFFFF")
+        words("TUS FAVORITOS",1510,773,330,24,15,"0x888891FF").horizAlign = "right"
         for i = 0 to 2
             if i < m.homeListItems.count()
                 item = m.homeListItems[i]
                 x = 76+i*590
-                panel(x-8,688,530,112,"0x171717FF")
+                panel(x-8,808,530,92,"0x19191FFF")
                 uri = item.poster
                 if uri = "" then uri = item.background
-                if uri <> "" then art(uri,x,696,112,96,"scaleToFit")
-                words(item.title,x+128,700,382,48,22,"0xFFFFFFFF").wrap = true
+                if uri <> "" then art(uri,x,814,92,80,"scaleToFit")
+                words(item.title,x+108,817,390,38,21,"0xFFFFFFFF").wrap = true
                 kindLabel = "Película"
                 if item.kind = "series" then kindLabel = "Serie"
                 if item.kind = "episode" then kindLabel = "Episodio"
-                words(kindLabel+"  ·  ♥ Guardado",x+130,752,380,28,17,"0xB3B3B3FF")
-                focusTarget("home-list",i,x-14,680,546,128,"card")
+                words(kindLabel+"  ·  ♥ GUARDADO",x+110,858,380,23,15,"0xB7B7C0FF")
+                focusTarget("home-list",i,x-14,802,546,104,"card")
             end if
         end for
     end if
 
-    ' Continue watching remains available below Mi lista.
+    ' Resume playback with progress and remaining time.
     if m.continueItems.count() > 0
-        words("Continuar viendo",76,824,1500,34,27,"0xFFFFFFFF")
+        words("Continuar viendo",76,930,1500,30,25,"0xFFFFFFFF")
         for i = 0 to 2
             if i < m.continueItems.count()
                 item = m.continueItems[i]
                 x = 76+i*590
-                panel(x-8,862,530,126,"0x171717FF")
+                panel(x-8,966,530,100,"0x19191FFF")
                 uri = item.background
                 if uri = "" then uri = item.poster
-                if uri <> "" then art(uri,x,870,150,108,"scaleToFill")
-                words(item.title,x+168,874,345,42,21,"0xFFFFFFFF").wrap = true
+                if uri <> "" then art(uri,x,972,116,88,"scaleToFill")
+                words(item.title,x+132,974,380,36,20,"0xFFFFFFFF").wrap = true
                 progressText = "Reanudar reproducción"
                 resumeDuration = 0
                 resumePosition = 0
@@ -433,26 +450,26 @@ sub homeScreen()
                     resumePercent = Int(ratio * 100)
                     remainingSeconds = Int(resumeDuration - resumePosition)
                     progressText = resumePercent.toStr()+"% visto · "+timeText(remainingSeconds)+" restantes"
-                    panel(x+168,932,330,5,"0x777777FF")
-                    panel(x+168,932,330*ratio,5,"0xE50914FF")
+                    panel(x+132,1017,360,4,"0x777777FF")
+                    panel(x+132,1017,360*ratio,4,"0xE50914FF")
                 end if
-                words(progressText,x+168,946,345,26,16,"0xB3B3B3FF")
-                focusTarget("continue",i,x-14,854,546,142,"card")
+                words(progressText,x+132,1024,380,24,14,"0xB7B7C0FF")
+                focusTarget("continue",i,x-14,960,546,114,"card")
             end if
         end for
-    else if m.homeSeries.count() > 0
-        words("Series para descubrir",76,824,1500,34,27,"0xFFFFFFFF")
+    else if m.homeSeries.count() > 0 and m.homeListItems.count() = 0
+        words("Series para descubrir",76,930,1500,30,25,"0xFFFFFFFF")
         for i = 0 to 2
             if i < m.homeSeries.count()
                 item = m.homeSeries[i]
                 x = 76+i*590
-                panel(x-8,862,530,126,"0x171717FF")
+                panel(x-8,966,530,100,"0x19191FFF")
                 uri = item.poster
                 if uri = "" then uri = item.background
-                if uri <> "" then art(uri,x,870,150,108,"scaleToFill")
-                words(item.title,x+168,880,345,48,22,"0xFFFFFFFF").wrap = true
-                words("Explorar episodios  ›",x+168,940,345,28,17,"0xE50914FF")
-                focusTarget("home-series",i,x-14,854,546,142,"card")
+                if uri <> "" then art(uri,x,972,116,88,"scaleToFit")
+                words(item.title,x+132,978,380,40,21,"0xFFFFFFFF").wrap = true
+                words("EXPLORAR EPISODIOS  ›",x+132,1023,380,22,15,"0xF04450FF")
+                focusTarget("home-series",i,x-14,960,546,114,"card")
             end if
         end for
     end if
