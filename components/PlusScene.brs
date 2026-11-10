@@ -23,6 +23,8 @@ sub init()
     m.noteTimer.observeField("fire","liveNoticeElapsed")
     m.nextEpisodeTimer = m.top.findNode("nextEpisodeTimer")
     m.nextEpisodeTimer.observeField("fire","nextEpisodeTick")
+    m.searchDeleteTimer = m.top.findNode("searchDeleteTimer")
+    m.searchDeleteTimer.observeField("fire","searchDeleteHoldElapsed")
     m.heroRotation = m.top.findNode("heroRotation")
     m.heroRotation.observeField("fire","heroRotationTick")
     m.heroRotation.control = "start"
@@ -55,6 +57,8 @@ sub init()
     m.searchText = ""
     m.searchCursor = 0
     m.searchSuggestions = []
+    m.searchDeleteHeld = false
+    m.searchDeleteCleared = false
     m.searchOriginView = "home"
     m.offset = 0
     m.nextOffset = 0
@@ -816,6 +820,54 @@ sub genreFilterDismissed(event as object)
     m.zone = "grid"
     drawScreen()
     m.top.setFocus(true)
+end sub
+
+sub searchDeleteHoldElapsed()
+    if m.view <> "search-keyboard" or not m.searchDeleteHeld then return
+    m.searchText = ""
+    m.searchDeleteCleared = true
+    refreshSearchSuggestions()
+    drawScreen()
+end sub
+
+sub openMobileSearchInput()
+    if m.view <> "search-keyboard" or m.dialogBox <> invalid then return
+    dialog = CreateObject("roSGNode","StandardKeyboardDialog")
+    dialog.title = "Escribir desde el celular"
+    dialog.message = ["Usa el teclado de Roku o la entrada de texto de la app móvil Roku."]
+    dialog.keyboardDomain = "generic"
+    dialog.text = m.searchText
+    dialog.buttons = ["Usar texto","Cancelar"]
+    dialog.observeField("buttonSelected","mobileSearchInputChosen")
+    dialog.observeField("wasClosed","mobileSearchInputDismissed")
+    m.dialogBox = dialog
+    m.dialogPurpose = "mobile-search"
+    m.top.dialog = dialog
+end sub
+
+sub mobileSearchInputChosen(event as object)
+    if m.dialogBox = invalid or not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    choice = event.getData()
+    entered = left(m.dialogBox.text.trim(),120)
+    releaseDialog()
+    if choice = 0
+        m.searchText = entered
+        refreshSearchSuggestions()
+    end if
+    if m.view = "search-keyboard"
+        drawScreen()
+        m.top.setFocus(true)
+    end if
+end sub
+
+sub mobileSearchInputDismissed(event as object)
+    if m.dialogBox = invalid or event.getData() <> true then return
+    if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    releaseDialog(true)
+    if m.view = "search-keyboard"
+        drawScreen()
+        m.top.setFocus(true)
+    end if
 end sub
 
 sub openSearch()
@@ -1894,7 +1946,20 @@ end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
     if key = "home" then return false
-    if not press then return true
+    if not press
+        if m.view = "search-keyboard" and key = "OK" and m.searchDeleteHeld
+            m.searchDeleteTimer.control = "stop"
+            if not m.searchDeleteCleared and len(m.searchText) > 0
+                m.searchText = left(m.searchText,len(m.searchText)-1)
+                refreshSearchSuggestions()
+                drawScreen()
+            end if
+            m.searchDeleteHeld = false
+            m.searchDeleteCleared = false
+            return true
+        end if
+        return true
+    end if
     if m.view = "player" then return false
     if m.dialogBox <> invalid
         ' Let StandardKeyboardDialog own Back. Manually closing it here races
@@ -2025,7 +2090,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.view = "search-keyboard"
-        rows = ["ABCDEFGHIJ","KLMNOPQRST","UVWXYZ0123","456789.-_⌫"]
+        rows = ["0123456789","ABCDEFGHIJ","KLMNOPQRST","UVWXYZ.-_⌫"]
         if m.zone = "search-suggestion"
             if key = "left" and m.searchCursor > 0 then m.searchCursor--
             if key = "right" and m.searchCursor+1 < m.searchSuggestions.count() then m.searchCursor++
@@ -2034,17 +2099,19 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "up" then m.zone = "search-key": m.searchCursor = 30
         else if m.zone = "search-action"
             if key = "left" and m.searchCursor > 0 then m.searchCursor--
-            if key = "right" and m.searchCursor < 2 then m.searchCursor++
+            if key = "right" and m.searchCursor < 3 then m.searchCursor++
             if key = "down" then m.zone = "search-key": m.searchCursor = 0
             if key = "OK"
                 if m.searchCursor = 0
                     submitGlobalSearch()
                 else if m.searchCursor = 1
                     closeSearchKeyboard()
-                else
+                else if m.searchCursor = 2
                     if len(m.searchText) < 120 then m.searchText += " "
                     refreshSearchSuggestions()
                     drawScreen()
+                else
+                    openMobileSearchInput()
                 end if
                 return true
             end if
@@ -2064,7 +2131,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "OK"
                 keyChar = mid(rows[row],col+1,1)
                 if keyChar = "⌫"
-                    if len(m.searchText) > 0 then m.searchText = left(m.searchText,len(m.searchText)-1)
+                    m.searchDeleteHeld = true
+                    m.searchDeleteCleared = false
+                    m.searchDeleteTimer.duration = 0.75
+                    m.searchDeleteTimer.control = "start"
+                    return true
                 else if len(m.searchText) < 120
                     m.searchText += keyChar
                 end if
