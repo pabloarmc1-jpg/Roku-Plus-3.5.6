@@ -50,6 +50,7 @@ sub runInvidiousRequest()
                 if selected <> invalid
                     answer.url = selected.url
                     answer.streamFormat = selected.streamFormat
+                    if selected.doesExist("bitrate") then answer.bitrate = selected.bitrate
                     answer.ok = true
                     answer.message = ""
                 else
