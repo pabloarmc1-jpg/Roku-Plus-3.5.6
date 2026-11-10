@@ -179,8 +179,9 @@ sub topBar()
     navExpanded = (m.zone = "nav")
     navWidth = 92
     if navExpanded then navWidth = 286
-    panel(0,0,navWidth,1080,"0x080808F8")
-    panel(navWidth-4,0,4,1080,"0xFFFFFF18")
+    ' Translucent glass lets the current screen artwork tint the navigation rail.
+    panel(0,0,navWidth,1080,"0x101010B8")
+    panel(navWidth-4,0,4,1080,"0xFFFFFF28")
     art("pkg:/images/ui/logo.png",24,28,44,44)
     if navExpanded
         words("ROKU PLUS",91,34,174,34,21,"0xFFFFFFFF")
