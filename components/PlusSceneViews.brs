@@ -307,7 +307,7 @@ sub searchKeyboardScreen()
     actions = ["BUSCAR","CANCELAR","ESPACIO","CELULAR"]
     widths = [230,230,280,230]
     xPositions = [250,500,750,1050]
-    for i = 0 to 2
+    for i = 0 to 3
         panel(xPositions[i],850,widths[i],76,"0x3A3A40FF")
         words(actions[i],xPositions[i]+8,865,widths[i]-16,44,24,"0xFFFFFFFF").horizAlign = "center"
         focusTarget("search-action",i,xPositions[i]-4,846,widths[i]+8,84,"wide")
