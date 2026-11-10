@@ -139,7 +139,12 @@ sub selectable(zone as string, index as integer, text as string, x as integer, y
         label = words(text,x+12,y+15,w-24,h-18,26,ink)
         label.horizAlign = "center"
     end if
-    focusTarget(zone,index,x-4,y-4,w+8,h+8)
+    if zone = "hero" and index = 0
+        ' Match the Play focus outline to the exact red button bounds.
+        focusTarget(zone,index,x,y,w,h)
+    else
+        focusTarget(zone,index,x-4,y-4,w+8,h+8)
+    end if
 end sub
 
 sub brand(x as integer, y as integer)
