@@ -472,12 +472,12 @@ sub openRequest()
         ' Query the actual device decoder instead of assuming that every Roku
         ' model supports the H.264 profile reported by the transport stream.
         deviceInfo = CreateObject("roDeviceInfo")
-        h264Capability = deviceInfo.CanDecodeVideo({codec:"h264",profile:"high",level:"3.1"})
-        if type(h264Capability) = "roAssociativeArray"
-            print "[RokuPlus codec diag] h264_high_3_1 result="; h264Capability.result; " updated="; h264Capability.updated
-        else
-            print "[RokuPlus codec diag] h264_high_3_1 result=unavailable"
-        end if
+        h264High31 = deviceInfo.CanDecodeVideo({codec:"h264",profile:"high",level:"3.1"})
+        logVideoCapability("h264_high_3_1", h264High31)
+        h264High41 = deviceInfo.CanDecodeVideo({codec:"h264",profile:"high",level:"4.1"})
+        logVideoCapability("h264_high_4_1", h264High41)
+        h264Main31 = deviceInfo.CanDecodeVideo({codec:"h264",profile:"main",level:"3.1"})
+        logVideoCapability("h264_main_3_1", h264Main31)
         m.tsStreamServer.segments = m.tsRelaySegments
         m.tsStreamServer.timeline = m.tsRelayTimeline
         m.tsStreamServer.mediaHeaders = supplied.mediaHeaders
@@ -2366,3 +2366,16 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     return true
 end function
+
+' Log the closest format returned by CanDecodeVideo so a false result can be
+' distinguished between an unsupported profile and an unsupported level.
+sub logVideoCapability(label as String, capability as Object)
+    if type(capability) <> "roAssociativeArray"
+        print "[RokuPlus codec diag] "; label; " result=unavailable"
+        return
+    end if
+    print "[RokuPlus codec diag] "; label; " result="; capability["result"]; " updated="; capability["updated"]
+    if capability.doesExist("codec") then print "[RokuPlus codec diag] "; label; " supportedCodec="; capability["codec"]
+    if capability.doesExist("profile") then print "[RokuPlus codec diag] "; label; " supportedProfile="; capability["profile"]
+    if capability.doesExist("level") then print "[RokuPlus codec diag] "; label; " supportedLevel="; capability["level"]
+end sub
