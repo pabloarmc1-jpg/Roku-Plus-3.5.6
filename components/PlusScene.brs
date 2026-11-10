@@ -1449,7 +1449,7 @@ sub refreshHomeListItems()
             if record.doesExist("listed")
                 if record.listed = true
                     m.homeListItems.push(record)
-                    if m.homeListItems.count() >= 3 then exit for
+                    if m.homeListItems.count() >= 6 then exit for
                 end if
             end if
         end if
@@ -2335,7 +2335,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "left"
                 if m.cover > 0 then m.cover-- else m.zone = "nav": drawScreen(): return true
             end if
-            if key = "right" and m.cover < 3 and m.cover+1 < m.features.count() then m.cover++
+            if key = "right" and m.cover < 5 and m.cover+1 < m.features.count() then m.cover++
             if key = "up"
                 if m.continueItems.count() > 0 then m.zone = "continue" else m.zone = "hero"
             end if
@@ -2353,7 +2353,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "left"
                 if m.listCover > 0 then m.listCover-- else m.zone = "nav": drawScreen(): return true
             end if
-            if key = "right" and m.listCover < m.homeListItems.count()-1 and m.listCover < 2 then m.listCover++
+            if key = "right" and m.listCover < m.homeListItems.count()-1 and m.listCover < 5 then m.listCover++
             if key = "up" then m.zone = "covers"
             if key = "down"
                 if m.homeSeries.count() > 0
@@ -2371,7 +2371,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "left"
                 if m.cover > 0 then m.cover-- else m.zone = "nav": drawScreen(): return true
             end if
-            if key = "right" and m.cover < m.continueItems.count()-1 and m.cover < 2 then m.cover++
+            if key = "right" and m.cover < m.continueItems.count()-1 and m.cover < 5 then m.cover++
             if key = "up" then m.zone = "hero"
             if key = "down" then m.zone = "covers"
             if key = "OK" and m.cover < m.continueItems.count()

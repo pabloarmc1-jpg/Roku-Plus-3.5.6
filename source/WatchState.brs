@@ -210,7 +210,7 @@ function rpWatchContinue(items as object) as object
             if item.doesExist("duration") then duration = rpWatchNumber(item.duration)
             if hasId and not watched and position > 15 and (duration <= 0 or position < duration * 0.92)
                 result.push(item)
-                if result.count() >= 3 then exit for
+                if result.count() >= 6 then exit for
             end if
         end if
     end for
