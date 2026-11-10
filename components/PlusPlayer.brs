@@ -265,6 +265,11 @@ sub openRequest()
     m.tsRelayMode = false
     m.tsRelayPending = false
     m.tsRelaySegments = invalid
+    m.tsRelayDurations = invalid
+    m.tsRelayDuration = invalid
+    m.tsRelayRestartStage = 0
+    m.tsRelayRestartAt = 0
+    m.tsRelayRestartSegment = -1
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
         m.segmentMode = true
@@ -340,6 +345,29 @@ sub openRequest()
     if supplied.tsRelayEnabled = true and type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.tsRelayMode = true
         m.tsRelaySegments = supplied.segmentUrls
+        m.tsRelayDurations = invalid
+        m.tsRelayDuration = invalid
+        if type(supplied.segmentDurations) = "roArray" and supplied.segmentDurations.count() = m.tsRelaySegments.count()
+            durationTotal = 0.0
+            durationValid = true
+            for each segmentDuration in supplied.segmentDurations
+                parsedDuration = plusClockValue(segmentDuration)
+                if parsedDuration = invalid or parsedDuration <= 0 or parsedDuration > 3600
+                    durationValid = false
+                    exit for
+                end if
+                durationTotal += parsedDuration
+            end for
+            if durationValid and durationTotal > 0
+                m.tsRelayDurations = supplied.segmentDurations
+                m.tsRelayDuration = durationTotal
+                print "[RokuPlus ts-relay] seek_metadata segments="; m.tsRelayDurations.count(); " duration="; m.tsRelayDuration
+            else
+                print "[RokuPlus ts-relay] seek_metadata_invalid"
+            end if
+        else
+            print "[RokuPlus ts-relay] seek_metadata_missing"
+        end if
         m.segmentMode = false
         m.nativePlaylistMode = false
         format = "ts"
@@ -692,7 +720,7 @@ sub applyResumeSeek()
     if state <> "playing" and state <> "paused" then return
     if state = "paused" and not m.wantPaused then return
     if m.ticket <> invalid or m.pendingSeek <> invalid then return
-    duration = plusClockValue(m.decoder.duration)
+    duration = playerDuration()
     if duration = invalid or duration <= 0 then return
     resumeAt = m.resumePending
     if duration <= resumeAt + 20
@@ -1540,7 +1568,7 @@ sub publishProgress(force = false as boolean)
     presentation = "fullscreen"
     if isPreviewPresentation() then presentation = "preview"
     nativePosition = plusClockValue(m.decoder.position)
-    nativeDuration = plusClockValue(m.decoder.duration)
+    nativeDuration = playerDuration()
     resumeInFlight = m.resumePending <> invalid
     if m.pendingSeek <> invalid
         if m.pendingSeek.doesExist("isResume") and m.pendingSeek.isResume = true then resumeInFlight = true
@@ -1550,6 +1578,7 @@ sub publishProgress(force = false as boolean)
     end if
     ' Do not let startup zeroes or stale positionInfo overwrite the saved bookmark.
     if resumeInFlight then return
+    if m.tsRelayMode and (m.ticket <> invalid or m.pendingSeek <> invalid or m.tsRelayRestartStage > 0) then return
     if m.resumeFailed
         if nativePosition = invalid or nativePosition <= 15 then return
         if m.resumeFailedPosition <> invalid
@@ -1602,7 +1631,7 @@ sub drawTransport()
     if m.ticket <> invalid or m.pendingSeek <> invalid then mode = "Buscando posición"
     if m.failed then mode = "No se pudo reproducir"
     clock = plusClockText(m.decoder.position)
-    d = plusClockValue(m.decoder.duration)
+    d = playerDuration()
     p = plusClockValue(m.decoder.position)
     ' Show the last requested destination while a command is queued; this is
     ' a preview only and is never substituted for the decoder's media clock.
@@ -1820,6 +1849,7 @@ sub onPulse()
     updateExternalSubtitle()
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
+    advanceTsRelayRestart(now)
     advanceSegmentRestart(now)
     advanceHlsSoftRestart(now)
     ' 3.5.55: sample native Video fields during HLS startup as well as normal playback.
@@ -1951,7 +1981,7 @@ sub shiftTen(backwards as boolean)
     base = origin
     if m.ticket <> invalid then base = m.ticket.target
     if m.pendingSeek <> invalid then base = m.pendingSeek.target
-    target = plusShiftDestination(base, m.decoder.duration, backwards)
+    target = plusShiftDestination(base, playerDuration(), backwards)
     if target = invalid then return
     if abs(target - base) < 0.05 then return
     cancelPendingResumeForUserSeek()
@@ -1980,6 +2010,63 @@ sub cancelPendingResumeForUserSeek()
     m.resumeFailedAt = 0
 end sub
 
+function playerDuration() as dynamic
+    if m.tsRelayMode and m.tsRelayDuration <> invalid and m.tsRelayDuration > 0 then return m.tsRelayDuration
+    return plusClockValue(m.decoder.duration)
+end function
+
+function plusTsRelaySegmentIndex(target as dynamic) as integer
+    if not m.tsRelayMode or type(m.tsRelaySegments) <> "roArray" or type(m.tsRelayDurations) <> "roArray" then return -1
+    if m.tsRelaySegments.count() < 2 or m.tsRelayDurations.count() <> m.tsRelaySegments.count() then return -1
+    targetTime = plusClockValue(target)
+    if targetTime = invalid or targetTime < 0 then return -1
+    elapsed = 0.0
+    for index = 0 to m.tsRelayDurations.count()-1
+        segmentDuration = plusClockValue(m.tsRelayDurations[index])
+        if segmentDuration = invalid or segmentDuration <= 0 then return -1
+        if targetTime < elapsed + segmentDuration then return index
+        elapsed += segmentDuration
+    end for
+    return m.tsRelayDurations.count()-1
+end function
+
+sub beginTsRelaySeek(segmentIndex as integer, target as dynamic)
+    if segmentIndex < 0 or segmentIndex >= m.tsRelaySegments.count() then return
+    m.tsRelayRestartSegment = segmentIndex
+    m.tsRelayRestartStage = 1
+    m.tsRelayRestartAt = m.monotonic.totalMilliseconds() + 450
+    m.tsStreamServer.nextSegmentIndex = segmentIndex
+    print "[RokuPlus ts-relay] seek_restart_requested target="; target; " segment="; segmentIndex
+    emitDiagnostic("ts_relay_seek_restart_requested")
+    ' Stop the old HTTP response first. The relay task accepts the replacement
+    ' connection after Roku closes the previous socket.
+    m.decoder.control = "stop"
+end sub
+
+sub advanceTsRelayRestart(now as integer)
+    if m.tsRelayRestartStage <> 1 or now < m.tsRelayRestartAt then return
+    if not m.mediaOpen or not m.tsRelayMode or m.tsRelayRestartSegment < 0 then
+        m.tsRelayRestartStage = 0
+        return
+    end if
+    relayMedia = CreateObject("roSGNode","ContentNode")
+    relayMedia.url = "http://" + CreateObject("roDeviceInfo").GetConnectionInfo().ip + ":49322/stream.ts?key=" + m.tsRelayAccessKey + "&segment=" + m.tsRelayRestartSegment.toStr()
+    relayMedia.title = m.titleText.text
+    relayMedia.streamFormat = "ts"
+    relayMedia.live = false
+    relayMedia.httpHeaders = CreateObject("roArray",0,true)
+    m.mediaNode = relayMedia
+    m.decoder.contentIsPlaylist = false
+    m.decoder.content = relayMedia
+    m.decoder.autoplayAfterSeek = not m.wantPaused
+    m.decoder.control = "play"
+    print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment
+    emitDiagnostic("ts_relay_seek_restart")
+    m.tsRelayRestartStage = 0
+    m.tsRelayRestartAt = 0
+    m.tsRelayRestartSegment = -1
+end sub
+
 sub dispatchPendingSeek()
     if m.pendingSeek = invalid or m.ticket <> invalid or m.failed or not m.mediaOpen then return
     if m.monotonic.totalMilliseconds() < m.pendingSeek.dueAt then return
@@ -2005,10 +2092,24 @@ sub dispatchPendingSeek()
     verifyRendered = false
     if v <> invalid then verifyRendered = abs(v-origin) <= 2
     seekIssuedAt = m.monotonic.totalMilliseconds()
+    if m.tsRelayMode
+        relaySegment = plusTsRelaySegmentIndex(target)
+        if relaySegment < 0
+            if isResumeSeek then scheduleResumeRetry(target,"segment_metadata_unavailable")
+            m.notice = "No se pudo calcular el segmento para esa posición."
+            m.noticeUntil = m.monotonic.totalMilliseconds()+6000
+            drawTransport()
+            return
+        end if
+    end if
     m.ticket = {id:m.sequence,origin:origin,target:target,paused:m.wantPaused,issuedPaused:state="paused",issuedAt:seekIssuedAt,deadlineAt:seekIssuedAt+12000,bufferingTimeoutExtended:false,sawBuffering:false,logs:0,verifyRendered:verifyRendered,landingAt:invalid,landingPosition:invalid,sawClockJump:false,isResume:isResumeSeek}
     m.decoder.autoplayAfterSeek = not m.wantPaused
     emitDiagnostic("seek_request")
-    m.decoder.seek = target
+    if m.tsRelayMode
+        beginTsRelaySeek(relaySegment,target)
+    else
+        m.decoder.seek = target
+    end if
     drawTransport()
 end sub
 
