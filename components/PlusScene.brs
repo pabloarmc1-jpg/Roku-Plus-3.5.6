@@ -33,6 +33,11 @@ sub init()
     m.discoveryRotation.control = "start"
     m.pageTransitionTimer = m.top.findNode("pageTransition")
     m.pageTransitionTimer.observeField("fire","pageTransitionTick")
+    m.catalogFadeTimer = m.top.findNode("catalogFade")
+    m.catalogFadeTimer.observeField("fire","catalogFadeTick")
+    m.catalogFadePosters = []
+    m.catalogFadeStep = 0
+    m.catalogFadePending = false
     m.pageTransitionStep = 0
     m.lastRenderedView = invalid
     m.discoveryOffset = 0
@@ -335,7 +340,9 @@ sub fetched(event as object)
             m.cursor = 0
             if context.doesExist("last") and context.last then m.cursor = m.titles.count()-1
             if m.cursor < 0 then m.cursor = 0
+            m.catalogFadePending = context.offset > 0 and answer.items.count() > 0
         end if
+        if context.operation = "search" then m.catalogFadePending = false
         m.zone = "grid"
         if answer.partial = true then m.note = "Una fuente no respondió. Se muestran las opciones disponibles."
     else if context.operation = "meta"
@@ -1788,6 +1795,58 @@ sub startHomeCatalogTask(kind as string, skip as integer)
     task.observeField("state","homeStopped")
     m.homeJobs.push({node:task,request:request,kind:kind,skip:skip,mode:m.catalogMode,provider:m.hdProvider})
     task.control = "RUN"
+end sub
+
+sub catalogPosterLoadStatusChanged(event as object)
+    poster = event.getRoSGNode()
+    status = event.getData()
+    if type(m.catalogFadePosters) <> "roArray" then return
+    for each entry in m.catalogFadePosters
+        if entry.poster.isSameNode(poster)
+            if status = "ready"
+                entry.poster.unobserveField("loadStatus")
+                entry.ready = true
+                if m.catalogFadeTimer <> invalid then m.catalogFadeTimer.control = "start"
+            else if status = "failed"
+                entry.poster.unobserveField("loadStatus")
+                entry.poster.opacity = 1.0
+                entry.done = true
+            end if
+            return
+        end if
+    end for
+end sub
+
+sub catalogFadeTick(event as object)
+    if type(m.catalogFadePosters) <> "roArray" or m.catalogFadePosters.count() = 0
+        m.catalogFadeTimer.control = "stop"
+        return
+    end if
+    m.catalogFadeStep = m.catalogFadeStep + 1
+    allDone = true
+    for each entry in m.catalogFadePosters
+        if entry.ready and not entry.done
+            if m.catalogFadeStep > entry.delay
+                entry.step = entry.step + 1
+                opacity = entry.step / 6.0
+                if opacity >= 1.0
+                    opacity = 1.0
+                    entry.done = true
+                else
+                    allDone = false
+                end if
+                entry.poster.opacity = opacity
+            else
+                allDone = false
+            end if
+        else if not entry.done
+            allDone = false
+        end if
+    end for
+    if allDone
+        m.catalogFadeTimer.control = "stop"
+        m.catalogFadePosters = []
+    end if
 end sub
 
 sub pageTransitionTick(event as object)

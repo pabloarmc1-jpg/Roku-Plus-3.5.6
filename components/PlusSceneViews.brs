@@ -65,6 +65,15 @@ sub thumbnail(uri as string, x as float, y as float, w as float, h as float, sha
 end sub
 
 sub eraseScreen()
+    ' Stop in-flight catalog artwork fades before replacing the canvas.
+    if m.catalogFadeTimer <> invalid then m.catalogFadeTimer.control = "stop"
+    if type(m.catalogFadePosters) = "roArray"
+        for each fadeEntry in m.catalogFadePosters
+            if fadeEntry.poster <> invalid then fadeEntry.poster.unobserveField("loadStatus")
+        end for
+    end if
+    m.catalogFadePosters = []
+    m.catalogFadeStep = 0
     ' Stop any in-flight Home banner slide before replacing the canvas.
     m.discoveryAnimating = false
     m.discoverySlideStep = 0
@@ -568,7 +577,22 @@ sub browseScreen()
             uri = item.poster
             if uri = "" then uri = item.background
             panel(x,y,330,344,"0x15151500")
-            if uri <> "" then thumbnail(uri,x+56,y+7,218,276,"poster")
+            if uri <> ""
+                if m.catalogFadePending
+                    poster = art(uri,x+56,y+7,218,276,"scaleToFit")
+                    poster.opacity = 0.0
+                    poster.observeField("loadStatus","catalogPosterLoadStatusChanged")
+                    fadeEntry = {poster:poster,ready:false,done:false,step:0,delay:i}
+                    m.catalogFadePosters.push(fadeEntry)
+                    if poster.loadStatus = "ready"
+                        poster.unobserveField("loadStatus")
+                        fadeEntry.ready = true
+                        m.catalogFadeTimer.control = "start"
+                    end if
+                else
+                    thumbnail(uri,x+56,y+7,218,276,"poster")
+                end if
+            end if
             words(item.title,x+8,y+288,314,42,21,"0xFFFFFFFF").wrap = true
             if m.query <> ""
                 kindLabel = "PELÍCULA"
@@ -602,6 +626,7 @@ sub browseScreen()
             focusTarget("grid",n,x-5,y-5,340,354,"catalog")
         end if
     end for
+    m.catalogFadePending = false
     last = first+10
     if last > m.titles.count() then last = m.titles.count()
     if last > first

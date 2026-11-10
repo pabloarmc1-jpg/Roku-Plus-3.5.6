@@ -25,6 +25,7 @@
     <Timer id="heroRotation" duration="8.0" repeat="true" />
     <Timer id="discoveryRotation" duration="3.5" repeat="true" />
     <Timer id="pageTransition" duration="0.08" repeat="true" />
+    <Timer id="catalogFade" duration="0.04" repeat="true" />
   </children>
 </component>
 
