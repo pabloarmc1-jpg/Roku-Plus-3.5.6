@@ -2076,8 +2076,10 @@ end sub
 
 sub advanceTsRelayRestart(now as integer)
     if m.tsRelayRestartStage <> 1 or now < m.tsRelayRestartAt then return
-    if not m.mediaOpen or not m.tsRelayMode or m.tsRelayRestartSegment < 0 then
+    if not m.mediaOpen or not m.tsRelayMode or m.tsRelayRestartSegment < 0 or m.ticket = invalid then
         m.tsRelayRestartStage = 0
+        m.tsRelayRestartAt = 0
+        m.tsRelayRestartSegment = -1
         return
     end if
     if m.tsRelayLocalIp = ""
