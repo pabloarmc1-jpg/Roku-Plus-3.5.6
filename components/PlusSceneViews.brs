@@ -454,6 +454,9 @@ sub browseScreen()
                     ratio = saved.position / saved.duration
                     if ratio < 0 then ratio = 0
                     if ratio > 1 then ratio = 1
+                    progressPercent = Int(ratio * 100)
+                    remainingSeconds = Int(saved.duration - saved.position)
+                    status = "▶ CONTINUAR · "+progressPercent.toStr()+"% · "+timeText(remainingSeconds)+" restantes"
                     panel(x+12,y+337,306,4,"0x777777FF")
                     panel(x+12,y+337,306*ratio,4,"0xE50914FF")
                 end if
