@@ -442,7 +442,7 @@ sub browseScreen()
     words(title,72,135,1500,72,46,"0xFFFFFFFF").wrap = true
     hint = "Explora el catálogo y selecciona un título para ver sus detalles."
     if m.query <> "" then hint = "Resultados combinados de películas y series. Selecciona uno para abrir su ficha."
-    if usesOnlineHd() and m.hdProvider = "all" then hint = "Opciones de varias fuentes. Si una falla, prueba la misma película en otra."
+    if m.query = "" and usesOnlineHd() and m.hdProvider = "all" then hint = "Opciones de varias fuentes. Si una falla, prueba la misma película en otra."
     words(hint,76,208,1185,42,22,"0xB3B3B3FF").wrap = true
     searchHint = "Buscar con OK en Buscar"
     if m.genreFilter <> "Todos" then searchHint = "Género: " + m.genreFilter
