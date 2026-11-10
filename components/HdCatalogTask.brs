@@ -247,7 +247,14 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             if relaySegments.count() > 1
                                 answer.segmentUrls = relaySegments
                                 answer.tsRelayEnabled = true
-                                print "[RokuPlus ts-relay] candidate_segments="; relaySegments.count()
+                                segmentDurations = rpHdTaskSegmentDurations(child.body,relaySegments.count())
+                                if segmentDurations.count() = relaySegments.count()
+                                    answer.segmentDurations = segmentDurations
+                                    print "[RokuPlus ts-relay] candidate_segments="; relaySegments.count(); " duration_entries="; segmentDurations.count()
+                                else
+                                    answer.segmentDurations = []
+                                    print "[RokuPlus ts-relay] duration_metadata_unavailable segments="; relaySegments.count()
+                                end if
                             else
                                 answer.tsRelayEnabled = false
                                 print "[RokuPlus ts-relay] disabled reason=segment_list_unavailable"
@@ -882,6 +889,31 @@ function rpHdTaskExternalAudio(master as object, variant as object) as boolean
         if track.group = variant.audioGroup and track.url <> "" then return true
     end for
     return false
+end function
+
+function rpHdTaskSegmentDurations(body as string, expectedCount as integer) as object
+    durations = []
+    pendingDuration = -1.0
+    text = orbitText(body,2097153)
+    if len(text) > 2097152 or expectedCount < 1 then return durations
+    for each raw in text.split(chr(10))
+        line = raw.trim()
+        if left(line,8) = "#EXTINF:"
+            value = Mid(line,9)
+            comma = Instr(1,value,",")
+            if comma > 0 then value = Left(value,comma-1)
+            duration = Val(value)
+            if duration <= 0 or duration > 3600 then return []
+            pendingDuration = duration
+        else if line <> "" and left(line,1) <> "#"
+            if pendingDuration <= 0 then return []
+            durations.push(pendingDuration)
+            pendingDuration = -1.0
+            if durations.count() > expectedCount then return []
+        end if
+    end for
+    if durations.count() <> expectedCount then return []
+    return durations
 end function
 
 function rpHdTaskSegmentList(body as string, baseUrl as string) as object
