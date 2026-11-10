@@ -2240,8 +2240,8 @@ sub dispatchPendingSeek()
     m.sequence++
     sample = renderedFields()
     v = plusClockValue(sample.video)
-    verifyRendered = false
-    if v <> invalid then verifyRendered = abs(v-origin) <= 2
+    verifyRendered = m.tsRelayMode
+    if not m.tsRelayMode and v <> invalid then verifyRendered = abs(v-origin) <= 2
     seekIssuedAt = m.monotonic.totalMilliseconds()
     if m.tsRelayMode
         relaySegment = plusTsRelaySegmentIndex(target)
@@ -2253,7 +2253,7 @@ sub dispatchPendingSeek()
             return
         end if
     end if
-    m.ticket = {id:m.sequence,origin:origin,target:target,paused:m.wantPaused,issuedPaused:state="paused",issuedAt:seekIssuedAt,deadlineAt:seekIssuedAt+12000,bufferingTimeoutExtended:false,sawBuffering:false,logs:0,verifyRendered:verifyRendered,landingAt:invalid,landingPosition:invalid,sawClockJump:false,isResume:isResumeSeek}
+    m.ticket = {id:m.sequence,origin:origin,target:target,paused:m.wantPaused,issuedPaused:state="paused",issuedAt:seekIssuedAt,deadlineAt:seekIssuedAt+12000,bufferingTimeoutExtended:false,sawBuffering:false,logs:0,verifyRendered:verifyRendered,verifyRenderedLocal:m.tsRelayMode,landingAt:invalid,landingPosition:invalid,sawClockJump:false,isResume:isResumeSeek}
     m.decoder.autoplayAfterSeek = not m.wantPaused
     emitDiagnostic("seek_request")
     if m.tsRelayMode
@@ -2274,8 +2274,8 @@ sub verifySeekResult()
     p = playerPosition()
     if p = invalid then return
     sample = renderedFields()
-    if m.tsRelayMode then m.ticket.verifyRendered = false
-    candidate = plusSeekLanding(m.ticket,p,sample.video,now,state)
+    nativePosition = plusClockValue(m.decoder.position)
+    candidate = plusSeekLanding(m.ticket,p,sample.video,now,state,nativePosition)
     if not candidate.ready then return
     result = {id: m.ticket.id, requested: m.ticket.target, observed: p, difference: p - m.ticket.target, pauseRequested: m.ticket.paused, state: state}
     result.withinOneSecond = abs(result.difference) <= 1
@@ -2317,7 +2317,7 @@ end sub
 ' A requested point can also be reached by ordinary playback after an ignored
 ' seek. Require a clock discontinuity or a fresh native actualStart indication
 ' before proximity can confirm anything; buffering by itself is not an ACK.
-function plusSeekLanding(ticket as object, position as dynamic, video as dynamic, now as integer, state = "" as string) as object
+function plusSeekLanding(ticket as object, position as dynamic, video as dynamic, now as integer, state = "" as string, localPosition = invalid as dynamic) as object
     p = plusClockValue(position)
     answer = {ready:false}
     if p = invalid then return answer
@@ -2330,7 +2330,12 @@ function plusSeekLanding(ticket as object, position as dynamic, video as dynamic
     v = plusClockValue(video)
     if ticket.verifyRendered
         if v = invalid then return answer
-        if abs(v-p) > 2 then return answer
+        renderedReference = p
+        if ticket.doesExist("verifyRenderedLocal") and ticket.verifyRenderedLocal
+            renderedReference = plusClockValue(localPosition)
+            if renderedReference = invalid then return answer
+        end if
+        if abs(v-renderedReference) > 2 then return answer
     end if
     nativePaused = ticket.paused
     if state <> "" then nativePaused = state = "paused"
