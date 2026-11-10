@@ -54,7 +54,24 @@ sub runInvidiousRequest()
                     answer.ok = true
                     answer.message = ""
                 else
-                    answer.message = "No se encontró una pista progresiva multiplexada compatible con los decodificadores de este Roku. Las pistas adaptativas separadas se registraron, pero no se pueden combinar sin multiplexación."
+                    ' Invidious exposes a single MPEG-DASH manifest for its separate
+                    ' adaptive audio/video representations. Roku Video can consume DASH
+                    ' natively, so let the Roku adaptive player select supported tracks.
+                    dashUrl = ""
+                    if parsed.doesExist("dashUrl") and GetInterface(parsed.dashUrl,"ifString") <> invalid
+                        dashUrl = parsed.dashUrl.trim()
+                    end if
+                    if left(dashUrl,8) = "https://"
+                        print "[RokuPlus Invidious codecs] DASH_FALLBACK available=true transport=native_dash"
+                        answer.url = dashUrl
+                        answer.streamFormat = "dash"
+                        answer.bitrate = 0
+                        answer.ok = true
+                        answer.message = ""
+                    else
+                        print "[RokuPlus Invidious codecs] DASH_FALLBACK available=false"
+                        answer.message = "No hay una pista progresiva compatible ni un manifiesto DASH HTTPS disponible en esta instancia."
+                    end if
                 end if
             else
                 answer.message = response.message
