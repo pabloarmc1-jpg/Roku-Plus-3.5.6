@@ -882,6 +882,9 @@ sub openSearch()
     refreshSearchSuggestions()
     drawScreen()
     m.top.setFocus(true)
+    ' Open the native Roku text-entry dialog immediately so the Roku mobile app
+    ' can send phone keyboard input without an extra on-screen CELULAR button.
+    openMobileSearchInput()
 end sub
 
 sub addSearchSuggestion(item as object, query as string)
@@ -2112,19 +2115,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "up" then m.zone = "search-key": m.searchCursor = 30
         else if m.zone = "search-action"
             if key = "left" and m.searchCursor > 0 then m.searchCursor--
-            if key = "right" and m.searchCursor < 3 then m.searchCursor++
+            if key = "right" and m.searchCursor < 2 then m.searchCursor++
             if key = "down" then m.zone = "search-key": m.searchCursor = 0
             if key = "OK"
                 if m.searchCursor = 0
                     submitGlobalSearch()
                 else if m.searchCursor = 1
                     closeSearchKeyboard()
-                else if m.searchCursor = 2
+                else
                     if len(m.searchText) < 120 then m.searchText += " "
                     refreshSearchSuggestions()
                     drawScreen()
-                else
-                    openMobileSearchInput()
                 end if
                 return true
             end if
