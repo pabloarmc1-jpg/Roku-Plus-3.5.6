@@ -201,6 +201,19 @@ function invidiousParseCodecTokens(streamType as string) as dynamic
     return clean
 end function
 
+function invidiousHexValue(hexText as string) as integer
+    if len(hexText) = 0 or len(hexText) > 2 then return -1
+    digits = "0123456789abcdef"
+    result = 0
+    for index = 1 to len(hexText)
+        character = lcase(mid(hexText,index,1))
+        digitValue = instr(1,digits,character) - 1
+        if digitValue < 0 then return -1
+        result = (result * 16) + digitValue
+    end for
+    return result
+end function
+
 function invidiousClassifyVideoCodec(token as string) as dynamic
     if left(token,5) = "avc1." or left(token,5) = "avc3."
         if len(token) <> 11 then return invalid
