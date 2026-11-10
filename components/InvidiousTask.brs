@@ -86,7 +86,7 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
                 container = lcase(stream.container)
             end if
             streamUrl = ""
-            if stream.doesExist("url") then streamUrl = stream.url
+            if stream.doesExist("url") and GetInterface(stream.url,"ifString") <> invalid then streamUrl = stream.url
             streamType = ""
             if stream.doesExist("type") and GetInterface(stream.type,"ifString") <> invalid
                 streamType = lcase(stream.type)
@@ -274,13 +274,19 @@ end function
 function invidiousDeviceSupportsVideo(info as object) as boolean
     deviceInfo = CreateObject("roDeviceInfo")
     capability = deviceInfo.CanDecodeVideo({codec:info.codec,profile:info.profile,level:info.level})
-    return type(capability) = "roAssociativeArray" and capability.doesExist("result") and capability.result = true
+    if type(capability) = "roAssociativeArray" and capability.doesExist("result")
+        return capability.result = true
+    end if
+    return false
 end function
 
 function invidiousDeviceSupportsAudio(info as object) as boolean
     deviceInfo = CreateObject("roDeviceInfo")
     capability = deviceInfo.CanDecodeAudio({codec:info.codec})
-    return type(capability) = "roAssociativeArray" and capability.doesExist("result") and capability.result = true
+    if type(capability) = "roAssociativeArray" and capability.doesExist("result")
+        return capability.result = true
+    end if
+    return false
 end function
 
 function invidiousHevcLevelName(levelCode as integer) as string
