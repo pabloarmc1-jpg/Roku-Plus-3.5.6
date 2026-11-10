@@ -1788,12 +1788,43 @@ end sub
 
 sub discoveryRotationTick(event as object)
     if m.view <> "home" then return
-    if m.zone = "covers" then return
     if type(m.features) <> "roArray" or m.features.count() <= 6 then return
-    maxOffset = m.features.count()-6
-    m.discoveryOffset++
-    if m.discoveryOffset > maxOffset then m.discoveryOffset = 0
-    drawScreen()
+    if m.zone = "covers" and not m.discoveryAnimating then return
+    if type(m.discoveryPosters) <> "roArray" or m.discoveryPosters.count() <> 7 then return
+
+    if not m.discoveryAnimating
+        m.discoveryAnimating = true
+        m.discoverySlideStep = 0
+        m.discoveryRotation.duration = 0.08
+    end if
+
+    m.discoverySlideStep++
+    shift = m.discoverySlideStep * 49
+    for i = 0 to 6
+        poster = m.discoveryPosters[i]
+        poster.translation = [84+i*294-shift,m.discoveryRowY]
+    end for
+
+    if m.discoverySlideStep >= 6
+        recycled = m.discoveryPosters[0]
+        nextPosters = []
+        for i = 1 to 6
+            nextPosters.push(m.discoveryPosters[i])
+        end for
+        m.discoveryOffset++
+        if m.discoveryOffset >= m.features.count() then m.discoveryOffset = 0
+        nextIndex = (m.discoveryOffset+6) mod m.features.count()
+        nextItem = m.features[nextIndex]
+        nextUri = nextItem.background
+        if nextUri = "" then nextUri = nextItem.poster
+        recycled.uri = themeAsset(nextUri)
+        recycled.translation = [84+6*294,m.discoveryRowY]
+        nextPosters.push(recycled)
+        m.discoveryPosters = nextPosters
+        m.discoverySlideStep = 0
+        m.discoveryAnimating = false
+        m.discoveryRotation.duration = 3.5
+    end if
 end sub
 
 sub homeFetched(event as object)

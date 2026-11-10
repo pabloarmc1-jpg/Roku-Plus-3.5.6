@@ -65,6 +65,11 @@ sub thumbnail(uri as string, x as float, y as float, w as float, h as float, sha
 end sub
 
 sub eraseScreen()
+    ' Stop any in-flight Home banner slide before replacing the canvas.
+    m.discoveryAnimating = false
+    m.discoverySlideStep = 0
+    m.discoveryPosters = []
+    if m.discoveryRotation <> invalid then m.discoveryRotation.duration = 3.5
     ' Disconnect before clearing URIs: a cached or failed request from the old
     ' render must never change a badge belonging to the new channel page.
     if type(m.liveLogoFallbacks) = "roArray"
@@ -412,16 +417,23 @@ sub homeScreen()
     end if
     words(heading,76,discoveryY,1500,34,27,"0xFFFFFFFF")
     words("SELECCIÓN PARA TI",1510,discoveryY+4,330,26,15,"0x888891FF").horizAlign = "right"
-    for i = 0 to 5
+    m.discoveryPosters = []
+    m.discoveryRowY = discoveryY+40
+    for i = 0 to 6
         if m.features.count() > 0
             itemIndex = (m.discoveryOffset+i) mod m.features.count()
             item = m.features[itemIndex]
             x = 76+i*294
             uri = item.background
             if uri = "" then uri = item.poster
-            if uri <> "" then art(uri,x+8,discoveryY+40,260,146)
-            if m.zone = "covers" and m.cover = i then panel(x+4,discoveryY+36,268,154,"0xFFFFFF20")
-            focusTarget("covers",i,x,discoveryY+32,276,162,"landscape")
+            if uri <> ""
+                banner = art(uri,x+8,m.discoveryRowY,260,146)
+                m.discoveryPosters.push(banner)
+            end if
+            if i < 6
+                if m.zone = "covers" and m.cover = i then panel(x+4,discoveryY+36,268,154,"0xFFFFFF20")
+                focusTarget("covers",i,x,discoveryY+32,276,162,"landscape")
+            end if
         end if
     end for
 
