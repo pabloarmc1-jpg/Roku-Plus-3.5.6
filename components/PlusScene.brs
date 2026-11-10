@@ -146,6 +146,9 @@ sub init()
     m.homeCache = {}
     m.homeLoading = false
     m.settingsCursor = 0
+    m.invidiousItems = []
+    m.invidiousCursor = 0
+    m.invidiousQuery = ""
     m.creditsPage = 0
     m.creditsPages = []
     if not m.configured
@@ -318,7 +321,21 @@ sub fetched(event as object)
         drawScreen()
         return
     end if
-    if context.operation = "catalog" or context.operation = "search"
+    if context.operation = "invidious-search"
+        m.invidiousItems = answer.items
+        m.invidiousCursor = 0
+        m.view = "invidious"
+        m.zone = "invidious"
+        if m.invidiousItems.count() = 0 then m.note = "No se encontraron videos en Invidious."
+    else if context.operation = "invidious-resolve"
+        if answer.ok
+            m.playbackMode = "direct"
+            launchVideo(context.item,answer.url,"mp4")
+            return
+        else
+            m.note = answer.message
+        end if
+    else if context.operation = "catalog" or context.operation = "search"
         if context.operation = "search"
             m.pageTitles = orbitUniqueCatalogItems(answer.items)
             applyGenreFilter()
@@ -1615,6 +1632,82 @@ sub removeLibraryItem()
     drawScreen()
 end sub
 
+
+sub openInvidiousSearch()
+    dialog = CreateObject("roSGNode","StandardKeyboardDialog")
+    if dialog = invalid then return
+    dialog.title = "Buscar en YouTube · Invidious"
+    dialog.text = m.invidiousQuery
+    dialog.buttons = ["Buscar","Cancelar"]
+    dialog.observeField("buttonSelected","invidiousSearchChosen")
+    dialog.observeField("wasClosed","invidiousSearchDismissed")
+    m.dialogBox = dialog
+    m.dialogPurpose = "invidious-search"
+    m.top.dialog = dialog
+end sub
+
+sub invidiousSearchChosen(event as object)
+    if m.dialogBox = invalid then return
+    if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    query = left(m.dialogBox.text.trim(),100)
+    choice = event.getData()
+    releaseDialog()
+    if choice <> 0 or query = "" then return
+    m.invidiousQuery = query
+    m.invidiousItems = []
+    m.invidiousCursor = 0
+    m.view = "invidious"
+    m.zone = "invidious"
+    m.note = ""
+    m.request = CreateObject("roDeviceInfo").getRandomUUID()
+    task = CreateObject("roSGNode","InvidiousTask")
+    task.operation = "search"
+    task.query = query
+    task.requestId = m.request
+    task.observeField("result","fetched")
+    task.observeField("state","catalogState")
+    m.job = task
+    m.pending = {operation:"invidious-search"}
+    m.busy = true
+    m.deadline.duration = 45
+    m.deadlineMs = 45000
+    m.deadlineStart = CreateObject("roTimespan")
+    m.deadlineStart.mark()
+    drawScreen()
+    m.deadline.control = "start"
+    task.control = "RUN"
+end sub
+
+sub invidiousSearchDismissed(event as object)
+    if m.dialogBox = invalid then return
+    if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    releaseDialog(true)
+    if m.view = "settings" then drawScreen()
+    scheduleDialogFocusRestore()
+end sub
+
+sub startInvidiousResolve(item as object)
+    if type(item) <> "roAssociativeArray" then return
+    m.request = CreateObject("roDeviceInfo").getRandomUUID()
+    task = CreateObject("roSGNode","InvidiousTask")
+    task.operation = "resolve"
+    task.videoId = item.id
+    task.requestId = m.request
+    task.observeField("result","fetched")
+    task.observeField("state","catalogState")
+    m.job = task
+    m.pending = {operation:"invidious-resolve",item:item}
+    m.busy = true
+    m.note = ""
+    m.deadline.duration = 45
+    m.deadlineMs = 45000
+    m.deadlineStart = CreateObject("roTimespan")
+    m.deadlineStart.mark()
+    drawScreen()
+    m.deadline.control = "start"
+    task.control = "RUN"
+end sub
+
 sub openSettings()
     cancelRequest()
     m.view = "settings"
@@ -2476,7 +2569,7 @@ if m.view = "profiles"
     else if m.view = "settings"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up" and m.settingsCursor > 0 then m.settingsCursor--
-        if key = "down" and m.settingsCursor < 9 then m.settingsCursor++
+        if key = "down" and m.settingsCursor < 10 then m.settingsCursor++
         if key = "OK"
             if m.settingsCursor = 0 then beginSetup(true,false)
             if m.settingsCursor = 1 then beginSetup(true,true)
@@ -2487,6 +2580,7 @@ if m.view = "profiles"
             if m.settingsCursor = 6 then openCompatSettings()
             if m.settingsCursor = 7 then openApiKeySettings("tmdb")
             if m.settingsCursor = 8 then openApiKeySettings("subtitle")
+            if m.settingsCursor = 10 then openInvidiousSearch()
             return true
         end if
         paintFocus()
