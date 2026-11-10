@@ -165,6 +165,16 @@ sub rpTsRelayServe(connection as object, server as object)
             DeleteFile(filePath)
             exit for
         end if
+        tsAudit = rpTsRelayAuditPayload(payload)
+        if sentSegments = 0 or not tsAudit.aligned or tsAudit.syncErrors > 0 or tsAudit.patPackets = 0
+            print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " aligned="; tsAudit.aligned; " syncErrors="; tsAudit.syncErrors; " firstBad="; tsAudit.firstBadOffset; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets
+        else if sentSegments mod 25 = 0
+            print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets
+        end if
+        if payloadSize <= 0
+            DeleteFile(filePath)
+            exit for
+        end if
         rpTsRelaySendString(connection,rpTsRelayHex(payloadSize)+chr(13)+chr(10),server,connectionPort)
         if not server.sendOk
             DeleteFile(filePath)
@@ -271,5 +281,29 @@ function rpTsRelayHex(value as integer) as string
         result = mid(digits,remainder+1,1) + result
         value = value \ 16
     end while
+    return result
+end function
+
+' Read-only MPEG-TS packet audit. The payload is forwarded unchanged.
+function rpTsRelayAuditPayload(payload as object) as object
+    result = {aligned:false,packetCount:0,syncErrors:0,firstBadOffset:-1,patPackets:0,nullPackets:0}
+    total = payload.Count()
+    if total <= 0 then return result
+    result.aligned = (total mod 188) = 0
+    if not result.aligned then
+        result.firstBadOffset = total - (total mod 188)
+        return result
+    end if
+    result.packetCount = total \ 188
+    for offset = 0 to total - 188 step 188
+        if payload[offset] <> &H47
+            result.syncErrors++
+            if result.firstBadOffset < 0 then result.firstBadOffset = offset
+        else
+            pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
+            if pid = 0 then result.patPackets++
+            if pid = 8191 then result.nullPackets++
+        end if
+    end for
     return result
 end function
