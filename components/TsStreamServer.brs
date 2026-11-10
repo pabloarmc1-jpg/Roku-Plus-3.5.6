@@ -167,9 +167,11 @@ sub rpTsRelayServe(connection as object, server as object)
         end if
         tsAudit = rpTsRelayAuditPayload(payload)
         if sentSegments = 0 or not tsAudit.aligned or tsAudit.syncErrors > 0 or tsAudit.patPackets = 0 or tsAudit.continuityErrors > 0 or tsAudit.pmtPackets > 0
-            print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " aligned="; tsAudit.aligned; " syncErrors="; tsAudit.syncErrors; " firstBad="; tsAudit.firstBadOffset; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
+            print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " aligned="; tsAudit.aligned; " syncErrors="; tsAudit.syncErrors; " firstBad="; tsAudit.firstBadOffset
+            print "[RokuPlus ts-audit] pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
         else if sentSegments mod 25 = 0
-            print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
+            print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked
+            print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
         end if
         if payloadSize <= 0
             DeleteFile(filePath)
@@ -296,7 +298,7 @@ function rpTsRelayAuditPayload(payload as object) as object
         result.firstBadOffset = total - (total mod 188)
         return result
     end if
-    result.packetCount = total \\ 188
+    result.packetCount = total \ 188
     lastCounters = {}
     haveCounters = {}
     for offset = 0 to total - 188 step 188
@@ -308,7 +310,7 @@ function rpTsRelayAuditPayload(payload as object) as object
             if pid = 0 then result.patPackets++
             if pid = 8191 then result.nullPackets++
             header = payload[offset+3]
-            adaptationControl = (header \\ 16) mod 4
+            adaptationControl = (header \ 16) mod 4
             continuity = header mod 16
             hasPayload = adaptationControl = 1 or adaptationControl = 3
             discontinuity = false
