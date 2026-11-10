@@ -99,8 +99,8 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
                 else score = score + (height / 10)
             end if
             bitrateKbps = 0
-            if stream.doesExist("bitrate")
-                rawBitrate = val(stream.bitrate)
+            if stream.doesExist("bitrate") and stream.bitrate <> invalid
+                rawBitrate = val(stream.bitrate.toStr())
                 if rawBitrate > 0
                     if rawBitrate > 10000
                         bitrateKbps = int((rawBitrate + 999) / 1000)
