@@ -2384,6 +2384,28 @@ function onKeyEvent(key as string, press as boolean) as boolean
         drawScreen()
         return true
     end if
+    if m.view = "invidious"
+        if key = "up" and m.invidiousCursor > 0 then m.invidiousCursor--
+        if key = "down" and m.invidiousCursor+1 < m.invidiousItems.count() then m.invidiousCursor++
+        if key = "OK" and m.invidiousItems.count() > 0
+            if not m.busy
+                selected = m.invidiousItems[m.invidiousCursor]
+                startInvidiousResolve(selected)
+            end if
+            return true
+        end if
+        if key = "back"
+            if m.busy then cancelRequest()
+            m.view = "settings"
+            m.zone = "settings"
+            m.settingsCursor = 10
+            drawScreen()
+            m.top.setFocus(true)
+            return true
+        end if
+        paintFocus()
+        return true
+    end if
     if m.view = "appearance"
         if key = "left" then m.themeCursor = 0
         if key = "right" then m.themeCursor = 1
