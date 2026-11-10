@@ -363,15 +363,15 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
         b1 = payload[offset+1]
         b2 = payload[offset+2]
         b3 = payload[offset+3]
-        pid = (b1 and &h1F) * 256 + b2
+        pid = (b1 mod 32) * 256 + b2
         pidKey = pid.toStr()
         if pidCounts.DoesExist(pidKey)
             pidCounts[pidKey] = pidCounts[pidKey] + 1
         else
             pidCounts[pidKey] = 1
         end if
-        adaptationControl = (b3 and &h30) / 16
-        cc = b3 and &h0F
+        adaptationControl = int(b3 / 16) mod 4
+        cc = b3 mod 16
         hasPayload = adaptationControl = 1 or adaptationControl = 3
         if hasPayload
             if continuity.DoesExist(pidKey)
@@ -386,12 +386,12 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
             payloadOffset += 1 + payload[payloadOffset]
         end if
         if payloadOffset >= offset + 188 then continue for
-        unitStart = (b1 and &h40) <> 0
+        unitStart = (int(b1 / 64) mod 2) = 1
         if pid = 0 and unitStart and not patFound
             pointer = payload[payloadOffset]
             section = payloadOffset + 1 + pointer
             if section + 11 < offset + 188 and payload[section] = 0
-                sectionLength = (payload[section+1] and &h0F) * 256 + payload[section+2]
+                sectionLength = (payload[section+1] mod 16) * 256 + payload[section+2]
                 sectionEnd = section + 3 + sectionLength
                 if sectionEnd <= offset + 188
                     entry = section + 8
@@ -408,15 +408,15 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
             pointer = payload[payloadOffset]
             section = payloadOffset + 1 + pointer
             if section + 12 < offset + 188 and payload[section] = 2
-                sectionLength = (payload[section+1] and &h0F) * 256 + payload[section+2]
+                sectionLength = (payload[section+1] mod 16) * 256 + payload[section+2]
                 sectionEnd = section + 3 + sectionLength
                 if sectionEnd <= offset + 188
-                    programInfoLength = (payload[section+10] and &h0F) * 256 + payload[section+11]
+                    programInfoLength = (payload[section+10] mod 16) * 256 + payload[section+11]
                     entry = section + 12 + programInfoLength
                     while entry + 4 < sectionEnd - 4
                         streamType = payload[entry]
-                        elementaryPid = (payload[entry+1] and &h1F) * 256 + payload[entry+2]
-                        esInfoLength = (payload[entry+3] and &h0F) * 256 + payload[entry+4]
+                        elementaryPid = (payload[entry+1] mod 32) * 256 + payload[entry+2]
+                        esInfoLength = (payload[entry+3] mod 16) * 256 + payload[entry+4]
                         if streamType = &h1B or streamType = &h24 then videoPid = elementaryPid
                         if streamType = &h0F or streamType = &h11 then audioPid = elementaryPid
                         entry += 5 + esInfoLength
@@ -437,9 +437,9 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
     for i = 0 to size - 5
         nalType = -1
         if payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 1
-            nalType = payload[i+3] and &h1F
+            nalType = payload[i+3] mod 32
         else if i + 5 < size and payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 1
-            nalType = payload[i+4] and &h1F
+            nalType = payload[i+4] mod 32
         end if
         if nalType = 7 then nal7++
         if nalType = 8 then nal8++
