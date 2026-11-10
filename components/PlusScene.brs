@@ -1624,6 +1624,69 @@ sub compatSettingsDismissed(event as object)
     openSettings()
 end sub
 
+sub openApiKeySettings(service as string)
+    dialog = CreateObject("roSGNode","StandardKeyboardDialog")
+    if dialog = invalid then return
+    if service = "tmdb"
+        dialog.title = "TMDB API Key"
+        dialog.message = ["Pega tu clave API de TMDB. Se guarda localmente en este Roku."]
+    else
+        dialog.title = "Subtitle Search Engine API Key"
+        dialog.message = ["Pega tu clave API de Subtitle Search Engine. Se guarda localmente en este Roku."]
+    end if
+    dialog.buttons = ["Guardar","Borrar","Cancelar"]
+    dialog.keyboardDomain = "password"
+    dialog.text = ""
+    if dialog.textEditBox <> invalid
+        dialog.textEditBox.secureMode = true
+        dialog.textEditBox.secureLastCharacter = true
+    end if
+    dialog.observeField("buttonSelected","apiKeySettingsChosen")
+    dialog.observeField("wasClosed","apiKeySettingsDismissed")
+    m.dialogBox = dialog
+    m.dialogPurpose = "api-key-" + service
+    m.top.dialog = dialog
+end sub
+
+sub apiKeySettingsChosen(event as object)
+    if m.dialogBox = invalid then return
+    if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    choice = event.getData()
+    service = "tmdb"
+    if m.dialogPurpose = "api-key-subtitle" then service = "subtitle"
+    value = m.dialogBox.text
+    if GetInterface(value,"ifString") = invalid then value = ""
+    value = value.trim()
+    message = ""
+    if choice = 0
+        if value = "" or len(value) > 512 or instr(1,value,chr(10)) > 0 or instr(1,value,chr(13)) > 0
+            message = "La API Key está vacía o no es válida."
+        else if service = "tmdb"
+            if rpSaveTmdbApiKey(value) then message = "TMDB API Key guardada en este Roku." else message = "No se pudo guardar la clave de TMDB."
+        else
+            if rpSaveSubtitleSearchEngineApiKey(value) then message = "Subtitle Search Engine API Key guardada en este Roku." else message = "No se pudo guardar la clave de subtítulos."
+        end if
+    else if choice = 1
+        if service = "tmdb"
+            if rpClearTmdbApiKey() then message = "TMDB API Key borrada." else message = "No se pudo borrar la clave de TMDB."
+        else
+            if rpClearSubtitleSearchEngineApiKey() then message = "Subtitle Search Engine API Key borrada." else message = "No se pudo borrar la clave de subtítulos."
+        end if
+    end if
+    releaseDialog()
+    openSettings()
+    m.note = message
+    drawScreen()
+    m.top.setFocus(true)
+end sub
+
+sub apiKeySettingsDismissed(event as object)
+    if m.dialogBox = invalid or event.getData() <> true then return
+    if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    releaseDialog(true)
+    openSettings()
+end sub
+
 sub openCredits()
     m.creditsPages = []
     text = "ROKU PLUS - CATALOGO HD" + chr(10) + chr(10) + "CORTOS DE BLENDER STUDIO / BLENDER INSTITUTE" + chr(10) + "Caminandes: Llama Drama, Gran Dillama y Llamigos; Glass Half." + chr(10) + "Los cortos se enlazan desde las fuentes oficiales bajo licencia CC BY 4.0." + chr(10) + "https://creativecommons.org/licenses/by/4.0/" + chr(10) + chr(10) + "NASA EN ESPANOL - ARCHIVO 2023" + chr(10) + "Ocho capsulas documentales del archivo de NASA / Goddard Space Flight Center." + chr(10) + "El material de NASA puede incluir excepciones y contenido de terceros." + chr(10) + "Condiciones de uso: https://www.nasa.gov/nasa-brand-center/images-and-media/" + chr(10) + "NASA no patrocina ni respalda esta aplicacion."
@@ -2235,7 +2298,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     else if m.view = "settings"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up" and m.settingsCursor > 0 then m.settingsCursor--
-        if key = "down" and m.settingsCursor < 6 then m.settingsCursor++
+        if key = "down" and m.settingsCursor < 9 then m.settingsCursor++
         if key = "OK"
             if m.settingsCursor = 0 then beginSetup(true,false)
             if m.settingsCursor = 1 then beginSetup(true,true)
@@ -2244,6 +2307,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if m.settingsCursor = 4 then openAppearance()
             if m.settingsCursor = 5 then openProfiles()
             if m.settingsCursor = 6 then openCompatSettings()
+            if m.settingsCursor = 7 then openApiKeySettings("tmdb")
+            if m.settingsCursor = 8 then openApiKeySettings("subtitle")
             return true
         end if
         paintFocus()

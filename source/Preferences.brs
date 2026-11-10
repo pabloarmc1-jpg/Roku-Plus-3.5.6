@@ -129,6 +129,67 @@ function rpStorePreferences(section as object, mode as dynamic, countryCode as d
 end function
 
 
+' API credentials are stored separately from catalog/profile preferences.
+' Values are never displayed back in the Settings screen.
+function rpLoadTmdbApiKey() as string
+    section = CreateObject("roRegistrySection","RokuPlusApiSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return ""
+    value = section.read("tmdbApiKeyV1")
+    if GetInterface(value,"ifString") = invalid then return ""
+    return value
+end function
+
+function rpSaveTmdbApiKey(value as dynamic) as boolean
+    return rpStoreApiSecret("RokuPlusApiSecrets","tmdbApiKeyV1",value)
+end function
+
+function rpClearTmdbApiKey() as boolean
+    return rpClearApiSecret("RokuPlusApiSecrets","tmdbApiKeyV1")
+end function
+
+function rpLoadSubtitleSearchEngineApiKey() as string
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return ""
+    value = section.read("subtitleSearchEngineApiKey")
+    if GetInterface(value,"ifString") = invalid then return ""
+    return value
+end function
+
+function rpSaveSubtitleSearchEngineApiKey(value as dynamic) as boolean
+    return rpStoreApiSecret("RokuPlusSubtitleSecrets","subtitleSearchEngineApiKey",value)
+end function
+
+function rpClearSubtitleSearchEngineApiKey() as boolean
+    return rpClearApiSecret("RokuPlusSubtitleSecrets","subtitleSearchEngineApiKey")
+end function
+
+function rpStoreApiSecret(sectionName as string, keyName as string, value as dynamic) as boolean
+    if GetInterface(value,"ifString") = invalid then return false
+    candidate = value.trim()
+    if candidate = "" or len(candidate) > 512 then return false
+    if instr(1,candidate,chr(10)) > 0 or instr(1,candidate,chr(13)) > 0 then return false
+    section = CreateObject("roRegistrySection",sectionName)
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    previous = section.read(keyName)
+    if section.write(keyName,candidate) <> true then return false
+    if section.flush() = true then return true
+    if previous = "" then section.delete(keyName) else section.write(keyName,previous)
+    section.flush()
+    return false
+end function
+
+function rpClearApiSecret(sectionName as string, keyName as string) as boolean
+    section = CreateObject("roRegistrySection",sectionName)
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    previous = section.read(keyName)
+    if previous = "" then return true
+    section.delete(keyName)
+    if section.flush() = true then return true
+    section.write(keyName,previous)
+    section.flush()
+    return false
+end function
+
 ' Active household profile. Four isolated local watch-state namespaces.
 function rpNormalizeProfileId(value as dynamic) as string
     if GetInterface(value,"ifString") <> invalid

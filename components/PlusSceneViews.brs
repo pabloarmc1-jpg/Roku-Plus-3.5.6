@@ -1037,9 +1037,13 @@ sub settingsScreen()
     words("Puedes corregir tus elecciones cuando quieras.",76,218,1480,55,25,"0xB3B3B3FF")
     appearance = "Vidrio"
     if m.theme = "classic" then appearance = "Clásico"
-    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","Resolución detectada"]
+    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Resolución detectada"]
     helperValue = m.compatBase
     if helperValue = "" then helperValue = "No configurado"
+    tmdbStatus = "No configurada"
+    if rpLoadTmdbApiKey() <> "" then tmdbStatus = "Configurada · oculta"
+    subtitleStatus = "No configurada"
+    if rpLoadSubtitleSearchEngineApiKey() <> "" then subtitleStatus = "Configurada · oculta"
     displayValue = "No disponible"
     if type(m.capabilities.display) = "roAssociativeArray"
         display = m.capabilities.display
@@ -1049,15 +1053,15 @@ sub settingsScreen()
         if display.videoMode <> "" then displayValue = displayValue+" · "+display.videoMode
         if display.uiName <> "" then displayValue = displayValue+" · interfaz "+display.uiName
     end if
-    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,displayValue]
-    for i = 0 to 7
-        y = 270+i*84
-        panel(72,y,1770,76,"0x181818FF")
-        words(labels[i],104,y+10,1150,38,27,"0xFFFFFFFF")
-        words(values[i],106,y+48,1450,25,19,"0xB3B3B3FF")
-        focusTarget("settings",i,66,y-5,1782,86)
+    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue]
+    for i = 0 to 9
+        y = 260+i*70
+        panel(72,y,1770,62,"0x181818FF")
+        words(labels[i],104,y+5,1150,31,25,"0xFFFFFFFF")
+        words(values[i],106,y+34,1450,23,18,"0xB3B3B3FF")
+        focusTarget("settings",i,66,y-4,1782,70)
     end for
-    words("La interfaz usa diseño FHD con escalado automático de Roku; la salida se detecta en este dispositivo.",323,990,1480,36,19,"0xB1BEB3FF")
+    words("Las claves se guardan en el registro local de este Roku y se muestran ocultas.",76,990,1740,36,19,"0xB1BEB3FF")
 end sub
 
 sub profilesScreen()
