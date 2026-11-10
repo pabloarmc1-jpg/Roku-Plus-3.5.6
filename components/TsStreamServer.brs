@@ -233,7 +233,7 @@ sub rpTsRelaySendString(connection as object, value as string, server as object,
         if count > 0
             offset += count
         else if count < 0 and (connection.eAgain() or connection.eWouldBlock())
-            if not rpTsRelayWaitWritable(connection,port)
+            if not rpTsRelayWaitWritable(connection,port,server)
                 print "[RokuPlus ts-relay] send_wait_failed kind=string offset="; offset; " status="; connection.status()
                 server.sendOk = false
                 exit while
@@ -255,7 +255,7 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
         if count > 0
             offset += count
         else if count < 0 and (connection.eAgain() or connection.eWouldBlock())
-            if not rpTsRelayWaitWritable(connection,port)
+            if not rpTsRelayWaitWritable(connection,port,server)
                 print "[RokuPlus ts-relay] send_wait_failed kind=bytes offset="; offset; " total="; total; " status="; connection.status()
                 server.sendOk = false
                 exit while
@@ -268,7 +268,7 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
     end while
 end sub
 
-function rpTsRelayWaitWritable(connection as object, port as object) as boolean
+function rpTsRelayWaitWritable(connection as object, port as object, server as object) as boolean
     ' Wait for the socket's writable notification instead of polling blindly.
     ' A slow decoder can temporarily apply TCP backpressure while consuming a
     ' large TS segment; allow that pause without abandoning a valid connection.
