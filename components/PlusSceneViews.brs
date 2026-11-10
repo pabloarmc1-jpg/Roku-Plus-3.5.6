@@ -114,7 +114,7 @@ sub focusTarget(zone as string, index as integer, x as integer, y as integer, w 
     m.focusItems.push({zone:zone,index:index,edge:edge})
 end sub
 
-sub selectable(zone as string, index as integer, text as string, x as integer, y as integer, w as integer, h as integer, primary = false as boolean)
+sub selectable(zone as string, index as integer, text as string, x as integer, y as integer, w as integer, h as integer, primary = false as boolean, icon = "" as string)
     surface = "0x2F2F2FFF"
     ink = "0xFFFFFFFF"
     if primary
@@ -122,8 +122,14 @@ sub selectable(zone as string, index as integer, text as string, x as integer, y
         ink = "0x080808FF"
     end if
     panel(x,y,w,h,surface)
-    label = words(text,x+12,y+15,w-24,h-18,26,ink)
-    label.horizAlign = "center"
+    if icon <> ""
+        art("pkg:/images/ui/"+icon,x+16,y+13,36,36,"scaleToFit")
+        label = words(text,x+60,y+15,w-72,h-18,25,ink)
+        label.horizAlign = "left"
+    else
+        label = words(text,x+12,y+15,w-24,h-18,26,ink)
+        label.horizAlign = "center"
+    end if
     focusTarget(zone,index,x-4,y-4,w+8,h+8)
 end sub
 
@@ -377,8 +383,8 @@ sub homeScreen()
         if item.kind = "series" then facts += " · Serie"
         if facts <> "" then words(facts,260,326,900,34,22,"0xE2E2E2FF")
         words("Descubre historias para disfrutar en Roku Plus.",260,365,1000,38,21,"0xC9C9CFFF")
-        selectable("hero",0,"▶  REPRODUCIR",256,425,270,62,true)
-        selectable("hero",1,"ⓘ  MÁS INFORMACIÓN",545,425,320,62)
+        selectable("hero",0,"REPRODUCIR",256,425,270,62,true,"action-play.png")
+        selectable("hero",1,"MÁS INFORMACIÓN",545,425,320,62,false,"action-info.png")
         words("⏮ / ⏭  CAMBIAR DESTACADO",1190,445,650,30,17,"0xE0E0E0FF").horizAlign = "right"
         if featureCount > 1
             for dot = 0 to 3
@@ -552,15 +558,15 @@ sub browseScreen()
     words(searchHint,1260,210,577,38,19,"0xE5E5E5FF").horizAlign = "right"
     words("OPTIONS: filtrar por género",256,245,720,28,17,"0x888888FF")
 
-    ' Netflix-like poster wall: five columns by two rows. The remote scrolls
-    ' through ten-card windows while retaining the provider's twenty-item page.
-    first = (m.cursor \ 10)*10
+    ' Four columns by two rows. Each visible window contains exactly eight cards.
+    ' The remote cursor and the rendered window use the same eight-item stride.
+    first = (m.cursor \ 8)*8
     for i = 0 to 7
         n = first+i
         if n < m.titles.count()
             item = m.titles[n]
             col = i mod 4
-            row = i \ 5
+            row = i \ 4
             x = 252+col*410
             y = 270+row*360
             uri = item.poster
@@ -635,7 +641,7 @@ sub browseScreen()
     words(hint,1330,1015,500,34,19,"0xB3B3B3FF").horizAlign = "right"
 end sub
 
-sub detailSelectable(index as integer, text as string, x as integer, y as integer, w as integer, h as integer, primary = false as boolean)
+sub detailSelectable(index as integer, text as string, x as integer, y as integer, w as integer, h as integer, primary = false as boolean, icon = "" as string)
     surface = "0x30343BFF"
     ink = "0xFFFFFFFF"
     if primary
@@ -643,8 +649,14 @@ sub detailSelectable(index as integer, text as string, x as integer, y as intege
         ink = "0x101114FF"
     end if
     panel(x,y,w,h,surface)
-    label = words(text,x+14,y+17,w-28,h-20,28,ink)
-    label.horizAlign = "center"
+    if icon <> ""
+        art("pkg:/images/ui/"+icon,x+22,y+18,36,36,"scaleToFit")
+        label = words(text,x+78,y+17,w-96,h-20,27,ink)
+        label.horizAlign = "left"
+    else
+        label = words(text,x+14,y+17,w-28,h-20,28,ink)
+        label.horizAlign = "center"
+    end if
     focusTarget("action",index,x-5,y-5,w+10,h+10)
 end sub
 
@@ -734,7 +746,7 @@ sub detailScreen()
     if summaryY > 500 then actionY = 752
     title = "▶  Reproducir"
     if item.kind = "series" then title = "Ver episodios"
-    detailSelectable(0,title,542,actionY,500,72,true)
+    detailSelectable(0,title,542,actionY,500,72,true,"action-play.png")
     if detailActionCount() = 3
         detailSelectable(1,"Reproducción con PC",542,actionY+78,500,66)
         detailSelectable(2,"Volver",542,actionY+150,500,66)

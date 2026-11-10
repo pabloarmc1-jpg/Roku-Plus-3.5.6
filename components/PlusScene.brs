@@ -2638,7 +2638,7 @@ if m.view = "profiles"
         end if
     else if m.view = "browse"
         previousCursor = m.cursor
-        window = m.cursor \ 10
+        window = m.cursor \ 8
         if key = "left"
             if m.cursor mod 4 > 0 then m.cursor-- else m.zone = "nav": drawScreen(): return true
         end if
@@ -2668,7 +2668,7 @@ if m.view = "profiles"
             end if
         end if
         if key = "OK" and m.titles.count() > 0 then openDetails(m.titles[m.cursor],"browse"): return true
-        if window <> m.cursor \ 10 or previousCursor <> m.cursor then drawScreen(): return true
+        if window <> m.cursor \ 8 or previousCursor <> m.cursor then drawScreen(): return true
     else if m.view = "detail"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up"
