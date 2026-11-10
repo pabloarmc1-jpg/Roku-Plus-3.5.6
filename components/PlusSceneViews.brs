@@ -413,8 +413,9 @@ sub homeScreen()
     words(heading,76,discoveryY,1500,34,27,"0xFFFFFFFF")
     words("SELECCIÓN PARA TI",1510,discoveryY+4,330,26,15,"0x888891FF").horizAlign = "right"
     for i = 0 to 5
-        if i < m.features.count()
-            item = m.features[i]
+        if m.features.count() > 0
+            itemIndex = (m.discoveryOffset+i) mod m.features.count()
+            item = m.features[itemIndex]
             x = 76+i*294
             uri = item.background
             if uri = "" then uri = item.poster

@@ -28,6 +28,10 @@ sub init()
     m.heroRotation = m.top.findNode("heroRotation")
     m.heroRotation.observeField("fire","heroRotationTick")
     m.heroRotation.control = "start"
+    m.discoveryRotation = m.top.findNode("discoveryRotation")
+    m.discoveryRotation.observeField("fire","discoveryRotationTick")
+    m.discoveryRotation.control = "start"
+    m.discoveryOffset = 0
     m.nextEpisode = invalid
     m.nextEpisodeCountdown = 0
     m.profileId = rpLoadProfileId()
@@ -126,6 +130,7 @@ sub init()
     m.hdDataTask.control = "RUN"
     m.features = []
     m.homeSeries = []
+    m.discoveryOffset = 0
     m.homeJobs = []
     m.homeCache = {}
     m.homeLoading = false
@@ -1749,6 +1754,7 @@ sub refreshHome()
             if age >= 0 and age < 300000
                 m.features = cached.movies
                 m.homeSeries = cached.series
+                m.discoveryOffset = 0
                 if m.heroFeature >= m.features.count() then m.heroFeature = 0
                 m.homeLoading = false
                 return
@@ -1759,20 +1765,35 @@ sub refreshHome()
     ' with stale series (or vice versa) and be marked as a valid cache.
     m.homeCache[cacheKey] = {movies: [], series: [], hasMovies: false, hasSeries: false, clock: CreateObject("roTimespan")}
     m.homeLoading = true
-    for each kind in ["movie","series"]
-        taskName = "CatalogTask"
-        if usesOnlineHd() then taskName = "HdCatalogTask"
-        task = CreateObject("roSGNode",taskName)
-        if usesOnlineHd() then task.provider = m.hdProvider
-        request = CreateObject("roDeviceInfo").getRandomUUID()
-        task.operation = "catalog"
-        task.kind = kind
-        task.requestId = request
-        task.observeField("result","homeFetched")
-        task.observeField("state","homeStopped")
-        m.homeJobs.push({node:task,request:request,kind:kind,mode:m.catalogMode,provider:m.hdProvider})
-        task.control = "RUN"
-    end for
+    m.discoveryOffset = 0
+    startHomeCatalogTask("movie",0)
+    startHomeCatalogTask("series",0)
+end sub
+
+sub startHomeCatalogTask(kind as string, skip as integer)
+    taskName = "CatalogTask"
+    if usesOnlineHd() then taskName = "HdCatalogTask"
+    task = CreateObject("roSGNode",taskName)
+    if usesOnlineHd() then task.provider = m.hdProvider
+    request = CreateObject("roDeviceInfo").getRandomUUID()
+    task.operation = "catalog"
+    task.kind = kind
+    task.skip = skip
+    task.requestId = request
+    task.observeField("result","homeFetched")
+    task.observeField("state","homeStopped")
+    m.homeJobs.push({node:task,request:request,kind:kind,skip:skip,mode:m.catalogMode,provider:m.hdProvider})
+    task.control = "RUN"
+end sub
+
+sub discoveryRotationTick(event as object)
+    if m.view <> "home" then return
+    if m.zone = "covers" then return
+    if type(m.features) <> "roArray" or m.features.count() <= 6 then return
+    maxOffset = m.features.count()-6
+    m.discoveryOffset++
+    if m.discoveryOffset > maxOffset then m.discoveryOffset = 0
+    drawScreen()
 end sub
 
 sub homeFetched(event as object)
@@ -1785,8 +1806,20 @@ sub homeFetched(event as object)
             if m.catalogMode = "hd" and entry.provider <> m.hdProvider then return
             if answer.ok
                 if entry.kind = "movie"
-                    m.features = orbitUniqueCatalogItems(answer.items)
+                    mergedMovies = m.features
+                    if entry.skip = 0 then mergedMovies = []
+                    for each fetchedMovie in answer.items
+                        mergedMovies.push(fetchedMovie)
+                    end for
+                    m.features = orbitUniqueCatalogItems(mergedMovies)
                     if m.heroFeature >= m.features.count() then m.heroFeature = 0
+                    if m.discoveryOffset >= m.features.count() then m.discoveryOffset = 0
+                    ' Load up to three Cinemeta/provider pages so the carousel has a deeper pool.
+                    if answer.doesExist("hasMore") and answer.hasMore and entry.skip < 40
+                        nextSkip = entry.skip + 20
+                        if answer.doesExist("nextSkip") then nextSkip = answer.nextSkip
+                        if nextSkip > entry.skip and nextSkip <= 40 then startHomeCatalogTask("movie",nextSkip)
+                    end if
                 else
                     m.homeSeries = orbitUniqueCatalogItems(answer.items)
                 end if
@@ -1797,8 +1830,13 @@ sub homeFetched(event as object)
                     if type(previousCache) = "roAssociativeArray" then cached = previousCache
                 end if
                 if entry.kind = "movie"
-                    cached.movies = orbitUniqueCatalogItems(answer.items)
-                    cached.hasMovies = true
+                    cachedMovies = cached.movies
+                    if entry.skip = 0 then cachedMovies = []
+                    for each cachedMovie in answer.items
+                        cachedMovies.push(cachedMovie)
+                    end for
+                    cached.movies = orbitUniqueCatalogItems(cachedMovies)
+                    if entry.skip = 0 then cached.hasMovies = true
                 else
                     cached.series = orbitUniqueCatalogItems(answer.items)
                     cached.hasSeries = true
@@ -2333,9 +2371,23 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
         else if m.zone = "covers"
             if key = "left"
-                if m.cover > 0 then m.cover-- else m.zone = "nav": drawScreen(): return true
+                if m.cover > 0
+                    m.cover--
+                else if m.discoveryOffset > 0
+                    m.discoveryOffset--
+                else
+                    m.zone = "nav"
+                    drawScreen()
+                    return true
+                end if
             end if
-            if key = "right" and m.cover < 5 and m.cover+1 < m.features.count() then m.cover++
+            if key = "right"
+                if m.cover < 5 and m.discoveryOffset+m.cover+1 < m.features.count()
+                    m.cover++
+                else if m.cover = 5 and m.discoveryOffset+6 < m.features.count()
+                    m.discoveryOffset++
+                end if
+            end if
             if key = "up"
                 if m.continueItems.count() > 0 then m.zone = "continue" else m.zone = "hero"
             end if
@@ -2348,7 +2400,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
                     m.seriesCover = 0
                 end if
             end if
-            if key = "OK" and m.features.count() > 0 then openDetails(m.features[m.cover],"home"): return true
+            if key = "OK" and m.features.count() > 0
+                selectedIndex = (m.discoveryOffset+m.cover) mod m.features.count()
+                openDetails(m.features[selectedIndex],"home")
+                return true
+            end if
         else if m.zone = "home-list"
             if key = "left"
                 if m.listCover > 0 then m.listCover-- else m.zone = "nav": drawScreen(): return true
