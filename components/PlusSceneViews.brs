@@ -1099,7 +1099,7 @@ end sub
 sub youtubeScreen()
     topBar()
     words("YouTube",320,118,1400,72,48,"0xFFFFFFFF")
-    words("Búsqueda de videos públicos · datos oficiales de YouTube",324,188,1450,42,23,"0xB3B3B3FF")
+    words("Búsqueda de videos públicos mediante Invidious",324,188,1450,42,23,"0xB3B3B3FF")
     if m.youtubeQuery <> "" then words("Resultados para: " + m.youtubeQuery,324,244,1400,42,24,"0xE5E5E5FF")
     if m.youtubeBusy
         words("Buscando videos…",324,360,1400,55,32,"0xD0D0D0FF")
@@ -1147,8 +1147,18 @@ sub youtubeDetailScreen()
     if description = "" then description = "Este video no incluye una descripción."
     words(description,324,628,1450,164,22,"0xE0E0E0FF").wrap = true
     words("REPRODUCCIÓN",324,818,300,28,17,"0xA0A0A0FF")
-    words("No disponible dentro de Roku Plus: YouTube no entrega una URL multimedia a esta API.",324,850,1460,56,20,"0xF0D6A0FF").wrap = true
-    words("Enlace oficial: youtube.com/watch?v="+item.id,324,916,1450,34,18,"0xB3B3B3FF")
+    playbackStatus = "Consultando formatos compatibles…"
+    if m.youtubeDetailBusy
+        playbackStatus = "Preparando reproducción desde Invidious…"
+    else if GetInterface(item.streamUrl,"ifString") <> invalid and item.streamUrl <> ""
+        playbackStatus = "MP4 compatible disponible · pulsa OK para reproducir"
+    else if GetInterface(item.playbackMessage,"ifString") <> invalid and item.playbackMessage <> ""
+        playbackStatus = item.playbackMessage
+    else
+        playbackStatus = "No se encontró un MP4 compatible para este video."
+    end if
+    words(playbackStatus,324,850,1460,56,20,"0xF0D6A0FF").wrap = true
+    words("Servidor: yt.chocolatemoo53.com · Fuente: Invidious",324,916,1450,34,18,"0xB3B3B3FF")
     words("Atrás: volver a resultados     OPTIONS (*): nueva búsqueda",324,1002,1500,36,19,"0xB3B3B3FF")
 end sub
 
@@ -1158,15 +1168,14 @@ sub settingsScreen()
     words("Puedes corregir tus elecciones cuando quieras.",324,218,1480,55,25,"0xB3B3B3FF")
     appearance = "Vidrio"
     if m.theme = "classic" then appearance = "Clásico"
-    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","YouTube Data API v3 Key","Resolución detectada"]
+    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Servidor Invidious","Resolución detectada"]
     helperValue = m.compatBase
     if helperValue = "" then helperValue = "No configurado"
     tmdbStatus = "No configurada"
     if rpLoadTmdbApiKey() <> "" then tmdbStatus = "Configurada · oculta"
     subtitleStatus = "No configurada"
     if rpLoadSubtitleSearchEngineApiKey() <> "" then subtitleStatus = "Configurada · oculta"
-    youtubeStatus = "No configurada"
-    if rpLoadYoutubeApiKey() <> "" then youtubeStatus = "Configurada · oculta"
+    invidiousStatus = "https://yt.chocolatemoo53.com"
     displayValue = "No disponible"
     if type(m.capabilities.display) = "roAssociativeArray"
         display = m.capabilities.display
@@ -1176,7 +1185,7 @@ sub settingsScreen()
         if display.videoMode <> "" then displayValue = displayValue+" · "+display.videoMode
         if display.uiName <> "" then displayValue = displayValue+" · interfaz "+display.uiName
     end if
-    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,youtubeStatus,displayValue]
+    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,invidiousStatus,displayValue]
     for i = 0 to 10
         y = 260+i*61
         panel(320,y,1522,56,"0x181818FF")
@@ -1184,7 +1193,7 @@ sub settingsScreen()
         words(values[i],354,y+29,1130,21,16,"0xB3B3B3FF")
         focusTarget("settings",i,314,y-4,1534,64)
     end for
-    words("Las claves se guardan en el registro local de este Roku y se muestran ocultas.",324,990,1480,36,19,"0xB1BEB3FF")
+    words("Invidious permite buscar videos sin configurar una API Key de Google.",324,990,1480,36,19,"0xB1BEB3FF")
 end sub
 
 sub profilesScreen()
