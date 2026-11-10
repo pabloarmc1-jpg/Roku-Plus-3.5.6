@@ -126,7 +126,11 @@ sub selectable(zone as string, index as integer, text as string, x as integer, y
         surface = "0xE50914FF"
         ink = "0xFFFFFFFF"
     end if
-    panel(x,y,w,h,surface)
+    if zone = "hero" and index = 0
+        art("pkg:/images/ui/play-button-red.png",x,y,w,h)
+    else
+        panel(x,y,w,h,surface)
+    end if
     if icon <> ""
         art("pkg:/images/ui/"+icon,x+16,y+13,36,36,"scaleToFit")
         label = words(text,x+60,y+15,w-72,h-18,25,ink)
