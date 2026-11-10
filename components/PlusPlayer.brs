@@ -2206,7 +2206,7 @@ sub scheduleResumeRetry(target as dynamic, reason as string)
         emitDiagnostic("resume_retry")
     else
         m.resumeFailed = true
-        m.resumeFailedPosition = plusClockValue(m.decoder.position)
+        m.resumeFailedPosition = playerPosition()
         m.resumeFailedAt = m.monotonic.totalMilliseconds()
         m.pendingSeek = invalid
         m.notice = "No se pudo recuperar la posición guardada. La reproducción continuará desde el inicio."
