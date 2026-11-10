@@ -304,15 +304,15 @@ sub searchKeyboardScreen()
             focusTarget("search-key",row*10+col,x-4,y-4,126,72,"wide")
         end for
     end for
-    actions = ["BUSCAR","CANCELAR","ESPACIO","CELULAR"]
-    widths = [230,230,280,230]
-    xPositions = [250,500,750,1050]
-    for i = 0 to 3
+    actions = ["BUSCAR","CANCELAR","ESPACIO"]
+    widths = [260,260,320]
+    xPositions = [390,700,1010]
+    for i = 0 to 2
         panel(xPositions[i],850,widths[i],76,"0x3A3A40FF")
         words(actions[i],xPositions[i]+8,865,widths[i]-16,44,24,"0xFFFFFFFF").horizAlign = "center"
         focusTarget("search-action",i,xPositions[i]-4,846,widths[i]+8,84,"wide")
     end for
-    words("Mantén OK en BORRAR para limpiar todo · CELULAR: escribir desde la app Roku",78,955,1760,34,18,"0xA5A5ADFF")
+    words("Escribe directamente desde la app móvil Roku o usa el teclado de la TV · Mantén OK en BORRAR para limpiar todo",78,955,1760,34,18,"0xA5A5ADFF")
     words("← → ↑ ↓: navegar     OK: escribir / seleccionar     Atrás: cerrar",78,1000,1700,38,20,"0x8C8C94FF")
 end sub
 
