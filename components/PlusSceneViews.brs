@@ -1138,9 +1138,14 @@ sub invidiousScreen()
         if i < m.invidiousItems.count()
             item = m.invidiousItems[i]
             y = 330+i*63
-            if i = m.invidiousCursor then panel(72,y-4,1770,58,"0x34343CFF") else panel(72,y-4,1770,58,"0x181818FF")
+            if i = m.invidiousCursor
+                panel(72,y-4,1770,58,"0x315F91FF")
+                panel(78,y+4,5,42,"0x75B8FFFF")
+            else
+                panel(72,y-4,1770,58,"0x181818FF")
+            end if
             words(item.title,96,y+2,1370,30,22,"0xFFFFFFFF").wrap = true
-            words(item.author,98,y+32,1350,20,15,"0xA8A8B2FF")
+            words(item.author,98,y+32,1350,20,15,"0xD2DCE8FF")
         end if
     end for
 end sub
