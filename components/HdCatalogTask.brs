@@ -246,7 +246,13 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             relaySegments = rpHdTaskSegmentList(child.body,selected.url)
                             if relaySegments.count() > 1
                                 answer.segmentUrls = relaySegments
+                                answer.segmentTimeline = rpHdTaskSegmentTimeline(child.body,selected.url,relaySegments)
                                 answer.tsRelayEnabled = true
+                                if type(answer.segmentTimeline) = "roArray"
+                                    print "[RokuPlus ts-relay] timeline_segments="; answer.segmentTimeline.count()
+                                else
+                                    print "[RokuPlus ts-relay] timeline_unavailable reason=invalid_extinf"
+                                end if
                                 print "[RokuPlus ts-relay] candidate_segments="; relaySegments.count()
                             else
                                 answer.tsRelayEnabled = false
@@ -896,6 +902,42 @@ function rpHdTaskSegmentList(body as string, baseUrl as string) as object
         end if
     end for
     return segments
+end function
+
+function rpHdTaskSegmentTimeline(body as string, baseUrl as string, segmentUrls as object) as object
+    timeline = []
+    pendingDuration = invalid
+    discontinuityPending = false
+    position = 0.0
+    mediaSequence = 0
+    targetDuration = 0
+    for each raw in body.split(chr(10))
+        line = raw.trim()
+        if line <> ""
+            if left(line,8) = "#EXTINF:"
+                durationText = mid(line,9).split(",")[0].trim()
+                duration = durationText.toFloat()
+                if duration <= 0 then return invalid
+                pendingDuration = duration
+            else if left(line,22) = "#EXT-X-MEDIA-SEQUENCE:"
+                mediaSequence = mid(line,23).trim().toInt()
+            else if left(line,22) = "#EXT-X-TARGETDURATION:"
+                targetDuration = mid(line,23).trim().toInt()
+            else if left(line,21) = "#EXT-X-DISCONTINUITY"
+                discontinuityPending = true
+            else if left(line,1) <> "#"
+                if pendingDuration = invalid then return invalid
+                url = rpHdOnlineJoin(baseUrl,line)
+                if url = "" or timeline.count() >= segmentUrls.count() then return invalid
+                timeline.push({index:timeline.count(),sequence:mediaSequence+timeline.count(),url:url,start:position,duration:pendingDuration,end:position+pendingDuration,discontinuity:discontinuityPending})
+                position += pendingDuration
+                pendingDuration = invalid
+                discontinuityPending = false
+            end if
+        end if
+    end for
+    if pendingDuration <> invalid or timeline.count() <> segmentUrls.count() or timeline.count() = 0 then return invalid
+    return timeline
 end function
 
 function rpHdTaskFirstSegment(body as string, baseUrl as string) as string
