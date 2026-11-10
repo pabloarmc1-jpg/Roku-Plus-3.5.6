@@ -1882,6 +1882,7 @@ sub onPulse()
         if now >= timeoutAt
             isResumeSeek = false
             resumeTarget = m.ticket.target
+            if m.ticket.doesExist("requestedTarget") then resumeTarget = m.ticket.requestedTarget
             if m.ticket.doesExist("isResume") then isResumeSeek = m.ticket.isResume = true
             if isResumeSeek
                 emitDiagnostic("resume_seek_timeout")
@@ -2306,7 +2307,7 @@ sub verifySeekResult()
     result.withinOneSecond = abs(result.difference) <= 1
     m.ticket.result = result
     isResumeSeek = false
-    resumeTarget = m.ticket.target
+    resumeTarget = requestedTarget
     if m.ticket.doesExist("isResume") then isResumeSeek = m.ticket.isResume = true
     emitDiagnostic("seek_result")
     m.ticket = invalid
