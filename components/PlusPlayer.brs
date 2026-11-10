@@ -2063,11 +2063,12 @@ end function
 
 sub beginTsRelaySeek(segmentIndex as integer, target as dynamic)
     if segmentIndex < 0 or segmentIndex >= m.tsRelaySegments.count() then return
-    ' A TS segment may begin between video keyframes. Include one preceding
-    ' segment as decoder preroll so the resumed connection has a better chance
-    ' of receiving a usable video random-access frame before the local seek.
-    startSegmentIndex = segmentIndex
-    if startSegmentIndex > 0 then startSegmentIndex--
+    ' A TS segment may begin between video keyframes. Include up to three
+    ' preceding segments as decoder preroll before applying the local seek.
+    ' This gives the decoder more opportunity to encounter an IDR/random-access
+    ' frame when the immediately preceding segment is not independently decodable.
+    startSegmentIndex = segmentIndex - 3
+    if startSegmentIndex < 0 then startSegmentIndex = 0
     m.tsRelayRestartSegment = startSegmentIndex
     m.tsRelayRestartStage = 1
     m.tsRelayRestartAt = m.monotonic.totalMilliseconds() + 450
