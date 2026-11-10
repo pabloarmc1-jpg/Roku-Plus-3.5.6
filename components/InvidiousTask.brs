@@ -54,7 +54,7 @@ sub runInvidiousRequest()
                     answer.ok = true
                     answer.message = ""
                 else
-                    answer.message = "Este video no ofrece un MP4 compatible identificado como H.264 + AAC. HLS y códecs no identificados están deshabilitados."
+                    answer.message = "Este video no ofrece un MP4 progresivo compatible con este Roku (H.264 AVC + AAC-LC). HLS, pistas separadas y códecs no identificados están deshabilitados."
                 end if
             else
                 answer.message = response.message
@@ -83,15 +83,12 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
             if not stream.doesExist("type") then continue for
             if GetInterface(stream.type,"ifString") = invalid then continue for
             streamType = lcase(stream.type)
-            ' Require an explicit MP4 MIME type and an explicit codecs declaration.
+            ' Require explicit MP4 codecs: AVC Main/High + AAC-LC only.
             if instr(1,streamType,"video/mp4") = 0 then continue for
-            if instr(1,streamType,"codecs=") = 0 then continue for
-            ' Strict allow-list: H.264 video (avc1) AND AAC audio (mp4a).
-            if instr(1,streamType,"avc1") = 0 then continue for
-            if instr(1,streamType,"mp4a") = 0 then continue for
-            ' Explicitly reject HEVC, AV1, VP9 and other codec families.
-            if instr(1,streamType,"hvc1") > 0 or instr(1,streamType,"hev1") > 0 then continue for
-            if instr(1,streamType,"av01") > 0 or instr(1,streamType,"vp09") > 0 then continue for
+            codecInfo = invidiousParseMp4Codecs(streamType)
+            if codecInfo = invalid then continue for
+            ' Check the exact AVC profile/level against this Roku device.
+            if not invidiousDeviceSupportsAvc(codecInfo.profile,codecInfo.level) then continue for
             score = 100
             qualityText = ""
             if stream.doesExist("qualityLabel") then qualityText = stream.qualityLabel
@@ -129,6 +126,95 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
     if chosenUrl <> "" then return {url:chosenUrl,streamFormat:chosenFormat,bitrate:chosenBitrate}
     ' HLS is intentionally disabled. Only explicitly identified MP4 H.264 + AAC is accepted.
     return invalid
+end function
+
+' Parse only a progressive MP4 with an explicit AVC codec string and AAC-LC.
+' AVC profile_idc and level_idc are read from the six hexadecimal digits in avc1.PPCCLL.
+function invidiousParseMp4Codecs(streamType as string) as dynamic
+    codecPos = instr(1,streamType,"codecs=")
+    if codecPos = 0 then return invalid
+    codecText = mid(streamType,codecPos+7)
+    if left(codecText,1) = chr(34) then codecText = mid(codecText,2)
+    quotePos = instr(1,codecText,chr(34))
+    if quotePos > 0 then codecText = left(codecText,quotePos-1)
+    codecList = codecText.split(",")
+    if codecList.count() <> 2 then return invalid
+
+    avcCodec = ""
+    hasAacLc = false
+    for each codecToken in codecList
+        token = lcase(codecToken.trim())
+        if left(token,5) = "avc1."
+            if avcCodec <> "" then return invalid
+            avcCodec = token
+        else if token = "mp4a.40.2"
+            if hasAacLc then return invalid
+            hasAacLc = true
+        else
+            ' Reject HEVC, AV1, VP9, HE-AAC, Opus and every unknown codec.
+            return invalid
+        end if
+    end for
+    if avcCodec = "" or not hasAacLc then return invalid
+    if len(avcCodec) <> 11 then return invalid
+
+    profileId = invidiousHexValue(mid(avcCodec,6,2))
+    levelId = invidiousHexValue(right(avcCodec,2))
+    if profileId = 77
+        profile = "main"
+    else if profileId = 100
+        profile = "high"
+    else
+        ' Roku's published AVC streaming profiles are Main and High.
+        return invalid
+    end if
+
+    if levelId = 0 or levelId > 42 then return invalid
+    level = invidiousAvcLevelName(levelId)
+    if level = "" then return invalid
+    return {profile:profile,level:level}
+end function
+
+function invidiousHexValue(value as string) as integer
+    digits = "0123456789abcdef"
+    result = 0
+    for index = 1 to len(value)
+        digit = instr(1,digits,lcase(mid(value,index,1))) - 1
+        if digit < 0 then return -1
+        result = (result * 16) + digit
+    end for
+    return result
+end function
+
+function invidiousAvcLevelName(levelId as integer) as string
+    if levelId = 10 then return "1.0"
+    if levelId = 11 then return "1.1"
+    if levelId = 12 then return "1.2"
+    if levelId = 13 then return "1.3"
+    if levelId = 20 then return "2.0"
+    if levelId = 21 then return "2.1"
+    if levelId = 22 then return "2.2"
+    if levelId = 30 then return "3.0"
+    if levelId = 31 then return "3.1"
+    if levelId = 32 then return "3.2"
+    if levelId = 40 then return "4.0"
+    if levelId = 41 then return "4.1"
+    if levelId = 42 then return "4.2"
+    return ""
+end function
+
+function invidiousDeviceSupportsAvc(profile as string, level as string) as boolean
+    deviceInfo = CreateObject("roDeviceInfo")
+    capability = deviceInfo.CanDecodeVideo({codec:"h264",profile:profile,level:level})
+    if type(capability) = "roAssociativeArray" and capability.doesExist("result")
+        if capability.result = true then return true
+    end if
+    ' Some Roku firmware reports AVC under the MPEG-4 AVC codec name.
+    capability = deviceInfo.CanDecodeVideo({codec:"mpeg4 avc",profile:profile,level:level})
+    if type(capability) = "roAssociativeArray" and capability.doesExist("result")
+        if capability.result = true then return true
+    end if
+    return false
 end function
 
 function invidiousDownload(endpoint as string) as object
