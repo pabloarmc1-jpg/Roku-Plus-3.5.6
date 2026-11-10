@@ -33,8 +33,8 @@ sub openRequest()
     if request.doesExist("streamFormat") and request.streamFormat <> "" then streamFormat = lcase(request.streamFormat)
     if streamFormat <> "hls" then streamFormat = "mp4"
     media.streamFormat = streamFormat
-    if streamFormat = "mp4" and request.doesExist("bitrate")
-        bitrate = val(request.bitrate)
+    if streamFormat = "mp4" and request.doesExist("bitrate") and request.bitrate <> invalid
+        bitrate = val(request.bitrate.toStr())
         if bitrate > 0 then media.bitrate = int(bitrate)
     end if
     m.video.control = "stop"
