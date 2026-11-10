@@ -816,6 +816,7 @@ end sub
 
 sub openSearch()
     cancelRequest()
+    m.kind = "movie"
     m.view = "browse"
     m.zone = "nav"
     m.nav = 4
@@ -948,6 +949,9 @@ sub searchChosen(event as object)
         m.cursor = 0
         if query = ""
             m.kind = "movie"
+            loadBrowsePage(0)
+        else if m.catalogMode = "hd" and not usesOnlineHd()
+            m.kind = "all"
             loadBrowsePage(0)
         else
             fetch({operation:"search",kind:"all",query:query,offset:0})
