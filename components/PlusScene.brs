@@ -1600,7 +1600,7 @@ end sub
 sub loadBrowsePage(offset as integer, last = false as boolean)
     if m.catalogMode = "hd" and not usesOnlineHd()
         cancelRequest()
-        m.pageTitles = orbitUniqueCatalogItems(rpHdCatalog(m.kind,m.query))
+        m.pageTitles = orbitUniqueCatalogItems(rpHdCatalogItems(m.hdLibrary,m.kind,m.query))
         applyGenreFilter()
         m.offset = 0
         m.nextOffset = 0
