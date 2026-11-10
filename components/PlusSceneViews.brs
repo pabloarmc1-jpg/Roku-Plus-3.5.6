@@ -1139,6 +1139,7 @@ sub paintFocus()
             if m.zone = "covers" then chosen = entry.index = m.cover
             if m.zone = "continue" then chosen = entry.index = m.cover
             if m.zone = "home-series" then chosen = entry.index = m.seriesCover
+            if m.zone = "home-list" then chosen = entry.index = m.listCover
             if m.zone = "library" then chosen = entry.index = m.libraryCursor
             if m.zone = "profiles" then chosen = entry.index = m.profileCursor
             if m.zone = "grid" then chosen = entry.index = m.cursor
