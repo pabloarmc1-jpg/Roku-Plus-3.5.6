@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="InvidiousTask" extends="Task">
+  <interface>
+    <field id="operation" type="string" value="search" />
+    <field id="query" type="string" value="" />
+    <field id="videoId" type="string" value="" />
+    <field id="requestId" type="string" value="" />
+    <field id="cancelRequested" type="boolean" value="false" />
+    <field id="result" type="assocarray" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="InvidiousTask.brs" />
+</component>
