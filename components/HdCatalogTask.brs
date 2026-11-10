@@ -31,6 +31,9 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         answer.message = "Elige una fuente HD válida."
         return answer
     end if
+    if operation = "search"
+        return rpHdTaskGlobalSearch(request,answer,fetcher,catalogSources)
+    end if
     if operation = "catalog"
         if kind <> "movie" and kind <> "series" then return answer
         if provider = "all" then return rpHdTaskCombinedCatalog(request,answer,fetcher,catalogSources)
@@ -521,6 +524,51 @@ end function
 ' skip encodes source-page rounds in steps of twenty, not displayed-card count.
 ' JSON providers request twenty records; SSR pages may contain more cards.
 ' Round-robin output keeps source order while merging the same series across providers.
+function rpHdTaskGlobalSearch(request as object, answer as object, fetcher as dynamic, sources as dynamic) as object
+    query = rpHdOnlineSearchQuery(request.query)
+    if query = "" then return answer
+    merged = []
+    failures = 0
+    successes = 0
+    for each searchKind in ["movie","series"]
+        partRequest = {
+            operation:"catalog", kind:searchKind, provider:request.provider
+            query:query, skip:0, requestId:request.requestId
+        }
+        partAnswer = {
+            ok:false, cancelled:false, requestId:answer.requestId
+            operation:"catalog", kind:searchKind, provider:answer.provider
+            message:""
+        }
+        if answer.provider = "all"
+            partAnswer = rpHdTaskCombinedCatalog(partRequest,partAnswer,fetcher,sources)
+        else
+            response = rpHdTaskCatalogPage(answer.provider,searchKind,1,query,fetcher)
+            partAnswer.ok = response.ok
+            partAnswer.cancelled = response.cancelled
+            partAnswer.message = response.message
+            if response.ok then partAnswer.items = response.items
+        end if
+        if partAnswer.cancelled then return rpHdTaskFailure(answer,partAnswer)
+        if partAnswer.ok
+            successes++
+            for each resultItem in partAnswer.items
+                merged.push(resultItem)
+            end for
+        else
+            failures++
+        end if
+    end for
+    answer.items = orbitUniqueCatalogItems(merged)
+    answer.ok = successes > 0
+    answer.partial = failures > 0
+    answer.hasMore = false
+    answer.nextSkip = 0
+    answer.message = ""
+    if not answer.ok then answer.message = "Ninguna fuente respondió a la búsqueda. Vuelve a intentar."
+    return answer
+end function
+
 function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as dynamic, sources = invalid as dynamic) as object
     skip = orbitInteger(request.skip,200000)
     page = (skip \ 20)+1
