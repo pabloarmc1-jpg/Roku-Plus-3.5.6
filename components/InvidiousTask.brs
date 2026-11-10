@@ -240,7 +240,8 @@ function invidiousClassifyVideoCodec(token as string) as dynamic
     if left(token,5) = "av01."
         return {name:"av1",codec:"av1",profile:"main",level:"5.1",dashOnly:true}
     end if
-    if left(token,4) = "vp09" or left(token,3) = "vp8" then return {name:"vp9",codec:"vp9",unsupported:true}
+    if left(token,4) = "vp09" then return {name:"vp9",codec:"vp9",unsupported:true}
+    if left(token,3) = "vp8" then return {name:"vp8",codec:"vp8",unsupported:true}
     return invalid
 end function
 
@@ -365,7 +366,7 @@ sub invidiousLogAdaptiveFormats(parsed as object)
                     deviceOk = invidiousDeviceSupportsVideo(videoInfo)
                     transport = "PROGRESSIVE_CAPABILITY_ONLY"
                     if videoInfo.name = "av1" then transport = "DASH_ONLY"
-                    if videoInfo.name = "vp9" then transport = "NOT_LISTED_BY_ROKU"
+                    if videoInfo.name = "vp9" or videoInfo.name = "vp8" then transport = "NOT_LISTED_BY_ROKU"
                     print "[RokuPlus Invidious codecs] ADAPTIVE_VIDEO codec="; videoInfo.name; " deviceCanDecode="; deviceOk; " transport="; transport
                 end if
                 audioInfo = invidiousClassifyAudioCodec(token)
