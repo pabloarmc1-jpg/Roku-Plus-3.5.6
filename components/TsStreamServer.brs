@@ -236,6 +236,7 @@ sub rpTsRelayServeSegment(connection as object, server as object, port as object
             end if
         end for
         print "[RokuPlus hls-relay diag] ts_check index="; segmentIndex; " bytes="; payloadSize; " remainder188="; payloadSize mod 188; " packets="; packetCount; " syncErrors="; syncErrors; " first16="; firstHex
+        rpTsRelayAnalyzeTs(payload,segmentIndex)
     end if
     if payloadSize <= 0
         DeleteFile(filePath)
@@ -344,3 +345,105 @@ function rpTsRelayHex(value as integer) as string
     end while
     return result
 end function
+
+
+' Diagnostic-only MPEG-TS inspection. Does not alter or rewrite media bytes.
+sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
+    size = payload.Count()
+    pidCounts = {}
+    continuity = {}
+    continuityErrors = 0
+    pmtPid = -1
+    videoPid = -1
+    audioPid = -1
+    patFound = false
+    pmtFound = false
+    for offset = 0 to size - 188 step 188
+        if payload[offset] <> &h47 then continue for
+        b1 = payload[offset+1]
+        b2 = payload[offset+2]
+        b3 = payload[offset+3]
+        pid = (b1 and &h1F) * 256 + b2
+        pidKey = pid.toStr()
+        if pidCounts.DoesExist(pidKey)
+            pidCounts[pidKey] = pidCounts[pidKey] + 1
+        else
+            pidCounts[pidKey] = 1
+        end if
+        adaptationControl = (b3 and &h30) / 16
+        cc = b3 and &h0F
+        hasPayload = adaptationControl = 1 or adaptationControl = 3
+        if hasPayload
+            if continuity.DoesExist(pidKey)
+                expected = (continuity[pidKey] + 1) mod 16
+                if cc <> expected then continuityErrors++
+            end if
+            continuity[pidKey] = cc
+        end if
+        payloadOffset = offset + 4
+        if adaptationControl = 2 or adaptationControl = 0 then payloadOffset = offset + 188
+        if adaptationControl = 3 and payloadOffset < offset + 188
+            payloadOffset += 1 + payload[payloadOffset]
+        end if
+        if payloadOffset >= offset + 188 then continue for
+        unitStart = (b1 and &h40) <> 0
+        if pid = 0 and unitStart and not patFound
+            pointer = payload[payloadOffset]
+            section = payloadOffset + 1 + pointer
+            if section + 11 < offset + 188 and payload[section] = 0
+                sectionLength = (payload[section+1] and &h0F) * 256 + payload[section+2]
+                sectionEnd = section + 3 + sectionLength
+                if sectionEnd <= offset + 188
+                    entry = section + 8
+                    while entry + 3 < sectionEnd - 4
+                        programNumber = payload[entry] * 256 + payload[entry+1]
+                        candidatePid = (payload[entry+2] and &h1F) * 256 + payload[entry+3]
+                        if programNumber > 0 then pmtPid = candidatePid
+                        entry += 4
+                    end while
+                    patFound = pmtPid >= 0
+                end if
+            end if
+        else if pid = pmtPid and pmtPid >= 0 and unitStart and not pmtFound
+            pointer = payload[payloadOffset]
+            section = payloadOffset + 1 + pointer
+            if section + 12 < offset + 188 and payload[section] = 2
+                sectionLength = (payload[section+1] and &h0F) * 256 + payload[section+2]
+                sectionEnd = section + 3 + sectionLength
+                if sectionEnd <= offset + 188
+                    programInfoLength = (payload[section+10] and &h0F) * 256 + payload[section+11]
+                    entry = section + 12 + programInfoLength
+                    while entry + 4 < sectionEnd - 4
+                        streamType = payload[entry]
+                        elementaryPid = (payload[entry+1] and &h1F) * 256 + payload[entry+2]
+                        esInfoLength = (payload[entry+3] and &h0F) * 256 + payload[entry+4]
+                        if streamType = &h1B or streamType = &h24 then videoPid = elementaryPid
+                        if streamType = &h0F or streamType = &h11 then audioPid = elementaryPid
+                        entry += 5 + esInfoLength
+                    end while
+                    pmtFound = true
+                end if
+            end if
+        end if
+    end for
+    pidSummary = ""
+    for each key in pidCounts
+        if pidSummary <> "" then pidSummary += ","
+        pidSummary += key + ":" + pidCounts[key].toStr()
+    end for
+    nal7 = 0
+    nal8 = 0
+    nal5 = 0
+    for i = 0 to size - 5
+        nalType = -1
+        if payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 1
+            nalType = payload[i+3] and &h1F
+        else if i + 5 < size and payload[i] = 0 and payload[i+1] = 0 and payload[i+2] = 0 and payload[i+3] = 1
+            nalType = payload[i+4] and &h1F
+        end if
+        if nalType = 7 then nal7++
+        if nalType = 8 then nal8++
+        if nalType = 5 then nal5++
+    end for
+    print "[RokuPlus hls-relay diag] ts_map index="; segmentIndex; " pids="; pidSummary; " pat="; patFound; " pmtPid="; pmtPid; " pmt="; pmtFound; " videoPid="; videoPid; " audioPid="; audioPid; " ccErrors="; continuityErrors; " annexB_sps="; nal7; " annexB_pps="; nal8; " annexB_idr="; nal5
+end sub
