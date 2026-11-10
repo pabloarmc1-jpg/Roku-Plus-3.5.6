@@ -2012,7 +2012,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "right" and m.searchCursor+1 < m.searchSuggestions.count() then m.searchCursor++
             if key = "down" then m.zone = "search-key": m.searchCursor = 0
             if key = "OK" then chooseSearchSuggestion(m.searchCursor): return true
-            if key = "up" then m.zone = "search-action": m.searchCursor = 0
+            if key = "up" then m.searchCursor = 0
         else if m.zone = "search-action"
             if key = "left" and m.searchCursor > 0 then m.searchCursor--
             if key = "right" and m.searchCursor < 2 then m.searchCursor++
@@ -2029,7 +2029,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 end if
                 return true
             end if
-            if key = "up" and m.searchSuggestions.count() > 0 then m.zone = "search-suggestion": m.searchCursor = 0
+            if key = "up" then m.zone = "search-key": m.searchCursor = 30
         else
             row = m.searchCursor \ 10
             col = m.searchCursor mod 10
