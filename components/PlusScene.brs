@@ -2144,10 +2144,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "OK"
                 keyChar = mid(rows[row],col+1,1)
                 if keyChar = "⌫"
-                    m.searchDeleteHeld = true
-                    m.searchDeleteCleared = false
-                    m.searchDeleteTimer.duration = 0.75
-                    m.searchDeleteTimer.control = "start"
+                    if not m.searchDeleteHeld
+                        m.searchDeleteHeld = true
+                        m.searchDeleteCleared = false
+                        m.searchDeleteTimer.duration = 0.75
+                        m.searchDeleteTimer.control = "start"
+                    end if
                     return true
                 else if len(m.searchText) < 120
                     m.searchText += keyChar
