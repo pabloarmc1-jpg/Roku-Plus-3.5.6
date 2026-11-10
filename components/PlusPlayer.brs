@@ -1991,6 +1991,14 @@ end sub
 
 sub dispatchPendingSeek()
     if m.pendingSeek = invalid or m.ticket <> invalid or m.failed or not m.mediaOpen then return
+    if m.tsRelayActive
+        m.pendingSeek = invalid
+        m.notice = "Los saltos no están disponibles en este formato."
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
+        emitDiagnostic("ts_relay_seek_blocked")
+        drawTransport()
+        return
+    end if
     if m.monotonic.totalMilliseconds() < m.pendingSeek.dueAt then return
     state = m.decoder.state
     if state <> "playing" and state <> "paused" then return
