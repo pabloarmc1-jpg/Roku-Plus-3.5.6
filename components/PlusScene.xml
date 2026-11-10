@@ -7,6 +7,7 @@
   <script type="text/brightscript" uri="pkg:/source/LivePresentationData.brs" />
   <script type="text/brightscript" uri="pkg:/source/DeviceProfile.brs" />
   <script type="text/brightscript" uri="pkg:/source/Preferences.brs" />
+  <script type="text/brightscript" uri="InvidiousTask.brs" />
   <script type="text/brightscript" uri="pkg:/source/HdData.brs" />
   <script type="text/brightscript" uri="pkg:/source/HdOnlineData.brs" />
   <script type="text/brightscript" uri="pkg:/source/WatchState.brs" />
