@@ -25,6 +25,8 @@ sub init()
     m.nextEpisodeTimer.observeField("fire","nextEpisodeTick")
     m.searchDeleteTimer = m.top.findNode("searchDeleteTimer")
     m.searchDeleteTimer.observeField("fire","searchDeleteHoldElapsed")
+    m.dialogFocusTimer = m.top.findNode("dialogFocusRestore")
+    m.dialogFocusTimer.observeField("fire","dialogFocusRestoreElapsed")
     m.heroRotation = m.top.findNode("heroRotation")
     m.heroRotation.observeField("fire","heroRotationTick")
     m.heroRotation.control = "start"
@@ -884,6 +886,7 @@ sub mobileSearchInputDismissed(event as object)
         drawScreen()
         m.top.setFocus(true)
     end if
+    scheduleDialogFocusRestore()
 end sub
 
 sub openSearch()
@@ -1045,6 +1048,7 @@ sub liveSearchDismissed(event as object)
     if not m.livePreviewOpen and m.channels.count() > 0 then scheduleLivePreview()
     drawScreen()
     m.top.setFocus(true)
+    scheduleDialogFocusRestore()
 end sub
 
 sub clearLiveSearch()
@@ -1054,6 +1058,23 @@ sub clearLiveSearch()
     m.note = ""
     refreshLiveList(false)
     drawScreen()
+end sub
+
+
+sub scheduleDialogFocusRestore()
+    if m.dialogFocusTimer = invalid then return
+    m.dialogFocusTimer.control = "stop"
+    m.dialogFocusTimer.duration = 0.2
+    m.dialogFocusTimer.control = "start"
+end sub
+
+sub dialogFocusRestoreElapsed()
+    ' Roku's native keyboard may release focus one event-loop turn after wasClosed.
+    ' Restore focus only after the dialog node has been detached from the Scene.
+    if m.dialogBox <> invalid then return
+    if m.top.dialog <> invalid then return
+    if m.view = "player" then return
+    m.top.setFocus(true)
 end sub
 
 sub releaseDialog(alreadyClosed = false as boolean)
@@ -1121,6 +1142,7 @@ sub searchDismissed(event as object)
     m.zone = "grid"
     drawScreen()
     m.top.setFocus(true)
+    scheduleDialogFocusRestore()
 end sub
 
 sub goHome()
@@ -1565,6 +1587,7 @@ sub profileNameDismissed(event as object)
     m.zone = "profiles"
     drawScreen()
     m.top.setFocus(true)
+    scheduleDialogFocusRestore()
 end sub
 
 sub cycleProfileAvatar(index as integer)
@@ -1638,6 +1661,7 @@ sub compatSettingsDismissed(event as object)
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
     releaseDialog(true)
     openSettings()
+    scheduleDialogFocusRestore()
 end sub
 
 sub openApiKeySettings(service as string)
@@ -1701,6 +1725,7 @@ sub apiKeySettingsDismissed(event as object)
     if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
     releaseDialog(true)
     openSettings()
+    scheduleDialogFocusRestore()
 end sub
 
 sub openCredits()

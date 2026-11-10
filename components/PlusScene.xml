@@ -22,6 +22,7 @@
     <Timer id="liveNoticeTimer" duration="3.5" repeat="false" />
     <Timer id="nextEpisodeTimer" duration="1.0" repeat="true" />
     <Timer id="searchDeleteTimer" duration="0.75" repeat="false" />
+    <Timer id="dialogFocusRestore" duration="0.2" repeat="false" />
     <Timer id="heroRotation" duration="8.0" repeat="true" />
     <Timer id="discoveryRotation" duration="3.5" repeat="true" />
     <Timer id="pageTransition" duration="0.08" repeat="true" />
