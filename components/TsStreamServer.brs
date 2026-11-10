@@ -218,29 +218,6 @@ sub rpTsRelayServeSegment(connection as object, server as object, port as object
         return
     end if
     payloadSize = payload.Count()
-    if payloadSize > 0
-        syncErrors = 0
-        packetCount = 0
-        for offset = 0 to payloadSize - 1 step 188
-            if offset + 187 < payloadSize
-                packetCount++
-                if payload[offset] <> &h47 then syncErrors++
-            end if
-        end for
-        firstHex = ""
-        for byteIndex = 0 to 15
-            if byteIndex < payloadSize
-                hexByte = rpTsRelayHex(payload[byteIndex])
-                if len(hexByte) = 1 then hexByte = "0" + hexByte
-                firstHex += hexByte
-            end if
-        end for
-        print "[RokuPlus hls-relay diag] ts_check index="; segmentIndex; " bytes="; payloadSize; " remainder188="; payloadSize mod 188; " packets="; packetCount; " syncErrors="; syncErrors; " first16="; firstHex
-        analysisTimer = CreateObject("roTimespan")
-        analysisTimer.Mark()
-        rpTsRelayAnalyzeTs(payload,segmentIndex)
-        print "[RokuPlus hls-relay diag] ts_analysis_done index="; segmentIndex; " ms="; analysisTimer.TotalMilliseconds()
-    end if
     if payloadSize <= 0
         DeleteFile(filePath)
         rpTsRelaySendString(connection,"HTTP/1.1 502 Bad Gateway"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,port)
@@ -263,6 +240,29 @@ sub rpTsRelayServeSegment(connection as object, server as object, port as object
         print "[RokuPlus hls-relay] segment_sent index="; segmentIndex; " bytes="; payloadSize; " downloadMs="; downloadMs
     else
         print "[RokuPlus hls-relay] segment_send_failed index="; segmentIndex; " bytes="; payloadSize
+    end if
+    if payloadSize > 0 and segmentIndex = 0
+        syncErrors = 0
+        packetCount = 0
+        for offset = 0 to payloadSize - 1 step 188
+            if offset + 187 < payloadSize
+                packetCount++
+                if payload[offset] <> &h47 then syncErrors++
+            end if
+        end for
+        firstHex = ""
+        for byteIndex = 0 to 15
+            if byteIndex < payloadSize
+                hexByte = rpTsRelayHex(payload[byteIndex])
+                if len(hexByte) = 1 then hexByte = "0" + hexByte
+                firstHex += hexByte
+            end if
+        end for
+        print "[RokuPlus hls-relay diag] ts_check index="; segmentIndex; " bytes="; payloadSize; " remainder188="; payloadSize mod 188; " packets="; packetCount; " syncErrors="; syncErrors; " first16="; firstHex
+        analysisTimer = CreateObject("roTimespan")
+        analysisTimer.Mark()
+        rpTsRelayAnalyzeTs(payload,segmentIndex)
+        print "[RokuPlus hls-relay diag] ts_analysis_done index="; segmentIndex; " ms="; analysisTimer.TotalMilliseconds()
     end if
     DeleteFile(filePath)
 end sub
@@ -378,7 +378,10 @@ sub rpTsRelayAnalyzeTs(payload as object, segmentIndex as integer)
     nal5 = 0
     firstIdrPacket = -1
 
-    for offset = 0 to size - 188 step 188
+    scanLimit = size - 188
+    maxDiagnosticPackets = 1500
+    if scanLimit > (maxDiagnosticPackets * 188) - 188 then scanLimit = (maxDiagnosticPackets * 188) - 188
+    for offset = 0 to scanLimit step 188
         if payload[offset] <> &h47 then continue for
         b1 = payload[offset+1]
         b2 = payload[offset+2]
