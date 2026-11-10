@@ -2445,6 +2445,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if key = "back"
         if m.view = "youtube"
             if m.youtubeDetailOpen
+                cancelYoutubeTask()
                 m.youtubeDetailOpen = false
                 m.youtubeDetail = invalid
                 drawScreen()
