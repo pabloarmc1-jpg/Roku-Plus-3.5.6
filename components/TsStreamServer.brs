@@ -107,7 +107,10 @@ sub rpTsRelayServe(connection as object, server as object)
         end if
         filePath = "tmp:/rp_ts_relay_segment.ts"
         DeleteFile(filePath)
+        downloadTimer = CreateObject("roTimespan")
+        downloadTimer.Mark()
         code = xfer.GetToFile(filePath)
+        downloadMs = downloadTimer.TotalMilliseconds()
         if code < 200 or code >= 300
             print "[RokuPlus ts-relay] upstream_failed index="; sentSegments+1; " status="; code
             DeleteFile(filePath)
@@ -124,6 +127,8 @@ sub rpTsRelayServe(connection as object, server as object)
             DeleteFile(filePath)
             exit for
         end if
+        sendTimer = CreateObject("roTimespan")
+        sendTimer.Mark()
         rpTsRelaySendString(connection,rpTsRelayHex(payloadSize)+chr(13)+chr(10),server,connectionPort)
         if not server.sendOk
             DeleteFile(filePath)
@@ -139,9 +144,11 @@ sub rpTsRelayServe(connection as object, server as object)
             DeleteFile(filePath)
             exit for
         end if
+        sendMs = sendTimer.TotalMilliseconds()
         sentSegments++
         sentBytes += payloadSize
         server.nextSegmentIndex = segmentIndex + 1
+        print "[RokuPlus ts-relay diag] segment index="; segmentIndex; " http="; code; " bytes="; payloadSize; " downloadMs="; downloadMs; " sendMs="; sendMs
         server.segmentsSent = server.nextSegmentIndex
         server.bytesSent = server.bytesSent + payloadSize
         if sentSegments = 1 or sentSegments mod 25 = 0
