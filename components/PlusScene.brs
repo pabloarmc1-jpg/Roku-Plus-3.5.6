@@ -294,8 +294,17 @@ sub fetched(event as object)
         drawScreen()
         return
     end if
-    if context.operation = "catalog"
-        if answer.items.count() = 0 and context.offset > 0 and not answer.hasMore
+    if context.operation = "catalog" or context.operation = "search"
+        if context.operation = "search"
+            m.pageTitles = orbitUniqueCatalogItems(answer.items)
+            applyGenreFilter()
+            m.offset = 0
+            m.nextOffset = 0
+            m.more = false
+            m.cursor = 0
+            if m.titles.count() = 0 then m.note = "No se encontraron películas ni series con ese título."
+            if answer.partial = true then m.note = "Una fuente no respondió. Se muestran los resultados disponibles."
+        else if answer.items.count() = 0 and context.offset > 0 and not answer.hasMore
             m.pageTitles = []
             applyGenreFilter()
             m.more = false
@@ -807,15 +816,12 @@ end sub
 
 sub openSearch()
     cancelRequest()
-    if m.kind <> "series" then m.kind = "movie"
     m.view = "browse"
     m.zone = "nav"
     m.nav = 4
     drawScreen()
     dialog = CreateObject("roSGNode","StandardKeyboardDialog")
-    title = "Buscar películas"
-    if m.kind = "series" then title = "Buscar series"
-    dialog.title = title
+    dialog.title = "Buscar películas y series"
     dialog.text = m.query
     dialog.buttons = ["Buscar","Cancelar"]
     dialog.observeField("buttonSelected","searchChosen")
@@ -933,8 +939,19 @@ sub searchChosen(event as object)
     releaseDialog()
     if choice = 0
         m.query = query
+        m.genreFilter = "Todos"
+        m.pageTitles = []
+        m.titles = []
+        m.offset = 0
+        m.nextOffset = 0
+        m.more = false
         m.cursor = 0
-        loadBrowsePage(0)
+        if query = ""
+            m.kind = "movie"
+            loadBrowsePage(0)
+        else
+            fetch({operation:"search",kind:"all",query:query,offset:0})
+        end if
     else if m.titles.count() = 0
         loadBrowsePage(0)
     end if
@@ -1625,7 +1642,20 @@ end sub
 sub loadBrowsePage(offset as integer, last = false as boolean)
     if m.catalogMode = "hd" and not usesOnlineHd()
         cancelRequest()
-        m.pageTitles = orbitUniqueCatalogItems(rpHdCatalogItems(m.hdLibrary,m.kind,m.query))
+        if m.kind = "all"
+            localMovies = rpHdCatalogItems(m.hdLibrary,"movie",m.query)
+            localSeries = rpHdCatalogItems(m.hdLibrary,"series",m.query)
+            combined = []
+            for each localItem in localMovies
+                combined.push(localItem)
+            end for
+            for each localItem in localSeries
+                combined.push(localItem)
+            end for
+            m.pageTitles = orbitUniqueCatalogItems(combined)
+        else
+            m.pageTitles = orbitUniqueCatalogItems(rpHdCatalogItems(m.hdLibrary,m.kind,m.query))
+        end if
         applyGenreFilter()
         m.offset = 0
         m.nextOffset = 0
