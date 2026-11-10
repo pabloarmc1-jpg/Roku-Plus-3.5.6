@@ -54,7 +54,7 @@ sub runInvidiousRequest()
                     answer.ok = true
                     answer.message = ""
                 else
-                    answer.message = "Este video no ofrece un MP4 progresivo compatible con este Roku (H.264 AVC + AAC-LC). HLS, pistas separadas y códecs no identificados están deshabilitados."
+                    answer.message = "No se encontró una pista progresiva multiplexada compatible con los decodificadores de este Roku. Las pistas adaptativas separadas se registraron, pero no se pueden combinar sin multiplexación."
                 end if
             else
                 answer.message = response.message
@@ -66,42 +66,71 @@ end sub
 
 function invidiousSelectStream(parsed as dynamic) as dynamic
     if type(parsed) <> "roAssociativeArray" then return invalid
+    invidiousLogDeviceInfo()
+    invidiousLogAdaptiveFormats(parsed)
+
     chosenUrl = ""
     chosenFormat = ""
+    chosenVideoCodec = ""
+    chosenAudioCodec = ""
     bestScore = -999999
     chosenBitrate = 0
     streams = invalid
     if parsed.doesExist("formatStreams") and type(parsed.formatStreams) = "roArray" then streams = parsed.formatStreams
+
     if type(streams) = "roArray"
         for each stream in streams
             if type(stream) <> "roAssociativeArray" then continue for
-            if not stream.doesExist("url") or not stream.doesExist("container") then continue for
-            streamUrl = stream.url
-            if GetInterface(streamUrl,"ifString") = invalid or left(streamUrl,8) <> "https://" then continue for
-            if lcase(stream.container) <> "mp4" then continue for
+            container = ""
+            if stream.doesExist("container") and GetInterface(stream.container,"ifString") <> invalid
+                container = lcase(stream.container)
+            end if
+            streamUrl = ""
+            if stream.doesExist("url") then streamUrl = stream.url
             streamType = ""
-            if not stream.doesExist("type") then continue for
-            if GetInterface(stream.type,"ifString") = invalid then continue for
-            streamType = lcase(stream.type)
-            ' Require explicit MP4 codecs: AVC Main/High + AAC-LC only.
-            if instr(1,streamType,"video/mp4") = 0 then continue for
-            codecInfo = invidiousParseMp4Codecs(streamType)
-            if codecInfo = invalid then continue for
-            ' Check the exact AVC profile/level against this Roku device.
-            if not invidiousDeviceSupportsAvc(codecInfo.profile,codecInfo.level) then continue for
-            score = 100
-            qualityText = ""
-            if stream.doesExist("qualityLabel") then qualityText = stream.qualityLabel
-            if qualityText = "" and stream.doesExist("quality") then qualityText = stream.quality
-            height = val(qualityText)
-            if height = 0 and stream.doesExist("resolution")
-                dimensions = stream.resolution.split("x")
-                if dimensions.count() = 2 then height = val(dimensions[1])
+            if stream.doesExist("type") and GetInterface(stream.type,"ifString") <> invalid
+                streamType = lcase(stream.type)
             end if
-            if height > 0
-                if height > 720 then score = score - ((height - 720) / 10)
-                else score = score + (height / 10)
+            codecTokens = invidiousParseCodecTokens(streamType)
+            if codecTokens = invalid
+                print "[RokuPlus Invidious codecs] FORMAT_REJECT container="; container; " reason=missing_explicit_codecs type="; left(streamType,180)
+                continue for
             end if
+            if left(streamUrl,8) <> "https://"
+                print "[RokuPlus Invidious codecs] FORMAT_REJECT container="; container; " reason=non_https_url"
+                continue for
+            end if
+            if container <> "mp4" and container <> "webm" and container <> "mkv"
+                print "[RokuPlus Invidious codecs] FORMAT_REJECT container="; container; " reason=unsupported_container"
+                continue for
+            end if
+
+            videoInfo = invalid
+            audioInfo = invalid
+            for each token in codecTokens
+                parsedVideo = invidiousClassifyVideoCodec(token)
+                if parsedVideo <> invalid then videoInfo = parsedVideo
+                parsedAudio = invidiousClassifyAudioCodec(token)
+                if parsedAudio <> invalid then audioInfo = parsedAudio
+            end for
+            if videoInfo = invalid or audioInfo = invalid
+                print "[RokuPlus Invidious codecs] FORMAT_REJECT container="; container; " codecs="; invidiousJoin(codecTokens); " reason=not_a_muxed_supported_av_pair"
+                continue for
+            end if
+
+            videoAllowed = invidiousContainerAllowsVideo(container,videoInfo.name)
+            audioAllowed = invidiousContainerAllowsAudio(container,audioInfo.name)
+            videoOk = false
+            audioOk = false
+            if videoAllowed then videoOk = invidiousDeviceSupportsVideo(videoInfo)
+            if audioAllowed then audioOk = invidiousDeviceSupportsAudio(audioInfo)
+            print "[RokuPlus Invidious codecs] FORMAT container="; container; " video="; videoInfo.name; " videoDevice="; videoOk; " audio="; audioInfo.name; " audioDevice="; audioOk
+
+            if not videoAllowed or not audioAllowed or not videoOk or not audioOk
+                print "[RokuPlus Invidious codecs] FORMAT_REJECT reason=container_or_device_capability"
+                continue for
+            end if
+
             bitrateKbps = 0
             if stream.doesExist("bitrate") and stream.bitrate <> invalid
                 rawBitrate = val(stream.bitrate.toStr())
@@ -113,108 +142,222 @@ function invidiousSelectStream(parsed as dynamic) as dynamic
                     end if
                 end if
             end if
-            ' Do not invent bitrate values: Roku requires a valid progressive stream bitrate.
-            if bitrateKbps <= 0 then continue for
+            if bitrateKbps <= 0
+                print "[RokuPlus Invidious codecs] FORMAT_REJECT reason=missing_bitrate"
+                continue for
+            end if
+
+            score = 100
+            qualityText = ""
+            if stream.doesExist("qualityLabel") and GetInterface(stream.qualityLabel,"ifString") <> invalid then qualityText = stream.qualityLabel
+            if qualityText = "" and stream.doesExist("quality") and GetInterface(stream.quality,"ifString") <> invalid then qualityText = stream.quality
+            height = val(qualityText)
+            if height = 0 and stream.doesExist("resolution") and GetInterface(stream.resolution,"ifString") <> invalid
+                dimensions = stream.resolution.split("x")
+                if dimensions.count() = 2 then height = val(dimensions[1])
+            end if
+            if height > 0
+                if height > 1080 then score = score - ((height - 1080) / 10)
+                else score = score + (height / 10)
+            end if
             if score > bestScore
                 bestScore = score
                 chosenUrl = streamUrl
-                chosenFormat = "mp4"
+                chosenFormat = container
                 chosenBitrate = bitrateKbps
+                chosenVideoCodec = videoInfo.name
+                chosenAudioCodec = audioInfo.name
             end if
         end for
     end if
-    if chosenUrl <> "" then return {url:chosenUrl,streamFormat:chosenFormat,bitrate:chosenBitrate}
-    ' HLS is intentionally disabled. Only explicitly identified MP4 H.264 + AAC is accepted.
+
+    if chosenUrl <> ""
+        print "[RokuPlus Invidious codecs] SELECTED container="; chosenFormat; " video="; chosenVideoCodec; " audio="; chosenAudioCodec; " bitrateKbps="; chosenBitrate
+        return {url:chosenUrl,streamFormat:chosenFormat,bitrate:chosenBitrate,videoCodec:chosenVideoCodec,audioCodec:chosenAudioCodec}
+    end if
+    print "[RokuPlus Invidious codecs] RESULT no_compatible_progressive_muxed_stream"
     return invalid
 end function
 
-' Parse only a progressive MP4 with an explicit AVC codec string and AAC-LC.
-' AVC profile_idc and level_idc are read from the six hexadecimal digits in avc1.PPCCLL.
-function invidiousParseMp4Codecs(streamType as string) as dynamic
+function invidiousParseCodecTokens(streamType as string) as dynamic
     codecPos = instr(1,streamType,"codecs=")
     if codecPos = 0 then return invalid
     codecText = mid(streamType,codecPos+7)
     if left(codecText,1) = chr(34) then codecText = mid(codecText,2)
     quotePos = instr(1,codecText,chr(34))
     if quotePos > 0 then codecText = left(codecText,quotePos-1)
-    codecList = codecText.split(",")
-    if codecList.count() <> 2 then return invalid
-
-    avcCodec = ""
-    hasAacLc = false
-    for each codecToken in codecList
-        token = lcase(codecToken.trim())
-        if left(token,5) = "avc1."
-            if avcCodec <> "" then return invalid
-            avcCodec = token
-        else if token = "mp4a.40.2"
-            if hasAacLc then return invalid
-            hasAacLc = true
-        else
-            ' Reject HEVC, AV1, VP9, HE-AAC, Opus and every unknown codec.
-            return invalid
-        end if
+    tokens = codecText.split(",")
+    if tokens.count() < 1 then return invalid
+    clean = []
+    for each token in tokens
+        value = lcase(token.trim())
+        if value = "" then return invalid
+        clean.push(value)
     end for
-    if avcCodec = "" or not hasAacLc then return invalid
-    if len(avcCodec) <> 11 then return invalid
-
-    profileId = invidiousHexValue(mid(avcCodec,6,2))
-    levelId = invidiousHexValue(right(avcCodec,2))
-    if profileId = 77
-        profile = "main"
-    else if profileId = 100
-        profile = "high"
-    else
-        ' Roku's published AVC streaming profiles are Main and High.
-        return invalid
-    end if
-
-    if levelId = 0 or levelId > 42 then return invalid
-    level = invidiousAvcLevelName(levelId)
-    if level = "" then return invalid
-    return {profile:profile,level:level}
+    return clean
 end function
 
-function invidiousHexValue(value as string) as integer
-    digits = "0123456789abcdef"
-    result = 0
-    for index = 1 to len(value)
-        digit = instr(1,digits,lcase(mid(value,index,1))) - 1
-        if digit < 0 then return -1
-        result = (result * 16) + digit
+function invidiousClassifyVideoCodec(token as string) as dynamic
+    if left(token,5) = "avc1." or left(token,5) = "avc3."
+        if len(token) <> 11 then return invalid
+        profileId = invidiousHexValue(mid(token,6,2))
+        levelId = invidiousHexValue(right(token,2))
+        if profileId = 66
+            profile = "baseline"
+        else if profileId = 77
+            profile = "main"
+        else if profileId = 100
+            profile = "high"
+        else
+            return invalid
+        end if
+        level = invidiousAvcLevelName(levelId)
+        if level = "" then return invalid
+        return {name:"avc",codec:"mpeg4 avc",profile:profile,level:level}
+    end if
+    if left(token,5) = "hvc1." or left(token,5) = "hev1."
+        parts = token.split(".")
+        if parts.count() < 4 then return invalid
+        profileId = val(parts[1])
+        if profileId = 1
+            profile = "main"
+        else if profileId = 2
+            profile = "main 10"
+        else
+            return invalid
+        end if
+        levelToken = parts[3]
+        if left(levelToken,1) <> "l" and left(levelToken,1) <> "h" then return invalid
+        levelCode = val(mid(levelToken,2))
+        level = invidiousHevcLevelName(levelCode)
+        if level = "" then return invalid
+        return {name:"hevc",codec:"hevc",profile:profile,level:level}
+    end if
+    if left(token,5) = "av01."
+        return {name:"av1",codec:"av1",profile:"main",level:"5.1",dashOnly:true}
+    end if
+    if left(token,4) = "vp09" or left(token,3) = "vp8" then return {name:"vp9",codec:"vp9",unsupported:true}
+    return invalid
+end function
+
+function invidiousClassifyAudioCodec(token as string) as dynamic
+    if left(token,6) = "mp4a.4" then return {name:"aac",codec:"aac"}
+    if token = "ac-3" or token = "dac3" then return {name:"ac3",codec:"ac3"}
+    if token = "ec-3" or token = "dec3" then return {name:"eac3",codec:"eac3"}
+    if token = "ac-4" then return {name:"ac4",codec:"ac4"}
+    if token = "alac" then return {name:"alac",codec:"alac"}
+    if token = "mp3" or token = "mp4a.69" or token = "mp4a.6b" then return {name:"mp3",codec:"mp3"}
+    if token = "lpcm" or token = "sowt" or token = "twos" or token = "pcm" then return {name:"pcm",codec:"pcm"}
+    if token = "opus" then return {name:"opus",codec:"opus"}
+    if token = "vorbis" then return {name:"vorbis",codec:"vorbis"}
+    if token = "flac" then return {name:"flac",codec:"flac"}
+    if token = "dts" then return {name:"dts",codec:"dts"}
+    if token = "dtse" then return {name:"dtse",codec:"dtse"}
+    return invalid
+end function
+
+function invidiousContainerAllowsVideo(container as string, codecName as string) as boolean
+    if container <> "mp4" and container <> "mkv" and container <> "webm" then return false
+    return codecName = "avc" or codecName = "hevc"
+end function
+
+function invidiousContainerAllowsAudio(container as string, codecName as string) as boolean
+    if container = "mp4"
+        return codecName = "aac" or codecName = "ac3" or codecName = "eac3" or codecName = "ac4" or codecName = "alac" or codecName = "mp3" or codecName = "pcm"
+    end if
+    if container = "mkv" or container = "webm"
+        return codecName = "aac" or codecName = "ac3" or codecName = "eac3" or codecName = "alac" or codecName = "mp3" or codecName = "pcm" or codecName = "opus" or codecName = "vorbis" or codecName = "flac" or codecName = "dts" or codecName = "dtse"
+    end if
+    return false
+end function
+
+function invidiousDeviceSupportsVideo(info as object) as boolean
+    deviceInfo = CreateObject("roDeviceInfo")
+    capability = deviceInfo.CanDecodeVideo({codec:info.codec,profile:info.profile,level:info.level})
+    return type(capability) = "roAssociativeArray" and capability.doesExist("result") and capability.result = true
+end function
+
+function invidiousDeviceSupportsAudio(info as object) as boolean
+    deviceInfo = CreateObject("roDeviceInfo")
+    capability = deviceInfo.CanDecodeAudio({codec:info.codec})
+    return type(capability) = "roAssociativeArray" and capability.doesExist("result") and capability.result = true
+end function
+
+function invidiousHevcLevelName(levelCode as integer) as string
+    if levelCode = 30 then return "1.0"
+    if levelCode = 60 then return "2.0"
+    if levelCode = 63 then return "2.1"
+    if levelCode = 90 then return "3.0"
+    if levelCode = 93 then return "3.1"
+    if levelCode = 120 then return "4.0"
+    if levelCode = 123 then return "4.1"
+    if levelCode = 150 then return "5.0"
+    if levelCode = 153 then return "5.1"
+    if levelCode = 156 then return "5.2"
+    if levelCode = 180 then return "6.0"
+    if levelCode = 183 then return "6.1"
+    if levelCode = 186 then return "6.2"
+    return ""
+end function
+
+function invidiousLogDeviceInfo()
+    deviceInfo = CreateObject("roDeviceInfo")
+    model = deviceInfo.GetModel()
+    osVersion = deviceInfo.GetOSVersion()
+    osText = ""
+    if type(osVersion) = "roAssociativeArray"
+        if osVersion.doesExist("major") then osText = osVersion.major.toStr()
+        if osVersion.doesExist("minor") then osText = osText + "." + osVersion.minor.toStr()
+    end if
+    print "[RokuPlus Invidious codecs] DEVICE model="; model; " os="; osText
+    candidates = [
+        {name:"avc-main",codec:"mpeg4 avc",profile:"main",level:"4.2"},
+        {name:"avc-high",codec:"mpeg4 avc",profile:"high",level:"4.2"},
+        {name:"hevc-main",codec:"hevc",profile:"main",level:"5.1"},
+        {name:"hevc-main10",codec:"hevc",profile:"main 10",level:"5.1"},
+        {name:"av1-main",codec:"av1",profile:"main",level:"5.1"}
+    ]
+    for each candidate in candidates
+        result = deviceInfo.CanDecodeVideo({codec:candidate.codec,profile:candidate.profile,level:candidate.level})
+        supported = type(result) = "roAssociativeArray" and result.doesExist("result") and result.result = true
+        print "[RokuPlus Invidious codecs] PROBE_VIDEO name="; candidate.name; " supported="; supported
+    end for
+    audioCandidates = ["aac","ac3","eac3","ac4","alac","mp3","pcm","opus","vorbis","flac","dts","dtse"]
+    for each audioCodec in audioCandidates
+        result = deviceInfo.CanDecodeAudio({codec:audioCodec})
+        supported = type(result) = "roAssociativeArray" and result.doesExist("result") and result.result = true
+        print "[RokuPlus Invidious codecs] PROBE_AUDIO codec="; audioCodec; " supported="; supported
+    end for
+end function
+
+sub invidiousLogAdaptiveFormats(parsed as object)
+    if not parsed.doesExist("adaptiveFormats") or type(parsed.adaptiveFormats) <> "roArray" then return
+    for each stream in parsed.adaptiveFormats
+        if type(stream) <> "roAssociativeArray" then continue for
+        container = ""
+        if stream.doesExist("container") then container = lcase(invidiousTextValue(stream.container,24))
+        streamType = ""
+        if stream.doesExist("type") then streamType = lcase(invidiousTextValue(stream.type,200))
+        tokens = invidiousParseCodecTokens(streamType)
+        codecLabel = "unknown"
+        if tokens <> invalid then codecLabel = invidiousJoin(tokens)
+        print "[RokuPlus Invidious codecs] ADAPTIVE_TRACK container="; container; " codecs="; codecLabel; " action=separate_track_not_muxed"
+    end for
+end sub
+
+function invidiousJoin(values as object) as string
+    result = ""
+    for each value in values
+        if result <> "" then result = result + ","
+        result = result + value
     end for
     return result
 end function
 
-function invidiousAvcLevelName(levelId as integer) as string
-    if levelId = 10 then return "1.0"
-    if levelId = 11 then return "1.1"
-    if levelId = 12 then return "1.2"
-    if levelId = 13 then return "1.3"
-    if levelId = 20 then return "2.0"
-    if levelId = 21 then return "2.1"
-    if levelId = 22 then return "2.2"
-    if levelId = 30 then return "3.0"
-    if levelId = 31 then return "3.1"
-    if levelId = 32 then return "3.2"
-    if levelId = 40 then return "4.0"
-    if levelId = 41 then return "4.1"
-    if levelId = 42 then return "4.2"
-    return ""
-end function
-
-function invidiousDeviceSupportsAvc(profile as string, level as string) as boolean
-    deviceInfo = CreateObject("roDeviceInfo")
-    capability = deviceInfo.CanDecodeVideo({codec:"h264",profile:profile,level:level})
-    if type(capability) = "roAssociativeArray" and capability.doesExist("result")
-        if capability.result = true then return true
-    end if
-    ' Some Roku firmware reports AVC under the MPEG-4 AVC codec name.
-    capability = deviceInfo.CanDecodeVideo({codec:"mpeg4 avc",profile:profile,level:level})
-    if type(capability) = "roAssociativeArray" and capability.doesExist("result")
-        if capability.result = true then return true
-    end if
-    return false
+function invidiousTextValue(value as dynamic, limit as integer) as string
+    if value = invalid then return ""
+    if GetInterface(value,"ifString") <> invalid then return left(value,limit)
+    return left(value.toStr(),limit)
 end function
 
 function invidiousDownload(endpoint as string) as object
