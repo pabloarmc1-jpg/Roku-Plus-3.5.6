@@ -2119,7 +2119,7 @@ sub advanceTsRelayRestart(now as integer)
     m.decoder.control = "play"
     localTarget = plusClockValue(m.ticket.target) - relayOffset
     if localTarget < 0 then localTarget = 0.0
-    m.tsRelayLocalSeekPending = {target:localTarget,segment:m.tsRelayRestartSegment}
+    m.tsRelayLocalSeekPending = {target:localTarget,segment:m.tsRelayRestartSegment,createdAt:m.monotonic.totalMilliseconds(),lastPosition:invalid,advanceCount:0,firstPosition:invalid}
     print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment; " localTarget="; localTarget
     emitDiagnostic("ts_relay_seek_restart")
     m.tsRelayRestartStage = 0
@@ -2129,17 +2129,52 @@ end sub
 
 sub advanceTsRelayLocalSeek(now as integer)
     if m.tsRelayLocalSeekPending = invalid or not m.mediaOpen or not m.tsRelayMode then return
-    state = m.decoder.state
-    if state <> "playing" and state <> "paused" then return
-    localTarget = m.tsRelayLocalSeekPending.target
-    segmentIndex = m.tsRelayLocalSeekPending.segment
-    m.tsRelayLocalSeekPending = invalid
     if m.ticket = invalid
+        m.tsRelayLocalSeekPending = invalid
         emitDiagnostic("ts_relay_local_seek_without_ticket")
         return
     end if
-    ' The relay starts at the beginning of the selected TS segment. Apply a
-    ' second, native seek inside that segment to reach the requested timestamp.
+    state = m.decoder.state
+    if state <> "playing" and state <> "paused" then return
+
+    localTarget = m.tsRelayLocalSeekPending.target
+    segmentIndex = m.tsRelayLocalSeekPending.segment
+    elapsed = now - m.tsRelayLocalSeekPending.createdAt
+    nativePosition = plusClockValue(m.decoder.position)
+    ready = false
+    reason = "clock_advancing"
+
+    if nativePosition <> invalid
+        if m.tsRelayLocalSeekPending.firstPosition = invalid
+            m.tsRelayLocalSeekPending.firstPosition = nativePosition
+            m.tsRelayLocalSeekPending.lastPosition = nativePosition
+            m.tsRelayLocalSeekPending.firstSampleAt = now
+        else
+            previousPosition = m.tsRelayLocalSeekPending.lastPosition
+            if nativePosition > previousPosition + 0.05
+                m.tsRelayLocalSeekPending.advanceCount++
+            end if
+            m.tsRelayLocalSeekPending.lastPosition = nativePosition
+        end if
+
+        if state = "playing" and m.tsRelayLocalSeekPending.advanceCount >= 2 and now - m.tsRelayLocalSeekPending.firstSampleAt >= 500
+            ready = true
+        else if state = "paused" and m.wantPaused and elapsed >= 600
+            ready = true
+            reason = "paused_clock_ready"
+        end if
+    end if
+
+    ' Do not let a stalled clock block the seek indefinitely. After 2.5 seconds,
+    ' issue it once and preserve the before/after samples for diagnosis.
+    if not ready and elapsed < 2500 then return
+    if not ready then reason = "clock_wait_timeout"
+
+    beforePosition = nativePosition
+    advanceCount = m.tsRelayLocalSeekPending.advanceCount
+    m.tsRelayLocalSeekPending = invalid
+    ' The relay starts at the selected segment. Wait for the native clock to
+    ' establish itself before seeking within that segment.
     m.ticket.issuedAt = now
     m.ticket.deadlineAt = now + 12000
     m.ticket.bufferingTimeoutExtended = false
@@ -2148,8 +2183,9 @@ sub advanceTsRelayLocalSeek(now as integer)
     m.ticket.landingAt = invalid
     m.ticket.landingPosition = invalid
     m.ticket.sawClockJump = false
+    print "[RokuPlus ts-relay] local_seek_ready segment="; segmentIndex; " reason="; reason; " waitMs="; elapsed; " nativePosition="; beforePosition; " advances="; advanceCount
     m.decoder.seek = localTarget
-    print "[RokuPlus ts-relay] local_seek segment="; segmentIndex; " target="; localTarget
+    print "[RokuPlus ts-relay] local_seek segment="; segmentIndex; " target="; localTarget; " nativeBefore="; beforePosition
     emitDiagnostic("ts_relay_local_seek")
 end sub
 
