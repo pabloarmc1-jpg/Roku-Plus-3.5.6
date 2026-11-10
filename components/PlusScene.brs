@@ -151,6 +151,8 @@ sub init()
     m.youtubeCursor = 0
     m.youtubeQuery = ""
     m.youtubeBusy = false
+    m.youtubeDetailOpen = false
+    m.youtubeDetail = invalid
     m.creditsPage = 0
     m.creditsPages = []
     if not m.configured
@@ -900,6 +902,8 @@ sub openYoutube()
     m.zone = "youtube"
     m.nav = 9
     m.youtubeCursor = 0
+    m.youtubeDetailOpen = false
+    m.youtubeDetail = invalid
     m.note = ""
     if rpLoadYoutubeApiKey() = ""
         m.note = "Configura YouTube Data API v3 Key en Ajustes para buscar videos."
@@ -981,6 +985,8 @@ sub startYoutubeSearch(query as string)
     m.youtubeBusy = true
     m.youtubeItems = []
     m.youtubeCursor = 0
+    m.youtubeDetailOpen = false
+    m.youtubeDetail = invalid
     m.note = ""
     drawScreen()
     task.control = "RUN"
@@ -2404,8 +2410,14 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if key = "back"
         if m.view = "youtube"
-            cancelYoutubeTask()
-            goHome()
+            if m.youtubeDetailOpen
+                m.youtubeDetailOpen = false
+                m.youtubeDetail = invalid
+                drawScreen()
+            else
+                cancelYoutubeTask()
+                goHome()
+            end if
             return true
         end if
         if m.view = "search-keyboard"
@@ -2421,6 +2433,44 @@ function onKeyEvent(key as string, press as boolean) as boolean
             drawScreen()
         else
             returnOneStep()
+        end if
+        return true
+    end if
+    if m.view = "youtube"
+        if key = "options" or key = "*"
+            openYoutubeSearch()
+            return true
+        end if
+        if m.youtubeDetailOpen
+            if key = "OK" or key = "left" or key = "right" or key = "up" or key = "down"
+                m.youtubeDetailOpen = false
+                m.youtubeDetail = invalid
+                drawScreen()
+                return true
+            end if
+        else if m.youtubeItems.count() > 0
+            if key = "left"
+                if m.youtubeCursor mod 5 > 0
+                    m.youtubeCursor--
+                else
+                    m.zone = "nav"
+                    m.nav = 9
+                end if
+            else if key = "right"
+                if m.youtubeCursor+1 < m.youtubeItems.count() and m.youtubeCursor mod 5 < 4 then m.youtubeCursor++
+            else if key = "up"
+                if m.youtubeCursor >= 5 then m.youtubeCursor -= 5
+            else if key = "down"
+                if m.youtubeCursor+5 < m.youtubeItems.count() then m.youtubeCursor += 5
+            else if key = "OK"
+                m.youtubeDetail = m.youtubeItems[m.youtubeCursor]
+                m.youtubeDetailOpen = true
+            end if
+            drawScreen()
+            return true
+        else if key = "OK"
+            openYoutubeSearch()
+            return true
         end if
         return true
     end if

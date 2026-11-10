@@ -254,7 +254,9 @@ sub drawScreen()
         if m.view = "appearance" then appearanceScreen()
         if m.view = "credits" then creditsScreen()
         if m.view = "hd-source" then hdSourceScreen()
-        if m.view = "youtube" then youtubeScreen()
+        if m.view = "youtube"
+            if m.youtubeDetailOpen then youtubeDetailScreen() else youtubeScreen()
+        end if
         if m.busy or m.note <> ""
             panel(72,970,1770,86,"0x181818F5")
             text = m.note
@@ -1121,6 +1123,33 @@ sub youtubeScreen()
         end for
     end if
     words("↑ ↓ ← →  Elegir video     OK  Ver detalles     OPTIONS (*)  Buscar otra vez     Atrás  Inicio",324,930,1500,44,19,"0xB3B3B3FF")
+end sub
+
+sub youtubeDetailScreen()
+    topBar()
+    item = m.youtubeDetail
+    if type(item) <> "roAssociativeArray"
+        words("No hay un video seleccionado.",324,170,1400,55,30,"0xFFFFFFFF")
+        words("Atrás: volver a resultados",324,930,1400,42,20,"0xB3B3B3FF")
+        return
+    end if
+    words("DETALLES DEL VIDEO",324,118,1400,46,22,"0xB3B3B3FF")
+    if item.thumbnail <> "" then art(item.thumbnail,324,190,640,360)
+    words(item.title,1000,188,800,118,38,"0xFFFFFFFF").wrap = true
+    words("CANAL",1004,326,180,24,16,"0xA0A0A0FF")
+    words(item.channelTitle,1004,354,760,50,25,"0xFFFFFFFF").wrap = true
+    words("PUBLICADO",1004,420,180,24,16,"0xA0A0A0FF")
+    published = item.publishedAt
+    if len(published) >= 10 then published = left(published,10)
+    words(published,1004,448,760,40,22,"0xE0E0E0FF")
+    words("DESCRIPCIÓN",324,590,400,30,18,"0xA0A0A0FF")
+    description = item.description
+    if description = "" then description = "Este video no incluye una descripción."
+    words(description,324,628,1450,164,22,"0xE0E0E0FF").wrap = true
+    words("REPRODUCCIÓN",324,818,300,28,17,"0xA0A0A0FF")
+    words("No disponible dentro de Roku Plus: YouTube no entrega una URL multimedia a esta API.",324,850,1460,56,20,"0xF0D6A0FF").wrap = true
+    words("Enlace oficial: youtube.com/watch?v="+item.id,324,916,1450,34,18,"0xB3B3B3FF")
+    words("Atrás: volver a resultados     OPTIONS (*): nueva búsqueda",324,1002,1500,36,19,"0xB3B3B3FF")
 end sub
 
 sub settingsScreen()
