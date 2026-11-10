@@ -350,20 +350,24 @@ sub openRequest()
         m.tsRelayMode = true
         m.tsRelaySegments = supplied.segmentUrls
         m.tsRelayDurations = invalid
+        m.tsRelayOffsets = invalid
         m.tsRelayDuration = invalid
         if type(supplied.segmentDurations) = "roArray" and supplied.segmentDurations.count() = m.tsRelaySegments.count()
             durationTotal = 0.0
             durationValid = true
+            segmentOffsets = []
             for each segmentDuration in supplied.segmentDurations
                 parsedDuration = plusClockValue(segmentDuration)
                 if parsedDuration = invalid or parsedDuration <= 0 or parsedDuration > 3600
                     durationValid = false
                     exit for
                 end if
+                segmentOffsets.push(durationTotal)
                 durationTotal += parsedDuration
             end for
             if durationValid and durationTotal > 0
                 m.tsRelayDurations = supplied.segmentDurations
+                m.tsRelayOffsets = segmentOffsets
                 m.tsRelayDuration = durationTotal
                 print "[RokuPlus ts-relay] seek_metadata segments="; m.tsRelayDurations.count(); " duration="; m.tsRelayDuration
             else
@@ -2029,17 +2033,9 @@ function playerPosition() as dynamic
 end function
 
 function plusTsRelayOffsetForSegment(segmentIndex as integer) as dynamic
-    if type(m.tsRelayDurations) <> "roArray" then return invalid
-    if segmentIndex < 0 or segmentIndex >= m.tsRelayDurations.count() then return invalid
-    elapsed = 0.0
-    if segmentIndex > 0
-        for index = 0 to segmentIndex - 1
-            segmentDuration = plusClockValue(m.tsRelayDurations[index])
-            if segmentDuration = invalid or segmentDuration <= 0 then return invalid
-            elapsed += segmentDuration
-        end for
-    end if
-    return elapsed
+    if type(m.tsRelayOffsets) <> "roArray" then return invalid
+    if segmentIndex < 0 or segmentIndex >= m.tsRelayOffsets.count() then return invalid
+    return plusClockValue(m.tsRelayOffsets[segmentIndex])
 end function
 
 function playerDuration() as dynamic
