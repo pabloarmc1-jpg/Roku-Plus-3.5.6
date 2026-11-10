@@ -13,12 +13,17 @@ sub init()
     m.helpNode.text = "OK: pausar/reanudar    ← / →: retroceder/avanzar 10 s    Atrás: cerrar"
     m.errorNode.text = ""
     m.duration = 0
+    m.closing = false
+    m.closeTimer = m.top.findNode("closeTimer")
+    m.closeTimer.observeField("fire","finishInvidiousClose")
 end sub
 
 sub openRequest()
     request = m.top.request
     if type(request) <> "roAssociativeArray" then return
     if not request.doesExist("url") or request.url = "" then return
+    m.closeTimer.control = "stop"
+    m.closing = false
     m.top.closed = false
     m.duration = 0
     m.errorNode.text = ""
@@ -55,7 +60,6 @@ sub openRequest()
         media.streams = [{url:request.url,bitrate:int(bitrate),quality:quality,contentid:"invidious-" + invidiousText(request.title,80)}]
     end if
     m.video.control = "stop"
-    m.video.content = invalid
     m.video.content = media
     m.top.active = true
     m.video.control = "play"
@@ -108,6 +112,8 @@ sub videoStateChanged(event as object)
         m.statusNode.text = "VIDEO FINALIZADO  ·  Atrás para volver a los resultados"
     else if state = "error"
         m.statusNode.text = "No se pudo reproducir este formato de video."
+    else if state = "stopped" and m.closing
+        finishInvidiousClose()
     else if state = "stopped" and m.top.active
         m.statusNode.text = "REPRODUCTOR DETENIDO"
     end if
@@ -132,12 +138,24 @@ sub videoDurationChanged(event as object)
 end sub
 
 sub closeInvidiousPlayback()
-    if m.top.active
-        m.video.control = "stop"
-        m.video.content = invalid
-        m.top.active = false
-        m.top.closed = true
-    end if
+    if not m.top.active or m.closing then return
+    ' Do not detach DASH content or redraw the parent scene while Roku's
+    ' native adaptive pipeline is tearing down. Stop first and close async.
+    m.closing = true
+    m.statusNode.text = "Cerrando reproductor…"
+    m.closeTimer.duration = 0.6
+    m.video.control = "stop"
+    m.closeTimer.control = "start"
+end sub
+
+sub finishInvidiousClose()
+    if not m.closing then return
+    m.closeTimer.control = "stop"
+    m.closing = false
+    m.top.active = false
+    ' Keep the last ContentNode attached. Replacing it on the next open avoids
+    ' forcing a synchronous DASH detach on the UI thread during BACK.
+    m.top.closed = true
 end sub
 
 function invidiousClock(value as dynamic) as string
