@@ -30,19 +30,24 @@ sub openRequest()
     media.live = false
     streamFormat = "mp4"
     if request.doesExist("streamFormat") and request.streamFormat <> "" then streamFormat = lcase(request.streamFormat)
-    ' Progressive muxed containers documented by Roku.
-    if streamFormat <> "mp4" and streamFormat <> "mkv" and streamFormat <> "webm"
-        m.statusNode.text = "Contenedor no compatible. Se permiten MP4, MKV y WebM progresivos."
+    ' Progressive containers and native MPEG-DASH are handled by Roku Video.
+    if streamFormat <> "mp4" and streamFormat <> "mkv" and streamFormat <> "webm" and streamFormat <> "dash"
+        m.statusNode.text = "Contenedor no compatible. Se permiten MP4, MKV, WebM y DASH."
         return
     end if
     media.streamFormat = streamFormat
-    if streamFormat = "mp4" or streamFormat = "mkv" or streamFormat = "webm"
+    if streamFormat = "dash"
+        ' DASH contains separate adaptation sets; do not create a progressive
+        ' streams array or try to mux audio/video in BrightScript.
+        print "[RokuPlus Invidious playback] transport=DASH mode=native_adaptive"
+        m.statusNode.text = "Abriendo manifiesto DASH adaptativo de Invidious…"
+    else
         bitrate = 0
         if request.doesExist("bitrate") and request.bitrate <> invalid
             bitrate = val(request.bitrate.toStr())
         end if
         if bitrate <= 0
-            m.statusNode.text = "La fuente MP4 no incluye un bitrate válido."
+            m.statusNode.text = "La fuente progresiva no incluye un bitrate válido."
             return
         end if
         quality = false
