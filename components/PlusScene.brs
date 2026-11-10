@@ -2089,6 +2089,19 @@ function onKeyEvent(key as string, press as boolean) as boolean
         openSearch()
         return true
     end if
+    if m.view = "search-keyboard" and left(key,4) = "Lit_"
+        literal = mid(key,5)
+        if literal = "Backspace"
+            if len(m.searchText) > 0 then m.searchText = left(m.searchText,len(m.searchText)-1)
+        else if literal = "Space"
+            if len(m.searchText) < 120 then m.searchText += " "
+        else if len(literal) = 1 and len(m.searchText) < 120
+            m.searchText += literal
+        end if
+        refreshSearchSuggestions()
+        drawScreen()
+        return true
+    end if
     if m.view = "search-keyboard"
         rows = ["0123456789","ABCDEFGHIJ","KLMNOPQRST","UVWXYZ.-_⌫"]
         if m.zone = "search-suggestion"
