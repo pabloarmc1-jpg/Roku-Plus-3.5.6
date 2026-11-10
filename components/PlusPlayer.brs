@@ -270,6 +270,7 @@ sub openRequest()
     m.tsRelayRestartStage = 0
     m.tsRelayRestartAt = 0
     m.tsRelayRestartSegment = -1
+    m.tsRelayLocalIp = ""
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
         m.segmentMode = true
@@ -1820,6 +1821,7 @@ sub onPulse()
                 emitDiagnostic("ts_relay_ip_unavailable")
                 return
             end if
+            m.tsRelayLocalIp = localIp
             relayMedia = CreateObject("roSGNode","ContentNode")
             relayMedia.url = "http://" + localIp + ":49322/stream.ts?key=" + m.tsRelayAccessKey
             relayMedia.title = m.titleText.text
@@ -2049,8 +2051,19 @@ sub advanceTsRelayRestart(now as integer)
         m.tsRelayRestartStage = 0
         return
     end if
+    if m.tsRelayLocalIp = ""
+        m.ticket = invalid
+        m.failed = true
+        m.notice = "No se pudo recuperar la dirección local del servidor TS."
+        m.noticeUntil = 2147483647
+        m.decoder.visible = false
+        revealTransport()
+        emitDiagnostic("ts_relay_restart_ip_unavailable")
+        m.tsRelayRestartStage = 0
+        return
+    end if
     relayMedia = CreateObject("roSGNode","ContentNode")
-    relayMedia.url = "http://" + CreateObject("roDeviceInfo").GetConnectionInfo().ip + ":49322/stream.ts?key=" + m.tsRelayAccessKey + "&segment=" + m.tsRelayRestartSegment.toStr()
+    relayMedia.url = "http://" + m.tsRelayLocalIp + ":49322/stream.ts?key=" + m.tsRelayAccessKey + "&segment=" + m.tsRelayRestartSegment.toStr()
     relayMedia.title = m.titleText.text
     relayMedia.streamFormat = "ts"
     relayMedia.live = false
