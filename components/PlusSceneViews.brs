@@ -175,20 +175,35 @@ sub topBar()
         words(rpProfileName(m.profileId),1560,10,280,30,18,"0xFFFFFFFF").horizAlign = "right"
         return
     end if
-    ' Compact auto-collapsed rail: icons only. Red marks the active/focused section.
-    panel(0,0,92,1080,"0x080808F8")
-    panel(88,0,4,1080,"0xFFFFFF18")
+    ' The sidebar expands only while it owns focus; otherwise it stays icon-only.
+    navExpanded = (m.zone = "nav")
+    navWidth = 92
+    if navExpanded then navWidth = 286
+    panel(0,0,navWidth,1080,"0x080808F8")
+    panel(navWidth-4,0,4,1080,"0xFFFFFF18")
     art("pkg:/images/ui/logo.png",24,28,44,44)
+    if navExpanded
+        words("ROKU PLUS",91,34,174,34,21,"0xFFFFFFFF")
+    end if
     panel(18,94,56,2,"0xFFFFFF30")
     iconFiles = ["nav-home.png","nav-movies.png","nav-series.png","nav-live.png","nav-search.png","nav-favorites.png","nav-history.png","nav-settings.png","nav-profile.png"]
     for i = 0 to 8
         y = 132+i*91
         isSelected = (active = i)
         if m.zone = "nav" and m.nav = i then isSelected = true
-        if isSelected then panel(12,y-7,68,64,"0xE50914FF")
+        if isSelected
+            selectedWidth = 68
+            if navExpanded then selectedWidth = 266
+            panel(12,y-7,selectedWidth,64,"0xE50914FF")
+        end if
         art("pkg:/images/ui/"+iconFiles[i],30,y+7,32,32,"scaleToFit")
+        if navExpanded
+            words(labels[i],88,y+10,184,40,23,"0xFFFFFFFF")
+        end if
         if m.zone = "nav" and m.nav = i
-            focusTarget("nav",i,8,y-11,76,72,"wide")
+            focusWidth = 76
+            if navExpanded then focusWidth = 274
+            focusTarget("nav",i,8,y-11,focusWidth,72,"wide")
         end if
     end for
 end sub
