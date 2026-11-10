@@ -2013,8 +2013,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
             submitGlobalSearch()
             return true
         end if
-        ' Return/Back borra un carácter; Cancelar sigue cerrando el teclado.
-        if key = "back" or key = "return" or key = "backspace"
+        ' Reload/Replay borra un carácter; Back conserva la función de volver/cerrar.
+        if key = "reload" or key = "replay" or key = "instantreplay"
             if len(m.searchText) > 0 then m.searchText = left(m.searchText,len(m.searchText)-1)
             refreshSearchSuggestions()
             drawScreen()
