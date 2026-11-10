@@ -1159,7 +1159,7 @@ sub youtubeDetailScreen()
     end if
     words(playbackStatus,324,850,1460,56,20,"0xF0D6A0FF").wrap = true
     words("Servidor: yt.chocolatemoo53.com · Fuente: Invidious",324,916,1450,34,18,"0xB3B3B3FF")
-    words("Atrás: volver a resultados     OPTIONS (*): nueva búsqueda",324,1002,1500,36,19,"0xB3B3B3FF")
+    words("OK: reproducir si hay MP4     Atrás: resultados     OPTIONS (*): nueva búsqueda",324,1002,1500,36,19,"0xB3B3B3FF")
 end sub
 
 sub settingsScreen()
