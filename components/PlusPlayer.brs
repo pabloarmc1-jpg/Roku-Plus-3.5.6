@@ -268,6 +268,7 @@ sub openRequest()
     m.tsRelayDurations = invalid
     m.tsRelayDuration = invalid
     m.tsRelayPositionOffset = 0.0
+    m.tsRelayLocalSeekPending = invalid
     m.tsRelayRestartStage = 0
     m.tsRelayRestartAt = 0
     m.tsRelayRestartSegment = -1
@@ -562,6 +563,7 @@ sub closePlayback()
     m.mediaOpen = false
     m.ticket = invalid
     m.pendingSeek = invalid
+    m.tsRelayLocalSeekPending = invalid
     m.watch = invalid
     m.panel.visible = false
     m.decoder.visible = false
@@ -1853,6 +1855,7 @@ sub onPulse()
     verifySeekResult()
     now = m.monotonic.totalMilliseconds()
     advanceTsRelayRestart(now)
+    advanceTsRelayLocalSeek(now)
     advanceSegmentRestart(now)
     advanceHlsSoftRestart(now)
     ' 3.5.55: sample native Video fields during HLS startup as well as normal playback.
@@ -2112,11 +2115,40 @@ sub advanceTsRelayRestart(now as integer)
     m.decoder.content = relayMedia
     m.decoder.autoplayAfterSeek = not m.wantPaused
     m.decoder.control = "play"
-    print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment
+    localTarget = plusClockValue(m.ticket.target) - relayOffset
+    if localTarget < 0 then localTarget = 0.0
+    m.tsRelayLocalSeekPending = {target:localTarget,segment:m.tsRelayRestartSegment}
+    print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment; " localTarget="; localTarget
     emitDiagnostic("ts_relay_seek_restart")
     m.tsRelayRestartStage = 0
     m.tsRelayRestartAt = 0
     m.tsRelayRestartSegment = -1
+end sub
+
+sub advanceTsRelayLocalSeek(now as integer)
+    if m.tsRelayLocalSeekPending = invalid or not m.mediaOpen or not m.tsRelayMode then return
+    state = m.decoder.state
+    if state <> "playing" and state <> "paused" then return
+    localTarget = m.tsRelayLocalSeekPending.target
+    segmentIndex = m.tsRelayLocalSeekPending.segment
+    m.tsRelayLocalSeekPending = invalid
+    if m.ticket = invalid
+        emitDiagnostic("ts_relay_local_seek_without_ticket")
+        return
+    end if
+    ' The relay starts at the beginning of the selected TS segment. Apply a
+    ' second, native seek inside that segment to reach the requested timestamp.
+    m.ticket.issuedAt = now
+    m.ticket.deadlineAt = now + 12000
+    m.ticket.bufferingTimeoutExtended = false
+    m.ticket.sawBuffering = false
+    m.ticket.actualStart = invalid
+    m.ticket.landingAt = invalid
+    m.ticket.landingPosition = invalid
+    m.ticket.sawClockJump = false
+    m.decoder.seek = localTarget
+    print "[RokuPlus ts-relay] local_seek segment="; segmentIndex; " target="; localTarget
+    emitDiagnostic("ts_relay_local_seek")
 end sub
 
 sub dispatchPendingSeek()
