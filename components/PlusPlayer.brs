@@ -2194,16 +2194,33 @@ sub advanceTsRelayLocalSeek(now as integer)
         end if
     end if
 
-    ' Preserve the bounded fallback for the second attempt, but never repeat
-    ' the deeper-preroll restart more than once for a single manual seek.
+    ' Never issue a native seek while the restarted TS decoder clock is stalled.
+    ' The deeper-preroll retry above is the only restart attempt for this seek.
     if not ready and elapsed < 2500 then return
-    if not ready then reason = "clock_wait_timeout"
 
     beforePosition = nativePosition
     advanceCount = m.tsRelayLocalSeekPending.advanceCount
     m.tsRelayLocalSeekPending = invalid
-    ' The relay starts at the selected segment. Wait for the native clock to
-    ' establish itself before seeking within that segment.
+
+    if not ready
+        isResume = false
+        if m.ticket.doesExist("isResume") then isResume = m.ticket.isResume = true
+        m.ticket = invalid
+        if isResume
+            m.resumeFailed = true
+            m.resumeFailedPosition = playerPosition()
+            m.resumeFailedAt = now
+            m.notice = "No se pudo confirmar la reanudación. La reproducción seguirá desde el preroll."
+        else
+            m.notice = "El reloj TS no avanzó. La reproducción seguirá desde el preroll."
+        end if
+        m.noticeUntil = now + 7000
+        print "[RokuPlus ts-relay] local_seek_skipped segment="; segmentIndex; " reason=clock_stalled waitMs="; elapsed; " nativePosition="; beforePosition; " advances="; advanceCount
+        emitDiagnostic("ts_relay_clock_stalled_no_local_seek")
+        return
+    end if
+
+    m.tsRelayLocalSeekPending = invalid
     m.ticket.issuedAt = now
     m.ticket.deadlineAt = now + 12000
     m.ticket.bufferingTimeoutExtended = false
