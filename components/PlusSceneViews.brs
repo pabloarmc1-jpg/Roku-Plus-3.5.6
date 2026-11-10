@@ -468,7 +468,8 @@ sub browseScreen()
             if m.query <> ""
                 kindLabel = "PELÍCULA"
                 if item.kind = "series" then kindLabel = "SERIE"
-                words(kindLabel,x+10,y+310,300,18,12,"0xB3B3B3FF")
+                panel(x+10,y+10,92,25,"0x080808DD")
+                words(kindLabel,x+15,y+13,82,18,12,"0xFFFFFFFF")
             end if
             saved = rpWatchGet(m.watchState,item.id)
             status = ""
