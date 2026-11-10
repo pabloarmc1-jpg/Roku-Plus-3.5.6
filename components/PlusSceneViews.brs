@@ -581,6 +581,7 @@ sub browseScreen()
                 if m.catalogFadePending
                     poster = art(uri,x+56,y+7,218,276,"scaleToFit")
                     poster.opacity = 0.0
+                    poster.translation = [28,0]
                     poster.observeField("loadStatus","catalogPosterLoadStatusChanged")
                     fadeEntry = {poster:poster,ready:false,done:false,step:0,delay:i}
                     m.catalogFadePosters.push(fadeEntry)

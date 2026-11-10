@@ -1828,7 +1828,7 @@ sub catalogFadeTick(event as object)
         if entry.ready and not entry.done
             if m.catalogFadeStep > entry.delay
                 entry.step = entry.step + 1
-                opacity = entry.step / 6.0
+                opacity = entry.step / 8.0
                 if opacity >= 1.0
                     opacity = 1.0
                     entry.done = true
@@ -1836,6 +1836,7 @@ sub catalogFadeTick(event as object)
                     allDone = false
                 end if
                 entry.poster.opacity = opacity
+                entry.poster.translation = [28 - (entry.step * 3.5),0]
             else
                 allDone = false
             end if
