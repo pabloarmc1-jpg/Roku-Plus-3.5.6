@@ -35,6 +35,9 @@ sub init()
     m.watchSaveClock = CreateObject("roTimespan")
     m.watchSaveClock.mark()
     m.continueItems = rpWatchContinue(m.watchState)
+    m.homeListItems = []
+    refreshHomeListItems()
+    m.listCover = 0
     m.libraryMode = "history"
     m.libraryItems = []
     m.libraryCursor = 0
@@ -554,6 +557,7 @@ sub playerProgress(event as object)
     end if
     if record <> invalid then print "[RokuPlus watch] record id="; detailId; " position="; record.position; " duration="; record.duration; " provider="; orbitText(record.provider,32); " slug="; orbitText(record.providerSlug,200)
     m.continueItems = rpWatchContinue(m.watchState)
+    refreshHomeListItems()
 end sub
 
 sub toggleCurrentWatch(field as string)
@@ -561,6 +565,7 @@ sub toggleCurrentWatch(field as string)
     m.watchState = rpWatchToggle(m.watchState,m.detail,field)
     rpWatchSave(m.watchState,m.profileId)
     m.continueItems = rpWatchContinue(m.watchState)
+    refreshHomeListItems()
     if field = "watched"
         record = rpWatchGet(m.watchState,m.detail.id)
         if record <> invalid and record.watched then m.note = "Marcada como vista." else m.note = "Marcada como no vista."
@@ -1277,6 +1282,19 @@ sub commitSetup()
     m.top.setFocus(true)
 end sub
 
+sub refreshHomeListItems()
+    m.homeListItems = []
+    if type(m.watchState) <> "roArray" then return
+    for each record in m.watchState
+        if type(record) = "roAssociativeArray" and record.doesExist("listed")
+            if record.listed = true
+                m.homeListItems.push(record)
+                if m.homeListItems.count() >= 3 then exit for
+            end if
+        end if
+    end for
+end sub
+
 sub openLibrary(mode as string)
     stopLivePreview()
     cancelRequest()
@@ -1390,6 +1408,7 @@ sub removeLibraryItem()
     if idx >= 0 then m.watchState.delete(idx)
     rpWatchSave(m.watchState,m.profileId)
     m.continueItems = rpWatchContinue(m.watchState)
+    refreshHomeListItems()
     openLibrary(m.libraryMode)
     m.note = "Título eliminado de este perfil."
     drawScreen()
@@ -1939,8 +1958,38 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
             if key = "right" and m.cover < 3 and m.cover+1 < m.features.count() then m.cover++
             if key = "up" then m.zone = "hero"
-            if key = "down" and m.continueItems.count() > 0 then m.zone = "continue": m.cover = 0 else if key = "down" and m.homeSeries.count() > 0 then m.zone = "home-series"
+            if key = "down"
+                if m.homeListItems.count() > 0
+                    m.zone = "home-list"
+                    m.listCover = 0
+                else if m.continueItems.count() > 0
+                    m.zone = "continue"
+                    m.cover = 0
+                else if m.homeSeries.count() > 0
+                    m.zone = "home-series"
+                    m.seriesCover = 0
+                end if
+            end if
             if key = "OK" and m.features.count() > 0 then openDetails(m.features[m.cover],"home"): return true
+        else if m.zone = "home-list"
+            if key = "left"
+                if m.listCover > 0 then m.listCover-- else m.zone = "nav": drawScreen(): return true
+            end if
+            if key = "right" and m.listCover < m.homeListItems.count()-1 and m.listCover < 2 then m.listCover++
+            if key = "up" then m.zone = "covers"
+            if key = "down"
+                if m.continueItems.count() > 0
+                    m.zone = "continue"
+                    m.cover = 0
+                else if m.homeSeries.count() > 0
+                    m.zone = "home-series"
+                    m.seriesCover = 0
+                end if
+            end if
+            if key = "OK" and m.listCover < m.homeListItems.count()
+                openDetails(m.homeListItems[m.listCover],"home")
+                return true
+            end if
         else if m.zone = "continue"
             ' Diagnostic: confirm the remote-control event reaches the Continue Watching handler.
             print "[RokuPlus continue] key="; key; " cover="; m.cover; " count="; m.continueItems.count()
@@ -1948,7 +1997,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 if m.cover > 0 then m.cover-- else m.zone = "nav": drawScreen(): return true
             end if
             if key = "right" and m.cover < m.continueItems.count()-1 and m.cover < 2 then m.cover++
-            if key = "up" then m.zone = "covers"
+            if key = "up"
+                if m.homeListItems.count() > 0 then m.zone = "home-list" else m.zone = "covers"
+            end if
             if key = "OK" and m.cover < m.continueItems.count()
                 saved = m.continueItems[m.cover]
                 if type(saved) <> "roAssociativeArray" then return true
@@ -2039,7 +2090,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 if m.seriesCover > 0 then m.seriesCover-- else m.zone = "nav": drawScreen(): return true
             end if
             if key = "right" and m.seriesCover < 2 and m.seriesCover+1 < m.homeSeries.count() then m.seriesCover++
-            if key = "up" then m.zone = "covers"
+            if key = "up"
+                if m.continueItems.count() > 0 then m.zone = "continue" else if m.homeListItems.count() > 0 then m.zone = "home-list" else m.zone = "covers"
+            end if
             if key = "OK" and m.homeSeries.count() > 0 then openDetails(m.homeSeries[m.seriesCover],"home"): return true
         end if
     else if m.view = "browse"
