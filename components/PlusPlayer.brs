@@ -266,6 +266,10 @@ sub openRequest()
     m.tsRelayPending = false
     m.tsRelayResumeSuppressed = false
     m.tsRelaySegments = invalid
+    m.tsRelayTimeline = invalid
+    if type(supplied.segmentTimeline) = "roArray" and supplied.segmentTimeline.count() > 1
+        m.tsRelayTimeline = supplied.segmentTimeline
+    end if
     if type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.segmentUrls = supplied.segmentUrls
         m.segmentMode = true
@@ -341,6 +345,12 @@ sub openRequest()
     if supplied.tsRelayEnabled = true and type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.tsRelayMode = true
         m.tsRelaySegments = supplied.segmentUrls
+        if type(m.tsRelayTimeline) = "roArray" and m.tsRelayTimeline.count() = m.tsRelaySegments.count()
+            print "[RokuPlus ts-relay] timeline_ready segments="; m.tsRelayTimeline.count(); " duration="; m.tsRelayTimeline[m.tsRelayTimeline.count()-1].end
+        else
+            m.tsRelayTimeline = invalid
+            print "[RokuPlus ts-relay] timeline_unavailable seek_mode=disabled"
+        end if
         m.segmentMode = false
         m.nativePlaylistMode = false
         format = "ts"
