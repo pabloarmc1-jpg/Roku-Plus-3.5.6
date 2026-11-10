@@ -4,6 +4,8 @@ sub init()
     m.top.focusable = true
     m.canvas = m.top.findNode("canvas")
     m.player = m.top.findNode("player")
+    m.invidiousPlayer = m.top.findNode("invidiousPlayer")
+    m.invidiousPlayer.observeField("closed","invidiousPlayerClosed")
     m.deadline = m.top.findNode("catalogDeadline")
     m.deadline.observeField("fire","catalogTimedOut")
     m.lease = m.top.findNode("playbackLease")
@@ -333,7 +335,7 @@ sub fetched(event as object)
             m.playbackMode = "direct"
             m.detail = context.item
             m.detailOrigin = "invidious"
-            launchVideo(context.item,answer.url,"mp4")
+            launchInvidiousVideo(context.item,answer.url)
             return
         else
             m.note = answer.message
@@ -474,6 +476,27 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
     else
         fetch({operation:"meta",item:item})
     end if
+end sub
+
+sub launchInvidiousVideo(item as object, url as string)
+    ' Dedicated decoder: Invidious playback never enters PlusPlayer or its TS/seek pipeline.
+    stopLivePreview()
+    m.viewBeforeInvidiousPlayer = "invidious"
+    m.view = "invidious-player"
+    m.canvas.visible = false
+    eraseScreen()
+    m.invidiousPlayer.visible = true
+    m.invidiousPlayer.request = {title:orbitText(item.title,180),url:url}
+    m.invidiousPlayer.setFocus(true)
+end sub
+
+sub invidiousPlayerClosed(event as object)
+    if event.getData() <> true then return
+    m.invidiousPlayer.visible = false
+    m.view = m.viewBeforeInvidiousPlayer
+    m.invidiousPlayer.active = false
+    drawScreen()
+    m.top.setFocus(true)
 end sub
 
 sub launchVideo(item as object, url as string, format as string)
@@ -2293,7 +2316,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
         return true
     end if
-    if m.view = "player" then return false
+    if m.view = "player" or m.view = "invidious-player" then return false
     if m.dialogBox <> invalid
         ' Let StandardKeyboardDialog own Back. Manually closing it here races
         ' the platform dialog dismissal and can leave the scene needing a second Back.
