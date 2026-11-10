@@ -686,6 +686,13 @@ sub onDecoderState()
         end if
         revealTransport()
     else if m.phase = "error"
+        ' A decoder-level format error arrives before the startup watchdog timeout.
+        ' Route relay failures through the native-HLS fallback before marking the
+        ' whole request failed; otherwise the watchdog can no longer recover it.
+        if m.tsRelayActive
+            beginTsRelayFallback(m.monotonic.totalMilliseconds())
+            return
+        end if
         m.hlsStartupIsolation = false
         if m.startupTimer <> invalid then m.startupTimer.control = "stop"
         if m.startupOverlay <> invalid then m.startupOverlay.visible = false
