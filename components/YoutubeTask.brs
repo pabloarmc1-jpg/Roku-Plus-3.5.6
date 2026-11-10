@@ -102,7 +102,8 @@ sub runYoutubeRequest()
         return
     end if
 
-    print "[RokuPlus YouTube] parse_start"\n    payload = ParseJson(body)
+    print "[RokuPlus YouTube] parse_start"
+    payload = ParseJson(body)
     if type(payload) <> "roAssociativeArray" or type(payload.items) <> "roArray"
         answer.message = "YouTube devolvió una respuesta que no se puede leer."
         m.top.result = answer
@@ -138,10 +139,12 @@ sub runYoutubeRequest()
         })
     end for
 
-    print "[RokuPlus YouTube] parsed_items="; answer.items.count()\n    answer.ok = true
+    print "[RokuPlus YouTube] parsed_items="; answer.items.count()
+    answer.ok = true
     answer.message = ""
     if answer.items.count() = 0 then answer.message = "No se encontraron videos para esa búsqueda."
     m.top.result = answer
+    print "[RokuPlus YouTube] result_sent ok="; answer.ok
 end sub
 
 function youtubeText(value as dynamic, limit as integer) as string
