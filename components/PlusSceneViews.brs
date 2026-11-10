@@ -144,22 +144,6 @@ function modeName() as string
 end function
 
 sub topBar()
-    ' Monochrome navigation: white marks the active section; live TV keeps its compact layout.
-    barHeight = 118
-    logoX = 52 : logoY = 30 : logoSize = 46
-    brandX = 106 : brandY = 31 : brandSize = 29
-    labelY = 43 : labelSize = 22 : focusY = 27 : focusH = 64 : underlineY = 83
-    navX = 260
-    if m.view = "live"
-        barHeight = 52
-        logoX = 18 : logoY = 8 : logoSize = 34
-        brandX = 60 : brandY = 8 : brandSize = 21
-        labelY = 7 : labelSize = 17 : focusY = 1 : focusH = 44 : underlineY = 44
-        navX = 220
-    end if
-    panel(0,0,1920,barHeight,"0x080808F2")
-    art("pkg:/images/ui/logo.png",logoX,logoY,logoSize,logoSize)
-    words("ROKU PLUS",brandX,brandY,145,44,brandSize,"0xFFFFFFFF")
     labels = ["Inicio","Películas","Series","TV en vivo","Buscar","Mi lista","Historial","Ajustes","Perfiles"]
     active = 0
     if m.view = "browse" or m.view = "detail" or m.view = "episodes"
@@ -176,29 +160,41 @@ sub topBar()
     else if m.view = "profiles"
         active = 8
     end if
-    widths = [100,135,105,135,100,105,115,100,100]
-    x = navX
+    if m.view = "live"
+        panel(0,0,1920,52,"0x080808F2")
+        art("pkg:/images/ui/logo.png",18,8,34,34)
+        words("ROKU PLUS",60,8,145,35,21,"0xFFFFFFFF")
+        words(labels[3],220,7,135,38,17,"0xFFFFFFFF")
+        panel(1548,7,308,38,"0xFFFFFF12")
+        words(rpProfileName(m.profileId),1560,10,280,30,18,"0xFFFFFFFF").horizAlign = "right"
+        return
+    end if
+    panel(0,0,224,1080,"0x080808F8")
+    panel(218,0,6,1080,"0xFFFFFF18")
+    art("pkg:/images/ui/logo.png",26,28,48,48)
+    words("ROKU PLUS",82,34,130,38,22,"0xFFFFFFFF")
+    panel(28,100,168,2,"0xFFFFFF30")
+    icons = ["⌂","▣","▤","▹","⌕","♡","◷","⚙","●"]
     for i = 0 to 8
-        w = widths[i]
+        y = 132+i*91
         if active = i
-            panel(x-10,underlineY,w+20,4,"0xFFFFFFFF")
-            panel(x-10,focusY,w+20,focusH,"0xFFFFFFFF")
-            words(labels[i],x,labelY,w,38,labelSize,"0x080808FF")
+            panel(18,y-8,188,66,"0xFFFFFFFF")
+            words(icons[i],34,y+3,38,42,27,"0x080808FF").horizAlign = "center"
+            words(labels[i],80,y+8,116,36,18,"0x080808FF")
         else
-            words(labels[i],x,labelY,w,38,labelSize-1,"0xD0D0D0FF")
+            words(icons[i],34,y+3,38,42,27,"0xFFFFFFFF").horizAlign = "center"
+            words(labels[i],80,y+8,116,36,18,"0xD8D8D8FF")
         end if
         if m.zone = "nav" and m.nav = i
-            panel(x-13,focusY,w+26,focusH,"0xFFFFFF20")
-            focusTarget("nav",i,x-14,focusY-4,w+28,focusH+8,"wide")
+            panel(12,y-13,200,76,"0xFFFFFF22")
+            focusTarget("nav",i,10,y-15,204,80,"wide")
         end if
-        x = x+w+18
     end for
-    profileY = 43
-    if m.view = "live" then profileY = 7
-    panel(1548,profileY-5,308,46,"0xFFFFFF12")
-    words("PERFIL",1560,profileY+2,62,25,13,"0x888891FF")
-    words(rpProfileName(m.profileId),1625,profileY,215,32,19,"0xF0F0F0FF").horizAlign = "right"
+    panel(22,1004,180,48,"0xFFFFFF12")
+    words("PERFIL",32,1009,54,18,12,"0xB8B8B8FF")
+    words(rpProfileName(m.profileId),32,1027,158,22,15,"0xFFFFFFFF")
 end sub
+
 
 sub drawScreen()
     if m.view = "player" then return
@@ -380,17 +376,17 @@ sub homeScreen()
         panel(0,112,1920,8,"0xFFFFFF12")
         featureCount = m.features.count()
         featureLabel = "ROKU PLUS ORIGINAL  ·  DESTACADO  "+(heroIndex+1).toStr()+" / "+featureCount.toStr()
-        words(featureLabel,78,160,1100,34,19,"0xFFFFFFFF")
-        words(item.title,72,205,1120,112,62,"0xFFFFFFFF").wrap = true
+        words(featureLabel,258,160,1100,34,19,"0xFFFFFFFF")
+        words(item.title,252,205,1120,112,62,"0xFFFFFFFF").wrap = true
         facts = item.year
         if m.catalogMode = "hd"
             if usesOnlineHd() then facts += " · "+hdProviderName(item.provider) else facts += " · Corto"
         end if
         if item.kind = "series" then facts += " · Serie"
-        if facts <> "" then words(facts,80,326,900,34,22,"0xE2E2E2FF")
-        words("Descubre historias para disfrutar en Roku Plus.",80,365,1000,38,21,"0xC9C9CFFF")
-        selectable("hero",0,"▶  REPRODUCIR",76,425,270,62,true)
-        selectable("hero",1,"ⓘ  MÁS INFORMACIÓN",365,425,320,62)
+        if facts <> "" then words(facts,260,326,900,34,22,"0xE2E2E2FF")
+        words("Descubre historias para disfrutar en Roku Plus.",260,365,1000,38,21,"0xC9C9CFFF")
+        selectable("hero",0,"▶  REPRODUCIR",256,425,270,62,true)
+        selectable("hero",1,"ⓘ  MÁS INFORMACIÓN",545,425,320,62)
         words("⏮ / ⏭  CAMBIAR DESTACADO",1190,445,650,30,17,"0xE0E0E0FF").horizAlign = "right"
         if featureCount > 1
             for dot = 0 to 3
@@ -421,18 +417,18 @@ sub homeScreen()
 
     ' Wide cinematic banners keep the Home rows clean and artwork-only.
     if m.continueItems.count() > 0
-        words("Continuar viendo",76,continueY,1500,30,26,"0xFFFFFFFF")
+        words("Continuar viendo",256,continueY,1500,30,26,"0xFFFFFFFF")
         words("RETOMA DONDE TE QUEDASTE",1390,continueY+4,450,22,14,"0x888891FF").horizAlign = "right"
         for i = 0 to 5
             if i < m.continueItems.count()
                 item = m.continueItems[i]
-                x = 76+i*294
+                x = 250+i*270
                 uri = item.background
                 if uri = "" then uri = item.poster
-                if uri <> "" then art(uri,x+8,continueY+40,260,146)
-                homeProgressOverlay(item,x+8,continueY+40,260,146)
-                if m.zone = "continue" and m.cover = i then panel(x+4,continueY+36,268,154,"0xFFFFFF20")
-                focusTarget("continue",i,x,continueY+32,276,162,"landscape")
+                if uri <> "" then art(uri,x+8,continueY+40,238,146)
+                homeProgressOverlay(item,x+8,continueY+40,238,146)
+                if m.zone = "continue" and m.cover = i then panel(x+4,continueY+36,246,154,"0xFFFFFF20")
+                focusTarget("continue",i,x,continueY+32,254,162,"landscape")
             end if
         end for
     end if
@@ -442,7 +438,7 @@ sub homeScreen()
         heading = "Cortos en HD"
         if usesOnlineHd() then heading = "Películas para explorar"
     end if
-    words(heading,76,discoveryY,1500,34,27,"0xFFFFFFFF")
+    words(heading,256,discoveryY,1500,34,27,"0xFFFFFFFF")
     words("SELECCIÓN PARA TI",1510,discoveryY+4,330,26,15,"0x888891FF").horizAlign = "right"
     m.discoveryPosters = []
     m.discoveryRowY = discoveryY+40
@@ -450,28 +446,28 @@ sub homeScreen()
         if m.features.count() > 0
             itemIndex = (m.discoveryOffset+i) mod m.features.count()
             item = m.features[itemIndex]
-            x = 76+i*294
+            x = 250+i*270
             uri = item.background
             if uri = "" then uri = item.poster
             if uri <> ""
-                banner = art(uri,x+8,m.discoveryRowY,260,146)
-                homeProgressOverlay(item,x+8,m.discoveryRowY,260,146)
+                banner = art(uri,x+8,m.discoveryRowY,238,146)
+                homeProgressOverlay(item,x+8,m.discoveryRowY,238,146)
                 m.discoveryPosters.push(banner)
             end if
             if i < 6
-                if m.zone = "covers" and m.cover = i then panel(x+4,discoveryY+36,268,154,"0xFFFFFF20")
-                focusTarget("covers",i,x,discoveryY+32,276,162,"landscape")
+                if m.zone = "covers" and m.cover = i then panel(x+4,discoveryY+36,246,154,"0xFFFFFF20")
+                focusTarget("covers",i,x,discoveryY+32,254,162,"landscape")
             end if
         end if
     end for
 
     if m.homeListItems.count() > 0
-        words("Mi lista",76,savedY,1500,32,26,"0xFFFFFFFF")
+        words("Mi lista",256,savedY,1500,32,26,"0xFFFFFFFF")
         words("TUS FAVORITOS",1510,savedY+3,330,24,15,"0x888891FF").horizAlign = "right"
         for i = 0 to 5
             if i < m.homeListItems.count()
                 item = m.homeListItems[i]
-                x = 76+i*294
+                x = 250+i*270
                 uri = item.background
                 if uri = "" then uri = item.poster
                 if uri <> "" then art(uri,x+8,savedY+40,260,146)
@@ -481,11 +477,11 @@ sub homeScreen()
             end if
         end for
     else if m.homeSeries.count() > 0
-        words("Series para descubrir",76,savedY,1500,30,25,"0xFFFFFFFF")
+        words("Series para descubrir",256,savedY,1500,30,25,"0xFFFFFFFF")
         for i = 0 to 2
             if i < m.homeSeries.count()
                 item = m.homeSeries[i]
-                x = 76+i*590
+                x = 250+i*520
                 panel(x-8,savedY+38,530,92,"0x19191F00")
                 uri = item.poster
                 if uri = "" then uri = item.background
@@ -554,33 +550,33 @@ sub browseScreen()
         end if
     end if
     if m.query <> "" then title = "Resultados: " + m.query
-    words(title,72,135,1500,72,46,"0xFFFFFFFF").wrap = true
+    words(title,252,135,1500,72,46,"0xFFFFFFFF").wrap = true
     hint = "Explora el catálogo y selecciona un título para ver sus detalles."
     if m.query <> "" then hint = "Resultados combinados de películas y series. Selecciona uno para abrir su ficha."
     if m.query = "" and usesOnlineHd() and m.hdProvider = "all" then hint = "Opciones de varias fuentes. Si una falla, prueba la misma película en otra."
-    words(hint,76,208,1185,42,22,"0xB3B3B3FF").wrap = true
+    words(hint,256,208,1185,42,22,"0xB3B3B3FF").wrap = true
     searchHint = "Buscar con OK en Buscar"
     if m.genreFilter <> "Todos" then searchHint = "Género: " + m.genreFilter
     words(searchHint,1260,210,577,38,19,"0xE5E5E5FF").horizAlign = "right"
-    words("OPTIONS: filtrar por género",76,245,720,28,17,"0x888888FF")
+    words("OPTIONS: filtrar por género",256,245,720,28,17,"0x888888FF")
 
     ' Netflix-like poster wall: five columns by two rows. The remote scrolls
     ' through ten-card windows while retaining the provider's twenty-item page.
     first = (m.cursor \ 10)*10
-    for i = 0 to 9
+    for i = 0 to 7
         n = first+i
         if n < m.titles.count()
             item = m.titles[n]
-            col = i mod 5
+            col = i mod 4
             row = i \ 5
-            x = 72+col*360
+            x = 252+col*410
             y = 270+row*360
             uri = item.poster
             if uri = "" then uri = item.background
-            panel(x,y,330,344,"0x15151500")
+            panel(x,y,380,344,"0x15151500")
             if uri <> ""
                 if m.catalogFadePending
-                    poster = art(uri,x+56,y+7,218,276,"scaleToFit")
+                    poster = art(uri,x+81,y+7,218,276,"scaleToFit")
                     poster.opacity = 0.0
                     poster.translation = [28,0]
                     poster.observeField("loadStatus","catalogPosterLoadStatusChanged")
@@ -592,10 +588,10 @@ sub browseScreen()
                         m.catalogFadeTimer.control = "start"
                     end if
                 else
-                    thumbnail(uri,x+56,y+7,218,276,"poster")
+                    thumbnail(uri,x+81,y+7,218,276,"poster")
                 end if
             end if
-            words(item.title,x+8,y+288,314,42,21,"0xFFFFFFFF").wrap = true
+            words(item.title,x+8,y+288,364,42,21,"0xFFFFFFFF").wrap = true
             if m.query <> ""
                 kindLabel = "PELÍCULA"
                 if item.kind = "series" then kindLabel = "SERIE"
@@ -624,26 +620,26 @@ sub browseScreen()
                     panel(x+12,y+337,306*ratio,4,"0xFFFFFFFF")
                 end if
             end if
-            if status <> "" then words(status,x+8,y+326,314,22,14,"0xFFFFFFFF")
-            focusTarget("grid",n,x-5,y-5,340,354,"catalog")
+            if status <> "" then words(status,x+8,y+326,364,22,14,"0xFFFFFFFF")
+            focusTarget("grid",n,x-5,y-5,390,354,"catalog")
         end if
     end for
     m.catalogFadePending = false
-    last = first+10
+    last = first+8
     if last > m.titles.count() then last = m.titles.count()
     if last > first
         caption = "Títulos "+(m.offset+first+1).toStr()+"–"+(m.offset+last).toStr()
         if usesOnlineHd() and (m.hdProvider = "all" or m.hdProvider = "seriesmetro" or m.hdProvider = "cinecalidad") then caption = "Opciones "+(first+1).toStr()+"–"+last.toStr()+" · Página "+((m.offset\20)+1).toStr()
-        words(caption,76,1015,1000,34,19,"0x808080FF")
+        words(caption,256,1015,1000,34,19,"0x808080FF")
     end if
     if m.titles.count() = 0 and not m.busy
         empty = "No se encontraron títulos."
         if m.genreFilter <> "Todos" then empty = "No hay títulos de " + m.genreFilter + " en esta página. Pulsa OPTIONS para cambiar el filtro."
         if m.more then empty = "Sin opciones en esta página. Pulsa ↓ para consultar la siguiente."
-        words(empty,92,420,1410,104,32,"0xB6B6B6FF").wrap = true
+        words(empty,272,420,1410,104,32,"0xB6B6B6FF").wrap = true
     end if
     hint = "↓ Más títulos"
-    if first+10 >= m.titles.count() and not m.more then hint = "Fin del catálogo"
+    if first+8 >= m.titles.count() and not m.more then hint = "Fin del catálogo"
     words(hint,1330,1015,500,34,19,"0xB3B3B3FF").horizAlign = "right"
 end sub
 
@@ -825,7 +821,7 @@ sub episodeScreen()
         n = firstSeason+i
         if n < m.series.seasons.count()
             season = m.series.seasons[n]
-            x = 76+i*294
+            x = 250+i*270
             seasonName = "Temporada "+season.number.toStr()
             if season.number = 0 then seasonName = "Especiales"
             if n = m.season
@@ -1089,7 +1085,7 @@ sub settingsScreen()
         if display.uiName <> "" then displayValue = displayValue+" · interfaz "+display.uiName
     end if
     values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue]
-    for i = 0 to 9
+    for i = 0 to 7
         y = 260+i*70
         panel(72,y,1770,62,"0x181818FF")
         words(labels[i],104,y+5,1150,31,25,"0xFFFFFFFF")

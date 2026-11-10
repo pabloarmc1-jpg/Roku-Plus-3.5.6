@@ -2397,10 +2397,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if m.busy and m.view <> "live" then return true
     if m.zone = "nav"
-        if key = "left" and m.nav > 0 then m.nav--
-        if key = "right" and m.nav < 8 then m.nav++
+        if key = "up" and m.nav > 0 then m.nav--
+        if key = "down" and m.nav < 8 then m.nav++
         if key = "OK" then activateNav(): return true
-        if key = "down" or (key = "right" and m.nav = 8)
+        if key = "right"
             if m.view = "home" then m.zone = "hero"
             if m.view = "library" then m.zone = "library"
             if m.view = "browse" then m.zone = "grid"
@@ -2412,6 +2412,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
             if m.view = "settings" then m.zone = "settings"
             if m.view = "profiles" then m.zone = "profiles"
+        end if
+        drawScreen()
+        return true
+    end if
+if m.view = "profiles" then m.zone = "profiles"
         end if
         drawScreen()
         return true
@@ -2640,9 +2645,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
         previousCursor = m.cursor
         window = m.cursor \ 10
         if key = "left"
-            if m.cursor mod 5 > 0 then m.cursor-- else m.zone = "nav": drawScreen(): return true
+            if m.cursor mod 4 > 0 then m.cursor-- else m.zone = "nav": drawScreen(): return true
         end if
-        if key = "right" and m.cursor mod 5 < 4 and m.cursor+1 < m.titles.count() then m.cursor++
+        if key = "right" and m.cursor mod 4 < 3 and m.cursor+1 < m.titles.count() then m.cursor++
         if key = "up" or key = "rewind"
             if m.cursor >= 5
                 m.cursor -= 5
