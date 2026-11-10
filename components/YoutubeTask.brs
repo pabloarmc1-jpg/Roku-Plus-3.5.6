@@ -40,15 +40,57 @@ sub runYoutubeRequest()
     endpoint += "&q=" + encoder.escape(query) + "&key=" + encoder.escape(apiKey)
 
     transfer = CreateObject("roUrlTransfer")
+    port = CreateObject("roMessagePort")
+    transfer.setMessagePort(port)
     transfer.setCertificatesFile("common:/certs/ca-bundle.crt")
+    transfer.enablePeerVerification(true)
+    transfer.enableHostVerification(true)
     transfer.setUrl(endpoint)
     transfer.setTimeout(20000)
     transfer.addHeader("User-Agent","RokuPlus/YouTubeCatalog")
-    if m.top.cancelRequested then return
+    transfer.addHeader("Accept","application/json")
+    print "[RokuPlus YouTube] request_start"
 
-    body = transfer.getToString()
     if m.top.cancelRequested then return
-    code = transfer.getResponseCode()
+    started = transfer.asyncGetToString()
+    if not started
+        print "[RokuPlus YouTube] request_start_failed"
+        answer.message = "No se pudo iniciar la conexión con YouTube."
+        m.top.result = answer
+        return
+    end if
+
+    body = ""
+    code = 0
+    finished = false
+    elapsed = CreateObject("roTimespan")
+    elapsed.mark()
+    while not finished
+        if m.top.cancelRequested
+            transfer.asyncCancel()
+            print "[RokuPlus YouTube] request_cancelled"
+            return
+        end if
+        if elapsed.totalMilliseconds() >= 20000
+            print "[RokuPlus YouTube] request_timeout"
+            exit while
+        end if
+        event = wait(50,port)
+        if type(event) = "roUrlEvent"
+            if event.getSourceIdentity() = transfer.getIdentity()
+                code = event.getResponseCode()
+                body = event.getString()
+                finished = true
+            end if
+        end if
+    end while
+    if not finished
+        transfer.asyncCancel()
+        answer.message = "La búsqueda de YouTube tardó demasiado. Comprueba Internet e inténtalo de nuevo."
+        m.top.result = answer
+        return
+    end if
+    print "[RokuPlus YouTube] response status="; code; " ms="; elapsed.totalMilliseconds(); " bytes="; len(body)
     if code <> 200 or GetInterface(body,"ifString") = invalid or body = ""
         answer.message = youtubeApiError(body,code)
         m.top.result = answer
@@ -60,7 +102,7 @@ sub runYoutubeRequest()
         return
     end if
 
-    payload = ParseJson(body)
+    print "[RokuPlus YouTube] parse_start"\n    payload = ParseJson(body)
     if type(payload) <> "roAssociativeArray" or type(payload.items) <> "roArray"
         answer.message = "YouTube devolvió una respuesta que no se puede leer."
         m.top.result = answer
@@ -96,7 +138,7 @@ sub runYoutubeRequest()
         })
     end for
 
-    answer.ok = true
+    print "[RokuPlus YouTube] parsed_items="; answer.items.count()\n    answer.ok = true
     answer.message = ""
     if answer.items.count() = 0 then answer.message = "No se encontraron videos para esa búsqueda."
     m.top.result = answer
