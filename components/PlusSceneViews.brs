@@ -440,6 +440,7 @@ sub browseScreen()
     if m.query <> "" then title = "Resultados: " + m.query
     words(title,72,135,1500,72,46,"0xFFFFFFFF").wrap = true
     hint = "Explora el catálogo y selecciona un título para ver sus detalles."
+    if m.query <> "" then hint = "Resultados combinados de películas y series. Selecciona uno para abrir su ficha."
     if usesOnlineHd() and m.hdProvider = "all" then hint = "Opciones de varias fuentes. Si una falla, prueba la misma película en otra."
     words(hint,76,208,1185,42,22,"0xB3B3B3FF").wrap = true
     searchHint = "Buscar con OK en Buscar"
@@ -463,6 +464,11 @@ sub browseScreen()
             panel(x,y,330,344,"0x151515FF")
             if uri <> "" then thumbnail(uri,x+56,y+7,218,276,"poster")
             words(item.title,x+8,y+288,314,42,21,"0xFFFFFFFF").wrap = true
+            if m.query <> ""
+                kindLabel = "PELÍCULA"
+                if item.kind = "series" then kindLabel = "SERIE"
+                words(kindLabel,x+10,y+310,300,18,12,"0xB3B3B3FF")
+            end if
             saved = rpWatchGet(m.watchState,item.id)
             status = ""
             if saved <> invalid
