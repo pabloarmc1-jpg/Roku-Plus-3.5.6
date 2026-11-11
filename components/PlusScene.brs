@@ -158,6 +158,10 @@ sub init()
     m.launcher.setFocus(true)
 end sub
 
+function CreatePlayletTransportEventsHandler() as object
+    return CreateObject("roSGNode", "PlayletLib:InputTransportEventsHandler")
+end function
+
 sub ActivatePlusExperience()
     m.plusExperience.visible = true
     m.heroRotation.control = "start"
