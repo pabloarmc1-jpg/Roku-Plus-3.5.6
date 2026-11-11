@@ -160,10 +160,10 @@ end sub
 
 sub ActivatePlusExperience()
     m.plusExperience.visible = true
+    m.heroRotation.control = "start"
+    m.discoveryRotation.control = "start"
     if not m.plusInitialized
         m.plusInitialized = true
-        m.heroRotation.control = "start"
-        m.discoveryRotation.control = "start"
         if m.hdDataTask <> invalid then m.hdDataTask.control = "RUN"
         if not m.configured
             beginSetup(false,false)
