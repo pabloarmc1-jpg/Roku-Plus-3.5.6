@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="PlusScene" extends="Scene">
+  <interface>
+    <field id="exitChannel" type="bool" alwaysNotify="true" />
+  </interface>
   <script type="text/brightscript" uri="pkg:/source/CatalogData.brs" />
   <script type="text/brightscript" uri="pkg:/source/CountryData.brs" />
   <script type="text/brightscript" uri="pkg:/source/RealityData.brs" />
@@ -13,21 +16,24 @@
   <script type="text/brightscript" uri="PlusSceneViews.brs" />
   <script type="text/brightscript" uri="PlusScene.brs" />
   <children>
-    <Rectangle width="1920" height="1080" color="0x09090BFF" />
-    <Group id="canvas" />
-    <PlusPlayer id="player" visible="false" />
-    <InvidiousPlayer id="invidiousPlayer" visible="false" />
-    <Timer id="catalogDeadline" duration="25" repeat="false" />
-    <Timer id="playbackLease" duration="30" repeat="true" />
-    <Timer id="livePreviewDelay" duration="0.7" repeat="false" />
-    <Timer id="liveNoticeTimer" duration="3.5" repeat="false" />
-    <Timer id="nextEpisodeTimer" duration="1.0" repeat="true" />
-    <Timer id="searchDeleteTimer" duration="0.75" repeat="false" />
-    <Timer id="dialogFocusRestore" duration="0.2" repeat="false" />
-    <Timer id="heroRotation" duration="8.0" repeat="true" />
-    <Timer id="discoveryRotation" duration="3.5" repeat="true" />
-    <Timer id="pageTransition" duration="0.08" repeat="true" />
-    <Timer id="catalogFade" duration="0.04" repeat="true" />
+    <Group id="PlusExperience" visible="false">
+      <Rectangle width="1920" height="1080" color="0x09090BFF" />
+      <Group id="canvas" />
+      <PlusPlayer id="player" visible="false" />
+      <InvidiousPlayer id="invidiousPlayer" visible="false" />
+      <Timer id="catalogDeadline" duration="25" repeat="false" />
+      <Timer id="playbackLease" duration="30" repeat="true" />
+      <Timer id="livePreviewDelay" duration="0.7" repeat="false" />
+      <Timer id="liveNoticeTimer" duration="3.5" repeat="false" />
+      <Timer id="nextEpisodeTimer" duration="1.0" repeat="true" />
+      <Timer id="searchDeleteTimer" duration="0.75" repeat="false" />
+      <Timer id="dialogFocusRestore" duration="0.2" repeat="false" />
+      <Timer id="heroRotation" duration="8.0" repeat="true" />
+      <Timer id="discoveryRotation" duration="3.5" repeat="true" />
+      <Timer id="pageTransition" duration="0.08" repeat="true" />
+      <Timer id="catalogFade" duration="0.04" repeat="true" />
+    </Group>
+    <DualLauncher id="DualLauncher" />
   </children>
 </component>
 
