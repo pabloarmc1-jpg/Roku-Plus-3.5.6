@@ -71,7 +71,11 @@ sub Main(args as dynamic)
     end if
 
     scene = display.createScene("PlusScene")
-    scene.launchArgs = args
+    if type(args) = "roAssociativeArray"
+        scene.launchArgs = args
+    else
+        scene.launchArgs = {}
+    end if
     display.show()
     while true
         event = wait(0, messages)
