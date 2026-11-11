@@ -96,6 +96,10 @@ sub launchSelected()
         m.playletNode.setFocus(true)
         return
     end if
+    if m.lib <> invalid and m.lib.loadStatus = "ready"
+        createPlayletScene()
+        return
+    end if
     m.errorLabel.text = "Cargando Playlet..."
     m.loadingIndicator.message = "Cargando Playlet..."
     m.loadingIndicator.visible = true
@@ -104,16 +108,20 @@ sub launchSelected()
     m.lib.uri = "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip"
 end sub
 
+sub createPlayletScene()
+    m.scene.playletLibLoadedUrl = { type: "github-zip", link: "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip" }
+    container = m.top.findNode("MainSceneContainer")
+    m.playletNode = container.createChild("PlayletLib:MainScene")
+    m.errorLabel.text = ""
+    m.loadingIndicator.visible = false
+    m.playletNode.setFocus(true)
+end sub
+
 sub playletLibraryStatus(event as object)
     if m.lib = invalid then return
     status = m.lib.loadStatus
     if status = "ready"
-        m.scene.playletLibLoadedUrl = { type: "github-zip", link: "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip" }
-        container = m.top.findNode("MainSceneContainer")
-        m.playletNode = container.createChild("PlayletLib:MainScene")
-        m.errorLabel.text = ""
-        m.loadingIndicator.visible = false
-        m.playletNode.setFocus(true)
+        createPlayletScene()
     else if status = "failed"
         m.loadingIndicator.visible = false
         m.errorLabel.text = "Playlet no pudo cargarse. Pulsa OK para volver al selector o elige Roku Plus."
@@ -141,11 +149,6 @@ sub playletExitRequested(event as object)
         m.playletNode.setFocus(false)
         m.top.findNode("MainSceneContainer").removeChild(m.playletNode)
         m.playletNode = invalid
-    end if
-    if m.lib <> invalid
-        m.lib.unobserveField("loadStatus")
-        m.scene.removeChild(m.lib)
-        m.lib = invalid
     end if
     m.playletContainer.visible = false
     m.loadingIndicator.visible = false
