@@ -70,7 +70,8 @@ sub Main(args as dynamic)
         print "[RokuPlus memory] generalLevel="; deviceInfo.GetGeneralMemoryLevel()
     end if
 
-    display.createScene("PlusScene")
+    scene = display.createScene("PlusScene")
+    scene.launchArgs = args
     display.show()
     while true
         event = wait(0, messages)
