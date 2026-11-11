@@ -2340,6 +2340,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if key = "back" and m.view = "home" and m.zone = "hero" and m.dialogBox = invalid
         m.plusExperience.visible = false
+        DeactivatePlusExperience()
         m.launcher.ShowMenu()
         return true
     end if
