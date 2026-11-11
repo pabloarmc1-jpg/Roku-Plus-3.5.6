@@ -24,6 +24,7 @@
     <Group id="playletContainer" visible="false">
       <Group id="MainSceneContainer" />
     </Group>
+    <DualLoadingIndicator id="PlayletLoadingIndicator" visible="false" />
     <Timer id="countdownTimer" duration="1" repeat="true" />
   </children>
 </component>
