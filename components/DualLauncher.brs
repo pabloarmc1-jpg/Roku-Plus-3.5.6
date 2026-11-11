@@ -4,6 +4,9 @@ sub init()
     m.playletContainer = m.top.findNode("playletContainer")
     m.countdownLabel = m.top.findNode("countdown")
     m.errorLabel = m.top.findNode("error")
+    m.loadingIndicator = m.top.findNode("PlayletLoadingIndicator")
+    m.global = m.top.getScene().getGlobalNode()
+    m.global.addFields({ loadingIndicator: m.loadingIndicator })
     m.playletCard = m.top.findNode("playletCard")
     m.plusCard = m.top.findNode("plusCard")
     m.timer = m.top.findNode("countdownTimer")
@@ -93,6 +96,8 @@ sub launchSelected()
         return
     end if
     m.errorLabel.text = "Cargando Playlet..."
+    m.loadingIndicator.message = "Cargando Playlet..."
+    m.loadingIndicator.visible = true
     m.lib = m.scene.createChild("ComponentLibrary")
     m.lib.observeField("loadStatus", "playletLibraryStatus")
     m.lib.uri = "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip"
@@ -105,8 +110,10 @@ sub playletLibraryStatus(event as object)
         container = m.top.findNode("MainSceneContainer")
         m.playletNode = container.createChild("PlayletLib:MainScene")
         m.errorLabel.text = ""
+        m.loadingIndicator.visible = false
         m.playletNode.setFocus(true)
     else if status = "failed"
+        m.loadingIndicator.visible = false
         m.errorLabel.text = "Playlet no pudo cargarse. Pulsa OK para volver al selector o elige Roku Plus."
         m.menu.visible = true
         m.playletContainer.visible = false
@@ -138,6 +145,7 @@ sub playletExitRequested(event as object)
         m.lib = invalid
     end if
     m.playletContainer.visible = false
+    m.loadingIndicator.visible = false
     m.plusExperience.visible = false
     ShowMenu()
 end sub
