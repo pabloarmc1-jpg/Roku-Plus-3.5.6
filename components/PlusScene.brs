@@ -34,10 +34,8 @@ sub init()
     m.dialogFocusTimer.observeField("fire","dialogFocusRestoreElapsed")
     m.heroRotation = m.top.findNode("heroRotation")
     m.heroRotation.observeField("fire","heroRotationTick")
-    m.heroRotation.control = "start"
     m.discoveryRotation = m.top.findNode("discoveryRotation")
     m.discoveryRotation.observeField("fire","discoveryRotationTick")
-    m.discoveryRotation.control = "start"
     m.pageTransitionTimer = m.top.findNode("pageTransition")
     m.pageTransitionTimer.observeField("fire","pageTransitionTick")
     m.catalogFadeTimer = m.top.findNode("catalogFade")
@@ -143,7 +141,6 @@ sub init()
     m.hdLibrary = {movies: [], series: []}
     m.hdDataTask = CreateObject("roSGNode", "HdLocalDataTask")
     m.hdDataTask.observeField("result", "hdLocalDataLoaded")
-    m.hdDataTask.control = "RUN"
     m.features = []
     m.homeSeries = []
     m.discoveryOffset = 0
@@ -157,13 +154,35 @@ sub init()
     m.invidiousQuery = ""
     m.creditsPage = 0
     m.creditsPages = []
-    if not m.configured
-        beginSetup(false,false)
-    else
-        refreshHome()
-    end if
-    drawScreen()
+    m.plusInitialized = false
     m.launcher.setFocus(true)
+end sub
+
+sub ActivatePlusExperience()
+    m.plusExperience.visible = true
+    if not m.plusInitialized
+        m.plusInitialized = true
+        m.heroRotation.control = "start"
+        m.discoveryRotation.control = "start"
+        if m.hdDataTask <> invalid then m.hdDataTask.control = "RUN"
+        if not m.configured
+            beginSetup(false,false)
+        else
+            refreshHome()
+        end if
+        drawScreen()
+    end if
+    m.top.setFocus(true)
+end sub
+
+sub DeactivatePlusExperience()
+    if m.heroRotation <> invalid then m.heroRotation.control = "stop"
+    if m.discoveryRotation <> invalid then m.discoveryRotation.control = "stop"
+    if m.previewTimer <> invalid then m.previewTimer.control = "stop"
+    if m.noteTimer <> invalid then m.noteTimer.control = "stop"
+    if m.nextEpisodeTimer <> invalid then m.nextEpisodeTimer.control = "stop"
+    if m.pageTransitionTimer <> invalid then m.pageTransitionTimer.control = "stop"
+    if m.catalogFadeTimer <> invalid then m.catalogFadeTimer.control = "stop"
 end sub
 
 sub hdLocalDataLoaded(event as object)
