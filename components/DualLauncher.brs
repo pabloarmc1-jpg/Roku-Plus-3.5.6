@@ -1,5 +1,6 @@
 ' Selector y anfitrión de Playlet. La escena raíz del canal sigue siendo PlusScene.
 sub init()
+    m.top.focusable = true
     m.menu = m.top.findNode("menu")
     m.playletContainer = m.top.findNode("playletContainer")
     m.countdownLabel = m.top.findNode("countdown")
@@ -12,6 +13,7 @@ sub init()
     m.timer = m.top.findNode("countdownTimer")
     m.timer.observeField("fire", "countdownTick")
     m.selection = 0
+    if savedChoice() = "rokuplus" then m.selection = 1
     m.remaining = 10
     m.launching = false
     m.lib = invalid
