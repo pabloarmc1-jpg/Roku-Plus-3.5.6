@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="DualLoadingIndicator" extends="Group">
+  <interface>
+    <field id="message" type="string" />
+  </interface>
+  <children>
+    <Rectangle width="1920" height="1080" color="0x000000FF" opacity="0.72" />
+    <Label id="loadingLabel" translation="[160,490]" width="1600" height="100" horizAlign="center" vertAlign="center" color="0xFFFFFFFF" font="font:LargeBoldSystemFont" />
+  </children>
+  <script type="text/brightscript" uri="pkg:/components/DualLoadingIndicator.brs" />
+</component>
