@@ -121,6 +121,7 @@ sub playletLibraryStatus(event as object)
         m.playletContainer.visible = false
         m.plusExperience.visible = false
         m.launching = false
+        saveChoice("rokuplus")
         m.selection = 1
         updateSelection()
         if m.lib <> invalid
