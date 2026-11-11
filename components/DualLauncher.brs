@@ -168,6 +168,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
         launchSelected()
         return true
     end if
+    if key = "options" or key = "*"
+        if m.selection = 0
+            saveChoice("playlet")
+            m.countdownLabel.text = "Playlet quedó como aplicación predeterminada."
+        else
+            saveChoice("rokuplus")
+            m.countdownLabel.text = "Roku Plus quedó como aplicación predeterminada."
+        end if
+        m.timer.control = "stop"
+        return true
+    end if
     ' Cualquier tecla cancela el arranque automático, sin impedir la navegación.
     m.timer.control = "stop"
     m.remaining = 0
