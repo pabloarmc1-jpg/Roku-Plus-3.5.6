@@ -112,6 +112,7 @@ sub createPlayletScene()
     m.scene.playletLibLoadedUrl = { type: "github-zip", link: "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip" }
     container = m.top.findNode("MainSceneContainer")
     m.playletNode = container.createChild("PlayletLib:MainScene")
+    m.scene.playletReady = true
     m.errorLabel.text = ""
     m.loadingIndicator.visible = false
     m.playletNode.setFocus(true)
@@ -145,6 +146,7 @@ sub playletExitRequested(event as object)
     if event.getData() <> true then return
     ' Playlet usa exitChannel para salir. En el canal dual, ese evento significa volver al selector.
     m.scene.exitChannel = false
+    m.scene.playletReady = false
     if m.playletNode <> invalid
         m.playletNode.setFocus(false)
         m.top.findNode("MainSceneContainer").removeChild(m.playletNode)
