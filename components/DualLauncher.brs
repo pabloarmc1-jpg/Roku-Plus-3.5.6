@@ -112,6 +112,10 @@ sub createPlayletScene()
     m.scene.playletLibLoadedUrl = { type: "github-zip", link: "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip" }
     container = m.top.findNode("MainSceneContainer")
     m.playletNode = container.createChild("PlayletLib:MainScene")
+    ' Playlet is authored for Roku HD (1280x720), while this channel uses FHD (1920x1080).
+    ' Scale only Playlet so its full interface fills the FHD scene; Roku Plus remains unchanged.
+    m.playletNode.scaleRotateCenter = [0, 0]
+    m.playletNode.scale = [1.5, 1.5]
     m.scene.playletReady = true
     m.errorLabel.text = ""
     m.loadingIndicator.visible = false
