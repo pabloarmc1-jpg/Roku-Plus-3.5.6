@@ -76,6 +76,11 @@ sub Main(args as dynamic)
     else
         scene.launchArgs = {}
     end if
+    scene.ObserveField("playletReady", messages)
+    input = CreateObject("roInput")
+    input.setMessagePort(messages)
+    input.EnableTransportEvents()
+    transportEventsHandler = invalid
     display.show()
     while true
         event = wait(0, messages)
@@ -94,6 +99,25 @@ sub Main(args as dynamic)
             if type(memoryInfo) = "roAssociativeArray"
                 memoryLevel = memoryInfo.lookup("generalMemoryLevel")
                 print "[RokuPlus memory] generalWarning level="; memoryLevel
+            end if
+        else if eventType = "roSGNodeEvent"
+            if event.getField() = "playletReady"
+                if event.getData() = true
+                    transportEventsHandler = scene@.CreatePlayletTransportEventsHandler()
+                else
+                    transportEventsHandler = invalid
+                end if
+            end if
+        else if eventType = "roInputEvent"
+            info = event.getInfo()
+            if info.type = "transport"
+                status = "unhandled"
+                if transportEventsHandler <> invalid
+                    status = transportEventsHandler@.HandleTransportEvent(info)
+                end if
+                input.EventResponse({ id: info.id, status: status })
+            else
+                scene.inputArgs = info
             end if
         end if
     end while
