@@ -103,7 +103,7 @@ sub Main(args as dynamic)
         else if eventType = "roSGNodeEvent"
             if event.getField() = "playletReady"
                 if event.getData() = true
-                    transportEventsHandler = scene@.CreatePlayletTransportEventsHandler()
+                    transportEventsHandler = scene.callFunc("CreatePlayletTransportEventsHandler")
                 else
                     transportEventsHandler = invalid
                 end if
@@ -113,7 +113,7 @@ sub Main(args as dynamic)
             if info.type = "transport"
                 status = "unhandled"
                 if transportEventsHandler <> invalid
-                    status = transportEventsHandler@.HandleTransportEvent(info)
+                    status = transportEventsHandler.callFunc("HandleTransportEvent", info)
                 end if
                 input.EventResponse({ id: info.id, status: status })
             else
