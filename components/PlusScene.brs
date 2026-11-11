@@ -2,6 +2,9 @@
 sub init()
     m.top.backgroundColor = "0x09090BFF"
     m.top.focusable = true
+    m.plusExperience = m.top.findNode("PlusExperience")
+    m.launcher = m.top.findNode("DualLauncher")
+    m.plusExperience.visible = false
     m.canvas = m.top.findNode("canvas")
     m.player = m.top.findNode("player")
     m.invidiousPlayer = m.top.findNode("invidiousPlayer")
@@ -160,7 +163,7 @@ sub init()
         refreshHome()
     end if
     drawScreen()
-    m.top.setFocus(true)
+    m.launcher.setFocus(true)
 end sub
 
 sub hdLocalDataLoaded(event as object)
@@ -2314,6 +2317,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
             m.searchDeleteCleared = false
             return true
         end if
+        return true
+    end if
+    if key = "back" and m.view = "home" and m.zone = "hero" and m.dialogBox = invalid
+        m.plusExperience.visible = false
+        m.launcher.ShowMenu()
         return true
     end if
     if m.view = "player" or m.view = "invidious-player" then return false
