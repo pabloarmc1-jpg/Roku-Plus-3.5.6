@@ -109,6 +109,7 @@ sub playletLibraryStatus(event as object)
     if m.lib = invalid then return
     status = m.lib.loadStatus
     if status = "ready"
+        m.scene.playletLibLoadedUrl = { type: "github-zip", link: "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip" }
         container = m.top.findNode("MainSceneContainer")
         m.playletNode = container.createChild("PlayletLib:MainScene")
         m.errorLabel.text = ""
