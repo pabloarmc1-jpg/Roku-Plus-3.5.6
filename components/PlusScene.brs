@@ -174,25 +174,45 @@ function CreatePlayletTransportEventsHandler() as object
 end function
 
 sub ActivatePlusExperience()
+    print "[RokuPlus startup] activate begin"
     m.plusExperience.visible = true
     m.heroRotation.control = "start"
     m.discoveryRotation.control = "start"
     if not m.plusInitialized
         m.plusInitialized = true
-        if m.hdDataTask <> invalid then m.hdDataTask.control = "RUN"
+        print "[RokuPlus startup] first activation configured="; m.configured
+        ' Paint the first Roku Plus frame before starting background work.
+        ' This keeps task creation and network requests out of the first-frame path.
         if not m.configured
+            print "[RokuPlus startup] setup screen begin"
             beginSetup(false,false)
+            print "[RokuPlus startup] setup screen complete"
         else
-            refreshHome()
+            print "[RokuPlus startup] home screen begin"
+            drawScreen()
+            print "[RokuPlus startup] home screen complete"
         end if
-        drawScreen()
+        if m.hdDataTask <> invalid
+            print "[RokuPlus startup] local data task begin"
+            m.hdDataTask.control = "RUN"
+            print "[RokuPlus startup] local data task started"
+        end if
+        if m.configured
+            print "[RokuPlus startup] home requests begin"
+            refreshHome()
+            print "[RokuPlus startup] home requests started"
+        end if
     else if m.view = "home"
         ' Background catalog requests are cancelled when Roku Plus is hidden.
         ' Re-entering Home refreshes from the five-minute cache when possible.
-        refreshHome()
+        print "[RokuPlus startup] home re-entry begin"
         drawScreen()
+        print "[RokuPlus startup] home re-entry screen complete"
+        refreshHome()
+        print "[RokuPlus startup] home re-entry requests started"
     end if
     m.top.setFocus(true)
+    print "[RokuPlus startup] activate complete"
 end sub
 
 sub DeactivatePlusExperience()
