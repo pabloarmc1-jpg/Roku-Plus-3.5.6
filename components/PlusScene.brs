@@ -55,6 +55,7 @@ sub init()
     m.profileCursor = 0
     m.lastPlaybackProgress = invalid
     m.endScreenRequestId = invalid
+    m.endScreenNextEpisodePending = false
     m.watchSaveClock = CreateObject("roTimespan")
     m.watchSaveClock.mark()
     m.continueItems = rpWatchContinue(m.watchState)
@@ -518,6 +519,11 @@ sub fetched(event as object)
             end for
         end for
         m.episode = 0
+        if m.view = "player" and m.endScreenNextEpisodePending
+            m.endScreenNextEpisodePending = false
+            preparePlaybackEndScreen()
+            return
+        end if
     else if context.operation = "compatible"
         m.activeJobId = answer.jobid
         launchVideo(m.detail,answer.url,"hls")
@@ -658,6 +664,7 @@ sub launchVideo(item as object, url as string, format as string)
     m.activePlaybackRequestId = descriptor.requestId
     m.lastPlaybackProgress = invalid
     m.endScreenRequestId = invalid
+    m.endScreenNextEpisodePending = false
     m.player.endScreenData = invalid
     m.player.request = descriptor
     if m.activeJobId <> "" then m.lease.control = "start"
@@ -856,6 +863,20 @@ sub preparePlaybackEndScreen()
         if nextItem <> invalid
             items.push(nextItem)
             heading = "SIGUIENTE EPISODIO"
+        end if
+        if nextItem = invalid and m.series <> invalid and (usesOnlineHd() or rpIsOnlineHdItem(m.series))
+            for seasonIndex = 0 to m.series.seasons.count()-2
+                currentSeason = m.series.seasons[seasonIndex]
+                if currentSeason.number = m.detail.season
+                    followingSeason = m.series.seasons[seasonIndex+1]
+                    if followingSeason.loaded <> true and not m.endScreenNextEpisodePending
+                        m.endScreenNextEpisodePending = true
+                        m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[]}
+                        fetch({operation:"episodes",item:m.series,season:followingSeason.number})
+                        return
+                    end if
+                end if
+            end for
         end if
         m.player.endScreenData = {kind:"episode",heading:heading,items:items}
     else if m.detail.kind = "movie"
