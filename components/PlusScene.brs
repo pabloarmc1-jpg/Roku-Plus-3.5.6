@@ -2384,8 +2384,8 @@ sub loadEpisodeSeason()
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
-    ' Only Roku Plus owns scene-level remote input while its experience is visible.
-    if m.playletReady then return false
+    ' Route scene-level remote input by the active visible experience.
+    ' playletReady can remain stale during app handoff; Plus visibility is authoritative.
     if not m.plusExperience.visible then return false
     if key = "home" then return false
     if press
