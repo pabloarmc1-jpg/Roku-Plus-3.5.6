@@ -379,7 +379,11 @@ sub catalogTimedOut()
     cancelRequest()
     m.autoplay = false
     m.note = "La consulta tardó demasiado. Pulsa OK para intentar de nuevo o Atrás para volver."
-    drawScreen()
+    if m.view = "player"
+        showPlayerEndError(m.note)
+    else
+        drawScreen()
+    end if
 end sub
 
 sub catalogState(event as object)
@@ -390,7 +394,11 @@ sub catalogState(event as object)
     cancelRequest()
     m.autoplay = false
     m.note = "No se pudo completar la consulta. Vuelve a intentar."
-    drawScreen()
+    if m.view = "player"
+        showPlayerEndError(m.note)
+    else
+        drawScreen()
+    end if
 end sub
 
 sub fetched(event as object)
@@ -406,7 +414,11 @@ sub fetched(event as object)
         m.autoplay = false
         m.note = answer.message
         if context.operation = "compatible" then m.note = "La reproducción con PC no está disponible. Puedes elegir Reproducir para usar la conexión directa."
-        drawScreen()
+        if m.view = "player"
+            showPlayerEndError(m.note)
+        else
+            drawScreen()
+        end if
         return
     end if
     if context.operation = "invidious-search"
@@ -783,6 +795,10 @@ sub playerClosed(event as object)
     if m.player.active = true then return
     if m.view = "live" then return
     if m.view <> "player" then return
+    ' A recommendation may still be resolving when the viewer presses BACK.
+    ' Cancel it so a late network response cannot unexpectedly reopen playback.
+    if m.busy then cancelRequest()
+    m.autoplay = false
     closeSaved = rpWatchSave(m.watchState,m.profileId)
     closeRecord = invalid
     if type(m.detail) = "roAssociativeArray" and m.detail.doesExist("id") then closeRecord = rpWatchGet(m.watchState,m.detail.id)
@@ -822,6 +838,13 @@ sub playerClosed(event as object)
     m.note = ""
     drawScreen()
     m.top.setFocus(true)
+end sub
+
+sub showPlayerEndError(message as string)
+    if m.view <> "player" then return
+    safeMessage = orbitText(message,320)
+    if safeMessage = "" then safeMessage = "No se pudo abrir este título."
+    m.player.endScreenData = {kind:"movie",heading:"NO SE PUDO ABRIR",message:safeMessage,items:[]}
 end sub
 
 sub preparePlaybackEndScreen()
