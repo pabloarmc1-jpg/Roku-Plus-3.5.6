@@ -71,7 +71,7 @@
       <Label id="playerOptionsMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
     </Group>
     <Group id="playbackEndScreen" translation="[280,170]" visible="false">
-      <Rectangle width="1360" height="740" color="0x080A0FF5" />
+      <Rectangle width="1360" height="740" color="0x080A0FA0" />
       <Rectangle translation="[2,2]" width="1356" height="5" color="0xE50914FF" />
       <Label id="endScreenHeading" translation="[64,36]" width="1232" height="54" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
       <Group id="endMovieLayout" translation="[56,132]" visible="true">
