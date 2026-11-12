@@ -188,6 +188,9 @@ sub applyPresentation()
     m.top.focusable = not preview
     m.backdrop.visible = not preview
     if preview
+        if m.displayMenuOpen then closeDisplayMenu()
+        if m.audioMenuOpen then closeAudioMenu()
+        if m.subtitleMenuOpen then closeSubtitleMenu()
         rect = plusPreviewBounds(m.top.previewRect)
         if m.videoViewport <> invalid
             m.videoViewport.translation = [rect[0],rect[1]]
@@ -1797,13 +1800,12 @@ sub drawTransport()
     m.forwardControl.visible = not m.live
     applyControlSurfaces()
     m.keyText.text = "OPTIONS · Imagen y zoom"
-    if m.live then m.keyText.text = "OPTIONS · Imagen y zoom"
     if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
         introStart = plusClockValue(m.current.introStart)
         introEnd = plusClockValue(m.current.introEnd)
         currentPosition = playerPosition()
         if introStart <> invalid and introEnd <> invalid and currentPosition <> invalid
-            if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "OPTIONS · Saltar introducción"
+            if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "OPTIONS · Zoom / Saltar intro"
         end if
     end if
     m.keyText.text += "   ·   ↑ Audio   ·   ↓ Subtítulos"
