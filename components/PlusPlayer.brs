@@ -55,6 +55,11 @@ sub init()
     m.displayMenuItems = m.top.findNode("displayMenuItems")
     m.displayMenuOpen = false
     m.displayMenuIndex = 0
+    m.playerOptionsMenuGroup = m.top.findNode("playerOptionsMenu")
+    m.playerOptionsMenuItems = m.top.findNode("playerOptionsMenuItems")
+    m.playerOptionsMenuOpen = false
+    m.playerOptionsMenuIndex = 0
+    m.playerOptionsLabels = ["Audio", "Subtítulos", "Imagen y zoom"]
     m.zoomIndex = 0
     m.zoomLevels = [1.0, 1.10, 1.20, 1.33]
     m.zoomLabels = ["Original", "Zoom suave (1.10x)", "Zoom medio (1.20x)", "Zoom completo (1.33x)"]
@@ -189,6 +194,7 @@ sub applyPresentation()
     m.backdrop.visible = not preview
     if preview
         if m.displayMenuOpen then closeDisplayMenu()
+        if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
         if m.audioMenuOpen then closeAudioMenu()
         if m.subtitleMenuOpen then closeSubtitleMenu()
         rect = plusPreviewBounds(m.top.previewRect)
@@ -622,6 +628,8 @@ sub closePlayback()
     m.decoder.visible = false
     m.displayMenuOpen = false
     if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
+    m.playerOptionsMenuOpen = false
+    if m.playerOptionsMenuGroup <> invalid then m.playerOptionsMenuGroup.visible = false
     if m.previewMask <> invalid then m.previewMask.visible = false
     m.top.visible = false
     m.pulse.control = "stop"
@@ -940,6 +948,7 @@ end function
 
 sub openAudioMenu()
     if m.displayMenuOpen then closeDisplayMenu()
+    if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
     if m.subtitleMenuOpen then closeSubtitleMenu()
     refreshAudioTracks()
     print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " state="; m.decoder.state
@@ -1055,6 +1064,7 @@ end sub
 
 sub openSubtitleMenu()
     if m.displayMenuOpen then closeDisplayMenu()
+    if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
     refreshSubtitleTracks()
     if m.subtitleMenuGroup = invalid then return
     m.subtitleMenuOpen = true
@@ -1175,8 +1185,58 @@ sub selectSubtitleTrack()
     drawTransport()
 end sub
 
+sub openPlayerOptionsMenu()
+    if m.playerOptionsMenuGroup = invalid or m.playerOptionsMenuItems = invalid then return
+    if m.audioMenuOpen then closeAudioMenu()
+    if m.subtitleMenuOpen then closeSubtitleMenu()
+    if m.displayMenuOpen then closeDisplayMenu()
+    m.playerOptionsMenuOpen = true
+    m.playerOptionsMenuIndex = 0
+    m.playerOptionsMenuGroup.visible = true
+    revealTransport()
+    drawPlayerOptionsMenu()
+end sub
+
+sub drawPlayerOptionsMenu()
+    if m.playerOptionsMenuItems = invalid then return
+    output = "AJUSTES DEL REPRODUCTOR" + chr(10) + chr(10)
+    for i = 0 to m.playerOptionsLabels.count()-1
+        prefix = "   "
+        if i = m.playerOptionsMenuIndex then prefix = "▶  "
+        output += prefix + m.playerOptionsLabels[i]
+        if i < m.playerOptionsLabels.count()-1 then output += chr(10)
+    end for
+    output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Abrir     BACK Cerrar"
+    m.playerOptionsMenuItems.text = output
+end sub
+
+sub closePlayerOptionsMenu()
+    m.playerOptionsMenuOpen = false
+    if m.playerOptionsMenuGroup <> invalid then m.playerOptionsMenuGroup.visible = false
+end sub
+
+sub movePlayerOptionsMenuSelection(direction as integer)
+    m.playerOptionsMenuIndex += direction
+    if m.playerOptionsMenuIndex < 0 then m.playerOptionsMenuIndex = m.playerOptionsLabels.count()-1
+    if m.playerOptionsMenuIndex >= m.playerOptionsLabels.count() then m.playerOptionsMenuIndex = 0
+    drawPlayerOptionsMenu()
+end sub
+
+sub selectPlayerOptionsMenu()
+    selected = m.playerOptionsMenuIndex
+    closePlayerOptionsMenu()
+    if selected = 0
+        openAudioMenu()
+    else if selected = 1
+        openSubtitleMenu()
+    else
+        openDisplayMenu()
+    end if
+end sub
+
 sub openDisplayMenu()
     if m.displayMenuGroup = invalid or m.displayMenuItems = invalid then return
+    if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
     if m.audioMenuOpen then closeAudioMenu()
     if m.subtitleMenuOpen then closeSubtitleMenu()
     m.displayMenuOpen = true
@@ -1799,13 +1859,13 @@ sub drawTransport()
     m.rewindControl.visible = not m.live
     m.forwardControl.visible = not m.live
     applyControlSurfaces()
-    m.keyText.text = "OPTIONS · Imagen y zoom"
+    m.keyText.text = "↓ Ajustes: Audio · Subtítulos · Imagen y zoom"
     if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
         introStart = plusClockValue(m.current.introStart)
         introEnd = plusClockValue(m.current.introEnd)
         currentPosition = playerPosition()
         if introStart <> invalid and introEnd <> invalid and currentPosition <> invalid
-            if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "OPTIONS · Zoom / Saltar intro"
+            if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "↓ Ajustes · Zoom / Saltar intro"
         end if
     end if
     m.keyText.text += "   ·   ↑ Audio   ·   ↓ Subtítulos"
@@ -2613,6 +2673,20 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
         return true
     end if
+    if m.playerOptionsMenuOpen
+        if key = "up"
+            movePlayerOptionsMenuSelection(-1)
+        else if key = "down"
+            movePlayerOptionsMenuSelection(1)
+        else if key = "OK" or key = "play"
+            selectPlayerOptionsMenu()
+        else if key = "back"
+            closePlayerOptionsMenu()
+            revealTransport()
+            drawTransport()
+        end if
+        return true
+    end if
     if m.displayMenuOpen
         if key = "up"
             moveDisplayMenuSelection(-1)
@@ -2652,8 +2726,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
     else if key = "play"
         revealTransport()
         togglePause()
-    else if key = "options"
-        openDisplayMenu()
+    else if key = "options" or key = "down"
+        openPlayerOptionsMenu()
     else if key = "up"
         openAudioMenu()
     else if key = "down"
