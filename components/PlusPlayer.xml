@@ -22,7 +22,9 @@
   <script type="text/brightscript" uri="PlusPlayer.brs" />
   <children>
     <Rectangle id="backdrop" width="1920" height="1080" color="0x000000FF" />
-    <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
+    <Group id="videoViewport" clippingRect="[0,0,1920,1080]">
+      <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
+    </Group>
     <TsStreamServer id="tsStreamServer" />
     <Poster id="previewMask" translation="[294,206]" width="1016" height="572" uri="pkg:/images/ui/live-preview-mask.png" loadDisplayMode="scaleToFit" visible="false" />
     <Group id="startupOverlay" translation="[0,0]" visible="false">
@@ -61,6 +63,11 @@
       <Label id="noticeText" translation="[112,0]" width="1696" height="32" font="font:SmallSystemFont" color="0xFFFFFFFF" />
     </Group>
 
+    <Group id="displayMenu" translation="[460,210]" visible="false">
+      <Rectangle width="1000" height="660" color="0x10131BEF" />
+      <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
+      <Label id="displayMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    </Group>
     <Group id="audioMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
