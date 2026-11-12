@@ -115,6 +115,10 @@ end sub
 
 sub createPlayletScene()
     m.scene.playletLibLoadedUrl = { type: "github-zip", link: "https://github.com/iBicha/playlet/releases/download/v0.48.10/playlet-lib.zip" }
+    ' Playlet's standalone bootstrap normally creates this optional startup log file.
+    ' When embedded as a ComponentLibrary, that bootstrap is skipped; create an empty file
+    ' before Logger starts so its ReadAsciiFile call does not report a missing-file error.
+    WriteAsciiFile("cachefs:/playlet_startup_logs.txt", "")
     container = m.top.findNode("MainSceneContainer")
     m.playletNode = container.createChild("PlayletLib:MainScene")
     ' Playlet is authored for Roku HD (1280x720), while this channel uses FHD (1920x1080).
