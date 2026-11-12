@@ -4,6 +4,7 @@
     <field id="launchRequest" type="string" alwaysNotify="true" />
     <field id="status" type="string" />
     <function name="ShowMenu" />
+    <function name="HandlePlayletExit" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/DualLauncher.brs" />
   <children>
