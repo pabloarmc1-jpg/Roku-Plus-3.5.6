@@ -860,7 +860,12 @@ sub preparePlaybackEndScreen()
         m.player.endScreenData = {kind:"episode",heading:heading,items:items}
     else if m.detail.kind = "movie"
         similar = rpSimilarMovies(m.detail)
-        m.player.endScreenData = {kind:"movie",heading:"PELÍCULAS SIMILARES",items:similar}
+        heading = "PELÍCULAS SIMILARES"
+        if similar.count() = 0
+            similar = rpFallbackMovies(m.detail)
+            heading = "MÁS PELÍCULAS PARA VER"
+        end if
+        m.player.endScreenData = {kind:"movie",heading:heading,items:similar}
     end if
 end sub
 
@@ -967,6 +972,26 @@ function rpSimilarMovies(current as object) as object
         if results.count() >= 6 then exit for
     end for
     print "[RokuPlus end-screen] similar-movies="; results.count()
+    return results
+end function
+
+function rpFallbackMovies(current as object) as object
+    candidates = []
+    for each source in [m.features,m.pageTitles,m.titles]
+        if type(source) = "roArray"
+            for each candidate in source
+                if type(candidate) = "roAssociativeArray"
+                    if candidate.kind = "movie" and candidate.id <> current.id then candidates.push(candidate)
+                end if
+            end for
+        end if
+    end for
+    uniqueCandidates = orbitUniqueCatalogItems(candidates)
+    results = []
+    for each candidate in uniqueCandidates
+        results.push(candidate)
+        if results.count() >= 6 then exit for
+    end for
     return results
 end function
 
