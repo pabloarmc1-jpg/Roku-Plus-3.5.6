@@ -847,6 +847,11 @@ sub onDecoderState()
             revealTransport()
         else
             if not m.nativePlaylistMode and advanceSequentialSegment() then return
+            if m.live
+                publishProgress(true)
+                closePlayback()
+                return
+            end if
             publishProgress(true)
             m.pulse.control = "stop"
             m.watch = invalid
