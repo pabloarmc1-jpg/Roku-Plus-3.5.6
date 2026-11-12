@@ -61,6 +61,12 @@ sub init()
     m.endScreenItemsLabel = m.top.findNode("playbackEndItems")
     m.endScreenOpen = false
     m.endScreenIndex = 0
+    m.introDbData = invalid
+    m.skipPromptGroup = m.top.findNode("skipSegmentPrompt")
+    m.skipPromptText = m.top.findNode("skipSegmentText")
+    m.skipPromptVisible = false
+    m.skipPromptDismissed = false
+    m.skipPromptTarget = invalid
     m.endScreenItems = []
     m.endCountdownActive = false
     m.endCountdownRemaining = 0
@@ -309,6 +315,96 @@ function plusPreviewBounds(value as dynamic) as object
     return [value[0],value[1],value[2],value[3]]
 end function
 
+sub onIntroDbDataChanged(event as object)
+    data = event.getData()
+    if type(data) <> "roAssociativeArray" then return
+    if type(m.current) <> "roAssociativeArray" then return
+    if data.requestId <> m.current.requestId then return
+    m.introDbData = data
+    m.skipPromptDismissed = false
+    updateSkipSegmentPrompt()
+end sub
+
+sub updateSkipSegmentPrompt()
+    if m.skipPromptDismissed or type(m.introDbData) <> "roAssociativeArray" or m.introDbData.ok <> true
+        m.skipPromptVisible = false
+        m.skipPromptTarget = invalid
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    if m.live or m.failed or not m.mediaOpen
+        m.skipPromptVisible = false
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    outro = m.introDbData.outro
+    if type(outro) <> "roAssociativeArray"
+        m.skipPromptVisible = false
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    confidence = outro.confidence
+    if GetInterface(confidence,"ifFloat") <> invalid or GetInterface(confidence,"ifDouble") <> invalid
+        if confidence < 0.55
+            m.skipPromptVisible = false
+            if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+            return
+        end if
+    end if
+    startAt = -1.0
+    endAt = -1.0
+    if GetInterface(outro.start_sec,"ifFloat") <> invalid or GetInterface(outro.start_sec,"ifDouble") <> invalid or GetInterface(outro.start_sec,"ifInt") <> invalid or GetInterface(outro.start_sec,"ifLongInt") <> invalid then startAt = outro.start_sec
+    if GetInterface(outro.end_sec,"ifFloat") <> invalid or GetInterface(outro.end_sec,"ifDouble") <> invalid or GetInterface(outro.end_sec,"ifInt") <> invalid or GetInterface(outro.end_sec,"ifLongInt") <> invalid then endAt = outro.end_sec
+    if startAt < 0 and outro.start_ms <> invalid then startAt = outro.start_ms / 1000.0
+    if endAt < 0 and outro.end_ms <> invalid then endAt = outro.end_ms / 1000.0
+    position = playerPosition()
+    if startAt < 0 or endAt <= startAt or position = invalid or position < startAt or position >= endAt
+        m.skipPromptVisible = false
+        m.skipPromptTarget = invalid
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    target = endAt
+    label = "OK - SALTAR CRÉDITOS"
+    post = m.introDbData.post_credits
+    if type(post) = "roAssociativeArray"
+        postStart = -1.0
+        if GetInterface(post.start_sec,"ifFloat") <> invalid or GetInterface(post.start_sec,"ifDouble") <> invalid or GetInterface(post.start_sec,"ifInt") <> invalid or GetInterface(post.start_sec,"ifLongInt") <> invalid then postStart = post.start_sec
+        if postStart < 0 and post.start_ms <> invalid then postStart = post.start_ms / 1000.0
+        if postStart > position + 1
+            target = postStart
+            label = "OK - SALTAR A ESCENA POSTCRÉDITOS"
+        end if
+    end if
+    if target <= position + 1
+        m.skipPromptVisible = false
+        m.skipPromptTarget = invalid
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    m.skipPromptTarget = target
+    m.skipPromptVisible = true
+    if m.skipPromptText <> invalid then m.skipPromptText.text = label
+    if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = true
+end sub
+
+sub skipToDetectedSegment()
+    target = plusClockValue(m.skipPromptTarget)
+    origin = playerPosition()
+    state = m.decoder.state
+    if target = invalid or origin = invalid or target <= origin + 1 then return
+    if state <> "playing" and state <> "paused" then return
+    cancelPendingResumeForUserSeek()
+    m.pendingSeek = {target:target,dueAt:m.monotonic.totalMilliseconds()+180}
+    m.skipPromptDismissed = true
+    m.skipPromptVisible = false
+    m.skipPromptTarget = invalid
+    if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+    m.notice = "Saltando a " + plusClockText(target)
+    m.noticeUntil = m.monotonic.totalMilliseconds()+5000
+    drawTransport()
+end sub
+
 sub onEndScreenDataChanged(event as object)
     data = event.getData()
     if type(data) <> "roAssociativeArray" then return
@@ -477,6 +573,11 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    m.introDbData = invalid
+    m.skipPromptVisible = false
+    m.skipPromptDismissed = false
+    m.skipPromptTarget = invalid
+    if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
     m.mediaNode = invalid
     m.hlsRetryCount = 0
     m.hlsPrebufferPending = false
@@ -2344,6 +2445,7 @@ sub onPulse()
     if not m.hlsStartupIsolation
         if m.decoder.state <> "buffering" or now - m.lastTransportDrawAt >= 1000 then drawTransport()
     end if
+    updateSkipSegmentPrompt()
     publishProgress()
 end sub
 
@@ -2888,7 +2990,16 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if not m.mediaOpen then return false
     if isPreviewPresentation() then return false
     if not press then return true
+    if m.skipPromptVisible and key = "OK"
+        skipToDetectedSegment()
+        return true
+    end if
     if m.endScreenOpen
+        if m.skipPromptVisible and (key = "up" or key = "down" or key = "left" or key = "right")
+            m.skipPromptDismissed = true
+            m.skipPromptVisible = false
+            if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        end if
         if key = "up"
             movePlaybackEndSelection(-1)
         else if key = "down"
