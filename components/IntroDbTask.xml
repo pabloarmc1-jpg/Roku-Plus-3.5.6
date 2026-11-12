@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="IntroDbTask" extends="Task">
+ <interface>
+  <field id="imdbId" type="string" value="" />
+  <field id="season" type="integer" value="0" />
+  <field id="episode" type="integer" value="0" />
+  <field id="isMovie" type="boolean" value="false" />
+  <field id="requestId" type="string" value="" />
+  <field id="cacheKey" type="string" value="" />
+  <field id="cancelRequested" type="boolean" value="false" />
+  <field id="result" type="assocarray" alwaysNotify="true" />
+ </interface>
+ <script type="text/brightscript" uri="IntroDbTask.brs" />
+</component>
