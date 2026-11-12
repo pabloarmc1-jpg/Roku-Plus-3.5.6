@@ -83,7 +83,7 @@ sub launchSelected()
         m.menu.visible = false
         m.playletContainer.visible = false
         m.plusExperience.visible = true
-        m.scene.ActivatePlusExperience()
+        m.scene.callFunc("ActivatePlusExperience")
         return
     end if
 
@@ -159,7 +159,7 @@ sub playletExitRequested(event as object)
     m.playletContainer.visible = false
     m.loadingIndicator.visible = false
     m.plusExperience.visible = false
-    m.scene.DeactivatePlusExperience()
+    m.scene.callFunc("DeactivatePlusExperience")
     ShowMenu()
 end sub
 
