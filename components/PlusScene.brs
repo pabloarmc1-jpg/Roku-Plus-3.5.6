@@ -377,11 +377,16 @@ sub catalogTimedOut()
     if m.deadlineStart <> invalid
         if m.deadlineStart.totalMilliseconds() < m.deadlineMs - 100 then return
     end if
+    pendingContext = m.pending
     cancelRequest()
     m.autoplay = false
     m.note = "La consulta tardó demasiado. Pulsa OK para intentar de nuevo o Atrás para volver."
     if m.view = "player"
-        showPlayerEndError(m.note)
+        if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
+            showPlayerNextEpisodeError(m.note)
+        else
+            showPlayerEndError(m.note)
+        end if
     else
         drawScreen()
     end if
@@ -392,11 +397,16 @@ sub catalogState(event as object)
     if not m.job.isSameNode(event.getRoSGNode()) then return
     if event.getData() <> "STOP" then return
     if type(m.job.result) = "roAssociativeArray" then return
+    pendingContext = m.pending
     cancelRequest()
     m.autoplay = false
     m.note = "No se pudo completar la consulta. Vuelve a intentar."
     if m.view = "player"
-        showPlayerEndError(m.note)
+        if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
+            showPlayerNextEpisodeError(m.note)
+        else
+            showPlayerEndError(m.note)
+        end if
     else
         drawScreen()
     end if
@@ -416,7 +426,11 @@ sub fetched(event as object)
         m.note = answer.message
         if context.operation = "compatible" then m.note = "La reproducción con PC no está disponible. Puedes elegir Reproducir para usar la conexión directa."
         if m.view = "player"
-            showPlayerEndError(m.note)
+            if context.operation = "episodes"
+                showPlayerNextEpisodeError(m.note)
+            else
+                showPlayerEndError(m.note)
+            end if
         else
             drawScreen()
         end if
@@ -847,6 +861,14 @@ sub playerClosed(event as object)
     m.top.setFocus(true)
 end sub
 
+sub showPlayerNextEpisodeError(message as string)
+    if m.view <> "player" then return
+    m.endScreenNextEpisodePending = false
+    safeMessage = orbitText(message,320)
+    if safeMessage = "" then safeMessage = "No se pudo cargar el siguiente episodio."
+    m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:safeMessage,items:[]}
+end sub
+
 sub showPlayerEndError(message as string)
     if m.view <> "player" then return
     safeMessage = orbitText(message,320)
@@ -865,8 +887,9 @@ sub preparePlaybackEndScreen()
             heading = "SIGUIENTE EPISODIO"
         end if
         if nextItem = invalid and m.series <> invalid and (usesOnlineHd() or rpIsOnlineHdItem(m.series))
-            for seasonIndex = 0 to m.series.seasons.count()-2
-                currentSeason = m.series.seasons[seasonIndex]
+            if m.series.seasons.count() > 1
+                for seasonIndex = 0 to m.series.seasons.count()-2
+                    currentSeason = m.series.seasons[seasonIndex]
                 if currentSeason.number = m.detail.season
                     followingSeason = m.series.seasons[seasonIndex+1]
                     if followingSeason.loaded <> true and not m.endScreenNextEpisodePending
@@ -876,7 +899,8 @@ sub preparePlaybackEndScreen()
                         return
                     end if
                 end if
-            end for
+                end for
+            end if
         end if
         m.player.endScreenData = {kind:"episode",heading:heading,items:items}
     else if m.detail.kind = "movie"
