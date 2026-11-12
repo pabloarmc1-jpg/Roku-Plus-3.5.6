@@ -62,6 +62,24 @@ sub init()
     m.endScreenOpen = false
     m.endScreenIndex = 0
     m.endScreenItems = []
+    m.endCountdownActive = false
+    m.endCountdownRemaining = 0
+    m.endCountdownLastAt = 0
+    m.endScreenHeading = m.top.findNode("endScreenHeading")
+    m.endScreenMessage = m.top.findNode("endScreenMessage")
+    m.endMovieLayout = m.top.findNode("endMovieLayout")
+    m.endEpisodeLayout = m.top.findNode("endEpisodeLayout")
+    m.endMoviePosters = []
+    m.endMovieTitles = []
+    for posterIndex = 1 to 6
+        m.endMoviePosters.push(m.top.findNode("endMoviePoster" + posterIndex.toStr()))
+        m.endMovieTitles.push(m.top.findNode("endMovieTitle" + posterIndex.toStr()))
+    end for
+    m.endMovieSelection = m.top.findNode("endMovieSelection")
+    m.endEpisodePoster = m.top.findNode("endEpisodePoster")
+    m.endEpisodeTitle = m.top.findNode("endEpisodeTitle")
+    m.endEpisodeMeta = m.top.findNode("endEpisodeMeta")
+    m.endCountdownText = m.top.findNode("endCountdownText")
     m.playerOptionsMenuOpen = false
     m.playerOptionsMenuIndex = 0
     m.playerOptionsLabels = ["Zoom / Imagen", "Subtítulos", "Audio", "Retroceder 10 segundos", "Adelantar 10 segundos", "Play / Pause"]
@@ -293,52 +311,123 @@ end function
 sub onEndScreenDataChanged(event as object)
     data = event.getData()
     if type(data) <> "roAssociativeArray" then return
+    m.endCountdownActive = false
+    m.endCountdownRemaining = 0
     if type(data.items) = "roArray" then m.endScreenItems = data.items else m.endScreenItems = []
     m.endScreenIndex = 0
     if m.endScreenOpen then drawPlaybackEndScreen()
 end sub
 
 sub drawPlaybackEndScreen()
-    if m.endScreenItemsLabel = invalid then return
+    if m.endScreenHeading = invalid then return
+    data = m.top.endScreenData
     heading = "PELÍCULAS SIMILARES"
-    if type(m.top.endScreenData) = "roAssociativeArray"
-        if m.top.endScreenData.kind = "episode" then heading = "SIGUIENTE EPISODIO"
-        if GetInterface(m.top.endScreenData.heading,"ifString") <> invalid then heading = m.top.endScreenData.heading
+    isEpisode = false
+    if type(data) = "roAssociativeArray"
+        isEpisode = data.kind = "episode"
+        if isEpisode then heading = "SIGUIENTE EPISODIO"
+        if GetInterface(data.heading,"ifString") <> invalid then heading = data.heading
     end if
-    output = heading + chr(10) + chr(10)
-    if m.endScreenItems.count() = 0
-        emptyMessage = "No encontramos películas similares en el catálogo disponible."
-        if heading = "SIGUIENTE EPISODIO" or heading = "SERIE FINALIZADA" then emptyMessage = "No hay más episodios disponibles."
-        if type(m.top.endScreenData) = "roAssociativeArray"
-            if GetInterface(m.top.endScreenData.message,"ifString") <> invalid and m.top.endScreenData.message <> ""
-                emptyMessage = m.top.endScreenData.message
-            end if
-        end if
-        output += emptyMessage
-    else
-        for i = 0 to m.endScreenItems.count()-1
-            item = m.endScreenItems[i]
-            prefix = "   "
-            if i = m.endScreenIndex then prefix = "▶  "
-            label = "Reproducir"
+    m.endScreenHeading.text = heading
+    if m.endScreenMessage <> invalid then m.endScreenMessage.text = ""
+    if m.endMovieLayout <> invalid then m.endMovieLayout.visible = not isEpisode
+    if m.endEpisodeLayout <> invalid then m.endEpisodeLayout.visible = isEpisode
+    if isEpisode
+        if m.endMovieSelection <> invalid then m.endMovieSelection.visible = false
+        if m.endScreenItems.count() > 0
+            item = m.endScreenItems[0]
+            poster = ""
+            title = "Siguiente episodio"
+            seasonNumber = 0
+            episodeNumber = 0
             if type(item) = "roAssociativeArray"
-                if GetInterface(item.title,"ifString") <> invalid then label = item.title
-                if item.kind = "episode"
-                    seasonNumber = 0
-                    episodeNumber = 0
-                    if item.doesExist("season") then seasonNumber = item.season
-                    if item.doesExist("episode") then episodeNumber = item.episode
-                    label += "   ·   T" + seasonNumber.toStr() + " E" + episodeNumber.toStr()
-                else if GetInterface(item.year,"ifString") <> invalid and item.year <> ""
-                    label += "   ·   " + item.year
+                if GetInterface(item.poster,"ifString") <> invalid then poster = item.poster
+                if GetInterface(item.title,"ifString") <> invalid then title = item.title
+                if item.doesExist("season") then seasonNumber = item.season
+                if item.doesExist("episode") then episodeNumber = item.episode
+            end if
+            if m.endEpisodePoster <> invalid
+                m.endEpisodePoster.uri = poster
+                m.endEpisodePoster.visible = poster <> ""
+            end if
+            if m.endEpisodeTitle <> invalid then m.endEpisodeTitle.text = title
+            if m.endEpisodeMeta <> invalid
+                m.endEpisodeMeta.text = "Temporada " + seasonNumber.toStr() + "  ·  Episodio " + episodeNumber.toStr()
+            end if
+            if not m.endCountdownActive
+                m.endCountdownRemaining = 10
+                m.endCountdownLastAt = m.monotonic.totalMilliseconds()
+                m.endCountdownActive = true
+                m.pulse.control = "start"
+            end if
+            if m.endCountdownText <> invalid
+                m.endCountdownText.text = "El siguiente episodio comienza en " + m.endCountdownRemaining.toStr() + " segundos"
+            end if
+            if m.endScreenMessage <> invalid then m.endScreenMessage.text = "OK Reproducir ahora     BACK Cancelar"
+        else
+            m.endCountdownActive = false
+            m.pulse.control = "stop"
+            emptyMessage = "No hay más episodios disponibles."
+            if type(data) = "roAssociativeArray"
+                if GetInterface(data.message,"ifString") <> invalid and data.message <> "" then emptyMessage = data.message
+            end if
+            if m.endEpisodeTitle <> invalid then m.endEpisodeTitle.text = emptyMessage
+            if m.endEpisodeMeta <> invalid then m.endEpisodeMeta.text = ""
+            if m.endCountdownText <> invalid then m.endCountdownText.text = ""
+        end if
+    else
+        m.endCountdownActive = false
+        m.pulse.control = "stop"
+        if m.endEpisodePoster <> invalid then m.endEpisodePoster.visible = false
+        for posterIndex = 0 to 5
+            posterNode = m.endMoviePosters[posterIndex]
+            titleNode = m.endMovieTitles[posterIndex]
+            if posterIndex < m.endScreenItems.count()
+                item = m.endScreenItems[posterIndex]
+                posterUri = ""
+                titleText = "Película"
+                if type(item) = "roAssociativeArray"
+                    if GetInterface(item.poster,"ifString") <> invalid then posterUri = item.poster
+                    if GetInterface(item.title,"ifString") <> invalid then titleText = item.title
+                    if GetInterface(item.year,"ifString") <> invalid and item.year <> "" then titleText += chr(10) + item.year
+                end if
+                if posterNode <> invalid
+                    posterNode.uri = posterUri
+                    posterNode.visible = posterUri <> ""
+                end if
+                if titleNode <> invalid
+                    titleNode.text = titleText
+                    titleNode.visible = true
+                end if
+            else
+                if posterNode <> invalid
+                    posterNode.uri = ""
+                    posterNode.visible = false
+                end if
+                if titleNode <> invalid
+                    titleNode.text = ""
+                    titleNode.visible = false
                 end if
             end if
-            output += prefix + label
-            if i < m.endScreenItems.count()-1 then output += chr(10)
         end for
+        if m.endMovieSelection <> invalid and m.endScreenItems.count() > 0
+            xPositions = [4,212,420,628,836,1044]
+            m.endMovieSelection.translation = [xPositions[m.endScreenIndex],0]
+            m.endMovieSelection.visible = true
+        else if m.endMovieSelection <> invalid
+            m.endMovieSelection.visible = false
+        end if
+        if m.endScreenItems.count() = 0
+            emptyMessage = "No encontramos películas similares en el catálogo disponible."
+            if type(data) = "roAssociativeArray"
+                if GetInterface(data.message,"ifString") <> invalid and data.message <> "" then emptyMessage = data.message
+            end if
+            if m.endScreenMessage <> invalid then m.endScreenMessage.text = emptyMessage
+        end if
     end if
-    output += chr(10) + chr(10) + "▲ / ▼ Elegir   OK Reproducir   BACK Salir"
-    m.endScreenItemsLabel.text = output
+    if m.endScreenMessage <> invalid
+        m.endScreenMessage.text += chr(10) + "◀ / ▶ Elegir   OK Reproducir   BACK Salir"
+    end if
 end sub
 
 sub movePlaybackEndSelection(direction as integer)
@@ -353,13 +442,17 @@ sub selectPlaybackEndItem()
     if m.endScreenItems.count() = 0 then return
     if m.endScreenIndex < 0 or m.endScreenIndex >= m.endScreenItems.count() then return
     selected = m.endScreenItems[m.endScreenIndex]
-    ' Keep the finished player visible while the selected title resolves.
-    ' BACK remains available if the new source cannot be opened.
+    m.endCountdownActive = false
+    m.endCountdownRemaining = 0
+    m.pulse.control = "stop"
     m.endScreenItems = []
     m.endScreenIndex = 0
     m.endScreenOpen = true
-    if m.endScreenItemsLabel <> invalid then m.endScreenItemsLabel.text = "ABRIENDO TÍTULO..." + chr(10) + chr(10) + "Espera un momento. BACK para salir."
+    if m.endScreenItemsLabel <> invalid then m.endScreenItemsLabel.text = "ABRIENDO TÍTULO... " + chr(10) + "Espera un momento. BACK para salir."
+    if m.endScreenMessage <> invalid then m.endScreenMessage.text = "ABRIENDO TÍTULO...  ·  BACK para salir."
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
+    if m.endMovieLayout <> invalid then m.endMovieLayout.visible = false
+    if m.endEpisodeLayout <> invalid then m.endEpisodeLayout.visible = false
     m.top.endSelection = {item:selected,requestId:m.current.requestId}
 end sub
 
@@ -871,6 +964,8 @@ sub onDecoderState()
             m.panel.visible = false
             m.endScreenOpen = true
             m.endScreenIndex = 0
+            m.endCountdownActive = false
+            m.endCountdownRemaining = 0
             if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
             drawPlaybackEndScreen()
             print "[RokuPlus playback] finished; showing in-player recommendations"
@@ -2104,6 +2199,26 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
+    if m.endScreenOpen
+        if m.endCountdownActive
+            nowEnd = m.monotonic.totalMilliseconds()
+            elapsedSeconds = int((nowEnd - m.endCountdownLastAt) / 1000)
+            if elapsedSeconds > 0
+                m.endCountdownLastAt += elapsedSeconds * 1000
+                m.endCountdownRemaining = m.endCountdownRemaining - elapsedSeconds
+                if m.endCountdownRemaining <= 0
+                    m.endCountdownRemaining = 0
+                    m.endCountdownActive = false
+                    selectPlaybackEndItem()
+                    return
+                end if
+                if m.endCountdownText <> invalid
+                    m.endCountdownText.text = "El siguiente episodio comienza en " + m.endCountdownRemaining.toStr() + " segundos"
+                end if
+            end if
+        end if
+        return
+    end if
     if m.tsRelayPending
         relayStatus = m.tsStreamServer.status
         nowRelay = m.monotonic.totalMilliseconds()
@@ -2777,6 +2892,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
             movePlaybackEndSelection(1)
         else if key = "OK" or key = "play"
             selectPlaybackEndItem()
+        else if key = "left" or key = "rewind" or key = "right" or key = "fastforward"
+            direction = 1
+            if key = "left" or key = "rewind" then direction = -1
+            movePlaybackEndSelection(direction)
         else if key = "back"
             closePlayback()
         end if
