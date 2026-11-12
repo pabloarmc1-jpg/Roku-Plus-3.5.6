@@ -753,7 +753,8 @@ sub introDbResult(event as object)
     if answer.requestId <> m.activePlaybackRequestId then return
     if answer.ok
         cacheKey = orbitText(answer.cacheKey,100)
-        if cacheKey <> "" then m.introDbCache[cacheKey] = {outro:answer.outro,post_credits:answer.post_credits,no_outro:answer.no_outro}
+        hasSegmentData = type(answer.outro) = "roAssociativeArray" or type(answer.post_credits) = "roAssociativeArray" or answer.no_outro = true
+        if cacheKey <> "" and hasSegmentData then m.introDbCache[cacheKey] = {outro:answer.outro,post_credits:answer.post_credits,no_outro:answer.no_outro}
         m.introDbSegments = answer
         m.player.introDbData = answer
         print "[RokuPlus introdb] lookup_ok outro="; type(answer.outro); " postCredits="; type(answer.post_credits)
