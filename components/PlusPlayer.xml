@@ -71,9 +71,32 @@
       <Label id="playerOptionsMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
     </Group>
     <Group id="playbackEndScreen" translation="[280,170]" visible="false">
-      <Rectangle width="1360" height="740" color="0x080A0FEF" />
+      <Rectangle width="1360" height="740" color="0x080A0FF5" />
       <Rectangle translation="[2,2]" width="1356" height="5" color="0xE50914FF" />
-      <Label id="playbackEndItems" translation="[88,64]" width="1184" height="620" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+      <Label id="endScreenHeading" translation="[64,36]" width="1232" height="54" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Group id="endMovieLayout" translation="[56,132]" visible="true">
+        <Rectangle id="endMovieSelection" translation="[4,0]" width="196" height="316" color="0xE5091440" />
+        <Poster id="endMoviePoster1" translation="[12,8]" width="180" height="252" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster2" translation="[220,8]" width="180" height="252" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster3" translation="[428,8]" width="180" height="252" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster4" translation="[636,8]" width="180" height="252" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster5" translation="[844,8]" width="180" height="252" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster6" translation="[1052,8]" width="180" height="252" loadDisplayMode="scaleToFill" visible="false" />
+        <Label id="endMovieTitle1" translation="[12,268]" width="180" height="58" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle2" translation="[220,268]" width="180" height="58" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle3" translation="[428,268]" width="180" height="58" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle4" translation="[636,268]" width="180" height="58" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle5" translation="[844,268]" width="180" height="58" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle6" translation="[1052,268]" width="180" height="58" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+      </Group>
+      <Group id="endEpisodeLayout" translation="[112,126]" visible="false">
+        <Poster id="endEpisodePoster" width="360" height="470" loadDisplayMode="scaleToFit" visible="false" />
+        <Label id="endEpisodeTitle" translation="[416,76]" width="720" height="82" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" wrap="true" />
+        <Label id="endEpisodeMeta" translation="[416,174]" width="720" height="48" font="font:MediumSystemFont" color="0xD7D9E0FF" />
+        <Label id="endCountdownText" translation="[416,270]" width="760" height="64" font="font:LargeBoldSystemFont" color="0xE50914FF" wrap="true" />
+      </Group>
+      <Label id="endScreenMessage" translation="[64,630]" width="1232" height="72" font="font:MediumSystemFont" color="0xD7D9E0FF" horizAlign="center" wrap="true" />
+      <Label id="playbackEndItems" translation="[64,708]" width="1232" height="24" font="font:SmallSystemFont" color="0xD7D9E0FF" horizAlign="center" />
     </Group>
     <Group id="displayMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
