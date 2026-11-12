@@ -59,7 +59,7 @@ sub init()
     m.playerOptionsMenuItems = m.top.findNode("playerOptionsMenuItems")
     m.playerOptionsMenuOpen = false
     m.playerOptionsMenuIndex = 0
-    m.playerOptionsLabels = ["Audio", "Subtítulos", "Imagen y zoom"]
+    m.playerOptionsLabels = ["Zoom / Imagen", "Subtítulos", "Audio", "Retroceder 10 segundos", "Adelantar 10 segundos", "Play / Pause"]
     m.zoomIndex = 0
     m.zoomLevels = [1.0, 1.10, 1.20, 1.33]
     m.zoomLabels = ["Original", "Zoom suave (1.10x)", "Zoom medio (1.20x)", "Zoom completo (1.33x)"]
@@ -1199,14 +1199,14 @@ end sub
 
 sub drawPlayerOptionsMenu()
     if m.playerOptionsMenuItems = invalid then return
-    output = "AJUSTES DEL REPRODUCTOR" + chr(10) + chr(10)
+    output = "CONTROLES DEL REPRODUCTOR" + chr(10) + chr(10)
     for i = 0 to m.playerOptionsLabels.count()-1
         prefix = "   "
         if i = m.playerOptionsMenuIndex then prefix = "▶  "
         output += prefix + m.playerOptionsLabels[i]
         if i < m.playerOptionsLabels.count()-1 then output += chr(10)
     end for
-    output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Abrir     BACK Cerrar"
+    output += chr(10) + chr(10) + "▲ / ▼ Mover     OK Seleccionar     BACK Cerrar"
     m.playerOptionsMenuItems.text = output
 end sub
 
@@ -1224,13 +1224,24 @@ end sub
 
 sub selectPlayerOptionsMenu()
     selected = m.playerOptionsMenuIndex
-    closePlayerOptionsMenu()
     if selected = 0
-        openAudioMenu()
-    else if selected = 1
-        openSubtitleMenu()
-    else
+        closePlayerOptionsMenu()
         openDisplayMenu()
+    else if selected = 1
+        closePlayerOptionsMenu()
+        openSubtitleMenu()
+    else if selected = 2
+        closePlayerOptionsMenu()
+        openAudioMenu()
+    else if selected = 3
+        shiftTen(true)
+        drawPlayerOptionsMenu()
+    else if selected = 4
+        shiftTen(false)
+        drawPlayerOptionsMenu()
+    else if selected = 5
+        togglePause()
+        drawPlayerOptionsMenu()
     end if
 end sub
 
@@ -2730,8 +2741,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
         openPlayerOptionsMenu()
     else if key = "up"
         openAudioMenu()
-    else if key = "down"
-        openSubtitleMenu()
     else if key = "OK"
         if m.panel.visible
             revealTransport()
