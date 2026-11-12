@@ -9,6 +9,7 @@
     <field id="progress" type="assocarray" alwaysNotify="true" />
     <field id="retryRequested" type="assocarray" alwaysNotify="true" />
     <field id="endScreenData" type="assocarray" onChange="onEndScreenDataChanged" alwaysNotify="true" />
+    <field id="introDbData" type="assocarray" onChange="onIntroDbDataChanged" alwaysNotify="true" />
     <field id="endSelection" type="assocarray" alwaysNotify="true" />
     <field id="presentation" type="string" value="fullscreen" onChange="onPresentationChanged" />
     <field id="previewRect" type="floatarray" value="[294,206,1016,572]" onChange="onPreviewRectChanged" />
@@ -97,6 +98,11 @@
       </Group>
       <Label id="endScreenMessage" translation="[64,630]" width="1232" height="72" font="font:MediumSystemFont" color="0xD7D9E0FF" horizAlign="center" wrap="true" />
       <Label id="playbackEndItems" translation="[64,708]" width="1232" height="24" font="font:SmallSystemFont" color="0xD7D9E0FF" horizAlign="center" />
+    </Group>
+    <Group id="skipSegmentPrompt" translation="[520,900]" visible="false">
+      <Rectangle width="880" height="92" color="0x080A0FE8" />
+      <Rectangle width="6" height="92" color="0xE50914FF" />
+      <Label id="skipSegmentText" translation="[32,14]" width="820" height="64" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
     </Group>
     <Group id="displayMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
