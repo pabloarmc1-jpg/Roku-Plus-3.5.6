@@ -18,7 +18,6 @@ sub init()
     m.lib = invalid
     m.playletNode = invalid
     m.scene = m.top.getScene()
-    m.scene.ObserveField("exitChannel", "playletExitRequested")
     m.plusExperience = m.scene.findNode("PlusExperience")
     updateSelection()
     m.timer.control = "start"
@@ -146,10 +145,8 @@ sub playletLibraryStatus(event as object)
     end if
 end sub
 
-sub playletExitRequested(event as object)
-    if event.getData() <> true then return
-    ' Playlet usa exitChannel para salir. En el canal dual, ese evento significa volver al selector.
-    m.scene.exitChannel = false
+sub HandlePlayletExit()
+    ' Return from Playlet to the app selector without closing the channel.
     m.scene.playletReady = false
     if m.playletNode <> invalid
         m.playletNode.setFocus(false)
