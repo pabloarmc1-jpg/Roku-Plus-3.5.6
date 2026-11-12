@@ -93,6 +93,8 @@ sub launchSelected()
     saveChoice("playlet")
     m.top.launchRequest = "playlet"
     m.menu.visible = false
+    ' Stop Roku Plus timers and background catalog work before Playlet loads.
+    m.scene.callFunc("DeactivatePlusExperience")
     m.plusExperience.visible = false
     m.playletContainer.visible = true
     if m.playletNode <> invalid
