@@ -59,6 +59,7 @@ sub countdownTick()
 end sub
 
 sub ShowMenu()
+    m.top.focusable = true
     m.launching = false
     m.remaining = 10
     m.selection = 0
@@ -76,6 +77,9 @@ sub launchSelected()
     if m.launching then return
     m.launching = true
     m.timer.control = "stop"
+    ' Release selector focus so the selected experience receives remote keys.
+    m.top.focusable = false
+    m.top.setFocus(false)
     if m.selection = 1
         saveChoice("rokuplus")
         m.top.launchRequest = "rokuplus"
