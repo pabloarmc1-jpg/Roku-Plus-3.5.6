@@ -848,10 +848,25 @@ sub playerEndSelection(event as object)
     if type(selection.item) <> "roAssociativeArray" then return
     item = selection.item
     print "[RokuPlus end-screen] selected title="; orbitText(item.title,180); " kind="; orbitText(item.kind,20)
+    ' Keep m.view="player" while metadata/source resolution runs so BACK and
+    ' the player lifecycle continue to be routed to the active decoder.
+    m.detail = item
+    m.detail.hdAttempt = 0
+    m.lastPlaybackProgress = invalid
+    m.endScreenRequestId = invalid
     if item.kind = "episode"
-        openDetails(item,"episodes",true)
+        m.detailOrigin = "episodes"
+        m.autoplay = false
+        playDetail()
     else if item.kind = "movie"
-        openDetails(item,"home",true)
+        m.detailOrigin = "home"
+        if usesOnlineHd() or rpIsOnlineHdItem(item)
+            m.autoplay = true
+            fetch({operation:"meta",item:item})
+        else
+            m.autoplay = false
+            playDetail()
+        end if
     end if
 end sub
 
