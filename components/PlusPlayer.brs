@@ -861,6 +861,11 @@ sub onDecoderState()
                 return
             end if
             publishProgress(true)
+            if m.audioMenuOpen then closeAudioMenu()
+            if m.subtitleMenuOpen then closeSubtitleMenu()
+            if m.displayMenuOpen then closeDisplayMenu()
+            if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
+            if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
             m.pulse.control = "stop"
             m.watch = invalid
             m.panel.visible = false
