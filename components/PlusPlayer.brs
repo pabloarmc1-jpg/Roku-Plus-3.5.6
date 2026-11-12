@@ -307,11 +307,14 @@ sub drawPlaybackEndScreen()
     end if
     output = heading + chr(10) + chr(10)
     if m.endScreenItems.count() = 0
-        if heading = "SIGUIENTE EPISODIO"
-            output += "No hay más episodios disponibles."
-        else
-            output += "No encontramos películas similares en el catálogo disponible."
+        emptyMessage = "No encontramos películas similares en el catálogo disponible."
+        if heading = "SIGUIENTE EPISODIO" or heading = "SERIE FINALIZADA" then emptyMessage = "No hay más episodios disponibles."
+        if type(m.top.endScreenData) = "roAssociativeArray"
+            if GetInterface(m.top.endScreenData.message,"ifString") <> invalid and m.top.endScreenData.message <> ""
+                emptyMessage = m.top.endScreenData.message
+            end if
         end if
+        output += emptyMessage
     else
         for i = 0 to m.endScreenItems.count()-1
             item = m.endScreenItems[i]
