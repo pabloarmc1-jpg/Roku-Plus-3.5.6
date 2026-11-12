@@ -175,6 +175,9 @@ end function
 
 sub ActivatePlusExperience()
     print "[RokuPlus startup] activate begin"
+    ' The launcher relinquishes focus when an app is selected. Explicitly
+    ' re-enable the root Scene before handing remote input to Roku Plus.
+    m.top.focusable = true
     m.plusExperience.visible = true
     m.heroRotation.control = "start"
     m.discoveryRotation.control = "start"
@@ -211,7 +214,9 @@ sub ActivatePlusExperience()
         refreshHome()
         print "[RokuPlus startup] home re-entry requests started"
     end if
+    m.top.focusable = true
     m.top.setFocus(true)
+    print "[RokuPlus input] scene focus restored="; m.top.hasFocus()
     print "[RokuPlus startup] activate complete"
 end sub
 
@@ -2383,6 +2388,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if m.playletReady then return false
     if not m.plusExperience.visible then return false
     if key = "home" then return false
+    if press
+        print "[RokuPlus input] key="; key; " view="; m.view; " zone="; m.zone; " sceneFocus="; m.top.hasFocus(); " plusVisible="; m.plusExperience.visible
+    end if
     if not press
         if m.view = "search-keyboard" and key = "OK" and m.searchDeleteHeld
             m.searchDeleteTimer.control = "stop"
