@@ -4,6 +4,7 @@ sub init()
     m.top.focusable = true
     m.plusExperience = m.top.findNode("PlusExperience")
     m.launcher = m.top.findNode("DualLauncher")
+    m.top.observeField("exitChannel", "playletExitRequested")
     m.plusExperience.visible = false
     m.canvas = m.top.findNode("canvas")
     m.player = m.top.findNode("player")
@@ -156,6 +157,16 @@ sub init()
     m.creditsPages = []
     m.plusInitialized = false
     m.launcher.setFocus(true)
+end sub
+
+sub playletExitRequested(event as object)
+    if event.getData() <> true then return
+    ' Playlet signals exitChannel on the root Scene. Handle it here so the
+    ' root scene, rather than a nested component, owns the exit lifecycle.
+    m.top.exitChannel = false
+    if m.launcher <> invalid
+        m.launcher.callFunc("HandlePlayletExit")
+    end if
 end sub
 
 function CreatePlayletTransportEventsHandler() as object
