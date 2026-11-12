@@ -528,12 +528,16 @@ sub fetched(event as object)
     else if context.operation = "episodes"
         if m.series = invalid or context.item.id <> m.series.id then return
         for each incoming in answer.seasons
+            incoming.loaded = true
             for i = 0 to m.series.seasons.count()-1
                 if m.series.seasons[i].number = incoming.number then m.series.seasons[i] = incoming
             end for
         end for
         m.episode = 0
         if m.view = "player" and m.endScreenNextEpisodePending
+            for each seasonEntry in m.series.seasons
+                if seasonEntry.number = context.season then seasonEntry.loaded = true
+            end for
             m.endScreenNextEpisodePending = false
             preparePlaybackEndScreen()
             return
@@ -1043,6 +1047,12 @@ end function
 function rpFindNextEpisode() as dynamic
     if m.series = invalid or m.detail = invalid then return invalid
     if m.detail.kind <> "episode" then return invalid
+    if m.detail.doesExist("imdbId") and m.detail.imdbId <> "" and m.series.doesExist("id")
+        if m.detail.imdbId <> m.series.id then return invalid
+    end if
+    if m.detail.doesExist("seriesTitle") and m.detail.seriesTitle <> ""
+        if lcase(m.detail.seriesTitle) <> lcase(m.series.title) then return invalid
+    end if
     for si = 0 to m.series.seasons.count()-1
         season = m.series.seasons[si]
         if season.number = m.detail.season
