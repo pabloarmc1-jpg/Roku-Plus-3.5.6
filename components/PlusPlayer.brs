@@ -3,6 +3,7 @@ sub init()
     m.top.focusable = true
     m.top.visible = false
     m.decoder = m.top.findNode("decoder")
+    m.videoViewport = m.top.findNode("videoViewport")
     m.tsStreamServer = m.top.findNode("tsStreamServer")
     if m.decoder.hasField("enableDecoderStats")
         m.decoder.enableDecoderStats = true
@@ -50,6 +51,13 @@ sub init()
     m.subtitleMenuGroup = m.top.findNode("subtitleMenu")
     m.subtitleMenuItems = m.top.findNode("subtitleMenuItems")
     m.subtitleMenuOpen = false
+    m.displayMenuGroup = m.top.findNode("displayMenu")
+    m.displayMenuItems = m.top.findNode("displayMenuItems")
+    m.displayMenuOpen = false
+    m.displayMenuIndex = 0
+    m.zoomIndex = 0
+    m.zoomLevels = [1.0, 1.10, 1.20, 1.33]
+    m.zoomLabels = ["Original", "Zoom suave (1.10x)", "Zoom medio (1.20x)", "Zoom completo (1.33x)"]
     m.subtitleTracks = []
     m.subtitleTrackIndex = 0
     m.subtitleOnlineResults = []
@@ -181,15 +189,26 @@ sub applyPresentation()
     m.backdrop.visible = not preview
     if preview
         rect = plusPreviewBounds(m.top.previewRect)
-        m.decoder.translation = [rect[0],rect[1]]
+        if m.videoViewport <> invalid
+            m.videoViewport.translation = [rect[0],rect[1]]
+            m.videoViewport.clippingRect = [0,0,rect[2],rect[3]]
+        end if
+        m.decoder.translation = [0,0]
         m.decoder.width = rect[2]
         m.decoder.height = rect[3]
+        m.decoder.scaleRotateCenter = [rect[2]/2,rect[3]/2]
+        m.decoder.scale = [1.0,1.0]
         m.panel.visible = false
         if m.top.hasFocus() then m.top.setFocus(false)
     else
+        if m.videoViewport <> invalid
+            m.videoViewport.translation = [0,0]
+            m.videoViewport.clippingRect = [0,0,1920,1080]
+        end if
         m.decoder.translation = [0,0]
         m.decoder.width = 1920
         m.decoder.height = 1080
+        applyVideoZoom()
         if m.mediaOpen
             if m.hlsStartupIsolation
                 m.panel.visible = false
@@ -205,9 +224,16 @@ sub applyPresentation()
         m.startupOverlay.visible = not preview and m.mediaOpen and m.phase <> "playing" and not m.failed
     end if
     if m.previewMask <> invalid
-        m.previewMask.translation = m.decoder.translation
-        m.previewMask.width = m.decoder.width
-        m.previewMask.height = m.decoder.height
+        if preview
+            rect = plusPreviewBounds(m.top.previewRect)
+            m.previewMask.translation = [rect[0],rect[1]]
+            m.previewMask.width = rect[2]
+            m.previewMask.height = rect[3]
+        else
+            m.previewMask.translation = [0,0]
+            m.previewMask.width = 1920
+            m.previewMask.height = 1080
+        end if
         m.previewMask.visible = preview and m.mediaOpen
     end if
     m.decoder.visible = false
@@ -216,6 +242,22 @@ sub applyPresentation()
         m.decoder.visible = not m.failed
         publishProgress(true)
     end if
+end sub
+
+' Zoom is a presentation-only transform. The viewport clips the enlarged Video
+' node to the screen, so the decoder and stream remain open and seeking is untouched.
+sub applyVideoZoom()
+    if m.decoder = invalid then return
+    zoom = 1.0
+    if m.zoomLevels <> invalid and m.zoomIndex >= 0 and m.zoomIndex < m.zoomLevels.count()
+        zoom = m.zoomLevels[m.zoomIndex]
+    end if
+    width = m.decoder.width
+    height = m.decoder.height
+    if width <= 0 or height <= 0 then return
+    m.decoder.scaleRotateCenter = [width/2,height/2]
+    m.decoder.scale = [zoom,zoom]
+    print "[RokuPlus display] zoom="; zoom
 end sub
 
 ' Bounds are in the scene's 1920x1080 design coordinates, independent of the
@@ -301,6 +343,9 @@ sub openRequest()
     if m.audioMenuGroup <> invalid then m.audioMenuGroup.visible = false
     m.subtitleMenuOpen = false
     if m.subtitleMenuGroup <> invalid then m.subtitleMenuGroup.visible = false
+    m.displayMenuOpen = false
+    m.displayMenuIndex = m.zoomIndex
+    if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
     m.audioTracks = []
     m.audioTrackIndex = 0
     cancelSubtitleSearchTask()
@@ -572,6 +617,8 @@ sub closePlayback()
     m.watch = invalid
     m.panel.visible = false
     m.decoder.visible = false
+    m.displayMenuOpen = false
+    if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
     if m.previewMask <> invalid then m.previewMask.visible = false
     m.top.visible = false
     m.pulse.control = "stop"
@@ -889,6 +936,7 @@ function plusAudioLanguageName(code as string) as string
 end function
 
 sub openAudioMenu()
+    if m.displayMenuOpen then closeDisplayMenu()
     if m.subtitleMenuOpen then closeSubtitleMenu()
     refreshAudioTracks()
     print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " state="; m.decoder.state
@@ -1003,6 +1051,7 @@ sub refreshSubtitleTracks()
 end sub
 
 sub openSubtitleMenu()
+    if m.displayMenuOpen then closeDisplayMenu()
     refreshSubtitleTracks()
     if m.subtitleMenuGroup = invalid then return
     m.subtitleMenuOpen = true
@@ -1121,6 +1170,79 @@ sub selectSubtitleTrack()
     m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
     revealTransport()
     drawTransport()
+end sub
+
+sub openDisplayMenu()
+    if m.displayMenuGroup = invalid or m.displayMenuItems = invalid then return
+    if m.audioMenuOpen then closeAudioMenu()
+    if m.subtitleMenuOpen then closeSubtitleMenu()
+    m.displayMenuOpen = true
+    m.displayMenuIndex = m.zoomIndex
+    m.displayMenuGroup.visible = true
+    revealTransport()
+    drawDisplayMenu()
+end sub
+
+sub drawDisplayMenu()
+    if m.displayMenuItems = invalid then return
+    output = "IMAGEN Y ZOOM" + chr(10) + chr(10)
+    for i = 0 to m.zoomLabels.count()-1
+        prefix = "   "
+        if i = m.displayMenuIndex then prefix = "▶  "
+        output += prefix + m.zoomLabels[i]
+        if i < m.zoomLabels.count()-1 then output += chr(10)
+    end for
+    showSkip = false
+    if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
+        introStart = plusClockValue(m.current.introStart)
+        introEnd = plusClockValue(m.current.introEnd)
+        currentAt = playerPosition()
+        if introStart <> invalid and introEnd <> invalid and currentAt <> invalid
+            showSkip = introEnd > introStart and currentAt >= introStart and currentAt < introEnd
+        end if
+    end if
+    if showSkip
+        output += chr(10) + "   Saltar introducción"
+    end if
+    output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Aplicar     BACK Cerrar"
+    m.displayMenuItems.text = output
+end sub
+
+sub closeDisplayMenu()
+    m.displayMenuOpen = false
+    if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
+end sub
+
+sub moveDisplayMenuSelection(direction as integer)
+    count = m.zoomLabels.count()
+    if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
+        introStart = plusClockValue(m.current.introStart)
+        introEnd = plusClockValue(m.current.introEnd)
+        currentAt = playerPosition()
+        if introStart <> invalid and introEnd <> invalid and currentAt <> invalid
+            if introEnd > introStart and currentAt >= introStart and currentAt < introEnd then count++
+        end if
+    end if
+    m.displayMenuIndex += direction
+    if m.displayMenuIndex < 0 then m.displayMenuIndex = count - 1
+    if m.displayMenuIndex >= count then m.displayMenuIndex = 0
+    drawDisplayMenu()
+end sub
+
+sub selectDisplayMenu()
+    if m.displayMenuIndex < m.zoomLevels.count()
+        m.zoomIndex = m.displayMenuIndex
+        applyVideoZoom()
+        selectedLabel = m.zoomLabels[m.zoomIndex]
+        closeDisplayMenu()
+        m.notice = "Pantalla: " + selectedLabel
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
+        revealTransport()
+        drawTransport()
+    else
+        closeDisplayMenu()
+        skipIntro()
+    end if
 end sub
 
 sub openSubtitleApiKeyDialog()
@@ -1674,8 +1796,8 @@ sub drawTransport()
     m.rewindControl.visible = not m.live
     m.forwardControl.visible = not m.live
     applyControlSurfaces()
-    m.keyText.text = "Atrás · Volver al título"
-    if m.live then m.keyText.text = "Atrás · Volver a los canales"
+    m.keyText.text = "OPTIONS · Imagen y zoom"
+    if m.live then m.keyText.text = "OPTIONS · Imagen y zoom"
     if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
         introStart = plusClockValue(m.current.introStart)
         introEnd = plusClockValue(m.current.introEnd)
@@ -2489,6 +2611,20 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
         return true
     end if
+    if m.displayMenuOpen
+        if key = "up"
+            moveDisplayMenuSelection(-1)
+        else if key = "down"
+            moveDisplayMenuSelection(1)
+        else if key = "OK" or key = "play"
+            selectDisplayMenu()
+        else if key = "back"
+            closeDisplayMenu()
+            revealTransport()
+            drawTransport()
+        end if
+        return true
+    end if
     if m.audioMenuOpen
         if key = "up"
             moveAudioMenuSelection(-1)
@@ -2515,7 +2651,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         revealTransport()
         togglePause()
     else if key = "options"
-        skipIntro()
+        openDisplayMenu()
     else if key = "up"
         openAudioMenu()
     else if key = "down"
