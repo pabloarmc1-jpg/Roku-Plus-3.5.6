@@ -26,5 +26,6 @@
     </Group>
     <DualLoadingIndicator id="PlayletLoadingIndicator" visible="false" />
     <Timer id="countdownTimer" duration="1" repeat="true" />
+    <Timer id="playletLayoutTimer" duration="0.5" repeat="true" />
   </children>
 </component>
