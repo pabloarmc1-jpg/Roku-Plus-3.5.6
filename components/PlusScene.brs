@@ -209,6 +209,11 @@ sub DeactivatePlusExperience()
     if m.pageTransitionTimer <> invalid then m.pageTransitionTimer.control = "stop"
     if m.catalogFadeTimer <> invalid then m.catalogFadeTimer.control = "stop"
     if m.lease <> invalid then m.lease.control = "stop"
+    if m.leaseTask <> invalid
+        m.leaseTask.cancelRequested = true
+        m.leaseTask = invalid
+    end if
+    m.activeJobId = ""
     cancelRequest()
     cancelHomeRequests()
     m.nextEpisode = invalid
@@ -224,7 +229,7 @@ sub hdLocalDataLoaded(event as object)
     m.hdDataTask = invalid
     if type(answer) <> "roAssociativeArray" then return
     if type(answer.library) = "roAssociativeArray" then m.hdLibrary = answer.library
-    if m.catalogMode = "hd" and not usesOnlineHd()
+    if m.plusExperience.visible and m.catalogMode = "hd" and not usesOnlineHd()
         refreshHome()
         drawScreen()
     end if
