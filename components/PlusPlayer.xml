@@ -63,6 +63,11 @@
       <Label id="noticeText" translation="[112,0]" width="1696" height="32" font="font:SmallSystemFont" color="0xFFFFFFFF" />
     </Group>
 
+    <Group id="playerOptionsMenu" translation="[460,210]" visible="false">
+      <Rectangle width="1000" height="660" color="0x10131BEF" />
+      <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
+      <Label id="playerOptionsMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    </Group>
     <Group id="displayMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
