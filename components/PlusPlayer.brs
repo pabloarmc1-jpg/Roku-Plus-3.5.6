@@ -57,6 +57,11 @@ sub init()
     m.displayMenuIndex = 0
     m.playerOptionsMenuGroup = m.top.findNode("playerOptionsMenu")
     m.playerOptionsMenuItems = m.top.findNode("playerOptionsMenuItems")
+    m.endScreenGroup = m.top.findNode("playbackEndScreen")
+    m.endScreenItemsLabel = m.top.findNode("playbackEndItems")
+    m.endScreenOpen = false
+    m.endScreenIndex = 0
+    m.endScreenItems = []
     m.playerOptionsMenuOpen = false
     m.playerOptionsMenuIndex = 0
     m.playerOptionsLabels = ["Zoom / Imagen", "Subtítulos", "Audio", "Retroceder 10 segundos", "Adelantar 10 segundos", "Play / Pause"]
@@ -285,6 +290,71 @@ function plusPreviewBounds(value as dynamic) as object
     return [value[0],value[1],value[2],value[3]]
 end function
 
+sub onEndScreenDataChanged(event as object)
+    data = event.getData()
+    if type(data) <> "roAssociativeArray" then return
+    if type(data.items) = "roArray" then m.endScreenItems = data.items else m.endScreenItems = []
+    m.endScreenIndex = 0
+    if m.endScreenOpen then drawPlaybackEndScreen()
+end sub
+
+sub drawPlaybackEndScreen()
+    if m.endScreenItemsLabel = invalid then return
+    heading = "PELÍCULAS SIMILARES"
+    if type(m.top.endScreenData) = "roAssociativeArray"
+        if m.top.endScreenData.kind = "episode" then heading = "SIGUIENTE EPISODIO"
+        if GetInterface(m.top.endScreenData.heading,"ifString") <> invalid then heading = m.top.endScreenData.heading
+    end if
+    output = heading + chr(10) + chr(10)
+    if m.endScreenItems.count() = 0
+        if heading = "SIGUIENTE EPISODIO"
+            output += "No hay más episodios disponibles."
+        else
+            output += "No encontramos películas similares en el catálogo disponible."
+        end if
+    else
+        for i = 0 to m.endScreenItems.count()-1
+            item = m.endScreenItems[i]
+            prefix = "   "
+            if i = m.endScreenIndex then prefix = "▶  "
+            label = "Reproducir"
+            if type(item) = "roAssociativeArray"
+                if GetInterface(item.title,"ifString") <> invalid then label = item.title
+                if item.kind = "episode"
+                    seasonNumber = 0
+                    episodeNumber = 0
+                    if item.doesExist("season") then seasonNumber = item.season
+                    if item.doesExist("episode") then episodeNumber = item.episode
+                    label += "   ·   T" + seasonNumber.toStr() + " E" + episodeNumber.toStr()
+                else if GetInterface(item.year,"ifString") <> invalid and item.year <> ""
+                    label += "   ·   " + item.year
+                end if
+            end if
+            output += prefix + label
+            if i < m.endScreenItems.count()-1 then output += chr(10)
+        end for
+    end if
+    output += chr(10) + chr(10) + "▲ / ▼ Elegir   OK Reproducir   BACK Salir"
+    m.endScreenItemsLabel.text = output
+end sub
+
+sub movePlaybackEndSelection(direction as integer)
+    if m.endScreenItems.count() = 0 then return
+    m.endScreenIndex += direction
+    if m.endScreenIndex < 0 then m.endScreenIndex = m.endScreenItems.count()-1
+    if m.endScreenIndex >= m.endScreenItems.count() then m.endScreenIndex = 0
+    drawPlaybackEndScreen()
+end sub
+
+sub selectPlaybackEndItem()
+    if m.endScreenItems.count() = 0 then return
+    if m.endScreenIndex < 0 or m.endScreenIndex >= m.endScreenItems.count() then return
+    selected = m.endScreenItems[m.endScreenIndex]
+    m.endScreenOpen = false
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
+    m.top.endSelection = {item:selected,requestId:m.current.requestId}
+end sub
+
 sub openRequest()
     supplied = m.top.request
     if type(supplied) <> "roAssociativeArray" then return
@@ -292,6 +362,9 @@ sub openRequest()
     if len(supplied.url) = 0 then return
     ' Stop the preceding decoder without emitting a close for the new request.
     m.mediaOpen = false
+    m.endScreenOpen = false
+    m.endScreenItems = []
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
     m.pulse.control = "stop"
     if m.startupTimer <> invalid then m.startupTimer.control = "stop"
     m.decoder.visible = false
@@ -626,6 +699,8 @@ sub closePlayback()
     m.watch = invalid
     m.panel.visible = false
     m.decoder.visible = false
+    m.endScreenOpen = false
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
     m.displayMenuOpen = false
     if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
     m.playerOptionsMenuOpen = false
@@ -773,7 +848,14 @@ sub onDecoderState()
         else
             if not m.nativePlaylistMode and advanceSequentialSegment() then return
             publishProgress(true)
-            closePlayback()
+            m.pulse.control = "stop"
+            m.watch = invalid
+            m.panel.visible = false
+            m.endScreenOpen = true
+            m.endScreenIndex = 0
+            if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
+            drawPlaybackEndScreen()
+            print "[RokuPlus playback] finished; showing in-player recommendations"
             return
         end if
     end if
@@ -2670,6 +2752,18 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if not m.mediaOpen then return false
     if isPreviewPresentation() then return false
     if not press then return true
+    if m.endScreenOpen
+        if key = "up"
+            movePlaybackEndSelection(-1)
+        else if key = "down"
+            movePlaybackEndSelection(1)
+        else if key = "OK" or key = "play"
+            selectPlaybackEndItem()
+        else if key = "back"
+            closePlayback()
+        end if
+        return true
+    end if
     if m.subtitleMenuOpen
         if key = "up"
             moveSubtitleMenuSelection(-1)
