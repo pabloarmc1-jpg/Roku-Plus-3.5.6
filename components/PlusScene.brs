@@ -2338,6 +2338,9 @@ sub loadEpisodeSeason()
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
+    ' Only Roku Plus owns scene-level remote input while its experience is visible.
+    if m.playletReady then return false
+    if not m.plusExperience.visible then return false
     if key = "home" then return false
     if not press
         if m.view = "search-keyboard" and key = "OK" and m.searchDeleteHeld
