@@ -59,8 +59,8 @@ sub runIntroDbLookup()
         if not m.top.cancelRequested then m.top.result = answer
         return
     end if
-    if responseEvent.getInt() <> 200
-        answer.message = "IntroDB respondió con HTTP " + responseEvent.getInt().toStr() + "."
+    if responseEvent.getResponseCode() <> 200
+        answer.message = "IntroDB respondió con HTTP " + responseEvent.getResponseCode().toStr() + "."
         if not m.top.cancelRequested then m.top.result = answer
         return
     end if
