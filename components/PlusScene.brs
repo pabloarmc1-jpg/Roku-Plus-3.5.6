@@ -818,7 +818,6 @@ sub playerClosed(event as object)
         rpWatchSave(m.watchState,m.profileId)
     end if
     m.lastPlaybackProgress = invalid
-    m.lastPlaybackProgress = invalid
     m.continueItems = rpWatchContinue(m.watchState)
     m.note = ""
     drawScreen()
