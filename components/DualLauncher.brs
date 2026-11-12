@@ -110,11 +110,11 @@ sub launchSelected()
     m.loadingIndicator.visible = true
     m.lib = m.scene.createChild("ComponentLibrary")
     m.lib.observeField("loadStatus", "playletLibraryStatus")
-    m.lib.uri = "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip"
+    m.lib.uri = "https://github.com/iBicha/playlet/releases/download/v0.48.10/playlet-lib.zip"
 end sub
 
 sub createPlayletScene()
-    m.scene.playletLibLoadedUrl = { type: "github-zip", link: "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip" }
+    m.scene.playletLibLoadedUrl = { type: "github-zip", link: "https://github.com/iBicha/playlet/releases/download/v0.48.10/playlet-lib.zip" }
     container = m.top.findNode("MainSceneContainer")
     m.playletNode = container.createChild("PlayletLib:MainScene")
     ' Playlet is authored for Roku HD (1280x720), while this channel uses FHD (1920x1080).
