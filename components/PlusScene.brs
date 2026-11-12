@@ -186,18 +186,34 @@ sub ActivatePlusExperience()
             refreshHome()
         end if
         drawScreen()
+    else if m.view = "home"
+        ' Background catalog requests are cancelled when Roku Plus is hidden.
+        ' Re-entering Home refreshes from the five-minute cache when possible.
+        refreshHome()
+        drawScreen()
     end if
     m.top.setFocus(true)
 end sub
 
 sub DeactivatePlusExperience()
+    ' Stop all work owned by Roku Plus before Playlet takes over the channel.
+    ' This prevents hidden catalog tasks and timers from competing with Playlet.
+    if m.deadline <> invalid then m.deadline.control = "stop"
     if m.heroRotation <> invalid then m.heroRotation.control = "stop"
     if m.discoveryRotation <> invalid then m.discoveryRotation.control = "stop"
     if m.previewTimer <> invalid then m.previewTimer.control = "stop"
     if m.noteTimer <> invalid then m.noteTimer.control = "stop"
     if m.nextEpisodeTimer <> invalid then m.nextEpisodeTimer.control = "stop"
+    if m.searchDeleteTimer <> invalid then m.searchDeleteTimer.control = "stop"
+    if m.dialogFocusTimer <> invalid then m.dialogFocusTimer.control = "stop"
     if m.pageTransitionTimer <> invalid then m.pageTransitionTimer.control = "stop"
     if m.catalogFadeTimer <> invalid then m.catalogFadeTimer.control = "stop"
+    if m.lease <> invalid then m.lease.control = "stop"
+    cancelRequest()
+    cancelHomeRequests()
+    m.nextEpisode = invalid
+    m.nextEpisodeCountdown = 0
+    if m.top.hasFocus() then m.top.setFocus(false)
 end sub
 
 sub hdLocalDataLoaded(event as object)
