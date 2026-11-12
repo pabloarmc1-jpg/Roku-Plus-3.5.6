@@ -746,14 +746,33 @@ sub playerProgress(event as object)
     end if
     m.lastPlaybackProgress = sample
     m.watchState = rpWatchUpdate(m.watchState,m.detail,sample.position,sample.duration)
-    if sample.state = "finished" and m.endScreenRequestId <> sample.requestId
-        m.endScreenRequestId = sample.requestId
-        watchedAtEnd = rpWatchGet(m.watchState,m.detail.id)
-        if watchedAtEnd = invalid or watchedAtEnd.watched <> true
-            m.watchState = rpWatchToggle(m.watchState,m.detail,"watched")
-            rpWatchSave(m.watchState,m.profileId)
+    ' Prepare the end-card while the credits are still rolling.
+    ' The 60-second window is a fallback because providers do not expose a
+    ' reliable credits-start marker in their playback metadata.
+    if sample.state <> "finished" and sample.duration > 0 and sample.position >= sample.duration - 60
+        if m.endScreenRequestId <> sample.requestId
+            m.endScreenRequestId = sample.requestId
+            print "[RokuPlus end-screen] credits-window position="; sample.position; " duration="; sample.duration
+            preparePlaybackEndScreen()
         end if
-        preparePlaybackEndScreen()
+    end if
+    if sample.state = "finished"
+        watchedRequest = false
+        if m.endScreenWatchedRequestId <> invalid
+            if m.endScreenWatchedRequestId = sample.requestId then watchedRequest = true
+        end if
+        if not watchedRequest
+            m.endScreenWatchedRequestId = sample.requestId
+            watchedAtEnd = rpWatchGet(m.watchState,m.detail.id)
+            if watchedAtEnd = invalid or watchedAtEnd.watched <> true
+                m.watchState = rpWatchToggle(m.watchState,m.detail,"watched")
+                rpWatchSave(m.watchState,m.profileId)
+            end if
+        end if
+        if m.endScreenRequestId <> sample.requestId
+            m.endScreenRequestId = sample.requestId
+            preparePlaybackEndScreen()
+        end if
     end if
     record = rpWatchGet(m.watchState,m.detail.id)
     if m.watchSaveClock = invalid
