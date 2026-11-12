@@ -20,6 +20,7 @@ sub init()
     m.player.observeField("diagnostics","playerDiagnostic")
     m.player.observeField("retryRequested","retryVideo")
     m.player.observeField("progress","playerProgress")
+    m.player.observeField("endSelection","playerEndSelection")
     m.player.observeField("progress","livePreviewProgress")
     m.player.observeField("previewReturned","livePreviewReturned")
     m.player.observeField("closedRequest","livePreviewClosed")
@@ -53,6 +54,7 @@ sub init()
     m.watchState = rpWatchLoad(m.profileId)
     m.profileCursor = 0
     m.lastPlaybackProgress = invalid
+    m.endScreenRequestId = invalid
     m.watchSaveClock = CreateObject("roTimespan")
     m.watchSaveClock.mark()
     m.continueItems = rpWatchContinue(m.watchState)
@@ -643,6 +645,8 @@ sub launchVideo(item as object, url as string, format as string)
     descriptor.requestId = CreateObject("roDeviceInfo").getRandomUUID()
     m.activePlaybackRequestId = descriptor.requestId
     m.lastPlaybackProgress = invalid
+    m.endScreenRequestId = invalid
+    m.player.endScreenData = invalid
     m.player.request = descriptor
     if m.activeJobId <> "" then m.lease.control = "start"
 end sub
@@ -705,6 +709,15 @@ sub playerProgress(event as object)
     end if
     m.lastPlaybackProgress = sample
     m.watchState = rpWatchUpdate(m.watchState,m.detail,sample.position,sample.duration)
+    if sample.state = "finished" and m.endScreenRequestId <> sample.requestId
+        m.endScreenRequestId = sample.requestId
+        watchedAtEnd = rpWatchGet(m.watchState,m.detail.id)
+        if watchedAtEnd = invalid or watchedAtEnd.watched <> true
+            m.watchState = rpWatchToggle(m.watchState,m.detail,"watched")
+            rpWatchSave(m.watchState,m.profileId)
+        end if
+        preparePlaybackEndScreen()
+    end if
     record = rpWatchGet(m.watchState,m.detail.id)
     if m.watchSaveClock = invalid
         saved = rpWatchSave(m.watchState,m.profileId)
@@ -803,23 +816,122 @@ sub playerClosed(event as object)
         watchedRecord = rpWatchGet(m.watchState,m.detail.id)
         if watchedRecord = invalid or watchedRecord.watched <> true then m.watchState = rpWatchToggle(m.watchState,m.detail,"watched")
         rpWatchSave(m.watchState,m.profileId)
-        nextItem = rpFindNextEpisode()
-        m.lastPlaybackProgress = invalid
-        if nextItem <> invalid
-            m.nextEpisode = nextItem
-            m.nextEpisodeCountdown = 10
-            m.note = "Siguiente capítulo en 10 s · OK para reproducir ahora · Atrás para cancelar"
-            m.nextEpisodeTimer.control = "start"
-            drawScreen()
-            return
-        end if
     end if
+    m.lastPlaybackProgress = invalid
     m.lastPlaybackProgress = invalid
     m.continueItems = rpWatchContinue(m.watchState)
     m.note = ""
     drawScreen()
     m.top.setFocus(true)
 end sub
+
+sub preparePlaybackEndScreen()
+    if m.view <> "player" or m.detail = invalid then return
+    if m.detail.kind = "episode"
+        nextItem = rpFindNextEpisode()
+        items = []
+        heading = "SERIE FINALIZADA"
+        if nextItem <> invalid
+            items.push(nextItem)
+            heading = "SIGUIENTE EPISODIO"
+        end if
+        m.player.endScreenData = {kind:"episode",heading:heading,items:items}
+    else if m.detail.kind = "movie"
+        similar = rpSimilarMovies(m.detail)
+        m.player.endScreenData = {kind:"movie",heading:"PELÍCULAS SIMILARES",items:similar}
+    end if
+end sub
+
+sub playerEndSelection(event as object)
+    selection = event.getData()
+    if m.view <> "player" or type(selection) <> "roAssociativeArray" then return
+    if selection.requestId <> m.activePlaybackRequestId then return
+    if type(selection.item) <> "roAssociativeArray" then return
+    item = selection.item
+    print "[RokuPlus end-screen] selected title="; orbitText(item.title,180); " kind="; orbitText(item.kind,20)
+    if item.kind = "episode"
+        openDetails(item,"episodes",true)
+    else if item.kind = "movie"
+        openDetails(item,"home",true)
+    end if
+end sub
+
+function rpGenreNames(item as dynamic) as object
+    values = []
+    if type(item) <> "roAssociativeArray" then return values
+    source = invalid
+    if type(item.genres) = "roArray" then source = item.genres
+    if source = invalid and type(item.genre) = "roArray" then source = item.genre
+    if type(source) = "roArray"
+        for each entry in source
+            genreName = ""
+            if GetInterface(entry,"ifString") <> invalid
+                genreName = lcase(entry.trim())
+            else if type(entry) = "roAssociativeArray" and GetInterface(entry.name,"ifString") <> invalid
+                genreName = lcase(entry.name.trim())
+            end if
+            if genreName <> ""
+                exists = false
+                for each current in values
+                    if current = genreName then exists = true
+                end for
+                if not exists then values.push(genreName)
+            end if
+        end for
+    else if GetInterface(item.genre,"ifString") <> invalid
+        genreName = lcase(item.genre.trim())
+        if genreName <> "" then values.push(genreName)
+    end if
+    return values
+end function
+
+function rpSharedGenreScore(first as dynamic, second as dynamic) as integer
+    leftGenres = rpGenreNames(first)
+    rightGenres = rpGenreNames(second)
+    score = 0
+    for each leftGenre in leftGenres
+        for each rightGenre in rightGenres
+            if leftGenre = rightGenre then score++
+        end for
+    end for
+    return score
+end function
+
+function rpSimilarMovies(current as object) as object
+    candidates = []
+    for each source in [m.features,m.pageTitles,m.titles]
+        if type(source) = "roArray"
+            for each candidate in source
+                if type(candidate) = "roAssociativeArray"
+                    if candidate.kind = "movie" and candidate.id <> current.id then candidates.push(candidate)
+                end if
+            end for
+        end if
+    end for
+    uniqueCandidates = orbitUniqueCatalogItems(candidates)
+    ranked = []
+    for each candidate in uniqueCandidates
+        score = rpSharedGenreScore(current,candidate)
+        if score > 0 then ranked.push({item:candidate,score:score})
+    end for
+    for i = 1 to ranked.count()-1
+        position = i
+        while position > 0
+            if ranked[position-1].score >= ranked[position].score then exit while
+            swap = ranked[position-1]
+            ranked[position-1] = ranked[position]
+            ranked[position] = swap
+            position--
+        end while
+    end for
+    results = []
+    for each entry in ranked
+        results.push(entry.item)
+        if results.count() >= 6 then exit for
+    end for
+    print "[RokuPlus end-screen] similar-movies="; results.count()
+    return results
+end function
 
 function rpFindNextEpisode() as dynamic
     if m.series = invalid or m.detail = invalid then return invalid
