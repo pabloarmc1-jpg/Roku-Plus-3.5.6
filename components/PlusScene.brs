@@ -1047,11 +1047,15 @@ end function
 function rpFindNextEpisode() as dynamic
     if m.series = invalid or m.detail = invalid then return invalid
     if m.detail.kind <> "episode" then return invalid
-    if m.detail.doesExist("imdbId") and m.detail.imdbId <> "" and m.series.doesExist("id")
-        if m.detail.imdbId <> m.series.id then return invalid
+    episodeSeriesId = ""
+    if GetInterface(m.detail.imdbId,"ifString") <> invalid then episodeSeriesId = m.detail.imdbId
+    if episodeSeriesId <> "" and m.series.doesExist("id")
+        if episodeSeriesId <> m.series.id then return invalid
     end if
-    if m.detail.doesExist("seriesTitle") and m.detail.seriesTitle <> ""
-        if lcase(m.detail.seriesTitle) <> lcase(m.series.title) then return invalid
+    episodeSeriesTitle = ""
+    if GetInterface(m.detail.seriesTitle,"ifString") <> invalid then episodeSeriesTitle = m.detail.seriesTitle
+    if episodeSeriesTitle <> ""
+        if lcase(episodeSeriesTitle) <> lcase(m.series.title) then return invalid
     end if
     for si = 0 to m.series.seasons.count()-1
         season = m.series.seasons[si]
