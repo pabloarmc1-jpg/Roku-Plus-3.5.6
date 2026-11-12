@@ -65,6 +65,7 @@ sub init()
     m.endCountdownActive = false
     m.endCountdownRemaining = 0
     m.endCountdownLastAt = 0
+    m.playbackFinished = false
     m.endScreenHeading = m.top.findNode("endScreenHeading")
     m.endScreenMessage = m.top.findNode("endScreenMessage")
     m.endMovieLayout = m.top.findNode("endMovieLayout")
@@ -315,7 +316,11 @@ sub onEndScreenDataChanged(event as object)
     m.endCountdownRemaining = 0
     if type(data.items) = "roArray" then m.endScreenItems = data.items else m.endScreenItems = []
     m.endScreenIndex = 0
-    if m.endScreenOpen then drawPlaybackEndScreen()
+    ' Show the recommendation card over the live video; do not pause or stop
+    ' the decoder, so the credits continue underneath the translucent panel.
+    m.endScreenOpen = true
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
+    drawPlaybackEndScreen()
 end sub
 
 sub drawPlaybackEndScreen()
@@ -354,7 +359,7 @@ sub drawPlaybackEndScreen()
             if m.endEpisodeMeta <> invalid
                 m.endEpisodeMeta.text = "Temporada " + seasonNumber.toStr() + "  ·  Episodio " + episodeNumber.toStr()
             end if
-            if not m.endCountdownActive
+            if not m.playbackFinished and not m.endCountdownActive
                 m.endCountdownRemaining = 10
                 m.endCountdownLastAt = m.monotonic.totalMilliseconds()
                 m.endCountdownActive = true
@@ -366,7 +371,6 @@ sub drawPlaybackEndScreen()
             if m.endScreenMessage <> invalid then m.endScreenMessage.text = "OK Reproducir ahora     BACK Cancelar"
         else
             m.endCountdownActive = false
-            m.pulse.control = "stop"
             emptyMessage = "No hay más episodios disponibles."
             if type(data) = "roAssociativeArray"
                 if GetInterface(data.message,"ifString") <> invalid and data.message <> "" then emptyMessage = data.message
@@ -377,7 +381,6 @@ sub drawPlaybackEndScreen()
         end if
     else
         m.endCountdownActive = false
-        m.pulse.control = "stop"
         if m.endEpisodePoster <> invalid then m.endEpisodePoster.visible = false
         for posterIndex = 0 to 5
             posterNode = m.endMoviePosters[posterIndex]
@@ -962,6 +965,7 @@ sub onDecoderState()
             m.pulse.control = "stop"
             m.watch = invalid
             m.panel.visible = false
+            m.playbackFinished = true
             m.endScreenOpen = true
             m.endScreenIndex = 0
             m.endCountdownActive = false
@@ -2217,7 +2221,6 @@ sub onPulse()
                 end if
             end if
         end if
-        return
     end if
     if m.tsRelayPending
         relayStatus = m.tsStreamServer.status
