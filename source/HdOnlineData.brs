@@ -105,6 +105,34 @@ function rpHdOnlineArt(raw as dynamic, provider as string) as string
     return ""
 end function
 
+function rpHdOnlineGenres(raw as dynamic) as object
+    values = []
+    if type(raw) <> "roAssociativeArray" then return values
+    source = raw.genres
+    if type(source) <> "roArray" then source = raw.genre
+    if type(source) = "roArray"
+        for each entry in source
+            name = ""
+            if GetInterface(entry,"ifString") <> invalid
+                name = lcase(left(entry.trim(),60))
+            else if type(entry) = "roAssociativeArray" and GetInterface(entry.name,"ifString") <> invalid
+                name = lcase(left(entry.name.trim(),60))
+            end if
+            if name <> ""
+                exists = false
+                for each current in values
+                    if current = name then exists = true
+                end for
+                if not exists then values.push(name)
+            end if
+        end for
+    else if GetInterface(source,"ifString") <> invalid
+        name = lcase(left(source.trim(),120))
+        if name <> "" then values.push(name)
+    end if
+    return values
+end function
+
 function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as dynamic
     provider = rpHdOnlineProvider(provider)
     if provider = "" or provider = "all" or provider = "cinehax" or provider = "seriesmetro" or provider = "cinecalidad" or type(raw) <> "roAssociativeArray" then return invalid
@@ -124,7 +152,8 @@ function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as d
         provider: provider, providerId: number, providerSlug: orbitText(raw.slug,200)
         library: "hd-online", title: title, description: orbitText(raw.overview)
         poster: rpHdOnlineArt(images.poster,provider), background: rpHdOnlineArt(images.backdrop,provider)
-        year: left(orbitText(raw.release_date,32),4), runtime: int(runtime*60), language: "", seasons: []
+        year: left(orbitText(raw.release_date,32),4), runtime: int(runtime*60)
+        genres: rpHdOnlineGenres(raw), language: "", seasons: []
     }
 end function
 
