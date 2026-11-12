@@ -350,8 +350,13 @@ sub selectPlaybackEndItem()
     if m.endScreenItems.count() = 0 then return
     if m.endScreenIndex < 0 or m.endScreenIndex >= m.endScreenItems.count() then return
     selected = m.endScreenItems[m.endScreenIndex]
-    m.endScreenOpen = false
-    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
+    ' Keep the finished player visible while the selected title resolves.
+    ' BACK remains available if the new source cannot be opened.
+    m.endScreenItems = []
+    m.endScreenIndex = 0
+    m.endScreenOpen = true
+    if m.endScreenItemsLabel <> invalid then m.endScreenItemsLabel.text = "ABRIENDO TÍTULO..." + chr(10) + chr(10) + "Espera un momento. BACK para salir."
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
     m.top.endSelection = {item:selected,requestId:m.current.requestId}
 end sub
 
