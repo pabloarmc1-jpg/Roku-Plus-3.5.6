@@ -56,6 +56,10 @@ sub init()
     m.lastPlaybackProgress = invalid
     m.endScreenRequestId = invalid
     m.endScreenNextEpisodePending = false
+    m.endScreenWatchedRequestId = invalid
+    m.introDbTask = invalid
+    m.introDbCache = {}
+    m.introDbSegments = invalid
     m.watchSaveClock = CreateObject("roTimespan")
     m.watchSaveClock.mark()
     m.continueItems = rpWatchContinue(m.watchState)
@@ -682,9 +686,47 @@ sub launchVideo(item as object, url as string, format as string)
     m.activePlaybackRequestId = descriptor.requestId
     m.lastPlaybackProgress = invalid
     m.endScreenRequestId = invalid
+    m.endScreenWatchedRequestId = invalid
     m.endScreenNextEpisodePending = false
+    m.introDbSegments = invalid
+    if m.introDbTask <> invalid
+        m.introDbTask.cancelRequested = true
+        m.introDbTask = invalid
+    end if
     m.player.endScreenData = invalid
+    m.player.introDbData = invalid
     m.player.request = descriptor
+    imdbId = orbitText(descriptor.imdbId,24)
+    cacheKey = ""
+    if imdbId <> ""
+        if item.kind = "movie"
+            cacheKey = imdbId + "|movie"
+        else if item.kind = "episode"
+            cacheKey = imdbId + "|s" + orbitInteger(descriptor.season,999).toStr() + "e" + orbitInteger(descriptor.episode,9999).toStr()
+        end if
+    end if
+    if cacheKey <> "" and m.introDbCache.doesExist(cacheKey)
+        cachedSegments = m.introDbCache[cacheKey]
+        m.introDbSegments = cachedSegments
+        m.player.introDbData = {ok:true,requestId:descriptor.requestId,outro:cachedSegments.outro,post_credits:cachedSegments.post_credits,no_outro:cachedSegments.no_outro}
+        print "[RokuPlus introdb] cache_hit imdb="; imdbId
+    else if cacheKey <> ""
+        task = CreateObject("roSGNode","IntroDbTask")
+        task.imdbId = imdbId
+        task.isMovie = item.kind = "movie"
+        if item.kind = "episode"
+            task.season = orbitInteger(descriptor.season,999)
+            task.episode = orbitInteger(descriptor.episode,9999)
+        end if
+        task.requestId = descriptor.requestId
+        task.cacheKey = cacheKey
+        task.observeField("result","introDbResult")
+        m.introDbTask = task
+        task.control = "RUN"
+        print "[RokuPlus introdb] lookup_started imdb="; imdbId; " cacheKey="; cacheKey
+    else
+        print "[RokuPlus introdb] skipped reason=missing_imdb_or_episode_identity item="; orbitText(item.id,100)
+    end if
     if m.activeJobId <> "" then m.lease.control = "start"
 end sub
 
@@ -700,6 +742,24 @@ sub renewPlaybackLease()
     task.requestId = CreateObject("roDeviceInfo").getRandomUUID()
     m.leaseTask = task
     task.control = "RUN"
+end sub
+
+sub introDbResult(event as object)
+    if m.introDbTask = invalid then return
+    if not m.introDbTask.isSameNode(event.getRoSGNode()) then return
+    answer = event.getData()
+    m.introDbTask = invalid
+    if type(answer) <> "roAssociativeArray" then return
+    if answer.requestId <> m.activePlaybackRequestId then return
+    if answer.ok
+        cacheKey = orbitText(answer.cacheKey,100)
+        if cacheKey <> "" then m.introDbCache[cacheKey] = {outro:answer.outro,post_credits:answer.post_credits,no_outro:answer.no_outro}
+        m.introDbSegments = answer
+        m.player.introDbData = answer
+        print "[RokuPlus introdb] lookup_ok outro="; type(answer.outro); " postCredits="; type(answer.post_credits)
+    else
+        print "[RokuPlus introdb] lookup_unavailable reason="; orbitText(answer.message,160)
+    end if
 end sub
 
 sub playerProgress(event as object)
@@ -749,7 +809,17 @@ sub playerProgress(event as object)
     ' Prepare the end-card while the credits are still rolling.
     ' The 60-second window is a fallback because providers do not expose a
     ' reliable credits-start marker in their playback metadata.
-    if sample.state <> "finished" and sample.duration > 0 and sample.position >= sample.duration - 60
+    creditsStart = -1.0
+    if type(m.introDbSegments) = "roAssociativeArray" and type(m.introDbSegments.outro) = "roAssociativeArray"
+        outroStart = m.introDbSegments.outro.start_sec
+        if GetInterface(outroStart,"ifFloat") <> invalid or GetInterface(outroStart,"ifDouble") <> invalid or GetInterface(outroStart,"ifInt") <> invalid or GetInterface(outroStart,"ifLongInt") <> invalid
+            creditsStart = outroStart
+        else if m.introDbSegments.outro.start_ms <> invalid
+            creditsStart = m.introDbSegments.outro.start_ms / 1000.0
+        end if
+    end if
+    if creditsStart < 0 then creditsStart = sample.duration - 60
+    if sample.state <> "finished" and sample.duration > 0 and sample.position >= creditsStart
         if m.endScreenRequestId <> sample.requestId
             m.endScreenRequestId = sample.requestId
             print "[RokuPlus end-screen] credits-window position="; sample.position; " duration="; sample.duration
