@@ -11,8 +11,6 @@ sub init()
     m.plusCard = m.top.findNode("plusCard")
     m.timer = m.top.findNode("countdownTimer")
     m.timer.observeField("fire", "countdownTick")
-    m.layoutTimer = m.top.findNode("playletLayoutTimer")
-    m.layoutTimer.observeField("fire", "applyPlayletHomeLayout")
     m.selection = 0
     if savedChoice() = "rokuplus" then m.selection = 1
     m.remaining = 10
@@ -114,35 +112,14 @@ sub createPlayletScene()
     m.scene.playletLibLoadedUrl = { type: "github-zip", link: "https://github.com/iBicha/playlet/releases/latest/download/playlet-lib.zip" }
     container = m.top.findNode("MainSceneContainer")
     m.playletNode = container.createChild("PlayletLib:MainScene")
-    ' Playlet is authored for HD (1280x720). The device log reports an HD design
-    ' resolution, so keep the native scale to avoid clipping the interface.
+    ' Playlet is authored for Roku HD (1280x720), while this channel uses FHD (1920x1080).
+    ' Scale only Playlet so its full interface fills the FHD scene; Roku Plus remains unchanged.
     m.playletNode.scaleRotateCenter = [0, 0]
-    m.playletNode.scale = [1.0, 1.0]
+    m.playletNode.scale = [1.5, 1.5]
     m.scene.playletReady = true
     m.errorLabel.text = ""
     m.loadingIndicator.visible = false
     m.playletNode.setFocus(true)
-    m.layoutTimer.control = "start"
-end sub
-
-sub applyPlayletHomeLayout()
-    if m.playletNode = invalid then return
-    homeScreen = m.playletNode.findNode("HomeScreen")
-    if homeScreen = invalid then return
-    rowList = homeScreen.findNode("rowList")
-    if rowList = invalid then return
-
-    ' Playlet original home screen uses only two large rows. Fit three rows
-    ' into the 1280x720 HD design area without scaling the whole application.
-    rowList.numRows = 3
-    rowList.itemSize = [1280, 195]
-    rowList.itemSpacing = [0, 18]
-    rowList.rowitemSize = [[300, 169]]
-    rowList.rowItemSpacing = [[18, 0]]
-    rowList.rowLabelOffset = [[75, 10]]
-    rowList.focusXOffset = [75]
-    m.layoutTimer.control = "stop"
-    print "[RokuPlus PlayletLayout] HomeScreen rows=3 card=300x169 viewport=1280x195"
 end sub
 
 sub playletLibraryStatus(event as object)
@@ -174,7 +151,6 @@ sub playletExitRequested(event as object)
     ' Playlet usa exitChannel para salir. En el canal dual, ese evento significa volver al selector.
     m.scene.exitChannel = false
     m.scene.playletReady = false
-    m.layoutTimer.control = "stop"
     if m.playletNode <> invalid
         m.playletNode.setFocus(false)
         m.top.findNode("MainSceneContainer").removeChild(m.playletNode)
