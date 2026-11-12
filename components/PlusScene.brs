@@ -622,7 +622,7 @@ sub launchVideo(item as object, url as string, format as string)
     if m.playbackMode <> "compatible" or item.kind = "live" then m.activeJobId = ""
     eraseScreen()
     m.canvas.visible = false
-    m.viewBeforePlayer = m.view
+    if m.view <> "player" then m.viewBeforePlayer = m.view
     m.view = "player"
     loadingTitleNode = m.player.findNode("loadingTitle")
     if loadingTitleNode <> invalid then loadingTitleNode.text = left(orbitText(item.title,130),130)
