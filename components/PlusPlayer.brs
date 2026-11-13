@@ -34,6 +34,10 @@ sub init()
     m.startupOverlay = m.top.findNode("startupOverlay")
     m.startupTitle = m.top.findNode("startupTitle")
     m.startupBanner = m.top.findNode("startupBanner")
+    m.startupLogo = m.top.findNode("startupLogo")
+    m.startupLogoPulse = m.top.findNode("startupLogoPulse")
+    m.streamXTask = invalid
+    m.streamXRequestId = ""
     m.startupLoadingText = m.top.findNode("startupLoadingText")
     m.startupTimer = m.top.findNode("startupTypeTimer")
     m.startupCharIndex = 0
@@ -605,6 +609,8 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    cancelStreamXArtworkTask()
+    m.streamXRequestId = m.generation.toStr()
     m.introDbData = invalid
     m.skipPromptVisible = false
     m.skipPromptDismissed = false
@@ -692,7 +698,13 @@ sub openRequest()
     if (not m.segmentMode or supplied.tsRelayEnabled = true) and not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
-    if m.startupTitle <> invalid then m.startupTitle.text = ""
+    if m.startupTitle <> invalid then m.startupTitle.text = UCase(m.titleText.text)
+    if m.startupTitle <> invalid then m.startupTitle.visible = true
+    if m.startupLogo <> invalid
+        m.startupLogo.uri = ""
+        m.startupLogo.visible = false
+    end if
+    if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "stop"
     if m.startupBanner <> invalid
         bannerUri = ""
         if GetInterface(supplied.background,"ifString") <> invalid then bannerUri = supplied.background
@@ -703,6 +715,7 @@ sub openRequest()
     if m.startupLoadingText <> invalid then m.startupLoadingText.text = "CARGANDO..."
     m.startupCharIndex = 0
     if m.startupTimer <> invalid then m.startupTimer.control = "stop"
+    startStreamXArtwork(supplied)
     ' Compact metadata row: only display values supplied by the catalogue.
     metaParts = []
     if GetInterface(supplied.year, "ifString") <> invalid and len(supplied.year) > 0 then metaParts.push(supplied.year)
@@ -938,6 +951,7 @@ sub closePlayback()
     m.closing = true
     emitDiagnostic("close")
     m.mediaOpen = false
+    cancelStreamXArtworkTask()
     m.ticket = invalid
     m.pendingSeek = invalid
     m.tsRelayLocalSeekPending = invalid
@@ -1045,6 +1059,7 @@ sub onDecoderState()
             m.ticket.bufferingTimeoutExtended = false
         end if
         if m.startupTimer <> invalid then m.startupTimer.control = "stop"
+        if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "stop"
         if m.startupOverlay <> invalid then m.startupOverlay.visible = false
         if m.hlsStartupIsolation
             m.hlsStartupIsolation = false
@@ -2320,14 +2335,70 @@ sub advanceHlsSoftRestart(now as integer)
     end if
 end sub
 
+sub startStreamXArtwork(supplied as object)
+    if type(supplied) <> "roAssociativeArray" then return
+    imdbId = ""
+    if GetInterface(supplied.imdbId,"ifString") <> invalid then imdbId = supplied.imdbId.trim()
+    if imdbId = "" and GetInterface(supplied.imdb_id,"ifString") <> invalid then imdbId = supplied.imdb_id.trim()
+    if not CreateObject("roRegex","^tt[0-9]{7,8}$","").isMatch(imdbId) then return
+    mediaType = "movie"
+    kind = ""
+    if GetInterface(supplied.kind,"ifString") <> invalid then kind = LCase(supplied.kind)
+    if kind = "series" or kind = "episode" or kind = "tv" then mediaType = "series"
+    if m.streamXTask <> invalid then m.streamXTask.cancelRequested = true
+    task = CreateObject("roSGNode","StreamXImageTask")
+    if task = invalid then return
+    task.imdbId = imdbId
+    task.mediaType = mediaType
+    task.requestId = m.streamXRequestId
+    task.observeField("result","onStreamXArtworkChanged")
+    m.streamXTask = task
+    task.control = "RUN"
+end sub
+
+sub cancelStreamXArtworkTask()
+    if m.streamXTask <> invalid
+        m.streamXTask.cancelRequested = true
+        m.streamXTask = invalid
+    end if
+    if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "stop"
+end sub
+
+sub onStreamXArtworkChanged(event as object)
+    data = event.getData()
+    if type(data) <> "roAssociativeArray" then return
+    if data.requestId <> m.streamXRequestId then return
+    if type(m.current) <> "roAssociativeArray" then return
+    if data.ok <> true then return
+    if GetInterface(data.background,"ifString") <> invalid and left(data.background,8) = "https://"
+        if m.startupBanner <> invalid then m.startupBanner.uri = data.background
+    end if
+    if GetInterface(data.logo,"ifString") <> invalid and left(data.logo,8) = "https://"
+        if m.startupLogo <> invalid
+            m.startupLogo.uri = data.logo
+            m.startupLogo.visible = true
+            if m.startupTitle <> invalid then m.startupTitle.visible = false
+            if m.startupOverlay <> invalid and m.startupOverlay.visible and not isPreviewPresentation()
+                if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "start"
+            end if
+        end if
+    end if
+end sub
+
 sub startStartupTitleAnimation()
     if m.startupTimer <> invalid then m.startupTimer.control = "stop"
-    if isPreviewPresentation() or m.startupTitle = invalid then return
+    if isPreviewPresentation() then return
     if m.startupOverlay = invalid or not m.startupOverlay.visible then return
-    ' Match the reference: show the title as a centered static logo-style overlay.
-    fullTitle = m.titleText.text
-    if GetInterface(fullTitle, "ifString") = invalid then fullTitle = "CARGANDO"
-    m.startupTitle.text = UCase(fullTitle)
+    if m.startupLogo <> invalid and m.startupLogo.visible
+        if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "start"
+    else
+        if m.startupTitle <> invalid
+            fullTitle = m.titleText.text
+            if GetInterface(fullTitle, "ifString") = invalid then fullTitle = "CARGANDO"
+            m.startupTitle.text = UCase(fullTitle)
+            m.startupTitle.visible = true
+        end if
+    end if
 end sub
 
 sub onStartupTypePulse()
