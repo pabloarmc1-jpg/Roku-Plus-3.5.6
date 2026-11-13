@@ -1402,7 +1402,7 @@ sub refreshSubtitleTracks()
     found = false
     for i = 0 to m.subtitleTracks.count()-1
         if m.subtitleTracks[i].id = selected
-            m.subtitleTrackIndex = i + 3
+            m.subtitleTrackIndex = i + 4
             found = true
             exit for
         end if
@@ -1440,10 +1440,16 @@ sub drawSubtitleMenu()
     if m.subtitleTrackIndex = 1 then prefix = "▶  "
     keyStatus = "Sin configurar"
     if subtitleApiKeyLoad() <> "" then keyStatus = "Configurada"
-    output += prefix + "Configurar API Key (" + keyStatus + ")"
+    output += prefix + "Configurar API Key Subtitle Search Engine (" + keyStatus + ")"
     output += chr(10)
     prefix = "   "
     if m.subtitleTrackIndex = 2 then prefix = "▶  "
+    subdlKeyStatus = "Sin configurar"
+    if subdlApiKeyLoad() <> "" then subdlKeyStatus = "Configurada"
+    output += prefix + "Configurar API Key SubDL (" + subdlKeyStatus + ")"
+    output += chr(10)
+    prefix = "   "
+    if m.subtitleTrackIndex = 3 then prefix = "▶  "
     searchLabel = "Buscar subtítulos en línea (Español)"
     if m.subtitleOnlineBusy
         if m.subtitleOnlineOperation = "download" then searchLabel = "Descargando subtítulo..."
@@ -1453,10 +1459,10 @@ sub drawSubtitleMenu()
     for i = 0 to m.subtitleOnlineResults.count()-1
         output += chr(10)
         prefix = "   "
-        if i + 3 = m.subtitleTrackIndex then prefix = "▶  "
+        if i + 4 = m.subtitleTrackIndex then prefix = "▶  "
         output += prefix + m.subtitleOnlineResults[i].label + "  (ES · en línea)"
     end for
-    nativeOffset = 3 + m.subtitleOnlineResults.count()
+    nativeOffset = 4 + m.subtitleOnlineResults.count()
     for i = 0 to m.subtitleTracks.count()-1
         output += chr(10)
         prefix = "   "
@@ -1478,7 +1484,7 @@ sub closeSubtitleMenu()
 end sub
 
 sub moveSubtitleMenuSelection(direction as integer)
-    count = 3 + m.subtitleOnlineResults.count() + m.subtitleTracks.count()
+    count = 4 + m.subtitleOnlineResults.count() + m.subtitleTracks.count()
     m.subtitleTrackIndex = m.subtitleTrackIndex + direction
     if m.subtitleTrackIndex < 0 then m.subtitleTrackIndex = count - 1
     if m.subtitleTrackIndex >= count then m.subtitleTrackIndex = 0
@@ -1502,13 +1508,16 @@ sub selectSubtitleTrack()
         openSubtitleApiKeyDialog()
         return
     else if m.subtitleTrackIndex = 2
+        openSubDlApiKeyDialog()
+        return
+    else if m.subtitleTrackIndex = 3
         m.subtitleOnlineBusy = true
         m.subtitleOnlineOperation = "search"
         drawSubtitleMenu()
         startSubtitleSearchTask("search","")
         return
-    else if m.subtitleTrackIndex < 3 + m.subtitleOnlineResults.count()
-        onlineIndex = m.subtitleTrackIndex - 3
+    else if m.subtitleTrackIndex < 4 + m.subtitleOnlineResults.count()
+        onlineIndex = m.subtitleTrackIndex - 4
         if onlineIndex < 0 or onlineIndex >= m.subtitleOnlineResults.count() then return
         m.subtitleOnlinePendingLabel = m.subtitleOnlineResults[onlineIndex].label
         m.subtitleOnlineBusy = true
@@ -1517,7 +1526,7 @@ sub selectSubtitleTrack()
         startSubtitleSearchTask("download",m.subtitleOnlineResults[onlineIndex].id)
         return
     else
-        nativeIndex = m.subtitleTrackIndex - 3 - m.subtitleOnlineResults.count()
+        nativeIndex = m.subtitleTrackIndex - 4 - m.subtitleOnlineResults.count()
         if nativeIndex < 0 or nativeIndex >= m.subtitleTracks.count() then return
         chosen = m.subtitleTracks[nativeIndex]
         if not m.decoder.hasField("subtitleTrack")
@@ -1765,6 +1774,87 @@ function subtitleApiKeyClear() as boolean
     return false
 end function
 
+sub openSubDlApiKeyDialog()
+    scene = m.top.getScene()
+    if scene = invalid then
+        m.notice = "No se pudo abrir la configuración de SubDL."
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
+        return
+    end if
+    dialog = CreateObject("roSGNode","StandardKeyboardDialog")
+    if dialog = invalid then return
+    dialog.title = "API Key · SubDL"
+    dialog.message = ["Pega tu API Key de SubDL. Se guarda únicamente en este Roku."]
+    dialog.buttons = ["Guardar","Borrar","Cancelar"]
+    dialog.keyboardDomain = "password"
+    dialog.text = ""
+    if dialog.textEditBox <> invalid
+        dialog.textEditBox.secureMode = true
+        dialog.textEditBox.secureLastCharacter = true
+    end if
+    dialog.observeField("buttonSelected","onSubDlApiKeyDialogButton")
+    m.subtitleApiKeyDialog = dialog
+    scene.dialog = dialog
+end sub
+
+sub onSubDlApiKeyDialogButton()
+    dialog = m.subtitleApiKeyDialog
+    if dialog = invalid then return
+    selected = dialog.buttonSelected
+    scene = m.top.getScene()
+    if selected = 0
+        value = dialog.text
+        if GetInterface(value,"ifString") <> invalid then value = value.trim() else value = ""
+        if value <> "" and len(value) <= 512 and instr(1,value,chr(10)) = 0 and instr(1,value,chr(13)) = 0
+            if subdlApiKeySave(value) then m.notice = "API Key de SubDL guardada en este Roku." else m.notice = "No se pudo guardar la API Key de SubDL."
+        else
+            m.notice = "La API Key está vacía o no es válida."
+        end if
+    else if selected = 1
+        if subdlApiKeyClear() then m.notice = "API Key de SubDL borrada de este Roku." else m.notice = "No se pudo borrar la API Key de SubDL."
+    end if
+    m.subtitleApiKeyDialog = invalid
+    if scene <> invalid then scene.dialog = invalid
+    m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
+    drawSubtitleMenu()
+    revealTransport()
+    drawTransport()
+end sub
+
+function subdlApiKeyLoad() as string
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return ""
+    value = section.read("subdlApiKey")
+    if GetInterface(value,"ifString") = invalid then return ""
+    return value
+end function
+
+function subdlApiKeySave(value as dynamic) as boolean
+    if GetInterface(value,"ifString") = invalid then return false
+    candidate = value.trim()
+    if candidate = "" or len(candidate) > 512 or instr(1,candidate,chr(10)) > 0 or instr(1,candidate,chr(13)) > 0 then return false
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    previous = section.read("subdlApiKey")
+    if section.write("subdlApiKey",candidate) <> true then return false
+    if section.flush() = true then return true
+    if previous = "" then section.delete("subdlApiKey") else section.write("subdlApiKey",previous)
+    section.flush()
+    return false
+end function
+
+function subdlApiKeyClear() as boolean
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    previous = section.read("subdlApiKey")
+    if previous = "" then return true
+    section.delete("subdlApiKey")
+    if section.flush() = true then return true
+    section.write("subdlApiKey",previous)
+    section.flush()
+    return false
+end function
+
 sub startSubtitleSearchTask(operation as string, subtitleId as string)
     cancelSubtitleSearchTask()
     task = CreateObject("roSGNode","SubtitleSearchTask")
@@ -1783,6 +1873,21 @@ sub startSubtitleSearchTask(operation as string, subtitleId as string)
     end if
     task.subtitleId = subtitleId
     task.apiKey = subtitleApiKeyLoad()
+    task.subdlApiKey = subdlApiKeyLoad()
+    if type(m.current) = "roAssociativeArray"
+        if m.current.doesExist("kind") then task.kind = m.current.kind
+        if m.current.doesExist("season")
+            if GetInterface(m.current.season,"ifString") <> invalid then task.seasonNumber = m.current.season
+            if GetInterface(m.current.season,"ifInt") <> invalid then task.seasonNumber = m.current.season.toStr()
+        end if
+        if m.current.doesExist("episodeNumber")
+            if GetInterface(m.current.episodeNumber,"ifString") <> invalid then task.episodeNumber = m.current.episodeNumber
+            if GetInterface(m.current.episodeNumber,"ifInt") <> invalid then task.episodeNumber = m.current.episodeNumber.toStr()
+        else if m.current.doesExist("episode")
+            if GetInterface(m.current.episode,"ifString") <> invalid then task.episodeNumber = m.current.episode
+            if GetInterface(m.current.episode,"ifInt") <> invalid then task.episodeNumber = m.current.episode.toStr()
+        end if
+    end if
     task.language = "es"
     task.observeField("result","onSubtitleSearchTaskResult")
     m.subtitleSearchTask = task
