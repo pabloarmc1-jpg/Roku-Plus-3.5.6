@@ -199,7 +199,7 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
     total = payload.count()
     result.bytes = total
     if total < 188 then return result
-    result.packetCount = total \\ 188
+    result.packetCount = total \ 188
     result.trailingBytes = total mod 188
     result.aligned = true
     lastCounters = {}
@@ -212,7 +212,7 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
         else
             pid = (payload[offset+1] mod 32)*256+payload[offset+2]
             header = payload[offset+3]
-            adaptationControl = (header \\ 16) mod 4
+            adaptationControl = (header \ 16) mod 4
             continuity = header mod 16
             hasPayload = adaptationControl = 1 or adaptationControl = 3
             payloadStart = offset+4
@@ -275,7 +275,7 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                     dataStart = payloadStart
                     if payload[offset+1] >= 64 and payload[offset+1] < 128
                         if payloadStart+9 < offset+188 and payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
-                            pesFlags = (payload[payloadStart+7]  64) mod 4
+                            pesFlags = (payload[payloadStart+7] \ 64) mod 4
                             pesHeaderLength = payload[payloadStart+8]
                             if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5 and payloadStart+14 <= offset+188
                                 pts = rpHdTaskReadPts(payload,payloadStart+9)
@@ -315,7 +315,7 @@ function rpHdTaskReadPts(payload as object, offset as integer) as dynamic
     b2 = payload[offset+2]
     b3 = payload[offset+3]
     b4 = payload[offset+4]
-    return (b0 mod 16)*536870912+b1*4194304+(b2 \\ 4)*32768+b3*128+(b4 \\ 2)
+    return (b0 mod 16)*536870912+b1*4194304+(b2 \ 4)*32768+b3*128+(b4 \ 2)
 end function
 
 function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string) as object
