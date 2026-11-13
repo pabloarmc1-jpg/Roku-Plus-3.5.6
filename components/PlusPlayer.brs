@@ -2321,25 +2321,17 @@ sub advanceHlsSoftRestart(now as integer)
 end sub
 
 sub startStartupTitleAnimation()
-    if isPreviewPresentation() or m.startupTimer = invalid or m.startupTitle = invalid then return
+    if m.startupTimer <> invalid then m.startupTimer.control = "stop"
+    if isPreviewPresentation() or m.startupTitle = invalid then return
     if m.startupOverlay = invalid or not m.startupOverlay.visible then return
-    m.startupCharIndex = 0
-    m.startupTitle.text = ""
-    m.startupTimer.control = "start"
+    ' Match the reference: show the title as a centered static logo-style overlay.
+    fullTitle = m.titleText.text
+    if GetInterface(fullTitle, "ifString") = invalid then fullTitle = "CARGANDO"
+    m.startupTitle.text = UCase(fullTitle)
 end sub
 
 sub onStartupTypePulse()
-    if not m.mediaOpen or m.failed or m.phase = "playing" or m.startupOverlay = invalid or not m.startupOverlay.visible
-        if m.startupTimer <> invalid then m.startupTimer.control = "stop"
-        return
-    end if
-    fullTitle = m.titleText.text
-    if m.startupCharIndex < len(fullTitle)
-        m.startupCharIndex++
-        m.startupTitle.text = left(fullTitle,m.startupCharIndex)
-    else
-        m.startupTimer.control = "stop"
-    end if
+    if m.startupTimer <> invalid then m.startupTimer.control = "stop"
 end sub
 
 sub onPulse()
