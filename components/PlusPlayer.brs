@@ -33,6 +33,8 @@ sub init()
     m.titleText = m.top.findNode("titleText")
     m.startupOverlay = m.top.findNode("startupOverlay")
     m.startupTitle = m.top.findNode("startupTitle")
+    m.startupBanner = m.top.findNode("startupBanner")
+    m.startupLoadingText = m.top.findNode("startupLoadingText")
     m.startupTimer = m.top.findNode("startupTypeTimer")
     m.startupCharIndex = 0
     if m.startupTimer <> invalid then m.startupTimer.observeField("fire", "onStartupTypePulse")
@@ -691,6 +693,14 @@ sub openRequest()
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
     if m.startupTitle <> invalid then m.startupTitle.text = ""
+    if m.startupBanner <> invalid
+        bannerUri = ""
+        if GetInterface(supplied.background,"ifString") <> invalid then bannerUri = supplied.background
+        if bannerUri = "" and GetInterface(supplied.poster,"ifString") <> invalid then bannerUri = supplied.poster
+        m.startupBanner.uri = bannerUri
+        m.startupBanner.visible = bannerUri <> ""
+    end if
+    if m.startupLoadingText <> invalid then m.startupLoadingText.text = "CARGANDO..."
     m.startupCharIndex = 0
     if m.startupTimer <> invalid then m.startupTimer.control = "stop"
     ' Compact metadata row: only display values supplied by the catalogue.
