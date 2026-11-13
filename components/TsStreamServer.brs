@@ -502,5 +502,9 @@ function rpTsRelayReadPts(payload as object, offset as integer) as dynamic
     b2 = payload[offset+2]
     b3 = payload[offset+3]
     b4 = payload[offset+4]
-    return (b0 mod 16) * 536870912 + b1 * 4194304 + (b2 \ 4) * 32768 + b3 * 128 + (b4 \ 2)
+    prefix = b0 \ 16
+    if prefix <> 1 and prefix <> 2 and prefix <> 3 then return -1
+    if (b0 mod 2) <> 1 or (b2 mod 2) <> 1 or (b4 mod 2) <> 1 then return -1
+    ' MPEG-2 PTS/DTS is a 33-bit clock. Ignore marker bits and retain bit 1 of byte 2.
+    return ((b0 mod 16) \ 2) * 1073741824 + b1 * 4194304 + (b2 \ 2) * 32768 + b3 * 128 + (b4 \ 2)
 end function

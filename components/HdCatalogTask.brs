@@ -140,8 +140,15 @@ end function
 
 ' Adapters may discover Vimeos links differently but share media validation.
 ' Playlist checks and three bounded consecutive audio-segment samples are diagnostic only.
-function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string, videoAudit as dynamic) as object
+function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string, videoAudit as dynamic, videoManifest as dynamic) as object
     result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0}
+    videoPlaylistAudit = rpHdTaskAuditManifestTiming(videoManifest)
+    print "[RokuPlus video-playlist] segments="; videoPlaylistAudit.segmentCount; " extinf="; videoPlaylistAudit.extinfCount; " sequence="; videoPlaylistAudit.mediaSequence; " discontinuities="; videoPlaylistAudit.discontinuities; " target="; videoPlaylistAudit.targetDuration; " totalDuration="; videoPlaylistAudit.totalDuration
+    if type(videoAudit) = "roAssociativeArray"
+        pcrPidMatchesPmt = false
+        if videoAudit.audioPcrPid >= 0 and videoAudit.pmtPcrPid >= 0 then pcrPidMatchesPmt = (videoAudit.audioPcrPid = videoAudit.pmtPcrPid)
+        print "[RokuPlus video-clock] pcrPid="; videoAudit.audioPcrPid; " pmtPcrPid="; videoAudit.pmtPcrPid; " pcrPidMatchesPmt="; pcrPidMatchesPmt; " pcrCount="; videoAudit.audioPcrCount; " pcrSpanMs="; videoAudit.audioPcrSpanMs; " videoPtsCount="; videoAudit.videoPtsCount; " videoFirstPts="; videoAudit.firstVideoPts; " videoLastPts="; videoAudit.lastVideoPts
+    end if
     if type(master.audioTracks) <> "roArray" then return result
     if selected.audioGroup = "" then return result
     for each track in master.audioTracks
@@ -153,8 +160,16 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                 return result
             end if
             if response.ok and rpHdTaskMediaManifest(response.body,track.url)
+                audioPlaylistAudit = rpHdTaskAuditManifestTiming(response.body)
                 segments = rpHdTaskSegmentList(response.body,track.url)
                 durations = rpHdTaskSegmentDurations(response.body,segments.count())
+                sequenceDelta = -1
+                if videoPlaylistAudit.mediaSequence >= 0 and audioPlaylistAudit.mediaSequence >= 0 then sequenceDelta = audioPlaylistAudit.mediaSequence-videoPlaylistAudit.mediaSequence
+                totalDurationDeltaMs = (audioPlaylistAudit.totalDuration-videoPlaylistAudit.totalDuration)*1000.0
+                print "[RokuPlus audio-playlist] language="; track.language; " videoSegments="; videoPlaylistAudit.segmentCount; " audioSegments="; audioPlaylistAudit.segmentCount; " videoSequence="; videoPlaylistAudit.mediaSequence; " audioSequence="; audioPlaylistAudit.mediaSequence; " sequenceDelta="; sequenceDelta
+                print "[RokuPlus audio-playlist] language="; track.language; " videoDiscontinuities="; videoPlaylistAudit.discontinuities; " audioDiscontinuities="; audioPlaylistAudit.discontinuities; " videoDiscSequence="; videoPlaylistAudit.discontinuitySequence; " audioDiscSequence="; audioPlaylistAudit.discontinuitySequence; " totalDurationDeltaMs="; totalDurationDeltaMs; " targetVideo="; videoPlaylistAudit.targetDuration; " targetAudio="; audioPlaylistAudit.targetDuration
+                print "[RokuPlus audio-playlist] language="; track.language; " videoMap="; videoPlaylistAudit.hasMap; " audioMap="; audioPlaylistAudit.hasMap; " videoKey="; videoPlaylistAudit.hasKey; " audioKey="; audioPlaylistAudit.hasKey; " videoByteRanges="; videoPlaylistAudit.byteRanges; " audioByteRanges="; audioPlaylistAudit.byteRanges
+                print "[RokuPlus playlist-clock] language="; track.language; " videoFirstDate="; videoPlaylistAudit.firstProgramDateTime; " audioFirstDate="; audioPlaylistAudit.firstProgramDateTime; " videoLastDate="; videoPlaylistAudit.lastProgramDateTime; " audioLastDate="; audioPlaylistAudit.lastProgramDateTime
                 if segments.count() > 0
                     result.valid++
                     result.segments += segments.count()
@@ -179,13 +194,41 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                             if audit.aac and audit.adtsCandidates > 0 then result.aacSamples++
                             sampleDuration = -1.0
                             if durations.count() > segmentIndex then sampleDuration = durations[segmentIndex]
+                            videoSampleDuration = -1.0
+                            if videoPlaylistAudit.durations.count() > segmentIndex then videoSampleDuration = videoPlaylistAudit.durations[segmentIndex]
+                            durationDeltaMs = -1.0
+                            if sampleDuration > 0 and videoSampleDuration > 0 then durationDeltaMs = (sampleDuration-videoSampleDuration)*1000.0
+                            print "[RokuPlus playlist-segment] language="; track.language; " segment="; segmentIndex; " videoDuration="; videoSampleDuration; " audioDuration="; sampleDuration; " deltaMs="; durationDeltaMs
                             ptsSpanMs = -1.0
-                            if audit.ptsCount > 0 then ptsSpanMs = (audit.lastPts-audit.firstPts)/90.0
+                            if audit.ptsCount > 0
+                                ptsSpanTicks = audit.lastPts-audit.firstPts
+                                if ptsSpanTicks < 0 then ptsSpanTicks += 8589934592
+                                ptsSpanMs = ptsSpanTicks/90.0
+                            end if
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " duration="; sampleDuration; " bytes="; audit.bytes; " packets="; audit.packetCount; " trailingBytes="; audit.trailingBytes
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " aligned="; audit.aligned; " syncErrors="; audit.syncErrors; " pat="; audit.patPackets; " pmt="; audit.pmtPackets
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " audioPids="; audit.audioPids; " aac="; audit.aac; " audioBytes="; audit.audioElementaryBytes; " adtsFrames="; audit.adtsCandidates
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " ptsSpanMs="; ptsSpanMs; " continuityErrors="; audit.continuityErrors
-                            print "[RokuPlus audio-adts] language="; track.language; " segment="; segmentIndex; " frames="; audit.adtsFrames; " samples="; audit.adtsSamples; " sampleRate="; audit.adtsSampleRate; " durationMs="; audit.adtsDurationMs; " invalidHeaders="; audit.adtsInvalidHeaders; " incompleteFrames="; audit.adtsIncompleteFrames
+                            print "[RokuPlus audio-adts] language="; track.language; " segment="; segmentIndex; " frames="; audit.adtsFrames; " samples="; audit.adtsSamples; " sampleRate="; audit.adtsSampleRate; " durationMs="; audit.adtsDurationMs; " invalidHeaders="; audit.adtsInvalidHeaders; " incompleteFrames="; audit.adtsIncompleteFrames; " rateMismatches="; audit.adtsSampleRateMismatches; " profile="; audit.adtsProfile; " objectType="; audit.adtsObjectType; " channels="; audit.adtsChannelConfig; " mpegId="; audit.adtsMpegId; " crcFrames="; audit.adtsCrcProtectedFrames; " frameLengthMin="; audit.adtsFrameLengthMin; " frameLengthMax="; audit.adtsFrameLengthMax; " configChanges="; audit.adtsConfigChanges; " frameBytes="; audit.adtsFrameBytes
+                            print "[RokuPlus audio-pes] language="; track.language; " segment="; segmentIndex; " pesCount="; audit.audioPesRecords.count(); " headerSplit="; audit.audioPesHeaderSplitCount; " ptsDeltaMinMs="; audit.audioPtsDeltaMinMs; " ptsDeltaMaxMs="; audit.audioPtsDeltaMaxMs; " ptsDeltaAvgMs="; audit.audioPtsDeltaAvgMs; " nonMonotonic="; audit.audioPtsNonMonotonic
+                            print "[RokuPlus audio-pes] language="; track.language; " segment="; segmentIndex; " mappedAdtsFrames="; audit.adtsPesMappedFrames; " unmappedAdtsFrames="; audit.adtsPesUnmappedFrames; " mappedSamples="; audit.adtsPesMappedSamples; " ptsFrameDeltaAvgMs="; audit.audioPtsFrameDeltaAvgMs; " ptsFrameDeltaMaxAbsMs="; audit.audioPtsFrameDeltaMaxAbsMs
+                            print "[RokuPlus audio-pes] language="; track.language; " segment="; segmentIndex; " dtsCount="; audit.audioPesDtsCount; " zeroLength="; audit.audioPesZeroLengthCount; " descriptorLanguages="; audit.audioDescriptorLanguages; " patSections="; audit.patSectionCount; " pmtSections="; audit.pmtSectionCount; " psiSplit="; audit.psiSplitSectionCount; " patVersion="; audit.patVersion; " pmtVersion="; audit.pmtVersion; " program="; audit.pmtProgramNumber; " pmtSection="; audit.pmtSectionNumber; "/"; audit.pmtLastSectionNumber
+                            pcrPidMatchesPmt = false
+                            if audit.audioPcrPid >= 0 and audit.pmtPcrPid >= 0 then pcrPidMatchesPmt = (audit.audioPcrPid = audit.pmtPcrPid)
+                            pcrPtsDeltaMs = -1.0
+                            if audit.audioPcrCount > 0 and audit.ptsCount > 0
+                                pcrPtsDelta = audit.firstPts-audit.audioPcrFirst
+                                if pcrPtsDelta > 4294967296 then pcrPtsDelta -= 8589934592
+                                if pcrPtsDelta < -4294967296 then pcrPtsDelta += 8589934592
+                                pcrPtsDeltaMs = pcrPtsDelta/90.0
+                            end if
+                            print "[RokuPlus audio-clock] language="; track.language; " segment="; segmentIndex; " pcrPid="; audit.audioPcrPid; " pmtPcrPid="; audit.pmtPcrPid; " pcrPidMatchesPmt="; pcrPidMatchesPmt; " pcrCount="; audit.audioPcrCount; " pcrSpanMs="; audit.audioPcrSpanMs; " firstPtsMinusPcrMs="; pcrPtsDeltaMs
+                            print "[RokuPlus video-pes] language="; track.language; " segment="; segmentIndex; " ptsDeltaMinMs="; audit.videoPtsDeltaMinMs; " ptsDeltaMaxMs="; audit.videoPtsDeltaMaxMs; " ptsDeltaAvgMs="; audit.videoPtsDeltaAvgMs; " nonMonotonic="; audit.videoPtsNonMonotonic
+                            pesLogIndex = 0
+                            for each pesRecord in audit.audioPesRecords
+                                print "[RokuPlus audio-pes-record] language="; track.language; " segment="; segmentIndex; " index="; pesLogIndex; " packet="; pesRecord.packetIndex; " byteOffset="; pesRecord.byteOffset; " pts90k="; pesRecord.pts; " dts90k="; pesRecord.dts; " packetLength="; pesRecord.packetLength; " headerLength="; pesRecord.headerLength; " expectedPayload="; pesRecord.expectedPayloadBytes; " payloadDelta="; pesRecord.payloadLengthDelta; " byteSpan="; pesRecord.byteSpan; " frameBytes="; pesRecord.frameBytes; " unparsedBytes="; pesRecord.unparsedBytes; " frames="; pesRecord.frameCount; " samples="; pesRecord.frameSamples; " durationMs="; pesRecord.frameDurationMs; " ptsDtsMs="; pesRecord.ptsDtsDeltaMs; " ptsDeltaMs="; pesRecord.ptsDeltaFromPreviousMs; " ptsVsPrevFrameMs="; pesRecord.ptsFrameDurationDeltaMs
+                                pesLogIndex++
+                            end for
                             if segmentIndex = 0 and audit.ptsCount > 0 and type(videoAudit) = "roAssociativeArray" and videoAudit.videoPtsCount > 0
                                 deltaPts = audit.firstPts-videoAudit.firstVideoPts
                                 if deltaPts > 4294967296 then deltaPts -= 8589934592
@@ -230,9 +273,50 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
     return result
 end function
 
+' Parse HLS timing and discontinuity metadata without exposing signed segment URLs.
+function rpHdTaskAuditManifestTiming(body as dynamic) as object
+    result = {segmentCount:0,extinfCount:0,totalDuration:0.0,targetDuration:0.0,mediaSequence:-1,discontinuities:0,discontinuitySequence:-1,byteRanges:0,programDates:0,hasMap:false,hasKey:false,hasEndList:false,hasIndependent:false,firstProgramDateTime:"",lastProgramDateTime:"",durations:[]}
+    text = orbitText(body,2097153)
+    for each rawLine in text.split(chr(10))
+        line = rawLine.trim()
+        if left(line,8) = "#EXTINF:"
+            value = mid(line,9).split(",")[0].trim().toFloat()
+            result.extinfCount++
+            result.durations.push(value)
+            result.totalDuration += value
+        else if left(line,22) = "#EXT-X-TARGETDURATION:"
+            result.targetDuration = mid(line,23).trim().toFloat()
+        else if left(line,22) = "#EXT-X-MEDIA-SEQUENCE:"
+            result.mediaSequence = mid(line,23).trim().toInt()
+        else if line = "#EXT-X-DISCONTINUITY"
+            result.discontinuities++
+        else if left(line,30) = "#EXT-X-DISCONTINUITY-SEQUENCE:"
+            result.discontinuitySequence = mid(line,31).trim().toInt()
+        else if left(line,17) = "#EXT-X-BYTERANGE:"
+            result.byteRanges++
+        else if left(line,25) = "#EXT-X-PROGRAM-DATE-TIME:"
+            result.programDates++
+            dateValue = mid(line,26).trim()
+            if result.firstProgramDateTime = "" then result.firstProgramDateTime = dateValue
+            result.lastProgramDateTime = dateValue
+        else if left(line,11) = "#EXT-X-MAP:"
+            result.hasMap = true
+        else if left(line,11) = "#EXT-X-KEY:"
+            result.hasKey = true
+        else if left(line,14) = "#EXT-X-ENDLIST"
+            result.hasEndList = true
+        else if left(line,28) = "#EXT-X-INDEPENDENT-SEGMENTS"
+            result.hasIndependent = true
+        else if line <> "" and left(line,1) <> "#"
+            result.segmentCount++
+        end if
+    end for
+    return result
+end function
+
 ' Inspect only complete 188-byte packets from a bounded sample; never mutate playback data.
 function rpHdTaskAuditAudioSegment(payload as object) as object
-    result = {bytes:0,packetCount:0,trailingBytes:0,aligned:false,syncErrors:0,patPackets:0,pmtPackets:0,pmtPid:-1,videoPid:-1,aac:false,audioPids:"",ptsCount:0,firstPts:-1,lastPts:-1,videoPtsCount:0,firstVideoPts:-1,lastVideoPts:-1,adtsCandidates:0,audioElementaryBytes:0,adtsFrames:0,adtsSamples:0,adtsDurationMs:0,adtsSampleRate:0,adtsInvalidHeaders:0,adtsIncompleteFrames:0,continuityErrors:0}
+    result = {bytes:0,packetCount:0,trailingBytes:0,aligned:false,syncErrors:0,patPackets:0,pmtPackets:0,pmtPid:-1,videoPid:-1,aac:false,audioPids:"",ptsCount:0,firstPts:-1,lastPts:-1,videoPtsCount:0,firstVideoPts:-1,lastVideoPts:-1,adtsCandidates:0,audioElementaryBytes:0,adtsFrames:0,adtsSamples:0,adtsDurationMs:0,adtsSampleRate:0,adtsInvalidHeaders:0,adtsIncompleteFrames:0,adtsSampleRateMismatches:0,adtsProfile:-1,adtsObjectType:-1,adtsChannelConfig:-1,adtsMpegId:-1,adtsCrcProtectedFrames:0,adtsFrameLengthMin:-1,adtsFrameLengthMax:0,adtsConfigChanges:0,adtsFrameBytes:0,audioPtsFrameDeltaAvgMs:-1,audioPtsFrameDeltaMaxAbsMs:-1,continuityErrors:0,audioPesRecords:[],audioPesHeaderSplitCount:0,audioPesDtsCount:0,audioPesZeroLengthCount:0,audioPtsDeltaMinMs:-1,audioPtsDeltaMaxMs:-1,audioPtsDeltaAvgMs:-1,audioPtsNonMonotonic:0,videoPtsDeltaMinMs:-1,videoPtsDeltaMaxMs:-1,videoPtsDeltaAvgMs:-1,videoPtsNonMonotonic:0,audioPcrCount:0,audioPcrPid:-1,audioPcrFirst:-1,audioPcrLast:-1,audioPcrSpanMs:-1,pmtPcrPid:-1,audioDescriptorLanguages:"",patSectionCount:0,pmtSectionCount:0,psiSplitSectionCount:0,patVersion:-1,pmtVersion:-1,pmtProgramNumber:-1,pmtSectionNumber:-1,pmtLastSectionNumber:-1,adtsPesMappedFrames:0,adtsPesUnmappedFrames:0,adtsPesMappedSamples:0}
     if type(payload) <> "roByteArray" then return result
     total = payload.count()
     result.bytes = total
@@ -244,6 +328,7 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
     haveCounters = {}
     audioPidFlags = {}
     audioBytes = []
+    videoPtsValues = []
     for packetIndex = 0 to result.packetCount-1
         offset = packetIndex*188
         if payload[offset] <> &H47
@@ -254,13 +339,36 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
             adaptationControl = (header \ 16) mod 4
             continuity = header mod 16
             hasPayload = adaptationControl = 1 or adaptationControl = 3
+            discontinuity = false
+            ' PCR belongs to the program clock; capture its PID and 27-MHz value.
+            if adaptationControl = 2 or adaptationControl = 3
+                adaptationLength = payload[offset+4]
+                if adaptationLength > 0 and offset+5 < total
+                    adaptationFlags = payload[offset+5]
+                    if (adaptationFlags and &H80) <> 0 then discontinuity = true
+                end if
+                if adaptationLength >= 7 and offset+5+adaptationLength <= offset+188 and offset+11 < total
+                    adaptationFlags = payload[offset+5]
+                    if (adaptationFlags and &H10) <> 0
+                        pcrBase = payload[offset+6]*33554432+payload[offset+7]*131072+payload[offset+8]*512+payload[offset+9]*2+(payload[offset+10] \ 128)
+                        pcrExtension = (payload[offset+10] mod 2)*256+payload[offset+11]
+                        pcrValue = pcrBase+pcrExtension/300.0
+                        if result.audioPcrCount = 0
+                            result.audioPcrFirst = pcrValue
+                            result.audioPcrPid = pid
+                        end if
+                        result.audioPcrLast = pcrValue
+                        result.audioPcrCount++
+                    end if
+                end if
+            end if
             payloadStart = offset+4
             if adaptationControl = 3 then payloadStart = offset+5+payload[offset+4]
             if hasPayload and payloadStart < offset+188
                 key = pid.toStr()
                 if pid <> 8191
                     if haveCounters[key] = true
-                        if continuity <> ((lastCounters[key]+1) mod 16) then result.continuityErrors++
+                        if continuity <> lastCounters[key] and continuity <> ((lastCounters[key]+1) mod 16) and not discontinuity then result.continuityErrors++
                     end if
                     lastCounters[key] = continuity
                     haveCounters[key] = true
@@ -272,6 +380,8 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                         sectionLength = (payload[sectionStart+1] mod 16)*256+payload[sectionStart+2]
                         sectionEnd = sectionStart+3+sectionLength
                         if sectionEnd <= offset+188
+                            result.patSectionCount++
+                            result.patVersion = (payload[sectionStart+5] \ 2) mod 32
                             entry = sectionStart+8
                             while entry+4 <= sectionEnd-4
                                 programNumber = payload[entry]*256+payload[entry+1]
@@ -281,16 +391,24 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                                 end if
                                 entry += 4
                             end while
+                        else
+                            result.psiSplitSectionCount++
                         end if
                     end if
                 else if pid = result.pmtPid and result.pmtPid >= 0
                     pointer = payload[payloadStart]
                     sectionStart = payloadStart+1+pointer
                     if sectionStart+12 <= offset+188 and payload[sectionStart] = 2
+                        result.pmtPcrPid = (payload[sectionStart+8] mod 32)*256+payload[sectionStart+9]
                         sectionLength = (payload[sectionStart+1] mod 16)*256+payload[sectionStart+2]
                         sectionEnd = sectionStart+3+sectionLength
                         if sectionEnd <= offset+188
                             result.pmtPackets++
+                            result.pmtSectionCount++
+                            result.pmtProgramNumber = payload[sectionStart+3]*256+payload[sectionStart+4]
+                            result.pmtVersion = (payload[sectionStart+5] \ 2) mod 32
+                            result.pmtSectionNumber = payload[sectionStart+6]
+                            result.pmtLastSectionNumber = payload[sectionStart+7]
                             programInfoLength = (payload[sectionStart+10] mod 16)*256+payload[sectionStart+11]
                             entry = sectionStart+12+programInfoLength
                             while entry+5 <= sectionEnd-4
@@ -301,6 +419,19 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                                     result.videoPid = elementaryPid
                                 else if streamType = 15 or streamType = 17
                                     result.aac = true
+                                    descriptorOffset = entry+5
+                                    descriptorEnd = descriptorOffset+esInfoLength
+                                    while descriptorOffset+2 <= descriptorEnd
+                                        descriptorTag = payload[descriptorOffset]
+                                        descriptorLength = payload[descriptorOffset+1]
+                                        if descriptorOffset+2+descriptorLength > descriptorEnd then exit while
+                                        if descriptorTag = 10 and descriptorLength >= 4
+                                            descriptorLanguage = chr(payload[descriptorOffset+2])+chr(payload[descriptorOffset+3])+chr(payload[descriptorOffset+4])
+                                            if result.audioDescriptorLanguages <> "" then result.audioDescriptorLanguages += ","
+                                            result.audioDescriptorLanguages += descriptorLanguage
+                                        end if
+                                        descriptorOffset += 2+descriptorLength
+                                    end while
                                     if not audioPidFlags.doesExist(elementaryPid.toStr())
                                         audioPidFlags[elementaryPid.toStr()] = true
                                         if result.audioPids <> "" then result.audioPids += ","
@@ -309,6 +440,8 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                                 end if
                                 entry += 5+esInfoLength
                             end while
+                        else
+                            result.psiSplitSectionCount++
                         end if
                     end if
                 end if
@@ -320,17 +453,30 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                     if payloadUnitStart and payloadStart+9 < offset+188 and payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
                         pesFlags = (payload[payloadStart+7] \ 64) mod 4
                         pesHeaderLength = payload[payloadStart+8]
+                        if isAudioPid and payloadStart+9+pesHeaderLength > offset+188
+                            result.audioPesHeaderSplitCount++
+                            dataStart = offset+188
+                        end if
                         if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5 and payloadStart+14 <= offset+188
                             pts = rpHdTaskReadPts(payload,payloadStart+9)
+                            dts = -1
+                            if pesFlags = 3 and pesHeaderLength >= 10 and payloadStart+19 <= offset+188
+                                dts = rpHdTaskReadPts(payload,payloadStart+14)
+                            end if
+                            pesPacketLength = payload[payloadStart+4]*256+payload[payloadStart+5]
                             if pts >= 0
                                 if isAudioPid
                                     if result.ptsCount = 0 then result.firstPts = pts
                                     result.lastPts = pts
                                     result.ptsCount++
+                                    if dts >= 0 then result.audioPesDtsCount++
+                                    if pesPacketLength = 0 then result.audioPesZeroLengthCount++
+                                    result.audioPesRecords.push({byteOffset:audioBytes.count(),pts:pts,dts:dts,packetLength:pesPacketLength,headerLength:pesHeaderLength,packetIndex:packetIndex,ptsDeltaFromPreviousMs:-1.0,ptsFrameDurationDeltaMs:-1.0})
                                 else
                                     if result.videoPtsCount = 0 then result.firstVideoPts = pts
                                     result.lastVideoPts = pts
                                     result.videoPtsCount++
+                                    videoPtsValues.push(pts)
                                 end if
                             end if
                         end if
@@ -354,6 +500,121 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
     result.adtsSampleRate = adts.sampleRate
     result.adtsInvalidHeaders = adts.invalidHeaders
     result.adtsIncompleteFrames = adts.incompleteFrames
+    result.adtsSampleRateMismatches = adts.sampleRateMismatches
+    result.adtsProfile = adts.profile
+    result.adtsObjectType = adts.objectType
+    result.adtsChannelConfig = adts.channelConfig
+    result.adtsMpegId = adts.mpegId
+    result.adtsCrcProtectedFrames = adts.crcProtectedFrames
+    result.adtsFrameLengthMin = adts.frameLengthMin
+    result.adtsFrameLengthMax = adts.frameLengthMax
+    result.adtsConfigChanges = adts.configChanges
+    result.adtsFrameBytes = adts.frameBytes
+    ' Associate ADTS frame byte offsets with each PES PTS record.
+    for recordIndex = 0 to result.audioPesRecords.count()-1
+        record = result.audioPesRecords[recordIndex]
+        nextOffset = audioBytes.count()
+        if recordIndex+1 < result.audioPesRecords.count()
+            nextOffset = result.audioPesRecords[recordIndex+1].byteOffset
+        end if
+        mappedFrames = 0
+        for each frameOffset in adts.frameOffsets
+            if frameOffset >= record.byteOffset and frameOffset < nextOffset then mappedFrames++
+        end for
+        mappedSamples = 0
+        for frameIndex = 0 to adts.frameOffsets.count()-1
+            frameOffset = adts.frameOffsets[frameIndex]
+            if frameOffset >= record.byteOffset and frameOffset < nextOffset
+                mappedSamples += adts.frameSamples[frameIndex]
+            end if
+        end for
+        record.frameCount = mappedFrames
+        record.frameSamples = mappedSamples
+        record.frameDurationMs = 0.0
+        record.frameBytes = 0
+        for frameIndex = 0 to adts.frameOffsets.count()-1
+            frameOffset = adts.frameOffsets[frameIndex]
+            if frameOffset >= record.byteOffset and frameOffset < nextOffset
+                record.frameBytes += adts.frameLengths[frameIndex]
+            end if
+        end for
+        record.byteSpan = nextOffset-record.byteOffset
+        record.unparsedBytes = record.byteSpan-record.frameBytes
+        record.expectedPayloadBytes = -1
+        if record.packetLength > 0 then record.expectedPayloadBytes = record.packetLength-3-record.headerLength
+        record.payloadLengthDelta = -1
+        if record.expectedPayloadBytes >= 0 then record.payloadLengthDelta = record.byteSpan-record.expectedPayloadBytes
+        record.ptsDtsDeltaMs = -1.0
+        if record.dts >= 0
+            ptsDtsDelta = record.pts-record.dts
+            if ptsDtsDelta > 4294967296 then ptsDtsDelta -= 8589934592
+            if ptsDtsDelta < -4294967296 then ptsDtsDelta += 8589934592
+            record.ptsDtsDeltaMs = ptsDtsDelta/90.0
+        end if
+        if adts.sampleRate > 0 then record.frameDurationMs = mappedSamples*1000.0/adts.sampleRate
+        result.adtsPesMappedFrames += mappedFrames
+        result.adtsPesMappedSamples += mappedSamples
+    end for
+    result.adtsPesUnmappedFrames = result.adtsFrames-result.adtsPesMappedFrames
+    ptsFrameErrorTotal = 0.0
+    ptsFrameErrorMaxAbs = 0.0
+    ptsFrameErrorCount = 0
+    for recordIndex = 1 to result.audioPesRecords.count()-1
+        previousRecord = result.audioPesRecords[recordIndex-1]
+        currentRecord = result.audioPesRecords[recordIndex]
+        ptsFrameDelta = currentRecord.pts-previousRecord.pts
+        if ptsFrameDelta > 4294967296 then ptsFrameDelta -= 8589934592
+        if ptsFrameDelta < -4294967296 then ptsFrameDelta += 8589934592
+        currentRecord.ptsDeltaFromPreviousMs = ptsFrameDelta/90.0
+        currentRecord.ptsFrameDurationDeltaMs = currentRecord.ptsDeltaFromPreviousMs-previousRecord.frameDurationMs
+        ptsFrameError = abs(currentRecord.ptsFrameDurationDeltaMs)
+        if ptsFrameError > ptsFrameErrorMaxAbs then ptsFrameErrorMaxAbs = ptsFrameError
+        ptsFrameErrorTotal += currentRecord.ptsFrameDurationDeltaMs
+        ptsFrameErrorCount++
+    end for
+    if ptsFrameErrorCount > 0
+        result.audioPtsFrameDeltaAvgMs = ptsFrameErrorTotal/ptsFrameErrorCount
+        result.audioPtsFrameDeltaMaxAbsMs = ptsFrameErrorMaxAbs
+    end if
+    if result.audioPesRecords.count() > 1
+        deltaTotal = 0.0
+        deltaCount = 0
+        for recordIndex = 1 to result.audioPesRecords.count()-1
+            previousRecord = result.audioPesRecords[recordIndex-1]
+            currentRecord = result.audioPesRecords[recordIndex]
+            delta = currentRecord.pts-previousRecord.pts
+            if delta > 4294967296 then delta -= 8589934592
+            if delta < -4294967296 then delta += 8589934592
+            deltaMs = delta/90.0
+            if deltaCount = 0 or deltaMs < result.audioPtsDeltaMinMs then result.audioPtsDeltaMinMs = deltaMs
+            if deltaCount = 0 or deltaMs > result.audioPtsDeltaMaxMs then result.audioPtsDeltaMaxMs = deltaMs
+            if deltaMs <= 0 then result.audioPtsNonMonotonic++
+            deltaTotal += deltaMs
+            deltaCount++
+        end for
+        if deltaCount > 0 then result.audioPtsDeltaAvgMs = deltaTotal/deltaCount
+    end if
+    if videoPtsValues.count() > 1
+        videoDeltaTotal = 0.0
+        videoDeltaCount = 0
+        for recordIndex = 1 to videoPtsValues.count()-1
+            videoDelta = videoPtsValues[recordIndex]-videoPtsValues[recordIndex-1]
+            if videoDelta > 4294967296 then videoDelta -= 8589934592
+            if videoDelta < -4294967296 then videoDelta += 8589934592
+            videoDeltaMs = videoDelta/90.0
+            if videoDeltaCount = 0 or videoDeltaMs < result.videoPtsDeltaMinMs then result.videoPtsDeltaMinMs = videoDeltaMs
+            if videoDeltaCount = 0 or videoDeltaMs > result.videoPtsDeltaMaxMs then result.videoPtsDeltaMaxMs = videoDeltaMs
+            if videoDeltaMs <= 0 then result.videoPtsNonMonotonic++
+            videoDeltaTotal += videoDeltaMs
+            videoDeltaCount++
+        end for
+        if videoDeltaCount > 0 then result.videoPtsDeltaAvgMs = videoDeltaTotal/videoDeltaCount
+    end if
+    if result.audioPcrCount > 1
+        pcrDelta = result.audioPcrLast-result.audioPcrFirst
+        if pcrDelta < 0 then pcrDelta += 8589934592
+        result.audioPcrSpanMs = pcrDelta/90.0
+    end if
     result.patPackets = 0
     for packetIndex = 0 to result.packetCount-1
         offset = packetIndex*188
@@ -367,7 +628,7 @@ end function
 
 ' Validate complete ADTS frames in the reconstructed AAC elementary-stream bytes.
 function rpHdTaskAuditAdtsBytes(data as object) as object
-    result = {frames:0,samples:0,durationMs:0,sampleRate:0,invalidHeaders:0,incompleteFrames:0}
+    result = {frames:0,samples:0,durationMs:0,sampleRate:0,invalidHeaders:0,incompleteFrames:0,frameOffsets:[],frameSamples:[],frameLengths:[],sampleRateMismatches:0,profile:-1,objectType:-1,channelConfig:-1,mpegId:-1,crcProtectedFrames:0,frameLengthMin:-1,frameLengthMax:0,configChanges:0,frameBytes:0}
     if type(data) <> "roArray" then return result
     total = data.count()
     offset = 0
@@ -385,12 +646,34 @@ function rpHdTaskAuditAdtsBytes(data as object) as object
                 end if
                 sampleRates = [96000,88200,64000,48000,44100,32000,24000,22050,16000,12000,11025,8000,7350]
                 rate = sampleRates[sampleRateIndex]
+                profile = (data[offset+2] \ 64) mod 4
+                mpegId = (data[offset+1] \ 8) mod 2
+                channelConfig = (data[offset+2] mod 2)*4+((data[offset+3] \ 64) mod 4)
+                if result.frames = 0
+                    result.profile = profile
+                    result.objectType = profile+1
+                    result.channelConfig = channelConfig
+                    result.mpegId = mpegId
+                else if result.profile <> profile or result.channelConfig <> channelConfig or result.mpegId <> mpegId
+                    result.configChanges++
+                end if
+                if protectionAbsent = 0 then result.crcProtectedFrames++
+                if result.frameLengthMin < 0 or frameLength < result.frameLengthMin then result.frameLengthMin = frameLength
+                if frameLength > result.frameLengthMax then result.frameLengthMax = frameLength
+                result.frameBytes += frameLength
                 rawBlocks = data[offset+6] mod 4
                 frameSamples = 1024*(rawBlocks+1)
                 result.frames++
+                result.frameOffsets.push(offset)
+                result.frameSamples.push(frameSamples)
+                result.frameLengths.push(frameLength)
                 result.samples += frameSamples
                 result.durationMs += (frameSamples*1000.0)/rate
-                if result.sampleRate = 0 then result.sampleRate = rate
+                if result.sampleRate = 0
+                    result.sampleRate = rate
+                else if result.sampleRate <> rate
+                    result.sampleRateMismatches++
+                end if
                 offset += frameLength
             else
                 result.invalidHeaders++
@@ -410,7 +693,11 @@ function rpHdTaskReadPts(payload as object, offset as integer) as dynamic
     b2 = payload[offset+2]
     b3 = payload[offset+3]
     b4 = payload[offset+4]
-    return (b0 mod 16)*536870912+b1*4194304+(b2 \ 4)*32768+b3*128+(b4 \ 2)
+    prefix = b0 \ 16
+    if prefix <> 1 and prefix <> 2 and prefix <> 3 then return -1
+    if (b0 mod 2) <> 1 or (b2 mod 2) <> 1 or (b4 mod 2) <> 1 then return -1
+    ' MPEG-2 PTS/DTS: marker bits are excluded; preserve all 33 timestamp bits.
+    return ((b0 mod 16) \ 2)*1073741824+b1*4194304+(b2 \ 2)*32768+b3*128+(b4 \ 2)
 end function
 
 function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string) as object
@@ -503,7 +790,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 ' Diagnostic-only: inspect external audio playlists; playback remains the validated video TS relay.
                                 rpHdTaskBeginSlice(1)
                                 videoAudit = rpHdTaskAuditAudioSegment(sample.bytes)
-                                audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer,videoAudit)
+                                audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer,videoAudit,child.body)
                                 answer.segmentUrls = relaySegments
                                 answer.tsRelayEnabled = true
                                 segmentDurations = rpHdTaskSegmentDurations(child.body,relaySegments.count())
