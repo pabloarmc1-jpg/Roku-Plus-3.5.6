@@ -283,7 +283,7 @@ function subtitleGet(transfer as object, endpoint as string) as dynamic
     if left(endpoint,37) = "https://subtitles.website/strapi/api/" then allowed = true
     if left(endpoint,41) = "https://subtitles.website/strapi/uploads/" then allowed = true
     if left(endpoint,29) = "https://api.subdl.com/api/v1/" then allowed = true
-    if left(endpoint,26) = "https://dl.subdl.com/subtitle/" then allowed = true
+    if left(endpoint,30) = "https://dl.subdl.com/subtitle/" then allowed = true
     if not allowed then return invalid
     m.subtitleHttpStatus = 0
     port = CreateObject("roMessagePort")
