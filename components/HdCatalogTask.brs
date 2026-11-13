@@ -139,8 +139,9 @@ function rpHdTaskResolveItem(item as object, provider as string, answer as objec
 end function
 
 ' Adapters may discover Vimeos links differently but share media validation.
+' Playlist checks and one bounded first-segment sample are diagnostic only.
 function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string) as object
-    result = {checked:0,valid:0,segments:0,durationSets:0}
+    result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0}
     if type(master.audioTracks) <> "roArray" then return result
     if selected.audioGroup = "" then return result
     for each track in master.audioTracks
@@ -159,6 +160,25 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                     result.segments += segments.count()
                     if durations.count() = segments.count() then result.durationSets++
                     print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=valid segments="; segments.count(); " durations="; durations.count()
+                    if result.samples < 2
+                        sample = fetcher(segments[0],"audio-sample",referer)
+                        if sample.cancelled
+                            print "[RokuPlus audio-audit] cancelled before segment sample"
+                            return result
+                        end if
+                        if sample.ok
+                            result.samples++
+                            audit = rpHdTaskAuditAudioSegment(sample.bytes)
+                            if audit.aligned and audit.syncErrors = 0 and audit.packetCount > 0 then result.tsValid++
+                            if audit.aac and audit.adtsCandidates > 0 then result.aacSamples++
+                            print "[RokuPlus audio-sample] language="; track.language; " bytes="; audit.bytes; " packets="; audit.packetCount; " trailingBytes="; audit.trailingBytes
+                            print "[RokuPlus audio-sample] language="; track.language; " aligned="; audit.aligned; " syncErrors="; audit.syncErrors; " pat="; audit.patPackets; " pmt="; audit.pmtPackets
+                            print "[RokuPlus audio-sample] language="; track.language; " audioPids="; audit.audioPids; " aac="; audit.aac; " adtsCandidates="; audit.adtsCandidates
+                            print "[RokuPlus audio-sample] language="; track.language; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " continuityErrors="; audit.continuityErrors
+                        else
+                            print "[RokuPlus audio-sample] language="; track.language; " request_failed status="; response.httpStatus
+                        end if
+                    end if
                 else
                     print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=empty"
                 end if
@@ -168,7 +188,134 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
         end if
     end for
     print "[RokuPlus audio-audit] checked="; result.checked; " valid="; result.valid; " segments="; result.segments; " durationSets="; result.durationSets
+    print "[RokuPlus audio-audit] samples="; result.samples; " tsValid="; result.tsValid; " aacSamples="; result.aacSamples
     return result
+end function
+
+' Inspect only complete 188-byte packets from a bounded sample; never mutate playback data.
+function rpHdTaskAuditAudioSegment(payload as object) as object
+    result = {bytes:0,packetCount:0,trailingBytes:0,aligned:false,syncErrors:0,patPackets:0,pmtPackets:0,pmtPid:-1,aac:false,audioPids:"",ptsCount:0,firstPts:-1,lastPts:-1,adtsCandidates:0,continuityErrors:0}
+    if type(payload) <> "roByteArray" then return result
+    total = payload.count()
+    result.bytes = total
+    if total < 188 then return result
+    result.packetCount = total  188
+    result.trailingBytes = total mod 188
+    result.aligned = result.trailingBytes = 0
+    lastCounters = {}
+    haveCounters = {}
+    audioPidFlags = {}
+    for packetIndex = 0 to result.packetCount-1
+        offset = packetIndex*188
+        if payload[offset] <> &H47
+            result.syncErrors++
+        else
+            pid = (payload[offset+1] mod 32)*256+payload[offset+2]
+            header = payload[offset+3]
+            adaptationControl = (header  16) mod 4
+            continuity = header mod 16
+            hasPayload = adaptationControl = 1 or adaptationControl = 3
+            payloadStart = offset+4
+            if adaptationControl = 3 then payloadStart = offset+5+payload[offset+4]
+            if hasPayload and payloadStart < offset+188
+                key = pid.toStr()
+                if pid <> 8191
+                    if haveCounters[key] = true
+                        if continuity <> ((lastCounters[key]+1) mod 16) then result.continuityErrors++
+                    end if
+                    lastCounters[key] = continuity
+                    haveCounters[key] = true
+                end if
+                if pid = 0
+                    pointer = payload[payloadStart]
+                    sectionStart = payloadStart+1+pointer
+                    if sectionStart+12 <= offset+188 and payload[sectionStart] = 0
+                        sectionLength = (payload[sectionStart+1] mod 16)*256+payload[sectionStart+2]
+                        sectionEnd = sectionStart+3+sectionLength
+                        if sectionEnd <= offset+188
+                            entry = sectionStart+8
+                            while entry+4 <= sectionEnd-4
+                                programNumber = payload[entry]*256+payload[entry+1]
+                                if programNumber > 0
+                                    result.pmtPid = (payload[entry+2] mod 32)*256+payload[entry+3]
+                                    exit while
+                                end if
+                                entry += 4
+                            end while
+                        end if
+                    end if
+                else if pid = result.pmtPid and result.pmtPid >= 0
+                    pointer = payload[payloadStart]
+                    sectionStart = payloadStart+1+pointer
+                    if sectionStart+12 <= offset+188 and payload[sectionStart] = 2
+                        sectionLength = (payload[sectionStart+1] mod 16)*256+payload[sectionStart+2]
+                        sectionEnd = sectionStart+3+sectionLength
+                        if sectionEnd <= offset+188
+                            result.pmtPackets++
+                            programInfoLength = (payload[sectionStart+10] mod 16)*256+payload[sectionStart+11]
+                            entry = sectionStart+12+programInfoLength
+                            while entry+5 <= sectionEnd-4
+                                streamType = payload[entry]
+                                elementaryPid = (payload[entry+1] mod 32)*256+payload[entry+2]
+                                esInfoLength = (payload[entry+3] mod 16)*256+payload[entry+4]
+                                if streamType = 15 or streamType = 17
+                                    result.aac = true
+                                    if not audioPidFlags.doesExist(elementaryPid.toStr())
+                                        audioPidFlags[elementaryPid.toStr()] = true
+                                        if result.audioPids <> "" then result.audioPids += ","
+                                        result.audioPids += elementaryPid.toStr()
+                                    end if
+                                end if
+                                entry += 5+esInfoLength
+                            end while
+                        end if
+                    end if
+                end if
+                if audioPidFlags.doesExist(pid.toStr()) and audioPidFlags[pid.toStr()]
+                    dataStart = payloadStart
+                    if payload[offset+1] >= 64 and payload[offset+1] < 128
+                        if payloadStart+9 < offset+188 and payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
+                            pesFlags = (payload[payloadStart+7]  64) mod 4
+                            pesHeaderLength = payload[payloadStart+8]
+                            if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5 and payloadStart+14 <= offset+188
+                                pts = rpHdTaskReadPts(payload,payloadStart+9)
+                                if pts >= 0
+                                    if result.ptsCount = 0 then result.firstPts = pts
+                                    result.lastPts = pts
+                                    result.ptsCount++
+                                end if
+                            end if
+                            dataStart = payloadStart+9+pesHeaderLength
+                        end if
+                    end if
+                    if dataStart < offset+188
+                        for scan = dataStart to offset+186
+                            if payload[scan] = 255 and payload[scan+1] >= 240 and payload[scan+1] <= 247 then result.adtsCandidates++
+                        end for
+                    end if
+                end if
+            end if
+        end if
+    end for
+    result.patPackets = 0
+    for packetIndex = 0 to result.packetCount-1
+        offset = packetIndex*188
+        if payload[offset] = &H47
+            pid = (payload[offset+1] mod 32)*256+payload[offset+2]
+            if pid = 0 then result.patPackets++
+        end if
+    end for
+    return result
+end function
+
+function rpHdTaskReadPts(payload as object, offset as integer) as dynamic
+    if offset < 0 or offset+4 >= payload.count() then return -1
+    b0 = payload[offset]
+    b1 = payload[offset+1]
+    b2 = payload[offset+2]
+    b3 = payload[offset+3]
+    b4 = payload[offset+4]
+    return (b0 mod 16)*536870912+b1*4194304+(b2  4)*32768+b3*128+(b4  2)
 end function
 
 function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string) as object
@@ -1050,7 +1197,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
         if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","").isMatch(endpoint) then return true
         return CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","").isMatch(endpoint)
     end if
-    if role = "media" or role = "sample" or role = "sample-tail" or role = "sample-full" then return rpHdOnlineCdn(endpoint) <> ""
+    if role = "media" or role = "sample" or role = "audio-sample" or role = "sample-tail" or role = "sample-full" then return rpHdOnlineCdn(endpoint) <> ""
     return false
 end function
 
@@ -1090,7 +1237,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     end if
     if referer <> "" then transfer.addHeader("Referer",referer)
     limit = 2097152
-    if role = "sample"
+    if role = "sample" or role = "audio-sample"
         transfer.addHeader("Range","bytes=0-65535")
         limit = 131072
     else if role = "sample-tail"
@@ -1171,13 +1318,13 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     answer.httpServer = rpHdTaskResponseHeader(responseHeaders,"server")
     answer.httpVia = rpHdTaskResponseHeader(responseHeaders,"via")
     successCode = code = 200
-    if role = "sample" or role = "sample-tail" then successCode = code = 206
+    if role = "sample" or role = "audio-sample" or role = "sample-tail" then successCode = code = 206
     if finished and successCode and not m.top.cancelRequested
         bytes = rpHdTaskFileSize(files.stat(filename))
         if bytes > 0 and bytes <= limit
-            if role = "sample" or role = "sample-tail" or role = "sample-full"
+            if role = "sample" or role = "audio-sample" or role = "sample-tail" or role = "sample-full"
                 rangeOk = true
-                if role = "sample" then rangeOk = rpHdTaskRangeResponse(responseHeaders,bytes)
+                if role = "sample" or role = "audio-sample" then rangeOk = rpHdTaskRangeResponse(responseHeaders,bytes)
                 if role = "sample-tail" then rangeOk = rpHdTaskTailRangeResponse(responseHeaders,bytes)
                 if rangeOk
                     binary = CreateObject("roByteArray")
