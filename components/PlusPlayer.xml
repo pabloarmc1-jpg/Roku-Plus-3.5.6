@@ -92,18 +92,16 @@
         <Poster id="endEpisodePoster" width="500" height="300" loadDisplayMode="scaleToFill" visible="false" />
         <Label id="endEpisodeTitle" translation="[0,-76]" width="500" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
         <Group id="endCountdownBadge" translation="[414,214]">
-          <Rectangle width="76" height="76" cornerRadius="38" color="0x080A0FEA" />
-          <Rectangle id="endCountdownDot1" translation="[34,0]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle id="endCountdownDot2" translation="[54,7]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle id="endCountdownDot3" translation="[68,24]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle id="endCountdownDot4" translation="[68,44]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle id="endCountdownDot5" translation="[54,61]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle id="endCountdownDot6" translation="[34,68]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle id="endCountdownDot7" translation="[14,61]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle id="endCountdownDot8" translation="[0,44]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle id="endCountdownDot9" translation="[0,24]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle id="endCountdownDot10" translation="[14,7]" width="8" height="8" color="0xE50914FF"  cornerRadius="4" />
-          <Rectangle translation="[8,8]" width="60" height="60" cornerRadius="30" color="0x080A0FFF" />
+          <Rectangle id="endCountdownDot1" translation="[34,0]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot2" translation="[54,7]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot3" translation="[68,24]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot4" translation="[68,44]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot5" translation="[54,61]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot6" translation="[34,68]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot7" translation="[14,61]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot8" translation="[0,44]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot9" translation="[0,24]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot10" translation="[14,7]" width="8" height="8" color="0xE50914FF"  />
           <Label id="endCountdownText" translation="[8,10]" width="60" height="56" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
         </Group>
       </Group>
