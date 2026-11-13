@@ -140,7 +140,7 @@ end function
 
 ' Adapters may discover Vimeos links differently but share media validation.
 ' Playlist checks and one bounded first-segment sample are diagnostic only.
-function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string) as object
+function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string, videoAudit as dynamic) as object
     result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0}
     if type(master.audioTracks) <> "roArray" then return result
     if selected.audioGroup = "" then return result
@@ -175,6 +175,14 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                             print "[RokuPlus audio-sample] language="; track.language; " aligned="; audit.aligned; " syncErrors="; audit.syncErrors; " pat="; audit.patPackets; " pmt="; audit.pmtPackets
                             print "[RokuPlus audio-sample] language="; track.language; " audioPids="; audit.audioPids; " aac="; audit.aac; " adtsCandidates="; audit.adtsCandidates
                             print "[RokuPlus audio-sample] language="; track.language; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " continuityErrors="; audit.continuityErrors
+                            if audit.ptsCount > 0 and type(videoAudit) = "roAssociativeArray" and videoAudit.videoPtsCount > 0
+                                deltaPts = audit.firstPts-videoAudit.firstVideoPts
+                                if deltaPts > 4294967296 then deltaPts -= 8589934592
+                                if deltaPts < -4294967296 then deltaPts += 8589934592
+                                print "[RokuPlus audio-sync] language="; track.language; " videoFirstPts90k="; videoAudit.firstVideoPts; " audioFirstPts90k="; audit.firstPts; " deltaMs="; deltaPts/90.0
+                            else
+                                print "[RokuPlus audio-sync] language="; track.language; " pts_comparison=unavailable"
+                            end if
                         else
                             print "[RokuPlus audio-sample] language="; track.language; " request_failed status="; sample.httpStatus
                         end if
@@ -194,7 +202,7 @@ end function
 
 ' Inspect only complete 188-byte packets from a bounded sample; never mutate playback data.
 function rpHdTaskAuditAudioSegment(payload as object) as object
-    result = {bytes:0,packetCount:0,trailingBytes:0,aligned:false,syncErrors:0,patPackets:0,pmtPackets:0,pmtPid:-1,aac:false,audioPids:"",ptsCount:0,firstPts:-1,lastPts:-1,adtsCandidates:0,continuityErrors:0}
+    result = {bytes:0,packetCount:0,trailingBytes:0,aligned:false,syncErrors:0,patPackets:0,pmtPackets:0,pmtPid:-1,videoPid:-1,aac:false,audioPids:"",ptsCount:0,firstPts:-1,lastPts:-1,videoPtsCount:0,firstVideoPts:-1,lastVideoPts:-1,adtsCandidates:0,continuityErrors:0}
     if type(payload) <> "roByteArray" then return result
     total = payload.count()
     result.bytes = total
@@ -258,7 +266,9 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                                 streamType = payload[entry]
                                 elementaryPid = (payload[entry+1] mod 32)*256+payload[entry+2]
                                 esInfoLength = (payload[entry+3] mod 16)*256+payload[entry+4]
-                                if streamType = 15 or streamType = 17
+                                if streamType = 27
+                                    result.videoPid = elementaryPid
+                                else if streamType = 15 or streamType = 17
                                     result.aac = true
                                     if not audioPidFlags.doesExist(elementaryPid.toStr())
                                         audioPidFlags[elementaryPid.toStr()] = true
@@ -271,7 +281,9 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                         end if
                     end if
                 end if
-                if audioPidFlags.doesExist(pid.toStr()) and audioPidFlags[pid.toStr()]
+                isAudioPid = audioPidFlags.doesExist(pid.toStr()) and audioPidFlags[pid.toStr()]
+                isVideoPid = pid = result.videoPid and result.videoPid >= 0
+                if isAudioPid or isVideoPid
                     dataStart = payloadStart
                     if payload[offset+1] >= 64 and payload[offset+1] < 128
                         if payloadStart+9 < offset+188 and payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
@@ -280,15 +292,21 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                             if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5 and payloadStart+14 <= offset+188
                                 pts = rpHdTaskReadPts(payload,payloadStart+9)
                                 if pts >= 0
-                                    if result.ptsCount = 0 then result.firstPts = pts
-                                    result.lastPts = pts
-                                    result.ptsCount++
+                                    if isAudioPid
+                                        if result.ptsCount = 0 then result.firstPts = pts
+                                        result.lastPts = pts
+                                        result.ptsCount++
+                                    else
+                                        if result.videoPtsCount = 0 then result.firstVideoPts = pts
+                                        result.lastVideoPts = pts
+                                        result.videoPtsCount++
+                                    end if
                                 end if
                             end if
                             dataStart = payloadStart+9+pesHeaderLength
                         end if
                     end if
-                    if dataStart < offset+188
+                    if isAudioPid and dataStart < offset+188
                         for scan = dataStart to offset+186
                             if payload[scan] = 255 and payload[scan+1] >= 240 and payload[scan+1] <= 247 then result.adtsCandidates++
                         end for
@@ -407,7 +425,8 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             if relaySegments.count() > 1
                                 ' Diagnostic-only: inspect external audio playlists; playback remains the validated video TS relay.
                                 rpHdTaskBeginSlice(1)
-                                audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer)
+                                videoAudit = rpHdTaskAuditAudioSegment(sample.bytes)
+                                audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer,videoAudit)
                                 answer.segmentUrls = relaySegments
                                 answer.tsRelayEnabled = true
                                 segmentDurations = rpHdTaskSegmentDurations(child.body,relaySegments.count())
