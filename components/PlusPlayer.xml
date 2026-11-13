@@ -88,10 +88,10 @@
         <Label id="endMovieTitle5" translation="[760,224]" width="170" height="54" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
         <Label id="endMovieTitle6" translation="[950,224]" width="170" height="54" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
       </Group>
-      <Group id="endEpisodeLayout" translation="[1360,700]" visible="false">
-        <Poster id="endEpisodePoster" width="500" height="300" loadDisplayMode="scaleToFill" visible="false" />
-        <Label id="endEpisodeTitle" translation="[0,-76]" width="500" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
-        <Group id="endCountdownBadge" translation="[214,114]">
+      <Group id="endEpisodeLayout" translation="[1510,820]" visible="false">
+        <Poster id="endEpisodePoster" width="360" height="216" opacity="0.55" loadDisplayMode="scaleToFill" visible="false" />
+        <Label id="endEpisodeTitle" translation="[0,-62]" width="360" height="50" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
+        <Group id="endCountdownBadge" translation="[146,72]">
           <Rectangle id="endCountdownDot1" translation="[34,0]" width="8" height="8" color="0xE50914FF"  />
           <Rectangle id="endCountdownDot2" translation="[54,7]" width="8" height="8" color="0xE50914FF"  />
           <Rectangle id="endCountdownDot3" translation="[68,24]" width="8" height="8" color="0xE50914FF"  />
