@@ -185,6 +185,7 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " aligned="; audit.aligned; " syncErrors="; audit.syncErrors; " pat="; audit.patPackets; " pmt="; audit.pmtPackets
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " audioPids="; audit.audioPids; " aac="; audit.aac; " adtsCandidates="; audit.adtsCandidates
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " ptsSpanMs="; ptsSpanMs; " continuityErrors="; audit.continuityErrors
+                            print "[RokuPlus audio-adts] language="; track.language; " segment="; segmentIndex; " frames="; audit.adtsFrames; " samples="; audit.adtsSamples; " sampleRate="; audit.adtsSampleRate; " durationMs="; audit.adtsDurationMs; " invalidHeaders="; audit.adtsInvalidHeaders; " incompleteFrames="; audit.adtsIncompleteFrames
                             if segmentIndex = 0 and audit.ptsCount > 0 and type(videoAudit) = "roAssociativeArray" and videoAudit.videoPtsCount > 0
                                 deltaPts = audit.firstPts-videoAudit.firstVideoPts
                                 if deltaPts > 4294967296 then deltaPts -= 8589934592
@@ -231,7 +232,7 @@ end function
 
 ' Inspect only complete 188-byte packets from a bounded sample; never mutate playback data.
 function rpHdTaskAuditAudioSegment(payload as object) as object
-    result = {bytes:0,packetCount:0,trailingBytes:0,aligned:false,syncErrors:0,patPackets:0,pmtPackets:0,pmtPid:-1,videoPid:-1,aac:false,audioPids:"",ptsCount:0,firstPts:-1,lastPts:-1,videoPtsCount:0,firstVideoPts:-1,lastVideoPts:-1,adtsCandidates:0,continuityErrors:0}
+    result = {bytes:0,packetCount:0,trailingBytes:0,aligned:false,syncErrors:0,patPackets:0,pmtPackets:0,pmtPid:-1,videoPid:-1,aac:false,audioPids:"",ptsCount:0,firstPts:-1,lastPts:-1,videoPtsCount:0,firstVideoPts:-1,lastVideoPts:-1,adtsCandidates:0,adtsFrames:0,adtsSamples:0,adtsDurationMs:0,adtsSampleRate:0,adtsInvalidHeaders:0,adtsIncompleteFrames:0,continuityErrors:0}
     if type(payload) <> "roByteArray" then return result
     total = payload.count()
     result.bytes = total
@@ -242,6 +243,7 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
     lastCounters = {}
     haveCounters = {}
     audioPidFlags = {}
+    audioBytes = []
     for packetIndex = 0 to result.packetCount-1
         offset = packetIndex*188
         if payload[offset] <> &H47
@@ -314,36 +316,43 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
                 isVideoPid = pid = result.videoPid and result.videoPid >= 0
                 if isAudioPid or isVideoPid
                     dataStart = payloadStart
-                    if payload[offset+1] >= 64 and payload[offset+1] < 128
-                        if payloadStart+9 < offset+188 and payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
-                            pesFlags = (payload[payloadStart+7] \ 64) mod 4
-                            pesHeaderLength = payload[payloadStart+8]
-                            if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5 and payloadStart+14 <= offset+188
-                                pts = rpHdTaskReadPts(payload,payloadStart+9)
-                                if pts >= 0
-                                    if isAudioPid
-                                        if result.ptsCount = 0 then result.firstPts = pts
-                                        result.lastPts = pts
-                                        result.ptsCount++
-                                    else
-                                        if result.videoPtsCount = 0 then result.firstVideoPts = pts
-                                        result.lastVideoPts = pts
-                                        result.videoPtsCount++
-                                    end if
+                    payloadUnitStart = (payload[offset+1] and &H40) <> 0
+                    if payloadUnitStart and payloadStart+9 < offset+188 and payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
+                        pesFlags = (payload[payloadStart+7] \ 64) mod 4
+                        pesHeaderLength = payload[payloadStart+8]
+                        if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5 and payloadStart+14 <= offset+188
+                            pts = rpHdTaskReadPts(payload,payloadStart+9)
+                            if pts >= 0
+                                if isAudioPid
+                                    if result.ptsCount = 0 then result.firstPts = pts
+                                    result.lastPts = pts
+                                    result.ptsCount++
+                                else
+                                    if result.videoPtsCount = 0 then result.firstVideoPts = pts
+                                    result.lastVideoPts = pts
+                                    result.videoPtsCount++
                                 end if
                             end if
-                            dataStart = payloadStart+9+pesHeaderLength
                         end if
+                        if payloadStart+9+pesHeaderLength <= offset+188 then dataStart = payloadStart+9+pesHeaderLength
                     end if
                     if isAudioPid and dataStart < offset+188
-                        for scan = dataStart to offset+186
-                            if payload[scan] = 255 and payload[scan+1] >= 240 and payload[scan+1] <= 247 then result.adtsCandidates++
+                        for scan = dataStart to offset+187
+                            audioBytes.push(payload[scan])
                         end for
                     end if
                 end if
             end if
         end if
     end for
+    result.adtsCandidates = audioBytes.count()
+    adts = rpHdTaskAuditAdtsBytes(audioBytes)
+    result.adtsFrames = adts.frames
+    result.adtsSamples = adts.samples
+    result.adtsDurationMs = adts.durationMs
+    result.adtsSampleRate = adts.sampleRate
+    result.adtsInvalidHeaders = adts.invalidHeaders
+    result.adtsIncompleteFrames = adts.incompleteFrames
     result.patPackets = 0
     for packetIndex = 0 to result.packetCount-1
         offset = packetIndex*188
@@ -352,6 +361,44 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
             if pid = 0 then result.patPackets++
         end if
     end for
+    return result
+end function
+
+' Validate complete ADTS frames in the reconstructed AAC elementary-stream bytes.
+function rpHdTaskAuditAdtsBytes(data as object) as object
+    result = {frames:0,samples:0,durationMs:0,sampleRate:0,invalidHeaders:0,incompleteFrames:0}
+    if type(data) <> "roArray" then return result
+    total = data.count()
+    offset = 0
+    while offset+7 <= total
+        if data[offset] = 255 and (data[offset+1] and &HF6) = &HF0
+            protectionAbsent = data[offset+1] mod 2
+            sampleRateIndex = (data[offset+2] \ 4) mod 16
+            frameLength = (data[offset+3] mod 4)*2048+data[offset+4]*8+(data[offset+5] \ 32)
+            headerLength = 7
+            if protectionAbsent = 0 then headerLength = 9
+            if sampleRateIndex < 13 and frameLength >= headerLength
+                if offset+frameLength > total
+                    result.incompleteFrames++
+                    exit while
+                end if
+                sampleRates = [96000,88200,64000,48000,44100,32000,24000,22050,16000,12000,11025,8000,7350]
+                rate = sampleRates[sampleRateIndex]
+                rawBlocks = data[offset+6] mod 4
+                frameSamples = 1024*(rawBlocks+1)
+                result.frames++
+                result.samples += frameSamples
+                result.durationMs += (frameSamples*1000.0)/rate
+                if result.sampleRate = 0 then result.sampleRate = rate
+                offset += frameLength
+            else
+                result.invalidHeaders++
+                offset++
+            end if
+        else
+            offset++
+        end if
+    end while
     return result
 end function
 
