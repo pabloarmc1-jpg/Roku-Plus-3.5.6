@@ -183,7 +183,7 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                             if audit.ptsCount > 0 then ptsSpanMs = (audit.lastPts-audit.firstPts)/90.0
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " duration="; sampleDuration; " bytes="; audit.bytes; " packets="; audit.packetCount; " trailingBytes="; audit.trailingBytes
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " aligned="; audit.aligned; " syncErrors="; audit.syncErrors; " pat="; audit.patPackets; " pmt="; audit.pmtPackets
-                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " audioPids="; audit.audioPids; " aac="; audit.aac; " adtsCandidates="; audit.adtsCandidates
+                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " audioPids="; audit.audioPids; " aac="; audit.aac; " audioBytes="; audit.audioElementaryBytes; " adtsFrames="; audit.adtsCandidates
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " ptsSpanMs="; ptsSpanMs; " continuityErrors="; audit.continuityErrors
                             print "[RokuPlus audio-adts] language="; track.language; " segment="; segmentIndex; " frames="; audit.adtsFrames; " samples="; audit.adtsSamples; " sampleRate="; audit.adtsSampleRate; " durationMs="; audit.adtsDurationMs; " invalidHeaders="; audit.adtsInvalidHeaders; " incompleteFrames="; audit.adtsIncompleteFrames
                             if segmentIndex = 0 and audit.ptsCount > 0 and type(videoAudit) = "roAssociativeArray" and videoAudit.videoPtsCount > 0
@@ -232,7 +232,7 @@ end function
 
 ' Inspect only complete 188-byte packets from a bounded sample; never mutate playback data.
 function rpHdTaskAuditAudioSegment(payload as object) as object
-    result = {bytes:0,packetCount:0,trailingBytes:0,aligned:false,syncErrors:0,patPackets:0,pmtPackets:0,pmtPid:-1,videoPid:-1,aac:false,audioPids:"",ptsCount:0,firstPts:-1,lastPts:-1,videoPtsCount:0,firstVideoPts:-1,lastVideoPts:-1,adtsCandidates:0,adtsFrames:0,adtsSamples:0,adtsDurationMs:0,adtsSampleRate:0,adtsInvalidHeaders:0,adtsIncompleteFrames:0,continuityErrors:0}
+    result = {bytes:0,packetCount:0,trailingBytes:0,aligned:false,syncErrors:0,patPackets:0,pmtPackets:0,pmtPid:-1,videoPid:-1,aac:false,audioPids:"",ptsCount:0,firstPts:-1,lastPts:-1,videoPtsCount:0,firstVideoPts:-1,lastVideoPts:-1,adtsCandidates:0,audioElementaryBytes:0,adtsFrames:0,adtsSamples:0,adtsDurationMs:0,adtsSampleRate:0,adtsInvalidHeaders:0,adtsIncompleteFrames:0,continuityErrors:0}
     if type(payload) <> "roByteArray" then return result
     total = payload.count()
     result.bytes = total
@@ -345,8 +345,9 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
             end if
         end if
     end for
-    result.adtsCandidates = audioBytes.count()
+    result.audioElementaryBytes = audioBytes.count()
     adts = rpHdTaskAuditAdtsBytes(audioBytes)
+    result.adtsCandidates = adts.frames
     result.adtsFrames = adts.frames
     result.adtsSamples = adts.samples
     result.adtsDurationMs = adts.durationMs
