@@ -139,7 +139,7 @@ function rpHdTaskResolveItem(item as object, provider as string, answer as objec
 end function
 
 ' Adapters may discover Vimeos links differently but share media validation.
-' Playlist checks and one bounded first-segment sample are diagnostic only.
+' Playlist checks and three bounded consecutive audio-segment samples are diagnostic only.
 function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string, videoAudit as dynamic) as object
     result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0}
     if type(master.audioTracks) <> "roArray" then return result
@@ -193,9 +193,11 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                                 expectedPts = previousDuration*90000.0
                                 print "[RokuPlus audio-continuity] language="; track.language; " fromSegment="; segmentIndex-1; " toSegment="; segmentIndex; " actualDeltaMs="; deltaPts/90.0; " expectedDeltaMs="; expectedPts/90.0; " driftMs="; (deltaPts-expectedPts)/90.0
                             end if
-                            if audit.ptsCount > 0 then previousFirstPts = audit.firstPts
+                            if audit.ptsCount > 0 then previousFirstPts = audit.firstPts else previousFirstPts = -1
                             if durations.count() > segmentIndex then previousDuration = durations[segmentIndex] else previousDuration = 0.0
                         else
+                            previousFirstPts = -1
+                            previousDuration = 0.0
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " request_failed status="; sample.httpStatus
                         end if
                     end for
