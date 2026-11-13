@@ -31,7 +31,10 @@
     <TsStreamServer id="tsStreamServer" />
     <Poster id="previewMask" translation="[294,206]" width="1016" height="572" uri="pkg:/images/ui/live-preview-mask.png" loadDisplayMode="scaleToFit" visible="false" />
     <Group id="startupOverlay" translation="[0,0]" visible="false">
-      <Label id="startupTitle" translation="[160,490]" width="1600" height="100" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
+      <Poster id="startupBanner" translation="[0,0]" width="1920" height="1080" loadDisplayMode="scaleToFill" />
+      <Rectangle id="startupBannerShade" translation="[0,0]" width="1920" height="1080" color="0x00000088" />
+      <Label id="startupTitle" translation="[160,440]" width="1600" height="200" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
+      <Label id="startupLoadingText" translation="[160,650]" width="1600" height="54" font="font:MediumSystemFont" color="0xE5E7EBFF" horizAlign="center" vertAlign="center" />
     </Group>
 
     <!-- Clean glass transport: lightweight translucent controls over the video. -->
