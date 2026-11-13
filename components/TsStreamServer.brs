@@ -173,7 +173,7 @@ sub rpTsRelayServe(connection as object, server as object)
             if not tsAudit.aligned or tsAudit.syncErrors > 0 or tsAudit.patPackets = 0 or tsAudit.continuityErrors > 0 or tsAudit.pmtPackets > 0
                 print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " aligned="; tsAudit.aligned; " syncErrors="; tsAudit.syncErrors; " firstBad="; tsAudit.firstBadOffset
                 print "[RokuPlus ts-audit] pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors
-                print "[RokuPlus ts-audit] pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
+                print "[RokuPlus ts-audit] pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " audioPidCount="; tsAudit.audioPidCount; " audioPids="; tsAudit.audioPidList; " aac="; tsAudit.aac
                 print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
                 print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
                 print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " firstPcr90k="; tsAudit.firstPcr; " lastPcr90k="; tsAudit.lastPcr
@@ -318,6 +318,8 @@ function rpTsRelayAuditPayload(payload as object) as object
     result.pmtPackets = 0
     result.videoPid = -1
     result.audioPid = -1
+    result.audioPidCount = 0
+    result.audioPidList = ""
     result.h264 = false
     result.aac = false
     result.idrCount = 0
@@ -426,7 +428,10 @@ function rpTsRelayAuditPayload(payload as object) as object
                                         result.videoPid = elementaryPid
                                     else if streamType = 15 or streamType = 17
                                         result.aac = true
-                                        result.audioPid = elementaryPid
+                                        if result.audioPid < 0 then result.audioPid = elementaryPid
+                                        result.audioPidCount++
+                                        if result.audioPidList <> "" then result.audioPidList += ","
+                                        result.audioPidList += elementaryPid.toStr()
                                     end if
                                     entry += 5 + esInfoLength
                                 end while
