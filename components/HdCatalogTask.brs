@@ -175,7 +175,9 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                             audit = rpHdTaskAuditAudioSegment(sample.bytes)
                             if audit.aligned and audit.syncErrors = 0 and audit.packetCount > 0 then result.tsValid++
                             if audit.aac and audit.adtsCandidates > 0 then result.aacSamples++
-                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " duration="; iif(durations.count() > segmentIndex, durations[segmentIndex], -1); " bytes="; audit.bytes; " packets="; audit.packetCount; " trailingBytes="; audit.trailingBytes
+                            sampleDuration = -1.0
+                            if durations.count() > segmentIndex then sampleDuration = durations[segmentIndex]
+                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " duration="; sampleDuration; " bytes="; audit.bytes; " packets="; audit.packetCount; " trailingBytes="; audit.trailingBytes
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " aligned="; audit.aligned; " syncErrors="; audit.syncErrors; " pat="; audit.patPackets; " pmt="; audit.pmtPackets
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " audioPids="; audit.audioPids; " aac="; audit.aac; " adtsCandidates="; audit.adtsCandidates
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " continuityErrors="; audit.continuityErrors
