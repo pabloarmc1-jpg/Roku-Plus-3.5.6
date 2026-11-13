@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="StreamXImageTask" extends="Task">
+  <interface>
+    <field id="imdbId" type="string" value="" />
+    <field id="mediaType" type="string" value="movie" />
+    <field id="requestId" type="string" value="" />
+    <field id="cancelRequested" type="boolean" value="false" />
+    <field id="result" type="assocarray" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="StreamXImageTask.brs" />
+</component>
