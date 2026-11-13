@@ -1933,10 +1933,10 @@ sub onSubtitleSearchTaskResult()
     if result.operation = "search"
         m.subtitleOnlineResults = result.items
         if m.subtitleOnlineResults.count() > 0
-            m.subtitleTrackIndex = 2
+            m.subtitleTrackIndex = 3
             m.notice = "Subtítulos encontrados: " + m.subtitleOnlineResults.count().toStr()
         else
-            m.subtitleTrackIndex = 1
+            m.subtitleTrackIndex = 3
             m.notice = result.message
         end if
         m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
