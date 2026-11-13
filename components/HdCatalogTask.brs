@@ -160,8 +160,12 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                     result.segments += segments.count()
                     if durations.count() = segments.count() then result.durationSets++
                     print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=valid segments="; segments.count(); " durations="; durations.count()
-                    if result.samples < 2
-                        sample = fetcher(segments[0],"audio-sample",referer)
+                    sampleLimit = 3
+                    if segments.count() < sampleLimit then sampleLimit = segments.count()
+                    previousFirstPts = -1
+                    previousDuration = 0.0
+                    for segmentIndex = 0 to sampleLimit-1
+                        sample = fetcher(segments[segmentIndex],"audio-sample",referer)
                         if sample.cancelled
                             print "[RokuPlus audio-audit] cancelled before segment sample"
                             return result
@@ -171,22 +175,28 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                             audit = rpHdTaskAuditAudioSegment(sample.bytes)
                             if audit.aligned and audit.syncErrors = 0 and audit.packetCount > 0 then result.tsValid++
                             if audit.aac and audit.adtsCandidates > 0 then result.aacSamples++
-                            print "[RokuPlus audio-sample] language="; track.language; " bytes="; audit.bytes; " packets="; audit.packetCount; " trailingBytes="; audit.trailingBytes
-                            print "[RokuPlus audio-sample] language="; track.language; " aligned="; audit.aligned; " syncErrors="; audit.syncErrors; " pat="; audit.patPackets; " pmt="; audit.pmtPackets
-                            print "[RokuPlus audio-sample] language="; track.language; " audioPids="; audit.audioPids; " aac="; audit.aac; " adtsCandidates="; audit.adtsCandidates
-                            print "[RokuPlus audio-sample] language="; track.language; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " continuityErrors="; audit.continuityErrors
-                            if audit.ptsCount > 0 and type(videoAudit) = "roAssociativeArray" and videoAudit.videoPtsCount > 0
+                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " duration="; iif(durations.count() > segmentIndex, durations[segmentIndex], -1); " bytes="; audit.bytes; " packets="; audit.packetCount; " trailingBytes="; audit.trailingBytes
+                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " aligned="; audit.aligned; " syncErrors="; audit.syncErrors; " pat="; audit.patPackets; " pmt="; audit.pmtPackets
+                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " audioPids="; audit.audioPids; " aac="; audit.aac; " adtsCandidates="; audit.adtsCandidates
+                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " continuityErrors="; audit.continuityErrors
+                            if segmentIndex = 0 and audit.ptsCount > 0 and type(videoAudit) = "roAssociativeArray" and videoAudit.videoPtsCount > 0
                                 deltaPts = audit.firstPts-videoAudit.firstVideoPts
                                 if deltaPts > 4294967296 then deltaPts -= 8589934592
                                 if deltaPts < -4294967296 then deltaPts += 8589934592
                                 print "[RokuPlus audio-sync] language="; track.language; " videoFirstPts90k="; videoAudit.firstVideoPts; " audioFirstPts90k="; audit.firstPts; " deltaMs="; deltaPts/90.0
-                            else
-                                print "[RokuPlus audio-sync] language="; track.language; " pts_comparison=unavailable"
+                            else if segmentIndex > 0 and audit.ptsCount > 0 and previousFirstPts >= 0 and previousDuration > 0
+                                deltaPts = audit.firstPts-previousFirstPts
+                                if deltaPts > 4294967296 then deltaPts -= 8589934592
+                                if deltaPts < -4294967296 then deltaPts += 8589934592
+                                expectedPts = previousDuration*90000.0
+                                print "[RokuPlus audio-continuity] language="; track.language; " fromSegment="; segmentIndex-1; " toSegment="; segmentIndex; " actualDeltaMs="; deltaPts/90.0; " expectedDeltaMs="; expectedPts/90.0; " driftMs="; (deltaPts-expectedPts)/90.0
                             end if
+                            if audit.ptsCount > 0 then previousFirstPts = audit.firstPts
+                            if durations.count() > segmentIndex then previousDuration = durations[segmentIndex] else previousDuration = 0.0
                         else
-                            print "[RokuPlus audio-sample] language="; track.language; " request_failed status="; sample.httpStatus
+                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " request_failed status="; sample.httpStatus
                         end if
-                    end if
+                    end for
                 else
                     print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=empty"
                 end if
