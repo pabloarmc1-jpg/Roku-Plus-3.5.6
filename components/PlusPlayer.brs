@@ -434,6 +434,19 @@ sub drawPlaybackEndScreen()
         if GetInterface(data.heading,"ifString") <> invalid then heading = data.heading
     end if
     m.endScreenHeading.text = heading
+    if isEpisode
+        m.endScreenHeading.translation = [1510, 828]
+        m.endScreenHeading.width = 360
+        m.endScreenHeading.height = 36
+        m.endScreenHeading.horizAlign = "center"
+        m.endScreenHeading.vertAlign = "center"
+    else
+        m.endScreenHeading.translation = [0, 650]
+        m.endScreenHeading.width = 1920
+        m.endScreenHeading.height = 58
+        m.endScreenHeading.horizAlign = "center"
+        m.endScreenHeading.vertAlign = "center"
+    end if
     if m.endScreenMessage <> invalid then m.endScreenMessage.text = ""
     if m.endMovieLayout <> invalid then m.endMovieLayout.visible = not isEpisode
     if m.endEpisodeLayout <> invalid then m.endEpisodeLayout.visible = isEpisode
