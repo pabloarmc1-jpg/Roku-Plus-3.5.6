@@ -228,7 +228,8 @@ function subtitleSubDlSearch(title as string, imdb as string, language as string
     body = subtitleGet(transfer,endpoint)
     if GetInterface(body,"ifString") = invalid or body = "" then return items
     parsed = ParseJson(body)
-    if type(parsed) <> "roAssociativeArray" or parsed.status <> true then return items
+    if type(parsed) <> "roAssociativeArray" then return items
+    if parsed.status <> true then return items
     if type(parsed.subtitles) <> "roArray" then return items
     for each subtitle in parsed.subtitles
         if type(subtitle) = "roAssociativeArray" and type(subtitle.unpack_files) = "roArray"
