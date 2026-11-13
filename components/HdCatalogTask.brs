@@ -191,28 +191,6 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if rpHdTaskSliceExpired() then exit for
                         variantIndex = (qualityAttempt+variantOffset) mod choices.count()
                         selected = choices[variantIndex]
-                        ' Keep the master manifest only when it exposes a complete, safe
-                        ' external audio group. Roku needs the master HLS playlist to
-                        ' enumerate and switch alternate audio renditions.
-                        if rpHdTaskNativeAudioMasterSafe(master,selected,decoderAccept)
-                            answer.url = masterUrl
-                            answer.streamFormat = "hls"
-                            answer.tsRelayEnabled = false
-                            answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                            answer.description = "Audio español verificado · HLS · "+selected.height.toStr()+"p"
-                            answer.language = embed.language
-                            answer.width = selected.width
-                            answer.height = selected.height
-                            answer.codecs = selected.codecs
-                            answer.seekSupport = "native-hls-master-audio"
-                            print "[RokuPlus hls-audio] mode=native-master group="; selected.audioGroup; " tracks="; rpHdTaskAudioGroupCount(master,selected.audioGroup)
-                            print "[RokuPlus resolve] provider="; provider; " format=hls playlist=native-master-audio"
-                            answer.attemptUsed = embedIndex+variantIndex*count
-                            answer.ok = true
-                            answer.message = ""
-                            m.hdProviderDeadline = 0
-                            return answer
-                        end if
                         print "[RokuPlus hls-test] selectedPlaylist="; rpHdTaskSafeUrl(selected.url)
                         answer.variantAttempts++
                         child = fetcher(selected.url,"media",mediaReferer)
@@ -258,46 +236,25 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                     answer.segmentDurations = []
                                     print "[RokuPlus ts-relay] duration_metadata_unavailable segments="; relaySegments.count()
                                 end if
+                                answer.url = relaySegments[0]
+                                answer.streamFormat = "ts"
+                                answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                                answer.description = "Audio español verificado · H.264 · "+selected.height.toStr()+"p"
+                                answer.language = embed.language
+                                answer.width = selected.width
+                                answer.height = selected.height
+                                answer.codecs = selected.codecs
+                                answer.seekSupport = "ts-relay"
+                                print "[RokuPlus resolve] provider="; provider; " format=ts playlist=segment-relay height="; selected.height
+                                answer.attemptUsed = embedIndex+variantIndex*count
+                                answer.ok = true
+                                answer.message = ""
+                                m.hdProviderDeadline = 0
+                                return answer
                             else
-                                answer.tsRelayEnabled = false
+                                candidateStage = "relay_segments_unavailable"
                                 print "[RokuPlus ts-relay] disabled reason=segment_list_unavailable"
                             end if
-                            ' Restore the validated segmented TS relay path.
-                            ' The TS playlist path was confirmed to create visible clip boundaries.
-                            ' Isolate Roku HLS audio selection while preserving the validated variant.
-                            playbackPlaylistKind = "native-child-hls-audio-isolation"
-                            playbackStreamFormat = "hls"
-                            answer.url = selected.url
-                            answer.streamFormat = playbackStreamFormat
-                            answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                            audioLanguageStatus = "unknown"
-                            if selected.audioGroup <> "" and rpHdTaskSpanishAudio(master,selected) then audioLanguageStatus = "spanish-verified"
-                            answer.description = "H.264 · "+selected.height.toStr()+"p"
-                            if audioLanguageStatus = "spanish-verified" then answer.description = "Audio español verificado · H.264 · "+selected.height.toStr()+"p"
-                            print "[RokuPlus hls-audio] selectedLanguageStatus="; audioLanguageStatus
-                            answer.language = embed.language
-                            answer.width = selected.width
-                            answer.height = selected.height
-                            answer.codecs = selected.codecs
-                            answer.seekSupport = "native-hls"
-                            audioMode = "embedded"
-                            if selected.audioGroup <> "" then audioMode = "master-audio-group"
-                            matchingAudioTracks = 0
-                            for each audioTrack in master.audioTracks
-                                if audioTrack.group = selected.audioGroup then matchingAudioTracks = matchingAudioTracks + 1
-                            end for
-                            print "[RokuPlus hls] selected group="; selected.audioGroup; " matchingAudioTracks="; matchingAudioTracks; " masterAudioTracks="
-                            print "[RokuPlus hls] selected group="; "cont"; master.audioTracks.count()
-                            print "[RokuPlus resolve] provider="; provider; " format="; playbackStreamFormat; " playlist="; playbackPlaylistKind; " embedHost="
-                            print "[RokuPlus resolve] provider="; "cont"; rpHdTaskSafeHost(embed.url); " masterHost="; rpHdTaskSafeHost(masterUrl); " testedVideoHost="
-                            print "[RokuPlus resolve] provider="; "cont"; rpHdTaskSafeHost(selected.url); " height="; selected.height; " audioMode="; audioMode
-                            print "[RokuPlus resolve] provider="; "cont"; " validation=avc-aac-ts"
-                            print "[RokuPlus ts-test] diagnostic="; playbackPlaylistKind; " format="; playbackStreamFormat; " targetHost="; rpHdTaskSafeHost(answer.url)
-                            answer.attemptUsed = embedIndex+variantIndex*count
-                            answer.ok = true
-                            answer.message = ""
-                            m.hdProviderDeadline = 0
-                            return answer
                         end if
                     end for
                 end if
