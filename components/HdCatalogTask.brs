@@ -176,7 +176,7 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                             print "[RokuPlus audio-sample] language="; track.language; " audioPids="; audit.audioPids; " aac="; audit.aac; " adtsCandidates="; audit.adtsCandidates
                             print "[RokuPlus audio-sample] language="; track.language; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " continuityErrors="; audit.continuityErrors
                         else
-                            print "[RokuPlus audio-sample] language="; track.language; " request_failed status="; response.httpStatus
+                            print "[RokuPlus audio-sample] language="; track.language; " request_failed status="; sample.httpStatus
                         end if
                     end if
                 else
@@ -201,7 +201,7 @@ function rpHdTaskAuditAudioSegment(payload as object) as object
     if total < 188 then return result
     result.packetCount = total  188
     result.trailingBytes = total mod 188
-    result.aligned = result.trailingBytes = 0
+    result.aligned = true
     lastCounters = {}
     haveCounters = {}
     audioPidFlags = {}
@@ -406,6 +406,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             relaySegments = rpHdTaskSegmentList(child.body,selected.url)
                             if relaySegments.count() > 1
                                 ' Diagnostic-only: inspect external audio playlists; playback remains the validated video TS relay.
+                                rpHdTaskBeginSlice(1)
                                 audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer)
                                 answer.segmentUrls = relaySegments
                                 answer.tsRelayEnabled = true
