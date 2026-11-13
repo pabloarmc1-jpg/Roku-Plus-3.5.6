@@ -239,7 +239,8 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 answer.url = relaySegments[0]
                                 answer.streamFormat = "ts"
                                 answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                                answer.description = "Audio español verificado · H.264 · "+selected.height.toStr()+"p"
+                                answer.description = "H.264 · "+selected.height.toStr()+"p"
+                                if selected.audioGroup <> "" and rpHdTaskSpanishAudio(master,selected) then answer.description = "Audio español verificado · H.264 · "+selected.height.toStr()+"p"
                                 answer.language = embed.language
                                 answer.width = selected.width
                                 answer.height = selected.height
