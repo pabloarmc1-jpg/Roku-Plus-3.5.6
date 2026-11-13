@@ -180,7 +180,7 @@ sub rpTsRelayServe(connection as object, server as object)
                 print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
             else if sentSegments mod 25 = 0
                 print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked
-                print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
+                print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " audioPidCount="; tsAudit.audioPidCount; " audioPids="; tsAudit.audioPidList; " aac="; tsAudit.aac
                 print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
                 print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
                 print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " firstPcr90k="; tsAudit.firstPcr; " lastPcr90k="; tsAudit.lastPcr
