@@ -87,6 +87,10 @@ sub init()
     m.endEpisodeTitle = m.top.findNode("endEpisodeTitle")
     m.endEpisodeMeta = m.top.findNode("endEpisodeMeta")
     m.endCountdownText = m.top.findNode("endCountdownText")
+    m.endCountdownDots = []
+    for dotIndex = 1 to 10
+        m.endCountdownDots.push(m.top.findNode("endCountdownDot" + dotIndex.toStr()))
+    end for
     m.playerOptionsMenuOpen = false
     m.playerOptionsMenuIndex = 0
     m.playerOptionsLabels = ["Zoom / Imagen", "Subtítulos", "Audio", "Retroceder 10 segundos", "Adelantar 10 segundos", "Play / Pause"]
@@ -461,10 +465,7 @@ sub drawPlaybackEndScreen()
                 m.endCountdownActive = true
                 m.pulse.control = "start"
             end if
-            if m.endCountdownText <> invalid
-                m.endCountdownText.text = "El siguiente episodio comienza en " + m.endCountdownRemaining.toStr() + " segundos"
-            end if
-            if m.endScreenMessage <> invalid then m.endScreenMessage.text = "OK Reproducir ahora     BACK Cancelar"
+            updateEndCountdownVisual()
         else
             m.endCountdownActive = false
             emptyMessage = "No hay más episodios disponibles."
@@ -510,9 +511,9 @@ sub drawPlaybackEndScreen()
             end if
         end for
         if m.endMovieSelection <> invalid and m.endScreenItems.count() > 0
-            xPositions = [4,212,420,628,836,1044]
+            xPositions = [0,190,380,570,760,950]
             m.endMovieSelection.translation = [xPositions[m.endScreenIndex],0]
-            m.endMovieSelection.visible = true
+            m.endMovieSelection.visible = false
         else if m.endMovieSelection <> invalid
             m.endMovieSelection.visible = false
         end if
@@ -527,6 +528,18 @@ sub drawPlaybackEndScreen()
     if m.endScreenMessage <> invalid
         m.endScreenMessage.text += chr(10) + "◀ / ▶ Elegir   OK Reproducir   BACK Salir"
     end if
+end sub
+
+sub updateEndCountdownVisual()
+    if m.endCountdownText <> invalid then m.endCountdownText.text = m.endCountdownRemaining.toStr()
+    if type(m.endCountdownDots) <> "roArray" then return
+    dotsToShow = m.endCountdownRemaining
+    if dotsToShow < 0 then dotsToShow = 0
+    if dotsToShow > m.endCountdownDots.count() then dotsToShow = m.endCountdownDots.count()
+    for i = 0 to m.endCountdownDots.count() - 1
+        dot = m.endCountdownDots[i]
+        if dot <> invalid then dot.visible = i < dotsToShow
+    end for
 end sub
 
 sub movePlaybackEndSelection(direction as integer)
@@ -2317,9 +2330,7 @@ sub onPulse()
                     selectPlaybackEndItem()
                     return
                 end if
-                if m.endCountdownText <> invalid
-                    m.endCountdownText.text = "El siguiente episodio comienza en " + m.endCountdownRemaining.toStr() + " segundos"
-                end if
+                updateEndCountdownVisual()
             end if
         end if
     end if
