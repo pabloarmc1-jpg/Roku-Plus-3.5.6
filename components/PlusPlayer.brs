@@ -2349,7 +2349,10 @@ sub startStreamXArtwork(supplied as object)
     if task = invalid then return
     task.imdbId = imdbId
     task.mediaType = mediaType
-    if GetInterface(supplied.title,"ifString") <> invalid then task.title = left(supplied.title.trim(),160)
+    artworkTitle = ""
+    if GetInterface(supplied.title,"ifString") <> invalid then artworkTitle = supplied.title.trim()
+    if kind = "episode" and GetInterface(supplied.seriesTitle,"ifString") <> invalid and supplied.seriesTitle.trim() <> "" then artworkTitle = supplied.seriesTitle.trim()
+    task.title = left(artworkTitle,160)
     if GetInterface(supplied.year,"ifString") <> invalid then task.year = left(supplied.year,16)
     if GetInterface(supplied.year,"ifInt") <> invalid then task.year = supplied.year.toStr()
     task.requestId = m.streamXRequestId
