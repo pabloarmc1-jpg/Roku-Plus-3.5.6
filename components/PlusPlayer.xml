@@ -72,7 +72,7 @@
       <Label id="playerOptionsMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
     </Group>
     <Group id="playbackEndScreen" translation="[0,0]" visible="false">
-      <Label id="endScreenHeading" translation="[0,650]" width="1920" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" />
+      <Label id="endScreenHeading" translation="[0,650]" width="1920" height="58" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" />
       <Group id="endMovieLayout" translation="[330,720]" visible="true">
         <Rectangle id="endMovieSelection" width="174" height="224" color="0x00000000" />
         <Poster id="endMoviePoster1" width="170" height="220" loadDisplayMode="scaleToFill" visible="false" />
@@ -90,7 +90,7 @@
       </Group>
       <Group id="endEpisodeLayout" translation="[1510,820]" visible="false">
         <Poster id="endEpisodePoster" width="360" height="216" opacity="0.55" loadDisplayMode="scaleToFill" visible="false" />
-        <Label id="endEpisodeTitle" translation="[0,42]" width="360" height="48" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
+        <Label id="endEpisodeTitle" translation="[0,42]" width="360" height="48" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
         <Group id="endCountdownBadge" translation="[146,112]">
           <Rectangle id="endCountdownDot1" translation="[34,0]" width="8" height="8" color="0xE50914FF"  />
           <Rectangle id="endCountdownDot2" translation="[54,7]" width="8" height="8" color="0xE50914FF"  />
