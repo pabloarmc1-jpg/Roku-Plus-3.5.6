@@ -494,10 +494,14 @@ sub drawPlaybackEndScreen()
                 if posterNode <> invalid
                     posterNode.uri = posterUri
                     posterNode.visible = posterUri <> ""
+                    posterNode.opacity = 1.0
+                    if posterIndex <> m.endScreenIndex then posterNode.opacity = 0.72
                 end if
                 if titleNode <> invalid
                     titleNode.text = titleText
                     titleNode.visible = true
+                    titleNode.opacity = 1.0
+                    if posterIndex <> m.endScreenIndex then titleNode.opacity = 0.72
                 end if
             else
                 if posterNode <> invalid
