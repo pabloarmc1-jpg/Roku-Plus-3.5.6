@@ -3,6 +3,8 @@
   <interface>
     <field id="imdbId" type="string" value="" />
     <field id="mediaType" type="string" value="movie" />
+    <field id="title" type="string" value="" />
+    <field id="year" type="string" value="" />
     <field id="requestId" type="string" value="" />
     <field id="cancelRequested" type="boolean" value="false" />
     <field id="result" type="assocarray" alwaysNotify="true" />
