@@ -59,6 +59,24 @@ sub runSubtitleSearch()
             m.top.result = answer
             return
         end if
+        ' IMDb is the most precise key, but subtitle catalogs sometimes index
+        ' releases only by title. Retry by title only after a valid empty IMDb
+        ' response; do not retry transport/authentication failures.
+        if parsed.data.count() = 0 and imdb <> "" and title <> ""
+            fallbackEndpoint = "https://subtitles.website/strapi/api/search/subtitles?"
+            fallbackEndpoint += "title=" + transfer.Escape(title)
+            fallbackEndpoint += "&language=" + transfer.Escape(language) + "&format=srt"
+            fallbackBody = subtitleGet(transfer,fallbackEndpoint)
+            if GetInterface(fallbackBody,"ifString") <> invalid and fallbackBody <> ""
+                fallbackParsed = ParseJson(fallbackBody)
+                if type(fallbackParsed) = "roAssociativeArray"
+                    if type(fallbackParsed.data) = "roArray"
+                        parsed = fallbackParsed
+                        print "[RokuPlus subtitles-online] title_fallback results="; parsed.data.count()
+                    end if
+                end if
+            end if
+        end if
         for each entry in parsed.data
             if answer.items.count() >= 12 then exit for
             if type(entry) = "roAssociativeArray"
