@@ -2340,7 +2340,6 @@ sub startStreamXArtwork(supplied as object)
     imdbId = ""
     if GetInterface(supplied.imdbId,"ifString") <> invalid then imdbId = supplied.imdbId.trim()
     if imdbId = "" and GetInterface(supplied.imdb_id,"ifString") <> invalid then imdbId = supplied.imdb_id.trim()
-    if not CreateObject("roRegex","^tt[0-9]{7,8}$","").isMatch(imdbId) then return
     mediaType = "movie"
     kind = ""
     if GetInterface(supplied.kind,"ifString") <> invalid then kind = LCase(supplied.kind)
@@ -2350,6 +2349,9 @@ sub startStreamXArtwork(supplied as object)
     if task = invalid then return
     task.imdbId = imdbId
     task.mediaType = mediaType
+    if GetInterface(supplied.title,"ifString") <> invalid then task.title = left(supplied.title.trim(),160)
+    if GetInterface(supplied.year,"ifString") <> invalid then task.year = left(supplied.year,16)
+    if GetInterface(supplied.year,"ifInt") <> invalid then task.year = supplied.year.toStr()
     task.requestId = m.streamXRequestId
     task.observeField("result","onStreamXArtworkChanged")
     m.streamXTask = task
