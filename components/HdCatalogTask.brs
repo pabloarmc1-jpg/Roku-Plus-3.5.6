@@ -139,6 +139,38 @@ function rpHdTaskResolveItem(item as object, provider as string, answer as objec
 end function
 
 ' Adapters may discover Vimeos links differently but share media validation.
+function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string) as object
+    result = {checked:0,valid:0,segments:0,durationSets:0}
+    if type(master.audioTracks) <> "roArray" then return result
+    if selected.audioGroup = "" then return result
+    for each track in master.audioTracks
+        if track.group = selected.audioGroup and track.url <> ""
+            result.checked++
+            response = fetcher(track.url,"media",referer)
+            if response.cancelled
+                print "[RokuPlus audio-audit] cancelled before playlist validation"
+                return result
+            end if
+            if response.ok and rpHdTaskMediaManifest(response.body,track.url)
+                segments = rpHdTaskSegmentList(response.body,track.url)
+                durations = rpHdTaskSegmentDurations(response.body,segments.count())
+                if segments.count() > 0
+                    result.valid++
+                    result.segments += segments.count()
+                    if durations.count() = segments.count() then result.durationSets++
+                    print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=valid segments="; segments.count(); " durations="; durations.count()
+                else
+                    print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=empty"
+                end if
+            else
+                print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=unavailable_or_rejected"
+            end if
+        end if
+    end for
+    print "[RokuPlus audio-audit] checked="; result.checked; " valid="; result.valid; " segments="; result.segments; " durationSets="; result.durationSets
+    return result
+end function
+
 function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string) as object
     count = embeds.count()
     if count > 6 then count = 6
@@ -226,6 +258,8 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if playable
                             relaySegments = rpHdTaskSegmentList(child.body,selected.url)
                             if relaySegments.count() > 1
+                                ' Diagnostic-only: inspect external audio playlists; playback remains the validated video TS relay.
+                                audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer)
                                 answer.segmentUrls = relaySegments
                                 answer.tsRelayEnabled = true
                                 segmentDurations = rpHdTaskSegmentDurations(child.body,relaySegments.count())
