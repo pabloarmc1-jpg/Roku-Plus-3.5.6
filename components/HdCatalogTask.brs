@@ -1,5 +1,5 @@
 ' Public HD source requests. No JavaScript evaluation, proxy or PC helper.
-' Catalog aggregation keeps a 40-second total deadline and caps each provider slice at 9 seconds.
+' Catalog aggregation keeps a 24-second total deadline and caps each provider slice at 3 seconds.
 sub init()
     m.top.functionName = "runHdCatalogRequest"
 end sub
@@ -8,6 +8,7 @@ sub runHdCatalogRequest()
     m.hdElapsed = CreateObject("roTimespan")
     m.hdElapsed.mark()
     m.hdTotalBudgetMs = 40000
+    if m.top.operation = "catalog" then m.hdTotalBudgetMs = 24000
     if m.top.operation = "resolve" then m.hdTotalBudgetMs = 60000
     request = {
         operation:m.top.operation, kind:m.top.kind, provider:m.top.provider
@@ -711,8 +712,8 @@ sub rpHdTaskBeginSlice(remaining as integer)
         if GetInterface(m.hdTotalBudgetMs,"ifInt") <> invalid then totalBudget = m.hdTotalBudgetMs
         budget = (totalBudget-now) \ remaining
         ' In "Todas", one slow provider must not consume the entire window
-        ' reserved for the remaining sources. Keep a fair share, capped at 9s.
-        if budget > 9000 then budget = 9000
+        ' reserved for the remaining sources. Keep a fair share, capped at 3s.
+        if budget > 3000 then budget = 3000
         if budget < 0 then budget = 0
         m.hdProviderDeadline = now+budget
     end if
