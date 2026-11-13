@@ -2475,8 +2475,12 @@ sub homeFetched(event as object)
                     m.features = orbitUniqueCatalogItems(mergedMovies)
                     if m.heroFeature >= m.features.count() then m.heroFeature = 0
                     if m.discoveryOffset >= m.features.count() then m.discoveryOffset = 0
-                    ' Keep Home to the first merged page. Additional pages load on demand
-                    ' in Browse, avoiding two extra rounds across every selected HD source.
+                    ' Load up to three Cinemeta/provider pages so the carousel has a deeper pool.
+                    if answer.doesExist("hasMore") and answer.hasMore and entry.skip < 40
+                        nextSkip = entry.skip + 20
+                        if answer.doesExist("nextSkip") then nextSkip = answer.nextSkip
+                        if nextSkip > entry.skip and nextSkip <= 40 then startHomeCatalogTask("movie",nextSkip)
+                    end if
                 else
                     m.homeSeries = orbitUniqueCatalogItems(answer.items)
                 end if
