@@ -163,11 +163,13 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                     sampleLimit = 3
                     if segments.count() < sampleLimit then sampleLimit = segments.count()
                     previousFirstPts = -1
+                    previousLastPts = -1
                     previousDuration = 0.0
                     for segmentIndex = 0 to sampleLimit-1
-                        sample = fetcher(segments[segmentIndex],"audio-sample",referer)
+                        ' Full bounded-size audio segments are required to inspect their ending PTS.
+                        sample = fetcher(segments[segmentIndex],"sample-full",referer)
                         if sample.cancelled
-                            print "[RokuPlus audio-audit] cancelled before segment sample"
+                            print "[RokuPlus audio-audit] cancelled before full segment sample"
                             return result
                         end if
                         if sample.ok
@@ -177,26 +179,39 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                             if audit.aac and audit.adtsCandidates > 0 then result.aacSamples++
                             sampleDuration = -1.0
                             if durations.count() > segmentIndex then sampleDuration = durations[segmentIndex]
+                            ptsSpanMs = -1.0
+                            if audit.ptsCount > 0 then ptsSpanMs = (audit.lastPts-audit.firstPts)/90.0
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " duration="; sampleDuration; " bytes="; audit.bytes; " packets="; audit.packetCount; " trailingBytes="; audit.trailingBytes
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " aligned="; audit.aligned; " syncErrors="; audit.syncErrors; " pat="; audit.patPackets; " pmt="; audit.pmtPackets
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " audioPids="; audit.audioPids; " aac="; audit.aac; " adtsCandidates="; audit.adtsCandidates
-                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " continuityErrors="; audit.continuityErrors
+                            print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " ptsCount="; audit.ptsCount; " firstPts90k="; audit.firstPts; " lastPts90k="; audit.lastPts; " ptsSpanMs="; ptsSpanMs; " continuityErrors="; audit.continuityErrors
                             if segmentIndex = 0 and audit.ptsCount > 0 and type(videoAudit) = "roAssociativeArray" and videoAudit.videoPtsCount > 0
                                 deltaPts = audit.firstPts-videoAudit.firstVideoPts
                                 if deltaPts > 4294967296 then deltaPts -= 8589934592
                                 if deltaPts < -4294967296 then deltaPts += 8589934592
                                 print "[RokuPlus audio-sync] language="; track.language; " videoFirstPts90k="; videoAudit.firstVideoPts; " audioFirstPts90k="; audit.firstPts; " deltaMs="; deltaPts/90.0
-                            else if segmentIndex > 0 and audit.ptsCount > 0 and previousFirstPts >= 0 and previousDuration > 0
-                                deltaPts = audit.firstPts-previousFirstPts
-                                if deltaPts > 4294967296 then deltaPts -= 8589934592
-                                if deltaPts < -4294967296 then deltaPts += 8589934592
-                                expectedPts = previousDuration*90000.0
-                                print "[RokuPlus audio-continuity] language="; track.language; " fromSegment="; segmentIndex-1; " toSegment="; segmentIndex; " actualDeltaMs="; deltaPts/90.0; " expectedDeltaMs="; expectedPts/90.0; " driftMs="; (deltaPts-expectedPts)/90.0
                             end if
-                            if audit.ptsCount > 0 then previousFirstPts = audit.firstPts else previousFirstPts = -1
+                            if segmentIndex > 0 and audit.ptsCount > 0 and previousFirstPts >= 0 and previousLastPts >= 0 and previousDuration > 0
+                                firstDeltaPts = audit.firstPts-previousFirstPts
+                                if firstDeltaPts > 4294967296 then firstDeltaPts -= 8589934592
+                                if firstDeltaPts < -4294967296 then firstDeltaPts += 8589934592
+                                expectedPts = previousDuration*90000.0
+                                boundaryPts = audit.firstPts-previousLastPts
+                                if boundaryPts > 4294967296 then boundaryPts -= 8589934592
+                                if boundaryPts < -4294967296 then boundaryPts += 8589934592
+                                print "[RokuPlus audio-continuity] language="; track.language; " fromSegment="; segmentIndex-1; " toSegment="; segmentIndex; " firstToFirstMs="; firstDeltaPts/90.0; " expectedSegmentMs="; expectedPts/90.0; " boundaryGapMs="; boundaryPts/90.0
+                            end if
+                            if audit.ptsCount > 0
+                                previousFirstPts = audit.firstPts
+                                previousLastPts = audit.lastPts
+                            else
+                                previousFirstPts = -1
+                                previousLastPts = -1
+                            end if
                             if durations.count() > segmentIndex then previousDuration = durations[segmentIndex] else previousDuration = 0.0
                         else
                             previousFirstPts = -1
+                            previousLastPts = -1
                             previousDuration = 0.0
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " request_failed status="; sample.httpStatus
                         end if
