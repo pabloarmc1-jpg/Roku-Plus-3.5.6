@@ -1286,7 +1286,9 @@ sub refreshAudioTracks()
         end for
     end if
     m.audioTracks = updated
-    print "[RokuPlus audio] refresh native="; tracks.count(); " selectable="; updated.count()
+    nativeCount = 0
+    if type(tracks) = "roArray" then nativeCount = tracks.count()
+    print "[RokuPlus audio] refresh native="; nativeCount; " selectable="; updated.count()
     if m.audioTracks.count() > 0
         selected = m.decoder.currentAudioTrack
         if GetInterface(selected,"ifString") = invalid or selected = "" then selected = m.decoder.audioTrack
