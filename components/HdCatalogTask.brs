@@ -1008,6 +1008,27 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             else
                                 candidateStage = "relay_segments_unavailable"
                                 print "[RokuPlus ts-relay] disabled reason=segment_list_unavailable"
+                                if manifestPlayable and rpHdTaskNativeDefaultAudioSafe(master,selected,decoderAccept)
+                                    answer.url = masterUrl
+                                    answer.streamFormat = "hls"
+                                    answer.segmentUrls = []
+                                    answer.segmentDurations = []
+                                    answer.tsRelayEnabled = false
+                                    answer.fallbackTsRelayEnabled = false
+                                    answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                                    answer.description = "HLS compatible · audio predeterminado · H.264 · "+selected.height.toStr()+"p"
+                                    answer.language = embed.language
+                                    answer.width = selected.width
+                                    answer.height = selected.height
+                                    answer.codecs = selected.codecs
+                                    answer.seekSupport = "native-hls"
+                                    print "[RokuPlus resolve] provider="; provider; " format=hls mode=default-audio-fallback reason=ts-relay-unavailable languageMetadata=not-required"
+                                    answer.attemptUsed = embedIndex+variantIndex*count
+                                    answer.ok = true
+                                    answer.message = ""
+                                    m.hdProviderDeadline = 0
+                                    return answer
+                                end if
                             end if
                         end if
                     end for
