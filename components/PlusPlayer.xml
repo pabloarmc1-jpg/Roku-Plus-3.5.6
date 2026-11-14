@@ -29,6 +29,7 @@
       <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
     </Group>
     <TsStreamServer id="tsStreamServer" />
+    <Audio id="sidecarAudio" />
     <Poster id="previewMask" translation="[294,206]" width="1016" height="572" uri="pkg:/images/ui/live-preview-mask.png" loadDisplayMode="scaleToFit" visible="false" />
     <Group id="startupOverlay" translation="[0,0]" visible="false">
       <Poster id="startupBanner" translation="[0,0]" width="1920" height="1080" loadDisplayMode="scaleToFill" />
