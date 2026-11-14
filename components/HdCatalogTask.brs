@@ -149,6 +149,34 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
         if videoAudit.audioPcrPid >= 0 and videoAudit.pmtPcrPid >= 0 then pcrPidMatchesPmt = (videoAudit.audioPcrPid = videoAudit.pmtPcrPid)
         print "[RokuPlus video-clock] pcrPid="; videoAudit.audioPcrPid; " pmtPcrPid="; videoAudit.pmtPcrPid; " pcrPidMatchesPmt="; pcrPidMatchesPmt; " pcrCount="; videoAudit.audioPcrCount; " pcrSpanMs="; videoAudit.audioPcrSpanMs; " videoPtsCount="; videoAudit.videoPtsCount; " videoFirstPts="; videoAudit.firstVideoPts; " videoLastPts="; videoAudit.lastVideoPts
     end if
+    ' Inspect the final video TS segment so the audio-tail comparison uses
+    ' the same playlist boundary instead of inferring video timing from segment EXTINF.
+    videoSegments = rpHdTaskSegmentList(videoManifest,selected.url)
+    if videoSegments.count() > 0
+        videoTailIndex = videoSegments.count()-1
+        videoTailSample = fetcher(videoSegments[videoTailIndex],"sample-full",referer)
+        if videoTailSample.ok
+            videoTailAudit = rpHdTaskAuditAudioSegment(videoTailSample.bytes)
+            videoTailDuration = -1.0
+            if videoPlaylistAudit.durations.count() > videoTailIndex then videoTailDuration = videoPlaylistAudit.durations[videoTailIndex]
+            videoTailPtsSpanMs = -1.0
+            if videoTailAudit.videoPtsCount > 0
+                videoTailPtsTicks = videoTailAudit.lastVideoPts-videoTailAudit.firstVideoPts
+                if videoTailPtsTicks < 0 then videoTailPtsTicks += 8589934592
+                videoTailPtsSpanMs = videoTailPtsTicks/90.0
+            end if
+            print "[RokuPlus video-tail-audit] segment="; videoTailIndex; " extinf="; videoTailDuration
+            print "[RokuPlus video-tail-audit] bytes="; videoTailAudit.bytes; " packets="; videoTailAudit.packetCount; " aligned="; videoTailAudit.aligned; " syncErrors="; videoTailAudit.syncErrors
+            print "[RokuPlus video-tail-audit] videoPid="; videoTailAudit.videoPid; " videoPtsCount="; videoTailAudit.videoPtsCount; " firstPts90k="; videoTailAudit.firstVideoPts
+            print "[RokuPlus video-tail-audit] lastPts90k="; videoTailAudit.lastVideoPts; " ptsSpanMs="; videoTailPtsSpanMs
+            print "[RokuPlus video-tail-audit] pcrPid="; videoTailAudit.audioPcrPid; " pmtPcrPid="; videoTailAudit.pmtPcrPid; " pcrCount="; videoTailAudit.audioPcrCount; " pcrSpanMs="; videoTailAudit.audioPcrSpanMs
+            print "[RokuPlus video-tail-audit] patSections="; videoTailAudit.patSectionCount; " pmtSections="; videoTailAudit.pmtSectionCount; " continuityErrors="; videoTailAudit.continuityErrors
+        else
+            print "[RokuPlus video-tail-audit] segment="; videoTailIndex; " request_failed status="; videoTailSample.httpStatus
+        end if
+    else
+        print "[RokuPlus video-tail-audit] playlist_has_no_segments"
+    end if
     if type(master.audioTracks) <> "roArray" then return result
     if selected.audioGroup = "" then return result
     for each track in master.audioTracks
