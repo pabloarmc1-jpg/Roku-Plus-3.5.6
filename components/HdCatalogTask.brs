@@ -166,8 +166,24 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                 sequenceDelta = -1
                 if videoPlaylistAudit.mediaSequence >= 0 and audioPlaylistAudit.mediaSequence >= 0 then sequenceDelta = audioPlaylistAudit.mediaSequence-videoPlaylistAudit.mediaSequence
                 totalDurationDeltaMs = (audioPlaylistAudit.totalDuration-videoPlaylistAudit.totalDuration)*1000.0
+                durationPairCount = audioPlaylistAudit.durations.count()
+                if videoPlaylistAudit.durations.count() < durationPairCount then durationPairCount = videoPlaylistAudit.durations.count()
+                durationMismatchCount = 0
+                durationDeltaSumMs = 0.0
+                durationDeltaMinMs = 0.0
+                durationDeltaMaxMs = 0.0
+                if durationPairCount > 0
+                    for durationIndex = 0 to durationPairCount-1
+                        durationDeltaMs = (audioPlaylistAudit.durations[durationIndex]-videoPlaylistAudit.durations[durationIndex])*1000.0
+                        durationDeltaSumMs += durationDeltaMs
+                        if durationDeltaMs > 1.0 or durationDeltaMs < -1.0 then durationMismatchCount++
+                        if durationIndex = 0 or durationDeltaMs < durationDeltaMinMs then durationDeltaMinMs = durationDeltaMs
+                        if durationIndex = 0 or durationDeltaMs > durationDeltaMaxMs then durationDeltaMaxMs = durationDeltaMs
+                    end for
+                end if
                 print "[RokuPlus audio-playlist] language="; track.language; " videoSegments="; videoPlaylistAudit.segmentCount; " audioSegments="; audioPlaylistAudit.segmentCount; " videoSequence="; videoPlaylistAudit.mediaSequence; " audioSequence="; audioPlaylistAudit.mediaSequence; " sequenceDelta="; sequenceDelta
                 print "[RokuPlus audio-playlist] language="; track.language; " videoDiscontinuities="; videoPlaylistAudit.discontinuities; " audioDiscontinuities="; audioPlaylistAudit.discontinuities; " videoDiscSequence="; videoPlaylistAudit.discontinuitySequence; " audioDiscSequence="; audioPlaylistAudit.discontinuitySequence; " totalDurationDeltaMs="; totalDurationDeltaMs; " targetVideo="; videoPlaylistAudit.targetDuration; " targetAudio="; audioPlaylistAudit.targetDuration
+                print "[RokuPlus audio-duration-audit] language="; track.language; " pairs="; durationPairCount; " mismatchesOver1ms="; durationMismatchCount; " summedDeltaMs="; durationDeltaSumMs; " minDeltaMs="; durationDeltaMinMs; " maxDeltaMs="; durationDeltaMaxMs
                 print "[RokuPlus audio-playlist] language="; track.language; " videoMap="; videoPlaylistAudit.hasMap; " audioMap="; audioPlaylistAudit.hasMap; " videoKey="; videoPlaylistAudit.hasKey; " audioKey="; audioPlaylistAudit.hasKey; " videoByteRanges="; videoPlaylistAudit.byteRanges; " audioByteRanges="; audioPlaylistAudit.byteRanges
                 print "[RokuPlus playlist-clock] language="; track.language; " videoFirstDate="; videoPlaylistAudit.firstProgramDateTime; " audioFirstDate="; audioPlaylistAudit.firstProgramDateTime; " videoLastDate="; videoPlaylistAudit.lastProgramDateTime; " audioLastDate="; audioPlaylistAudit.lastProgramDateTime
                 if segments.count() > 0
