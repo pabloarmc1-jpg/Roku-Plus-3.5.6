@@ -1,14 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="PlusScene" extends="Scene">
   <interface>
-    <field id="exitChannel" type="bool" alwaysNotify="true" />
     <field id="launchArgs" type="assocarray" />
     <field id="inputArgs" type="assocarray" alwaysNotify="true" />
-    <field id="playletLibLoadedUrl" type="assocarray" />
-    <field id="playletReady" type="bool" alwaysNotify="true" />
-    <function name="CreatePlayletTransportEventsHandler" />
     <function name="ActivatePlusExperience" />
-    <function name="DeactivatePlusExperience" />
   </interface>
   <script type="text/brightscript" uri="pkg:/source/CatalogData.brs" />
   <script type="text/brightscript" uri="pkg:/source/CountryData.brs" />
@@ -40,7 +35,6 @@
       <Timer id="pageTransition" duration="0.08" repeat="true" />
       <Timer id="catalogFade" duration="0.04" repeat="true" />
     </Group>
-    <DualLauncher id="DualLauncher" />
   </children>
 </component>
 
