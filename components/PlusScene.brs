@@ -268,7 +268,7 @@ sub fetch(context as object)
         end if
     end if
     if online and type(m.tvmazeCache) = "roAssociativeArray" then task.tvmazeCache = m.tvmazeCache
-    if online and context.operation = "resolve" then task.attempt = orbitInteger(context.item.hdAttempt,99)
+    if online and (context.operation = "resolve" or context.operation = "resume-episode") then task.attempt = orbitInteger(context.item.hdAttempt,99)
     task.operation = context.operation
     task.kind = m.kind
     if context.doesExist("kind") then task.kind = context.kind
@@ -383,7 +383,7 @@ sub fetched(event as object)
     if type(answer.tvmazeCache) = "roAssociativeArray" then m.tvmazeCache = answer.tvmazeCache
     cancelRequest()
     if not answer.ok
-        if context.operation = "meta" or context.operation = "resolve" or context.operation = "episodes"
+        if context.operation = "meta" or context.operation = "resolve" or context.operation = "episodes" or context.operation = "resume-episode"
             retryItem = invalid
             if context.doesExist("item") and type(context.item) = "roAssociativeArray" then retryItem = context.item
             if retryItem = invalid and type(m.detail) = "roAssociativeArray" then retryItem = m.detail
@@ -496,7 +496,10 @@ sub fetched(event as object)
             m.view = "episodes"
             m.zone = "seasons"
         end if
-    else if context.operation = "resolve"
+    else if context.operation = "resolve" or context.operation = "resume-episode"
+        if context.operation = "resume-episode" and type(answer.item) = "roAssociativeArray"
+            m.detail = answer.item
+        end if
         m.detail.hdAutoRetry = 0
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
@@ -2623,7 +2626,12 @@ sub playDetail()
     if m.detail = invalid then return
     m.playbackMode = "direct"
     if usesOnlineHd() or rpIsOnlineHdItem(m.detail)
-        fetch({operation:"resolve",item:m.detail})
+        if lcase(orbitText(m.detail.provider,32)) = "seriesmetro" and m.detail.kind = "episode" and orbitText(m.detail.providerSlug,200) = "" and orbitInteger(m.detail.seriesProviderId,999999999) > 0 and orbitText(m.detail.seriesProviderSlug,200) <> ""
+            print "[RokuPlus series] resume-episode-recover id="; orbitText(m.detail.id,180); " season="; orbitInteger(m.detail.season,999); " episode="; orbitInteger(m.detail.episode,9999)
+            fetch({operation:"resume-episode",item:m.detail})
+        else
+            fetch({operation:"resolve",item:m.detail})
+        end if
     else if m.catalogMode = "hd"
         if m.detail.doesExist("directUrl") and m.detail.directUrl <> ""
             launchVideo(m.detail,m.detail.directUrl,m.detail.streamFormat)
