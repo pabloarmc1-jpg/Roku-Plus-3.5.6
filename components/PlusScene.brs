@@ -482,10 +482,9 @@ sub fetched(event as object)
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSegmentUrls = answer.segmentUrls
         m.pendingSegmentDurations = answer.segmentDurations
-        m.pendingExternalAudioTracks = answer.externalAudioTracks
-        externalCount = 0
-        if type(m.pendingExternalAudioTracks) = "roArray" then externalCount = m.pendingExternalAudioTracks.count()
-        print "[RokuPlus sidecar-audio] catalog_result externalTracks="; externalCount
+        m.pendingFallbackSegmentUrls = answer.fallbackSegmentUrls
+        m.pendingFallbackSegmentDurations = answer.fallbackSegmentDurations
+        m.pendingFallbackTsRelay = answer.fallbackTsRelayEnabled = true
         m.pendingTsRelay = false
         if answer.tsRelayEnabled = true then m.pendingTsRelay = true
         launchVideo(m.detail,answer.url,answer.streamFormat)
@@ -631,13 +630,16 @@ sub launchVideo(item as object, url as string, format as string)
         descriptor.resumePosition = savedProgress.position
     end if
     if item.doesExist("mediaHeaders") then descriptor.mediaHeaders = item.mediaHeaders
-    if type(m.pendingExternalAudioTracks) = "roArray"
-        descriptor.externalAudioTracks = m.pendingExternalAudioTracks
-        print "[RokuPlus sidecar-audio] launch_descriptor externalTracks="; descriptor.externalAudioTracks.count()
-        m.pendingExternalAudioTracks = invalid
-    else
-        print "[RokuPlus sidecar-audio] launch_descriptor externalTracks=0 type="; type(m.pendingExternalAudioTracks)
+    if type(m.pendingFallbackSegmentUrls) = "roArray"
+        descriptor.fallbackSegmentUrls = m.pendingFallbackSegmentUrls
+        m.pendingFallbackSegmentUrls = invalid
     end if
+    if type(m.pendingFallbackSegmentDurations) = "roArray"
+        descriptor.fallbackSegmentDurations = m.pendingFallbackSegmentDurations
+        m.pendingFallbackSegmentDurations = invalid
+    end if
+    if m.pendingFallbackTsRelay then descriptor.fallbackTsRelayEnabled = true
+    m.pendingFallbackTsRelay = false
     if type(m.pendingSegmentUrls) = "roArray"
         descriptor.segmentUrls = m.pendingSegmentUrls
         m.pendingSegmentUrls = invalid
