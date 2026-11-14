@@ -247,7 +247,7 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                                 boundaryPts = audit.firstPts-previousLastPts
                                 if boundaryPts > 4294967296 then boundaryPts -= 8589934592
                                 if boundaryPts < -4294967296 then boundaryPts += 8589934592
-                                print "[RokuPlus audio-continuity] language="; track.language; " fromSegment="; segmentIndex-1; " toSegment="; segmentIndex; " firstToFirstMs="; firstDeltaPts/90.0; " expectedSegmentMs="; expectedPts/90.0; " boundaryGapMs="; boundaryPts/90.0
+                                print "[RokuPlus audio-continuity] language="; track.language; " fromSegment="; segmentIndex-1; " toSegment="; segmentIndex; " segmentStartDeltaMs="; firstDeltaPts/90.0; " expectedSegmentMs="; expectedPts/90.0; " segmentStartDriftMs="; (firstDeltaPts-expectedPts)/90.0; " lastPesStartToNextFirstMs="; boundaryPts/90.0
                             end if
                             if audit.ptsCount > 0
                                 previousFirstPts = audit.firstPts
