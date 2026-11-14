@@ -141,7 +141,7 @@ end function
 ' Adapters may discover Vimeos links differently but share media validation.
 ' Playlist checks and three bounded consecutive audio-segment samples are diagnostic only.
 function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string, videoAudit as dynamic, videoManifest as dynamic) as object
-    result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0,timingAligned:0,timingRejected:0}
+    result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0,timingAligned:0,timingRejected:0,spanishTracksChecked:0,spanishTimingAligned:false}
     videoPlaylistAudit = rpHdTaskAuditManifestTiming(videoManifest)
     print "[RokuPlus video-playlist] segments="; videoPlaylistAudit.segmentCount; " extinf="; videoPlaylistAudit.extinfCount; " sequence="; videoPlaylistAudit.mediaSequence; " discontinuities="; videoPlaylistAudit.discontinuities; " target="; videoPlaylistAudit.targetDuration; " totalDuration="; videoPlaylistAudit.totalDuration
     if type(videoAudit) = "roAssociativeArray"
@@ -182,6 +182,12 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
     for each track in master.audioTracks
         if track.group = selected.audioGroup and track.url <> ""
             result.checked++
+            trackLanguage = lcase(orbitText(track.language,40))
+            trackName = lcase(orbitText(track.name,120))
+            isSpanishTrack = false
+            if trackLanguage = "es" or trackLanguage = "spa" or left(trackLanguage,3) = "es-" then isSpanishTrack = true
+            if instr(1,trackName,"español") > 0 or instr(1,trackName,"espanol") > 0 or instr(1,trackName,"spanish") > 0 or instr(1,trackName,"latino") > 0 or instr(1,trackName,"castellano") > 0 then isSpanishTrack = true
+            if isSpanishTrack then result.spanishTracksChecked++
             response = fetcher(track.url,"media",referer)
             if response.cancelled
                 print "[RokuPlus audio-audit] cancelled before playlist validation"
@@ -197,10 +203,11 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                 timingAligned = rpHdTaskAudioTimingAligned(videoPlaylistAudit,audioPlaylistAudit)
                 if timingAligned
                     result.timingAligned++
+                    if isSpanishTrack then result.spanishTimingAligned = true
                 else
                     result.timingRejected++
                 end if
-                print "[RokuPlus native-hls-audio-gate] language="; track.language; " timingAligned="; timingAligned; " videoSegments="; videoPlaylistAudit.segmentCount; " audioSegments="; audioPlaylistAudit.segmentCount; " sequenceDelta="; sequenceDelta; " totalDeltaMs="; totalDurationDeltaMs
+                print "[RokuPlus native-hls-audio-gate] language="; track.language; " spanish="; isSpanishTrack; " timingAligned="; timingAligned; " videoSegments="; videoPlaylistAudit.segmentCount; " audioSegments="; audioPlaylistAudit.segmentCount; " sequenceDelta="; sequenceDelta; " totalDeltaMs="; totalDurationDeltaMs
                 durationPairCount = audioPlaylistAudit.durations.count()
                 if videoPlaylistAudit.durations.count() < durationPairCount then durationPairCount = videoPlaylistAudit.durations.count()
                 durationMismatchCount = 0
@@ -352,6 +359,7 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
     print "[RokuPlus audio-audit] checked="; result.checked; " valid="; result.valid; " segments="; result.segments; " durationSets="; result.durationSets
     print "[RokuPlus audio-audit] samples="; result.samples; " tsValid="; result.tsValid; " aacSamples="; result.aacSamples
     print "[RokuPlus native-hls-audio-gate] alignedTracks="; result.timingAligned; " rejectedTracks="; result.timingRejected
+    print "[RokuPlus native-hls-audio-gate] spanishTracksChecked="; result.spanishTracksChecked; " spanishTimingAligned="; result.spanishTimingAligned
     return result
 end function
 
