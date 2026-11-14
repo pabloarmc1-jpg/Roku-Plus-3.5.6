@@ -1266,8 +1266,9 @@ end sub
 ' Build a safe, user-facing list from the tracks reported by Roku. The Track
 ' value is kept unchanged because it is the identifier required by Video.audioTrack.
 sub refreshAudioTracks()
-    if m.decoder = invalid or not m.decoder.hasField("availableAudioTracks") then return
-    tracks = m.decoder.availableAudioTracks
+    if m.decoder = invalid then return
+    tracks = []
+    if m.decoder.hasField("availableAudioTracks") then tracks = m.decoder.availableAudioTracks
     updated = []
     if type(tracks) = "roArray"
         for each track in tracks
@@ -1287,7 +1288,6 @@ sub refreshAudioTracks()
             end if
         end for
     end if
-    m.audioTracks = updated
     if updated.count() = 0 and type(m.current) = "roAssociativeArray" and type(m.current.externalAudioTracks) = "roArray" and m.current.externalAudioTracks.count() > 0
         updated.push({id:"native-default",label:"Audio original (TS)",language:"",source:"native-default"})
     end if
@@ -1307,6 +1307,10 @@ sub refreshAudioTracks()
             end if
         end for
     end if
+    m.audioTracks = updated
+    externalCount = 0
+    if type(m.current) = "roAssociativeArray" and type(m.current.externalAudioTracks) = "roArray" then externalCount = m.current.externalAudioTracks.count()
+    print "[RokuPlus audio] refresh native="; tracks.count(); " external="; externalCount; " selectable="; updated.count()
     if m.audioTracks.count() > 0
         selected = m.decoder.currentAudioTrack
         if GetInterface(selected,"ifString") = invalid or selected = "" then selected = m.decoder.audioTrack
@@ -1354,7 +1358,9 @@ sub openAudioMenu()
     if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
     if m.subtitleMenuOpen then closeSubtitleMenu()
     refreshAudioTracks()
-    print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " state="; m.decoder.state
+    externalCount = 0
+    if type(m.current) = "roAssociativeArray" and type(m.current.externalAudioTracks) = "roArray" then externalCount = m.current.externalAudioTracks.count()
+    print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " external="; externalCount; " state="; m.decoder.state
     m.audioMenuOpen = true
     m.audioMenuGroup.visible = true
     revealTransport()
