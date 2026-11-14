@@ -863,15 +863,25 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         print "[RokuPlus hls] audio group="; audioTrack.group; " language="; audioTrack.language; " name="; audioTrack.name; " default="
                         print "[RokuPlus hls] audio group="; "cont"; audioTrack.default; " uri="; uriState
                     end for
-                    candidates = {variants:[],audioTracks:master.audioTracks,encrypted:master.encrypted}
+                    spanishCandidates = []
+                    fallbackCandidates = []
                     for each variant in master.variants
                         print "[RokuPlus hls] variant group="; variant.audioGroup; " resolution="; variant.width; "x"; variant.height; " fps="; variant.fps
                         print "[RokuPlus hls] variant group="; "cont"; " bandwidth="; variant.bandwidth; " averageBandwidth="; variant.averageBandwidth; " codecs="
                         print "[RokuPlus hls] variant group="; "cont"; variant.codecs; " videoRange="; variant.videoRange; " hdcp="; variant.hdcpLevel
-                        if rpHdTaskSpanishAudio(master,variant) then candidates.variants.push(variant)
+                        fallbackCandidates.push(variant)
+                        if rpHdTaskSpanishAudio(master,variant) then spanishCandidates.push(variant)
                     end for
-                    print "[RokuPlus hls] spanish-compatible variants="; candidates.variants.count()
-                    ' Use every Spanish-compatible rendition; do not pin playback to one resolution.
+                    candidates = {variants:spanishCandidates,audioTracks:master.audioTracks,encrypted:master.encrypted}
+                    if spanishCandidates.count() = 0
+                        ' No Spanish language was identified: keep playback available
+                        ' and let Roku use the stream's declared/default audio track.
+                        candidates.variants = fallbackCandidates
+                        print "[RokuPlus hls] spanish-compatible variants=0 fallback=all-playable"
+                    else
+                        print "[RokuPlus hls] spanish-compatible variants="; spanishCandidates.count()
+                    end if
+                    ' Try Spanish-compatible renditions first; use all valid variants only when Spanish is absent.
                     choices = rpHdTaskStableVariants(candidates,decoderAccept)
                     print "[RokuPlus hls-test] eligibleVariants="; choices.count()
                     variantOffset = 0
@@ -1573,21 +1583,16 @@ function rpHdTaskNativeAudioMasterSafe(master as object, selected as object, dec
 end function
 
 function rpHdTaskSpanishAudio(master as object, variant as object) as boolean
-    if variant.audioGroup = "" then return true
-    unknownLanguageFound = false
+    if variant.audioGroup = "" or type(master.audioTracks) <> "roArray" then return false
     for each track in master.audioTracks
         if track.group = variant.audioGroup
             language = lcase(orbitText(track.language,40))
             name = lcase(orbitText(track.name,120))
             if language = "es" or language = "spa" or left(language,3) = "es-" then return true
             if instr(1,name,"español") > 0 or instr(1,name,"espanol") > 0 or instr(1,name,"spanish") > 0 or instr(1,name,"latino") > 0 or instr(1,name,"castellano") > 0 then return true
-            if language = "" or language = "und" or language = "unknown" then unknownLanguageFound = true
         end if
     end for
-    ' Unknown language metadata must never make a valid title unplayable.
-    ' Roku's Spanish preference remains configured and will choose Spanish
-    ' automatically if the master exposes a matching language tag.
-    return unknownLanguageFound
+    return false
 end function
 
 function rpHdTaskHasSpanishValidatedAudio(tracks as dynamic) as boolean
