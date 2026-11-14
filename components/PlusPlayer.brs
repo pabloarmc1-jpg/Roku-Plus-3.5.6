@@ -1090,22 +1090,31 @@ sub onDecoderState()
         end if
         revealTransport()
     else if m.phase = "error"
-        if m.effectiveStreamFormat = "hls" and type(m.current) = "roAssociativeArray" and m.current.fallbackTsRelayEnabled = true and type(m.current.fallbackSegmentUrls) = "roArray" and m.current.fallbackSegmentUrls.count() > 1
-            fallbackRequest = {}
-            for each fallbackKey in m.current
-                fallbackRequest[fallbackKey] = m.current[fallbackKey]
-            end for
-            fallbackRequest.url = m.current.fallbackSegmentUrls[0]
-            fallbackRequest.streamFormat = "ts"
-            fallbackRequest.tsRelayEnabled = true
-            fallbackRequest.segmentUrls = m.current.fallbackSegmentUrls
-            fallbackRequest.segmentDurations = m.current.fallbackSegmentDurations
-            fallbackRequest.fallbackTsRelayEnabled = false
-            fallbackPosition = playerPosition()
-            if fallbackPosition <> invalid and fallbackPosition > 0 then fallbackRequest.resumePosition = fallbackPosition
-            print "[RokuPlus hls-fallback] action=ts-relay reason=native-hls-error position="; fallbackPosition
-            m.top.request = fallbackRequest
-            return
+        if m.effectiveStreamFormat = "hls" and type(m.current) = "roAssociativeArray"
+            if m.current.doesExist("fallbackTsRelayEnabled") and m.current.fallbackTsRelayEnabled = true
+                if m.current.doesExist("fallbackSegmentUrls") and type(m.current.fallbackSegmentUrls) = "roArray"
+                    if m.current.fallbackSegmentUrls.count() > 1
+                        fallbackRequest = {}
+                        for each fallbackKey in m.current
+                            fallbackRequest[fallbackKey] = m.current[fallbackKey]
+                        end for
+                        fallbackRequest.url = m.current.fallbackSegmentUrls[0]
+                        fallbackRequest.streamFormat = "ts"
+                        fallbackRequest.tsRelayEnabled = true
+                        fallbackRequest.segmentUrls = m.current.fallbackSegmentUrls
+                        fallbackRequest.segmentDurations = m.current.fallbackSegmentDurations
+                        fallbackRequest.fallbackTsRelayEnabled = false
+                        fallbackRequest.resumePosition = 0
+                        fallbackPosition = playerPosition()
+                        if fallbackPosition <> invalid
+                            if fallbackPosition > 0 then fallbackRequest.resumePosition = fallbackPosition
+                        end if
+                        print "[RokuPlus hls-fallback] action=ts-relay reason=native-hls-error position="; fallbackPosition
+                        m.top.request = fallbackRequest
+                        return
+                    end if
+                end if
+            end if
         end if
         m.hlsStartupIsolation = false
         if m.startupTimer <> invalid then m.startupTimer.control = "stop"
