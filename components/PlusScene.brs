@@ -581,7 +581,18 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
             drawScreen()
         end if
     else
-        fetch({operation:"meta",item:item})
+        ' Older LaMovie watch records can retain the numeric post ID but lack
+        ' the slug required by the metadata endpoint. Resolve playback directly
+        ' by numeric ID instead of showing a false source-connection error.
+        resumeProvider = lcase(orbitText(item.provider,32))
+        resumeSlug = orbitText(item.providerSlug,200)
+        resumeProviderId = orbitInteger(item.providerId,999999999)
+        if playNow and item.kind = "movie" and resumeProvider = "lamovie" and resumeSlug = "" and resumeProviderId > 0
+            print "[RokuPlus continue] resume-direct=1 reason=missing-lamovie-slug providerId="; resumeProviderId
+            playDetail()
+        else
+            fetch({operation:"meta",item:item})
+        end if
     end if
 end sub
 
