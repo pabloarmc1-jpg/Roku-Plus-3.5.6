@@ -283,6 +283,25 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                             print "[RokuPlus audio-sample] language="; track.language; " segment="; segmentIndex; " request_failed status="; sample.httpStatus
                         end if
                     end for
+                    lastSegmentIndex = segments.count()-1
+                    if lastSegmentIndex >= sampleLimit
+                        lastSample = fetcher(segments[lastSegmentIndex],"sample-full",referer)
+                        if lastSample.ok
+                            lastAudit = rpHdTaskAuditAudioSegment(lastSample.bytes)
+                            lastDuration = -1.0
+                            if durations.count() > lastSegmentIndex then lastDuration = durations[lastSegmentIndex]
+                            lastPtsSpanMs = -1.0
+                            if lastAudit.ptsCount > 0
+                                lastPtsTicks = lastAudit.lastPts-lastAudit.firstPts
+                                if lastPtsTicks < 0 then lastPtsTicks += 8589934592
+                                lastPtsSpanMs = lastPtsTicks/90.0
+                            end if
+                            print "[RokuPlus audio-tail-audit] language="; track.language; " segment="; lastSegmentIndex; " extinf="; lastDuration; " bytes="; lastAudit.bytes; " packets="; lastAudit.packetCount; " aligned="; lastAudit.aligned; " syncErrors="; lastAudit.syncErrors; " ptsCount="; lastAudit.ptsCount; " firstPts90k="; lastAudit.firstPts; " lastPts90k="; lastAudit.lastPts; " ptsSpanMs="; lastPtsSpanMs
+                            print "[RokuPlus audio-tail-audit] language="; track.language; " segment="; lastSegmentIndex; " audioPids="; lastAudit.audioPids; " adtsFrames="; lastAudit.adtsFrames; " adtsSamples="; lastAudit.adtsSamples; " sampleRate="; lastAudit.adtsSampleRate; " adtsDurationMs="; lastAudit.adtsDurationMs; " invalidHeaders="; lastAudit.adtsInvalidHeaders; " incompleteFrames="; lastAudit.adtsIncompleteFrames; " continuityErrors="; lastAudit.continuityErrors
+                        else
+                            print "[RokuPlus audio-tail-audit] language="; track.language; " segment="; lastSegmentIndex; " request_failed status="; lastSample.httpStatus
+                        end if
+                    end if
                 else
                     print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=empty"
                 end if
