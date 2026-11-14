@@ -210,31 +210,6 @@ sub ActivatePlusExperience()
     print "[RokuPlus startup] activate complete"
 end sub
 
-sub DeactivatePlusExperience()
-    ' Stop Roku Plus background work when the experience is deactivated.
-    if m.deadline <> invalid then m.deadline.control = "stop"
-    if m.heroRotation <> invalid then m.heroRotation.control = "stop"
-    if m.discoveryRotation <> invalid then m.discoveryRotation.control = "stop"
-    if m.previewTimer <> invalid then m.previewTimer.control = "stop"
-    if m.noteTimer <> invalid then m.noteTimer.control = "stop"
-    if m.nextEpisodeTimer <> invalid then m.nextEpisodeTimer.control = "stop"
-    if m.searchDeleteTimer <> invalid then m.searchDeleteTimer.control = "stop"
-    if m.dialogFocusTimer <> invalid then m.dialogFocusTimer.control = "stop"
-    if m.pageTransitionTimer <> invalid then m.pageTransitionTimer.control = "stop"
-    if m.catalogFadeTimer <> invalid then m.catalogFadeTimer.control = "stop"
-    if m.lease <> invalid then m.lease.control = "stop"
-    if m.leaseTask <> invalid
-        m.leaseTask.cancelRequested = true
-        m.leaseTask = invalid
-    end if
-    m.activeJobId = ""
-    cancelRequest()
-    cancelHomeRequests()
-    m.nextEpisode = invalid
-    m.nextEpisodeCountdown = 0
-    if m.top.hasFocus() then m.top.setFocus(false)
-end sub
-
 sub hdLocalDataLoaded(event as object)
     if m.hdDataTask = invalid then return
     if not m.hdDataTask.isSameNode(event.getRoSGNode()) then return
