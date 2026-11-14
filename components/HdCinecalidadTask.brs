@@ -62,7 +62,7 @@ function rpHdCinecalidadTask(request as object, answer as object, fetcher as dyn
     end if
     embeds = rpHdCinecalidadEmbeds(response.body)
     if embeds.count() = 0
-        answer.message = "CineCalidad no tiene una opción H.264 en español disponible para esta película."
+        answer.message = "CineCalidad no devolvió un enlace de reproducción compatible para esta película."
         return answer
     end if
     return rpHdTaskResolveEmbeds(embeds,"cinecalidad",answer,fetcher,decoderAccept,orbitInteger(request.attempt,999),"https://www.cinecalidad.vg/")
