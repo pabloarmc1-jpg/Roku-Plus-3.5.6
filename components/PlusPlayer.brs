@@ -8,6 +8,7 @@ sub init()
     m.sidecarAudioNode = m.top.findNode("sidecarAudio")
     m.sidecarAudioActive = false
     m.sidecarAudioTrack = invalid
+    m.sidecarAudioStartedAt = 0
     if m.decoder.hasField("enableDecoderStats")
         m.decoder.enableDecoderStats = true
         print "[RokuPlus decoder] enableDecoderStats="; m.decoder.enableDecoderStats
@@ -1280,6 +1281,9 @@ sub refreshAudioTracks()
         end for
     end if
     m.audioTracks = updated
+    if updated.count() = 0 and type(m.current) = "roAssociativeArray" and type(m.current.externalAudioTracks) = "roArray" and m.current.externalAudioTracks.count() > 0
+        updated.push({id:"native-default",label:"Audio original (TS)",language:"",source:"native-default"})
+    end if
     if type(m.current) = "roAssociativeArray" and type(m.current.externalAudioTracks) = "roArray"
         for each externalTrack in m.current.externalAudioTracks
             language = ""
@@ -1387,6 +1391,13 @@ end sub
 sub selectAudioTrack()
     if m.audioTrackIndex < 0 or m.audioTrackIndex >= m.audioTracks.count() then return
     chosen = m.audioTracks[m.audioTrackIndex]
+    if chosen.source = "native-default"
+        stopSidecarAudioTrack()
+        closeAudioMenu()
+        revealTransport()
+        drawTransport()
+        return
+    end if
     if chosen.source = "sidecar"
         startSidecarAudioTrack(chosen)
         closeAudioMenu()
@@ -1442,6 +1453,7 @@ sub startSidecarAudioTrack(track as object)
     m.sidecarAudioNode.seek = position
     m.sidecarAudioTrack = track
     m.sidecarAudioActive = true
+    m.sidecarAudioStartedAt = m.monotonic.totalMilliseconds()
     m.decoder.mute = true
     if m.wantPaused or m.phase <> "playing"
         m.sidecarAudioNode.control = "prebuffer"
@@ -1461,6 +1473,7 @@ sub stopSidecarAudioTrack()
     if m.decoder <> invalid then m.decoder.mute = false
     m.sidecarAudioActive = false
     m.sidecarAudioTrack = invalid
+    m.sidecarAudioStartedAt = 0
 end sub
 
 sub onSidecarAudioStateChanged()
@@ -1481,6 +1494,14 @@ end sub
 sub syncSidecarAudio()
     if not m.sidecarAudioActive or m.sidecarAudioNode = invalid then return
     if m.sidecarAudioNode.state = "error" then return
+    if m.sidecarAudioNode.state = "buffering" and m.sidecarAudioStartedAt > 0 and m.monotonic.totalMilliseconds()-m.sidecarAudioStartedAt > 15000
+        print "[RokuPlus sidecar-audio] timeout action=restore-ts-audio"
+        stopSidecarAudioTrack()
+        m.notice = "El audio externo tardó demasiado. Se restauró el audio TS."
+        m.noticeUntil = m.monotonic.totalMilliseconds()+6000
+        drawTransport()
+        return
+    end if
     if m.phase <> "playing" or m.wantPaused or m.ticket <> invalid
         if m.sidecarAudioNode.state = "playing" then m.sidecarAudioNode.control = "pause"
         return
