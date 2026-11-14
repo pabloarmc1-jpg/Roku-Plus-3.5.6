@@ -5,11 +5,6 @@ sub init()
     m.decoder = m.top.findNode("decoder")
     m.videoViewport = m.top.findNode("videoViewport")
     m.tsStreamServer = m.top.findNode("tsStreamServer")
-    m.sidecarAudioNode = m.top.findNode("sidecarAudio")
-    m.sidecarAudioActive = false
-    m.sidecarAudioTrack = invalid
-    m.sidecarAudioStartedAt = 0
-    m.sidecarAudioPlayRequested = false
     if m.decoder.hasField("enableDecoderStats")
         m.decoder.enableDecoderStats = true
         print "[RokuPlus decoder] enableDecoderStats="; m.decoder.enableDecoderStats
@@ -133,7 +128,6 @@ sub init()
     m.forwardSurface = m.top.findNode("forwardSurface")
     m.pulse = m.top.findNode("uiPulse")
     m.decoder.observeField("state", "onDecoderState")
-    if m.sidecarAudioNode <> invalid then m.sidecarAudioNode.observeField("state", "onSidecarAudioStateChanged")
     m.decoder.observeField("position", "onNativePosition")
     m.decoder.observeField("positionInfo", "onRenderedPosition")
     m.decoder.observeField("bufferingStatus", "onBufferDetails")
@@ -612,19 +606,9 @@ sub openRequest()
     m.decoder.visible = false
     m.decoder.control = "stop"
     m.decoder.content = invalid
-    if m.sidecarAudioNode <> invalid
-        m.sidecarAudioNode.control = "stop"
-        m.sidecarAudioNode.content = invalid
-    end if
-    m.sidecarAudioActive = false
-    m.sidecarAudioTrack = invalid
-    m.decoder.mute = false
     m.generation++
     m.monotonic.mark()
     m.current = supplied
-    suppliedExternalCount = 0
-    if type(supplied) = "roAssociativeArray" and type(supplied.externalAudioTracks) = "roArray" then suppliedExternalCount = supplied.externalAudioTracks.count()
-    print "[RokuPlus sidecar-audio] player_request externalTracks="; suppliedExternalCount
     cancelStreamXArtworkTask()
     m.streamXRequestId = m.generation.toStr()
     m.introDbData = invalid
@@ -985,13 +969,6 @@ sub closePlayback()
     m.pulse.control = "stop"
     m.decoder.control = "stop"
     m.decoder.content = invalid
-    if m.sidecarAudioNode <> invalid
-        m.sidecarAudioNode.control = "stop"
-        m.sidecarAudioNode.content = invalid
-    end if
-    m.sidecarAudioActive = false
-    m.sidecarAudioTrack = invalid
-    m.decoder.mute = false
     cancelSubtitleSearchTask()
     if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
     m.externalSubtitleCues = []
@@ -1113,6 +1090,23 @@ sub onDecoderState()
         end if
         revealTransport()
     else if m.phase = "error"
+        if m.effectiveStreamFormat = "hls" and type(m.current) = "roAssociativeArray" and m.current.fallbackTsRelayEnabled = true and type(m.current.fallbackSegmentUrls) = "roArray" and m.current.fallbackSegmentUrls.count() > 1
+            fallbackRequest = {}
+            for each fallbackKey in m.current
+                fallbackRequest[fallbackKey] = m.current[fallbackKey]
+            end for
+            fallbackRequest.url = m.current.fallbackSegmentUrls[0]
+            fallbackRequest.streamFormat = "ts"
+            fallbackRequest.tsRelayEnabled = true
+            fallbackRequest.segmentUrls = m.current.fallbackSegmentUrls
+            fallbackRequest.segmentDurations = m.current.fallbackSegmentDurations
+            fallbackRequest.fallbackTsRelayEnabled = false
+            fallbackPosition = playerPosition()
+            if fallbackPosition <> invalid and fallbackPosition > 0 then fallbackRequest.resumePosition = fallbackPosition
+            print "[RokuPlus hls-fallback] action=ts-relay reason=native-hls-error position="; fallbackPosition
+            m.top.request = fallbackRequest
+            return
+        end if
         m.hlsStartupIsolation = false
         if m.startupTimer <> invalid then m.startupTimer.control = "stop"
         if m.startupOverlay <> invalid then m.startupOverlay.visible = false
@@ -1291,29 +1285,8 @@ sub refreshAudioTracks()
             end if
         end for
     end if
-    if updated.count() = 0 and type(m.current) = "roAssociativeArray" and type(m.current.externalAudioTracks) = "roArray" and m.current.externalAudioTracks.count() > 0
-        updated.push({id:"native-default",label:"Audio original (TS)",language:"",source:"native-default"})
-    end if
-    if type(m.current) = "roAssociativeArray" and type(m.current.externalAudioTracks) = "roArray"
-        for each externalTrack in m.current.externalAudioTracks
-            language = ""
-            name = ""
-            url = ""
-            if GetInterface(externalTrack.language,"ifString") <> invalid then language = externalTrack.language
-            if GetInterface(externalTrack.name,"ifString") <> invalid then name = externalTrack.name
-            if GetInterface(externalTrack.url,"ifString") <> invalid then url = externalTrack.url
-            if url <> "" and left(url,8) = "https://"
-                label = name
-                if label = "" then label = plusAudioLanguageName(language)
-                if label = "" then label = "Pista externa"
-                updated.push({id:"sidecar-"+updated.count().toStr(),label:label,language:language,source:"sidecar",url:url})
-            end if
-        end for
-    end if
     m.audioTracks = updated
-    externalCount = 0
-    if type(m.current) = "roAssociativeArray" and type(m.current.externalAudioTracks) = "roArray" then externalCount = m.current.externalAudioTracks.count()
-    print "[RokuPlus audio] refresh native="; tracks.count(); " external="; externalCount; " selectable="; updated.count()
+    print "[RokuPlus audio] refresh native="; tracks.count(); " selectable="; updated.count()
     if m.audioTracks.count() > 0
         selected = m.decoder.currentAudioTrack
         if GetInterface(selected,"ifString") = invalid or selected = "" then selected = m.decoder.audioTrack
@@ -1325,15 +1298,6 @@ sub refreshAudioTracks()
                 exit for
             end if
         end for
-        if m.sidecarAudioActive and type(m.sidecarAudioTrack) = "roAssociativeArray"
-            for i = 0 to m.audioTracks.count()-1
-                if m.audioTracks[i].source = "sidecar" and m.audioTracks[i].url = m.sidecarAudioTrack.url
-                    m.audioTrackIndex = i
-                    found = true
-                    exit for
-                end if
-            end for
-        end if
         if not found and m.audioTrackIndex >= m.audioTracks.count() then m.audioTrackIndex = 0
     else
         m.audioTrackIndex = 0
@@ -1361,9 +1325,7 @@ sub openAudioMenu()
     if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
     if m.subtitleMenuOpen then closeSubtitleMenu()
     refreshAudioTracks()
-    externalCount = 0
-    if type(m.current) = "roAssociativeArray" and type(m.current.externalAudioTracks) = "roArray" then externalCount = m.current.externalAudioTracks.count()
-    print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " external="; externalCount; " state="; m.decoder.state
+    print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " state="; m.decoder.state
     m.audioMenuOpen = true
     m.audioMenuGroup.visible = true
     revealTransport()
@@ -1407,21 +1369,6 @@ end sub
 sub selectAudioTrack()
     if m.audioTrackIndex < 0 or m.audioTrackIndex >= m.audioTracks.count() then return
     chosen = m.audioTracks[m.audioTrackIndex]
-    if chosen.source = "native-default"
-        stopSidecarAudioTrack()
-        closeAudioMenu()
-        revealTransport()
-        drawTransport()
-        return
-    end if
-    if chosen.source = "sidecar"
-        startSidecarAudioTrack(chosen)
-        closeAudioMenu()
-        revealTransport()
-        drawTransport()
-        return
-    end if
-    stopSidecarAudioTrack()
     beforeTrack = m.decoder.currentAudioTrack
     print "[RokuPlus audio] select_request label="; chosen.label; " language="; chosen.language; " id="; chosen.id; " currentBefore="; beforeTrack
     m.decoder.audioTrack = chosen.id
@@ -1433,116 +1380,6 @@ sub selectAudioTrack()
     m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
     revealTransport()
     drawTransport()
-end sub
-
-
-
-' Experimental sidecar-audio path. Video remains on the validated TS relay;
-' Roku's Audio node plays the aligned external HLS rendition independently.
-sub startSidecarAudioTrack(track as object)
-    if m.sidecarAudioNode = invalid or type(track) <> "roAssociativeArray" then return
-    url = track.url
-    if GetInterface(url,"ifString") = invalid or left(url,8) <> "https://" then return
-    position = playerPosition()
-    if position = invalid then position = 0.0
-    audioContent = CreateObject("roSGNode","ContentNode")
-    audioContent.url = url
-    audioContent.title = m.titleText.text + " - " + track.label
-    audioContent.streamFormat = "hls"
-    audioContent.live = false
-    audioContent.httpCertificatesFile = "common:/certs/ca-bundle.crt"
-    headers = CreateObject("roArray",2,true)
-    headers.push("User-Agent: RokuPlus/1.0")
-    if type(m.current) = "roAssociativeArray" and type(m.current.mediaHeaders) = "roAssociativeArray"
-        agent = m.current.mediaHeaders["User-Agent"]
-        if GetInterface(agent,"ifString") <> invalid and agent <> "" and len(agent) <= 512 and instr(1,agent,chr(13)) = 0 and instr(1,agent,chr(10)) = 0 then headers[0] = "User-Agent: " + agent
-        referer = m.current.mediaHeaders["Referer"]
-        if GetInterface(referer,"ifString") <> invalid and referer <> "" and len(referer) <= 2048 and instr(1,referer,chr(13)) = 0 and instr(1,referer,chr(10)) = 0
-            if left(referer,7) = "http://" or left(referer,8) = "https://" then headers.push("Referer: " + referer)
-        end if
-    end if
-    audioContent.httpHeaders = headers
-    m.sidecarAudioNode.control = "stop"
-    m.sidecarAudioNode.content = audioContent
-    m.sidecarAudioNode.autoplayAfterSeek = true
-    m.sidecarAudioNode.notificationInterval = 0.5
-    m.sidecarAudioNode.seek = position
-    m.sidecarAudioTrack = track
-    m.sidecarAudioActive = true
-    m.sidecarAudioStartedAt = m.monotonic.totalMilliseconds()
-    m.sidecarAudioPlayRequested = false
-    m.decoder.mute = true
-    if m.wantPaused or m.phase <> "playing"
-        m.sidecarAudioNode.control = "prebuffer"
-    else
-        m.sidecarAudioPlayRequested = true
-        m.sidecarAudioNode.control = "play"
-    end if
-    print "[RokuPlus sidecar-audio] start label="; track.label; " startPosition="; position; " videoMuted=true"
-    m.notice = "Probando audio externo: " + track.label
-    m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
-end sub
-
-sub stopSidecarAudioTrack()
-    if m.sidecarAudioNode <> invalid
-        m.sidecarAudioNode.control = "stop"
-        m.sidecarAudioNode.content = invalid
-    end if
-    if m.decoder <> invalid then m.decoder.mute = false
-    m.sidecarAudioActive = false
-    m.sidecarAudioTrack = invalid
-    m.sidecarAudioStartedAt = 0
-    m.sidecarAudioPlayRequested = false
-end sub
-
-sub onSidecarAudioStateChanged()
-    if not m.sidecarAudioActive or m.sidecarAudioNode = invalid then return
-    state = m.sidecarAudioNode.state
-    print "[RokuPlus sidecar-audio] state="; state
-    if state = "error"
-        code = m.sidecarAudioNode.errorCode
-        message = m.sidecarAudioNode.errorMsg
-        print "[RokuPlus sidecar-audio] failed code="; code; " message="; left(message,180)
-        stopSidecarAudioTrack()
-        m.notice = "No se pudo reproducir la pista externa. Se restauró el audio TS."
-        m.noticeUntil = m.monotonic.totalMilliseconds() + 6000
-        drawTransport()
-    end if
-end sub
-
-sub syncSidecarAudio()
-    if not m.sidecarAudioActive or m.sidecarAudioNode = invalid then return
-    if m.sidecarAudioNode.state = "error" then return
-    if m.phase = "playing" and not m.wantPaused and m.sidecarAudioNode.state <> "playing" and m.sidecarAudioNode.state <> "paused" and m.sidecarAudioStartedAt > 0 and m.monotonic.totalMilliseconds()-m.sidecarAudioStartedAt > 15000
-        print "[RokuPlus sidecar-audio] timeout action=restore-ts-audio"
-        stopSidecarAudioTrack()
-        m.notice = "El audio externo tardó demasiado. Se restauró el audio TS."
-        m.noticeUntil = m.monotonic.totalMilliseconds()+6000
-        drawTransport()
-        return
-    end if
-    if m.phase <> "playing" or m.wantPaused or m.ticket <> invalid
-        if m.sidecarAudioNode.state = "playing" then m.sidecarAudioNode.control = "pause"
-        return
-    end if
-    if m.sidecarAudioNode.state = "paused" then m.sidecarAudioNode.control = "resume"
-    if m.sidecarAudioNode.state = "stopped" or m.sidecarAudioNode.state = "none"
-        if not m.sidecarAudioPlayRequested
-            m.sidecarAudioPlayRequested = true
-            m.sidecarAudioNode.control = "play"
-        end if
-        return
-    end if
-    if m.sidecarAudioNode.state <> "playing" then return
-    videoPosition = playerPosition()
-    audioPosition = plusClockValue(m.sidecarAudioNode.position)
-    if videoPosition <> invalid and audioPosition <> invalid
-        drift = videoPosition-audioPosition
-        if abs(drift) > 1.0
-            m.sidecarAudioNode.seek = videoPosition
-            print "[RokuPlus sidecar-audio] resync driftSeconds="; drift
-        end if
-    end if
 end sub
 
 sub onNativeSubtitleTrackDetails()
@@ -2698,7 +2535,6 @@ end sub
 
 sub onPulse()
     if not m.mediaOpen then return
-    syncSidecarAudio()
     if m.endScreenOpen
         if m.endCountdownActive
             nowEnd = m.monotonic.totalMilliseconds()
@@ -2857,9 +2693,6 @@ sub togglePause()
     if m.ticket <> invalid then m.ticket.paused = m.wantPaused
     if m.wantPaused and m.decoder.state = "playing" then m.decoder.control = "pause"
     if not m.wantPaused and m.decoder.state = "paused" then m.decoder.control = "resume"
-    if m.sidecarAudioActive and m.sidecarAudioNode <> invalid
-        if m.wantPaused then m.sidecarAudioNode.control = "pause" else m.sidecarAudioNode.control = "resume"
-    end if
     revealTransport()
     drawTransport()
 end sub
