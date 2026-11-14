@@ -482,6 +482,7 @@ sub fetched(event as object)
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSegmentUrls = answer.segmentUrls
         m.pendingSegmentDurations = answer.segmentDurations
+        m.pendingExternalAudioTracks = answer.externalAudioTracks
         m.pendingTsRelay = false
         if answer.tsRelayEnabled = true then m.pendingTsRelay = true
         launchVideo(m.detail,answer.url,answer.streamFormat)
@@ -627,6 +628,10 @@ sub launchVideo(item as object, url as string, format as string)
         descriptor.resumePosition = savedProgress.position
     end if
     if item.doesExist("mediaHeaders") then descriptor.mediaHeaders = item.mediaHeaders
+    if type(m.pendingExternalAudioTracks) = "roArray"
+        descriptor.externalAudioTracks = m.pendingExternalAudioTracks
+        m.pendingExternalAudioTracks = invalid
+    end if
     if type(m.pendingSegmentUrls) = "roArray"
         descriptor.segmentUrls = m.pendingSegmentUrls
         m.pendingSegmentUrls = invalid
