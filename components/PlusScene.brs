@@ -484,7 +484,8 @@ sub fetched(event as object)
         m.pendingSegmentDurations = answer.segmentDurations
         m.pendingFallbackSegmentUrls = answer.fallbackSegmentUrls
         m.pendingFallbackSegmentDurations = answer.fallbackSegmentDurations
-        m.pendingFallbackTsRelay = answer.fallbackTsRelayEnabled = true
+        m.pendingFallbackTsRelay = false
+        if answer.fallbackTsRelayEnabled = true then m.pendingFallbackTsRelay = true
         m.pendingTsRelay = false
         if answer.tsRelayEnabled = true then m.pendingTsRelay = true
         launchVideo(m.detail,answer.url,answer.streamFormat)
@@ -638,7 +639,7 @@ sub launchVideo(item as object, url as string, format as string)
         descriptor.fallbackSegmentDurations = m.pendingFallbackSegmentDurations
         m.pendingFallbackSegmentDurations = invalid
     end if
-    if m.pendingFallbackTsRelay then descriptor.fallbackTsRelayEnabled = true
+    if m.pendingFallbackTsRelay = true then descriptor.fallbackTsRelayEnabled = true
     m.pendingFallbackTsRelay = false
     if type(m.pendingSegmentUrls) = "roArray"
         descriptor.segmentUrls = m.pendingSegmentUrls
