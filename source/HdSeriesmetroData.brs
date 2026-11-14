@@ -272,7 +272,7 @@ function rpHdSeriesmetroEpisodes(html as dynamic, parent as object, requested as
                     else if type(parent.seasonNumbers) = "roArray"
                         parentSeasonNumbers = parent.seasonNumbers
                     end if
-                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,seriesProviderSlug:parent.providerSlug,seriesSeasonNumbers:parentSeasonNumbers,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
+                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,seriesId:parent.id,seriesProviderId:parent.providerId,seriesProviderSlug:parent.providerSlug,seriesSeasonNumbers:parentSeasonNumbers,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
                     seen[id] = true
                 end if
             end if
