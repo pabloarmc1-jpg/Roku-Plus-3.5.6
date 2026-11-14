@@ -176,7 +176,10 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                     for durationIndex = 0 to durationPairCount-1
                         durationDeltaMs = (audioPlaylistAudit.durations[durationIndex]-videoPlaylistAudit.durations[durationIndex])*1000.0
                         durationDeltaSumMs += durationDeltaMs
-                        if durationDeltaMs > 1.0 or durationDeltaMs < -1.0 then durationMismatchCount++
+                        if durationDeltaMs > 1.0 or durationDeltaMs < -1.0
+                            durationMismatchCount++
+                            print "[RokuPlus audio-duration-outlier] language="; track.language; " segment="; durationIndex; " videoDuration="; videoPlaylistAudit.durations[durationIndex]; " audioDuration="; audioPlaylistAudit.durations[durationIndex]; " deltaMs="; durationDeltaMs
+                        end if
                         if durationIndex = 0 or durationDeltaMs < durationDeltaMinMs then durationDeltaMinMs = durationDeltaMs
                         if durationIndex = 0 or durationDeltaMs > durationDeltaMaxMs then durationDeltaMaxMs = durationDeltaMs
                     end for
