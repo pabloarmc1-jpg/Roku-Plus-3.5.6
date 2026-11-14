@@ -197,7 +197,11 @@ function rpHdSeriesmetroInputItem(value as dynamic) as dynamic
     else if kind <> "movie" and kind <> "series"
         return invalid
     end if
-    return {id:id,imdbId:"",kind:kind,library:"hd-online",provider:"seriesmetro",providerId:number,providerSlug:path,title:orbitText(value.title,200),poster:rpHdSeriesmetroArt(value.poster),background:rpHdSeriesmetroArt(value.background),description:orbitText(value.description),year:orbitText(value.year,4),runtime:orbitInteger(value.runtime,86400),language:"",seasons:[],season:season,episode:episode,seriesTitle:orbitText(value.seriesTitle,200)}
+    savedSeasons = []
+    if type(value.seasons) = "roArray" then savedSeasons = value.seasons
+    savedSeasonNumbers = []
+    if type(value.seasonNumbers) = "roArray" then savedSeasonNumbers = value.seasonNumbers
+    return {id:id,imdbId:"",kind:kind,library:"hd-online",provider:"seriesmetro",providerId:number,providerSlug:path,title:orbitText(value.title,200),poster:rpHdSeriesmetroArt(value.poster),background:rpHdSeriesmetroArt(value.background),description:orbitText(value.description),year:orbitText(value.year,4),runtime:orbitInteger(value.runtime,86400),language:"",seasons:savedSeasons,seasonNumbers:savedSeasonNumbers,season:season,episode:episode,seriesTitle:orbitText(value.seriesTitle,200)}
 end function
 
 function rpHdSeriesmetroMetadata(html as dynamic, item as object) as dynamic
