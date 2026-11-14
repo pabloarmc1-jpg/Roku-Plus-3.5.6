@@ -919,7 +919,31 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 rpHdTaskBeginSlice(1)
                                 videoAudit = rpHdTaskAuditAudioSegment(sample.bytes)
                                 audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer,videoAudit,child.body)
-                                answer.externalAudioTracks = audioAudit.tracks
+                                spanishVerified = rpHdTaskHasSpanishValidatedAudio(audioAudit.tracks)
+                                if rpHdTaskNativeAudioMasterSafe(master,selected,decoderAccept) and audioAudit.tracks.count() >= 2 and spanishVerified
+                                    answer.url = masterUrl
+                                    answer.streamFormat = "hls"
+                                    answer.fallbackSegmentUrls = relaySegments
+                                    answer.fallbackSegmentDurations = rpHdTaskSegmentDurations(child.body,relaySegments.count())
+                                    answer.fallbackTsRelayEnabled = true
+                                    answer.segmentUrls = []
+                                    answer.segmentDurations = []
+                                    answer.tsRelayEnabled = false
+                                    answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                                    answer.description = "Audio español prioritario · multiaudio · H.264 · "+selected.height.toStr()+"p"
+                                    answer.language = embed.language
+                                    answer.width = selected.width
+                                    answer.height = selected.height
+                                    answer.codecs = selected.codecs
+                                    answer.seekSupport = "native-hls"
+                                    print "[RokuPlus resolve] provider="; provider; " format=hls mode=native-multiaudio spanishVerified=true tracks="; audioAudit.tracks.count()
+                                    answer.attemptUsed = embedIndex+variantIndex*count
+                                    answer.ok = true
+                                    answer.message = ""
+                                    m.hdProviderDeadline = 0
+                                    return answer
+                                end if
+                                print "[RokuPlus audio-mode] format=ts reason=native-multiaudio-not-safe validatedTracks="; audioAudit.tracks.count(); " spanishVerified="; spanishVerified
                                 answer.segmentUrls = relaySegments
                                 answer.tsRelayEnabled = true
                                 segmentDurations = rpHdTaskSegmentDurations(child.body,relaySegments.count())
@@ -1550,13 +1574,29 @@ end function
 
 function rpHdTaskSpanishAudio(master as object, variant as object) as boolean
     if variant.audioGroup = "" then return true
+    unknownLanguageFound = false
     for each track in master.audioTracks
         if track.group = variant.audioGroup
             language = lcase(orbitText(track.language,40))
             name = lcase(orbitText(track.name,120))
             if language = "es" or language = "spa" or left(language,3) = "es-" then return true
             if instr(1,name,"español") > 0 or instr(1,name,"espanol") > 0 or instr(1,name,"spanish") > 0 or instr(1,name,"latino") > 0 or instr(1,name,"castellano") > 0 then return true
+            if language = "" or language = "und" or language = "unknown" then unknownLanguageFound = true
         end if
+    end for
+    ' Unknown language metadata must never make a valid title unplayable.
+    ' Roku's Spanish preference remains configured and will choose Spanish
+    ' automatically if the master exposes a matching language tag.
+    return unknownLanguageFound
+end function
+
+function rpHdTaskHasSpanishValidatedAudio(tracks as dynamic) as boolean
+    if type(tracks) <> "roArray" then return false
+    for each track in tracks
+        language = lcase(orbitText(track.language,40))
+        name = lcase(orbitText(track.name,120))
+        if language = "es" or language = "spa" or left(language,3) = "es-" then return true
+        if instr(1,name,"español") > 0 or instr(1,name,"espanol") > 0 or instr(1,name,"spanish") > 0 or instr(1,name,"latino") > 0 or instr(1,name,"castellano") > 0 then return true
     end for
     return false
 end function
