@@ -116,6 +116,7 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
     if item.doesExist("episode") then record.episode = item.episode
     if item.doesExist("seriesTitle") then record.seriesTitle = orbitText(item.seriesTitle,180)
     if item.doesExist("seriesProviderSlug") then record.seriesProviderSlug = orbitText(item.seriesProviderSlug,200)
+    if item.doesExist("seriesSeasonNumbers") and type(item.seriesSeasonNumbers) = "roArray" then record.seriesSeasonNumbers = item.seriesSeasonNumbers
     return record
 end function
 
@@ -135,7 +136,7 @@ function rpWatchUpdate(items as object, item as object, position as dynamic, dur
         end if
         ' Progress events may carry a reduced item object. Never let an
         ' incomplete event erase provider identity needed by Continue Watching.
-        identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesProviderSlug", "imdbId"]
+        identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesProviderSlug", "seriesSeasonNumbers", "imdbId"]
         for each field in identityFields
             keepOld = false
             if old.doesExist(field)
