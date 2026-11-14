@@ -304,14 +304,15 @@ function rpHdOnlineEmbeds(raw as dynamic) as object
             score = 0
             lower = lcase(language)
             if instr(1,lower,"latino") > 0 then score = 100
-            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0) then score = 60
-            if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url) and score > 0
+            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0 or instr(1,lower,"espanol") > 0 or lower = "es" or lower = "spa" or left(lower,3) = "es-") then score = 60
+            ' Spanish is preferred, not required: retain English and unknown-language embeds.
+            if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url)
                 result.push({url:url,language:language,quality:orbitText(embed.quality,40),score:score})
             end if
         end if
     end for
     ordered = []
-    for each priority in [100,60]
+    for each priority in [100,60,0]
         for each row in result
             if row.score = priority then ordered.push(row)
         end for
