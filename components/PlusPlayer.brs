@@ -622,6 +622,9 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    suppliedExternalCount = 0
+    if type(supplied) = "roAssociativeArray" and type(supplied.externalAudioTracks) = "roArray" then suppliedExternalCount = supplied.externalAudioTracks.count()
+    print "[RokuPlus sidecar-audio] player_request externalTracks="; suppliedExternalCount
     cancelStreamXArtworkTask()
     m.streamXRequestId = m.generation.toStr()
     m.introDbData = invalid
