@@ -3,9 +3,7 @@ sub init()
     m.top.backgroundColor = "0x09090BFF"
     m.top.focusable = true
     m.plusExperience = m.top.findNode("PlusExperience")
-    m.launcher = m.top.findNode("DualLauncher")
-    m.top.observeField("exitChannel", "playletExitRequested")
-    m.plusExperience.visible = false
+    m.plusExperience.visible = true
     m.canvas = m.top.findNode("canvas")
     m.player = m.top.findNode("player")
     m.invidiousPlayer = m.top.findNode("invidiousPlayer")
@@ -163,27 +161,12 @@ sub init()
     m.creditsPage = 0
     m.creditsPages = []
     m.plusInitialized = false
-    m.launcher.setFocus(true)
+    ActivatePlusExperience()
 end sub
-
-sub playletExitRequested(event as object)
-    if event.getData() <> true then return
-    ' Playlet signals exitChannel on the root Scene. Handle it here so the
-    ' root scene, rather than a nested component, owns the exit lifecycle.
-    m.top.exitChannel = false
-    if m.launcher <> invalid
-        m.launcher.callFunc("HandlePlayletExit")
-    end if
-end sub
-
-function CreatePlayletTransportEventsHandler() as object
-    return CreateObject("roSGNode", "PlayletLib:InputTransportEventsHandler")
-end function
 
 sub ActivatePlusExperience()
     print "[RokuPlus startup] activate begin"
-    ' The launcher relinquishes focus when an app is selected. Explicitly
-    ' re-enable the root Scene before handing remote input to Roku Plus.
+    ' Keep the Roku Plus scene focused for normal remote navigation.
     m.top.focusable = true
     m.plusExperience.visible = true
     m.heroRotation.control = "start"
@@ -228,8 +211,7 @@ sub ActivatePlusExperience()
 end sub
 
 sub DeactivatePlusExperience()
-    ' Stop all work owned by Roku Plus before Playlet takes over the channel.
-    ' This prevents hidden catalog tasks and timers from competing with Playlet.
+    ' Stop Roku Plus background work when the experience is deactivated.
     if m.deadline <> invalid then m.deadline.control = "stop"
     if m.heroRotation <> invalid then m.heroRotation.control = "stop"
     if m.discoveryRotation <> invalid then m.discoveryRotation.control = "stop"
@@ -2707,9 +2689,7 @@ sub loadEpisodeSeason()
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
-    ' Route scene-level remote input by the active visible experience.
-    ' playletReady can remain stale during app handoff; Plus visibility is authoritative.
-    if not m.plusExperience.visible then return false
+    ' Route remote input directly to the Roku Plus experience.
     if key = "home" then return false
     if press
         print "[RokuPlus input] key="; key; " view="; m.view; " zone="; m.zone; " sceneFocus="; m.top.hasFocus(); " plusVisible="; m.plusExperience.visible
@@ -2726,12 +2706,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
             m.searchDeleteCleared = false
             return true
         end if
-        return true
-    end if
-    if key = "back" and m.view = "home" and m.zone = "hero" and m.dialogBox = invalid
-        m.plusExperience.visible = false
-        DeactivatePlusExperience()
-        m.launcher.callFunc("ShowMenu")
         return true
     end if
     if m.view = "player" or m.view = "invidious-player" then return false
