@@ -351,13 +351,13 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                         end if
                     end if
                     if timingAligned and result.tsValid-trackTsValidBefore = sampleLimit and result.aacSamples-trackAacBefore = sampleLimit and left(track.url,8) = "https://"
-                        sidecarTrack = {language:track.language,name:track.name,url:track.url}
-                        if type(track.default) = "Boolean" then sidecarTrack.default = track.default
-                        if type(track.autoselect) = "Boolean" then sidecarTrack.autoselect = track.autoselect
-                        result.tracks.push(sidecarTrack)
-                        print "[RokuPlus sidecar-audio] validated language="; track.language; " name="; track.name; " timingAligned=true samples="; sampleLimit
+                        validatedTrack = {language:track.language,name:track.name,url:track.url}
+                        if type(track.default) = "Boolean" then validatedTrack.default = track.default
+                        if type(track.autoselect) = "Boolean" then validatedTrack.autoselect = track.autoselect
+                        result.tracks.push(validatedTrack)
+                        print "[RokuPlus audio-audit] validated language="; track.language; " name="; track.name; " timingAligned=true samples="; sampleLimit
                     else
-                        print "[RokuPlus sidecar-audio] rejected language="; track.language; " timingAligned="; timingAligned; " tsValidSamples="; result.tsValid-trackTsValidBefore; " aacSamples="; result.aacSamples-trackAacBefore
+                        print "[RokuPlus audio-audit] rejected language="; track.language; " timingAligned="; timingAligned; " tsValidSamples="; result.tsValid-trackTsValidBefore; " aacSamples="; result.aacSamples-trackAacBefore
                     end if
                 else
                     print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=empty"
