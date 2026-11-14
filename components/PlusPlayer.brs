@@ -612,7 +612,10 @@ sub openRequest()
     m.decoder.visible = false
     m.decoder.control = "stop"
     m.decoder.content = invalid
-    if m.sidecarAudioNode <> invalid then m.sidecarAudioNode.control = "stop"
+    if m.sidecarAudioNode <> invalid
+        m.sidecarAudioNode.control = "stop"
+        m.sidecarAudioNode.content = invalid
+    end if
     m.sidecarAudioActive = false
     m.sidecarAudioTrack = invalid
     m.decoder.mute = false
@@ -979,7 +982,10 @@ sub closePlayback()
     m.pulse.control = "stop"
     m.decoder.control = "stop"
     m.decoder.content = invalid
-    if m.sidecarAudioNode <> invalid then m.sidecarAudioNode.control = "stop"
+    if m.sidecarAudioNode <> invalid
+        m.sidecarAudioNode.control = "stop"
+        m.sidecarAudioNode.content = invalid
+    end if
     m.sidecarAudioActive = false
     m.sidecarAudioTrack = invalid
     m.decoder.mute = false
