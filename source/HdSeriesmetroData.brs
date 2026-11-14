@@ -260,7 +260,15 @@ function rpHdSeriesmetroEpisodes(html as dynamic, parent as object, requested as
                     ' Extract the still from this episode's own article.
                     episodePoster = rpHdSeriesmetroEpisodeArt(block)
                     ' Never reuse the series poster as an episode still.
-                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,seriesProviderSlug:parent.providerSlug,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
+                    parentSeasonNumbers = []
+                    if type(parent.seasons) = "roArray"
+                        for each parentSeason in parent.seasons
+                            parentSeasonNumbers.push(parentSeason.number)
+                        end for
+                    else if type(parent.seasonNumbers) = "roArray"
+                        parentSeasonNumbers = parent.seasonNumbers
+                    end if
+                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,seriesProviderSlug:parent.providerSlug,seriesSeasonNumbers:parentSeasonNumbers,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
                     seen[id] = true
                 end if
             end if
