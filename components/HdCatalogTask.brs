@@ -843,7 +843,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         ' Use the exact validated embed page as Referer instead of a fixed site root.
         mediaReferer = embed.url
         answer.embedAttempts++
-        rpHdTaskBeginSlice(count-i)
+        rpHdTaskBeginResolveSlice(count-i)
         response = fetcher(embed.url,"embed",embedReferer)
         if response.cancelled then return rpHdTaskFailure(answer,response)
         if response.ok
@@ -951,7 +951,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             relaySegments = rpHdTaskSegmentList(child.body,selected.url)
                             if relaySegments.count() > 1
                                 ' Validate alternate audio renditions before selecting native HLS; otherwise keep the validated TS relay.
-                                rpHdTaskBeginSlice(1)
+                                rpHdTaskBeginResolveSlice(1)
                                 videoAudit = rpHdTaskAuditAudioSegment(sample.bytes)
                                 audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer,videoAudit,child.body)
                                 spanishVerified = rpHdTaskHasSpanishValidatedAudio(audioAudit.tracks)
@@ -1447,6 +1447,24 @@ sub rpHdTaskBeginSlice(remaining as integer)
         if budget > 9000 then budget = 9000
         if budget < 0 then budget = 0
         m.hdProviderDeadline = now+budget
+    end if
+end sub
+
+' Resolve is a single-provider operation with a 60s total budget.
+' Give each embed/variant enough time for HLS and TS validation requests;
+' the 9s cap above remains for fair-share catalog aggregation.
+sub rpHdTaskBeginResolveSlice(remaining as integer)
+    m.hdProviderDeadline = 0
+    if remaining < 1 then remaining = 1
+    if m.hdElapsed <> invalid
+        now = m.hdElapsed.totalMilliseconds()
+        totalBudget = 60000
+        if GetInterface(m.hdTotalBudgetMs,"ifInt") <> invalid then totalBudget = m.hdTotalBudgetMs
+        budget = (totalBudget-now) \ remaining
+        if budget > 20000 then budget = 20000
+        if budget < 0 then budget = 0
+        m.hdProviderDeadline = now+budget
+        print "[RokuPlus resolve-budget] remainingEmbeds="; remaining; " sliceMs="; budget
     end if
 end sub
 
