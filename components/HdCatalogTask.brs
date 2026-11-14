@@ -925,7 +925,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if playable
                             relaySegments = rpHdTaskSegmentList(child.body,selected.url)
                             if relaySegments.count() > 1
-                                ' Diagnostic-only: inspect external audio playlists; playback remains the validated video TS relay.
+                                ' Validate alternate audio renditions before selecting native HLS; otherwise keep the validated TS relay.
                                 rpHdTaskBeginSlice(1)
                                 videoAudit = rpHdTaskAuditAudioSegment(sample.bytes)
                                 audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer,videoAudit,child.body)
