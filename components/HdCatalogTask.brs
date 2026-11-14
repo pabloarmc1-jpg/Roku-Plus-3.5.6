@@ -386,10 +386,17 @@ function rpHdTaskAudioTimingAligned(video as object, audio as object) as boolean
     if video.discontinuitySequence <> audio.discontinuitySequence then return false
     if video.durations.count() <> video.segmentCount or audio.durations.count() <> audio.segmentCount then return false
     totalDeltaMs = (audio.totalDuration-video.totalDuration)*1000.0
-    if totalDeltaMs > 500.0 or totalDeltaMs < -500.0 then return false
+    ' Permit a single shortened terminal audio segment. Some VOD playlists
+    ' end audio a few seconds before the final video tail; earlier boundaries
+    ' must still match and the terminal gap is capped at four seconds.
+    if totalDeltaMs > 500.0 or totalDeltaMs < -4000.0 then return false
     for i = 0 to video.segmentCount-1
         deltaMs = (audio.durations[i]-video.durations[i])*1000.0
-        if deltaMs > 250.0 or deltaMs < -250.0 then return false
+        if i = video.segmentCount-1
+            if deltaMs > 250.0 or deltaMs < -4000.0 then return false
+        else
+            if deltaMs > 250.0 or deltaMs < -250.0 then return false
+        end if
     end for
     return true
 end function
