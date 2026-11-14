@@ -940,13 +940,13 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                     answer.segmentDurations = []
                                     answer.tsRelayEnabled = false
                                     answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                                    answer.description = "Audio español prioritario · multiaudio · H.264 · "+selected.height.toStr()+"p"
+                                    answer.description = "Multiaudio · preferencia español · H.264 · "+selected.height.toStr()+"p"
                                     answer.language = embed.language
                                     answer.width = selected.width
                                     answer.height = selected.height
                                     answer.codecs = selected.codecs
                                     answer.seekSupport = "native-hls"
-                                    print "[RokuPlus resolve] provider="; provider; " format=hls mode=native-multiaudio spanishPreferred=; spanishVerified; " tracks="; audioAudit.tracks.count()
+                                    print "[RokuPlus resolve] provider="; provider; " format=hls mode=native-multiaudio spanishPreferred="; spanishVerified; " tracks="; audioAudit.tracks.count()
                                     answer.attemptUsed = embedIndex+variantIndex*count
                                     answer.ok = true
                                     answer.message = ""
