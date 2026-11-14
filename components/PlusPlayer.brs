@@ -9,6 +9,7 @@ sub init()
     m.sidecarAudioActive = false
     m.sidecarAudioTrack = invalid
     m.sidecarAudioStartedAt = 0
+    m.sidecarAudioPlayRequested = false
     if m.decoder.hasField("enableDecoderStats")
         m.decoder.enableDecoderStats = true
         print "[RokuPlus decoder] enableDecoderStats="; m.decoder.enableDecoderStats
@@ -1454,6 +1455,7 @@ sub startSidecarAudioTrack(track as object)
     m.sidecarAudioTrack = track
     m.sidecarAudioActive = true
     m.sidecarAudioStartedAt = m.monotonic.totalMilliseconds()
+    m.sidecarAudioPlayRequested = false
     m.decoder.mute = true
     if m.wantPaused or m.phase <> "playing"
         m.sidecarAudioNode.control = "prebuffer"
@@ -1474,6 +1476,7 @@ sub stopSidecarAudioTrack()
     m.sidecarAudioActive = false
     m.sidecarAudioTrack = invalid
     m.sidecarAudioStartedAt = 0
+    m.sidecarAudioPlayRequested = false
 end sub
 
 sub onSidecarAudioStateChanged()
@@ -1494,7 +1497,7 @@ end sub
 sub syncSidecarAudio()
     if not m.sidecarAudioActive or m.sidecarAudioNode = invalid then return
     if m.sidecarAudioNode.state = "error" then return
-    if m.sidecarAudioNode.state = "buffering" and m.sidecarAudioStartedAt > 0 and m.monotonic.totalMilliseconds()-m.sidecarAudioStartedAt > 15000
+    if m.phase = "playing" and not m.wantPaused and m.sidecarAudioNode.state <> "playing" and m.sidecarAudioNode.state <> "paused" and m.sidecarAudioStartedAt > 0 and m.monotonic.totalMilliseconds()-m.sidecarAudioStartedAt > 15000
         print "[RokuPlus sidecar-audio] timeout action=restore-ts-audio"
         stopSidecarAudioTrack()
         m.notice = "El audio externo tardó demasiado. Se restauró el audio TS."
@@ -1508,7 +1511,10 @@ sub syncSidecarAudio()
     end if
     if m.sidecarAudioNode.state = "paused" then m.sidecarAudioNode.control = "resume"
     if m.sidecarAudioNode.state = "stopped" or m.sidecarAudioNode.state = "none"
-        m.sidecarAudioNode.control = "play"
+        if not m.sidecarAudioPlayRequested
+            m.sidecarAudioPlayRequested = true
+            m.sidecarAudioNode.control = "play"
+        end if
         return
     end if
     if m.sidecarAudioNode.state <> "playing" then return
