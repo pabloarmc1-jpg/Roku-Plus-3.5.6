@@ -87,7 +87,7 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
         end for
         m.hdProviderDeadline = 0
         if embeds.count() = 0
-            answer.message = "No hay una opción en español de SeriesMetro disponible ahora. Prueba otra fuente."
+            answer.message = "SeriesMetro no devolvió un enlace de reproducción válido. Prueba otra opción del título o vuelve a intentarlo."
             return answer
         end if
         return rpHdTaskResolveEmbeds(embeds,"seriesmetro",answer,fetcher,decoderAccept,orbitInteger(request.attempt,999),"https://www3.seriesmetro.net/","https://fastream.to/")
