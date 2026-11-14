@@ -383,14 +383,21 @@ sub fetched(event as object)
     if type(answer.tvmazeCache) = "roAssociativeArray" then m.tvmazeCache = answer.tvmazeCache
     cancelRequest()
     if not answer.ok
-        if context.operation = "resolve" and type(m.detail) = "roAssociativeArray"
-            autoRetry = orbitInteger(m.detail.hdAutoRetry,2)
-            if autoRetry < 1
-                m.detail.hdAutoRetry = autoRetry+1
-                m.detail.hdAttempt = orbitInteger(m.detail.hdAttempt,99)+1
-                print "[RokuPlus resolve-retry] automatic=1 reason=resolve-failed provider="; orbitText(m.detail.provider,32); " attempt="; m.detail.hdAttempt
-                fetch({operation:"resolve",item:m.detail})
-                return
+        if context.operation = "meta" or context.operation = "resolve" or context.operation = "episodes"
+            retryItem = invalid
+            if context.doesExist("item") and type(context.item) = "roAssociativeArray" then retryItem = context.item
+            if retryItem = invalid and type(m.detail) = "roAssociativeArray" then retryItem = m.detail
+            if type(retryItem) = "roAssociativeArray"
+                autoRetry = orbitInteger(retryItem.hdAutoRetry,2)
+                if autoRetry < 1
+                    retryItem.hdAutoRetry = autoRetry+1
+                    if context.operation = "resolve" then retryItem.hdAttempt = orbitInteger(retryItem.hdAttempt,99)+1
+                    print "[RokuPlus hd-retry] automatic=1 operation="; context.operation; " provider="; orbitText(retryItem.provider,32)
+                    retryContext = {operation:context.operation,item:retryItem}
+                    if context.doesExist("season") then retryContext.season = context.season
+                    fetch(retryContext)
+                    return
+                end if
             end if
         end if
         m.autoplay = false
@@ -407,6 +414,8 @@ sub fetched(event as object)
         end if
         return
     end if
+    if type(m.detail) = "roAssociativeArray" then m.detail.hdAutoRetry = 0
+    if type(context.item) = "roAssociativeArray" then context.item.hdAutoRetry = 0
     if context.operation = "invidious-search"
         m.invidiousItems = answer.items
         m.invidiousCursor = 0
@@ -607,7 +616,20 @@ sub launchVideo(item as object, url as string, format as string)
         if parentSlug <> ""
             if m.series = invalid or m.series.id <> parentId
                 seasonNumber = orbitInteger(item.season,999,0)
-                m.series = {id:parentId,imdbId:"",kind:"series",library:"hd-online",provider:"seriesmetro",providerId:orbitInteger(item.providerId,999999999),providerSlug:parentSlug,title:orbitText(item.seriesTitle,180),poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),description:orbitText(item.description),year:orbitText(item.year,4),runtime:0,language:"",seasons:[{number:seasonNumber,episodes:[],loaded:false}]}
+                parentSeasons = []
+                if type(item.seriesSeasonNumbers) = "roArray"
+                    for each parentSeasonNumber in item.seriesSeasonNumbers
+                        safeSeasonNumber = orbitInteger(parentSeasonNumber,999,-1)
+                        if safeSeasonNumber >= 0 then parentSeasons.push({number:safeSeasonNumber,episodes:[],loaded:false})
+                    end for
+                end if
+                hasCurrentSeason = false
+                for each parentSeason in parentSeasons
+                    if parentSeason.number = seasonNumber then hasCurrentSeason = true
+                end for
+                if not hasCurrentSeason then parentSeasons.push({number:seasonNumber,episodes:[],loaded:false})
+                parentSeasons.sortBy("number")
+                m.series = {id:parentId,imdbId:"",kind:"series",library:"hd-online",provider:"seriesmetro",providerId:orbitInteger(item.providerId,999999999),providerSlug:parentSlug,title:orbitText(item.seriesTitle,180),poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),description:orbitText(item.description),year:orbitText(item.year,4),runtime:0,language:"",seasons:parentSeasons}
                 m.seriesOrigin = "home"
                 print "[RokuPlus series] restored-parent id="; parentId; " season="; seasonNumber
             end if
@@ -3212,6 +3234,7 @@ if m.view = "profiles"
                 if saved.doesExist("episode") then resumeItem.episode = orbitInteger(saved.episode,9999,0)
                 if saved.doesExist("seriesTitle") then resumeItem.seriesTitle = orbitText(saved.seriesTitle,180)
                 if saved.doesExist("seriesProviderSlug") then resumeItem.seriesProviderSlug = orbitText(saved.seriesProviderSlug,200)
+                if saved.doesExist("seriesSeasonNumbers") and type(saved.seriesSeasonNumbers) = "roArray" then resumeItem.seriesSeasonNumbers = saved.seriesSeasonNumbers
                 if resumeItem.kind = "episode" and (not resumeItem.doesExist("season") or not resumeItem.doesExist("episode") or resumeItem.episode < 1)
                     m.note = "Faltan los datos del episodio para reanudarlo."
                     drawScreen()
