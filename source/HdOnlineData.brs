@@ -262,9 +262,20 @@ function rpHdOnlineEpisodes(raw as dynamic, provider as string, parent as dynami
                     if episodePoster = "" then episodePoster = parent.poster
                     episodeDescription = orbitText(ep.overview,1200)
                     if episodeDescription = "" then episodeDescription = orbitText(ep.description,1200)
+                    parentSeasonNumbers = []
+                    if type(parent.seasons) = "roArray"
+                        for each parentSeason in parent.seasons
+                            parentSeasonNumbers.push(parentSeason.number)
+                        end for
+                    else if type(parent.seasonNumbers) = "roArray"
+                        parentSeasonNumbers = parent.seasonNumbers
+                    end if
                     item = {
                         id:id, imdbId:"", kind:"episode", library:"hd-online", provider:provider, providerId:number
-                        providerSlug:"", title:title, seriesTitle:parent.title, season:seasonNumber, episode:episodeNumber
+                        providerSlug:"", title:title, seriesTitle:parent.title, seriesId:parent.id
+                        seriesProviderId:parent.providerId, seriesProviderSlug:parent.providerSlug
+                        seriesProviderTmdbId:orbitText(parent.providerTmdbId,40), seriesProviderKind:orbitText(parent.providerKind,16)
+                        seriesSeasonNumbers:parentSeasonNumbers, season:seasonNumber, episode:episodeNumber
                         poster:episodePoster, background:parent.background, description:episodeDescription
                         year:parent.year, runtime:orbitInteger(ep.runtime,86400), language:"", seasons:[]
                     }
