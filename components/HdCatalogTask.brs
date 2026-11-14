@@ -894,7 +894,8 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         answer.variantAttempts++
                         child = fetcher(selected.url,"media",mediaReferer)
                         if child.cancelled then return rpHdTaskFailure(answer,child)
-                        playable = child.ok and rpHdTaskMediaManifest(child.body,selected.url)
+                        manifestPlayable = child.ok and rpHdTaskMediaManifest(child.body,selected.url)
+                        playable = manifestPlayable
                         segmentUrl = ""
                         candidateStage = "child_fetch_failed"
                         if child.ok
@@ -922,6 +923,30 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             end if
                         end if
                         print "[RokuPlus candidate] result="; candidateStage
+                        ' TS relay remains preferred. If its byte-level AVC/AAC validation fails,
+                        ' try the already validated HLS rendition using Roku's single Video decoder.
+                        ' This fallback does not require the provider to label its audio language.
+                        if not playable and manifestPlayable and rpHdTaskNativeDefaultAudioSafe(master,selected,decoderAccept)
+                            answer.url = masterUrl
+                            answer.streamFormat = "hls"
+                            answer.segmentUrls = []
+                            answer.segmentDurations = []
+                            answer.tsRelayEnabled = false
+                            answer.fallbackTsRelayEnabled = false
+                            answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                            answer.description = "HLS compatible · audio predeterminado · H.264 · "+selected.height.toStr()+"p"
+                            answer.language = embed.language
+                            answer.width = selected.width
+                            answer.height = selected.height
+                            answer.codecs = selected.codecs
+                            answer.seekSupport = "native-hls"
+                            print "[RokuPlus resolve] provider="; provider; " format=hls mode=default-audio-fallback reason=ts-validation-failed languageMetadata=not-required"
+                            answer.attemptUsed = embedIndex+variantIndex*count
+                            answer.ok = true
+                            answer.message = ""
+                            m.hdProviderDeadline = 0
+                            return answer
+                        end if
                         if playable
                             relaySegments = rpHdTaskSegmentList(child.body,selected.url)
                             if relaySegments.count() > 1
@@ -991,7 +1016,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         end if
     end for
     m.hdProviderDeadline = 0
-    answer.message = "No hay una fuente H.264 en español compatible disponible para este título. Prueba otra opción de la misma película."
+    answer.message = "No se encontró una variante de video compatible y reproducible para esta fuente. Prueba otra opción del título."
     return answer
 end function
 
@@ -1570,6 +1595,16 @@ function rpHdTaskNativeAudioMasterSafe(master as object, selected as object, dec
         end if
     end for
     if selected.audioGroup = "" or selected.height > 720 or selected.width > 1280 then return false
+    candidate = {variants:[selected],encrypted:false}
+    if rpHdOnlineSelectVariant(candidate,decoderAccept) = invalid then return false
+    return true
+end function
+
+' Last-resort native HLS eligibility for a valid rendition when the TS relay
+' validator cannot certify the sample. No audio-language metadata is required.
+function rpHdTaskNativeDefaultAudioSafe(master as object, selected as object, decoderAccept as dynamic) as boolean
+    if master.encrypted then return false
+    if selected.height > 720 or selected.width > 1280 then return false
     candidate = {variants:[selected],encrypted:false}
     if rpHdOnlineSelectVariant(candidate,decoderAccept) = invalid then return false
     return true
