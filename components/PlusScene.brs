@@ -610,10 +610,15 @@ sub launchVideo(item as object, url as string, format as string)
     ' Recover LaMovie numeric identity from the canonical HD id when a
     ' catalog item arrives with its slug but without providerId.
     itemProvider = lcase(orbitText(item.provider,32))
-    if itemProvider = "seriesmetro" and item.kind = "episode"
+    if item.kind = "episode"
         parentSlug = orbitText(item.seriesProviderSlug,200)
-        parentId = "hdo-seriesmetro-"+orbitInteger(item.providerId,999999999).toStr()
-        if parentSlug <> ""
+        parentId = orbitText(item.seriesId,180)
+        if parentId = "" and itemProvider = "seriesmetro" then parentId = "hdo-seriesmetro-"+orbitInteger(item.providerId,999999999).toStr()
+        parentProviderId = item.providerId
+        if item.doesExist("seriesProviderId") then parentProviderId = item.seriesProviderId
+        parentProviderTmdbId = orbitText(item.seriesProviderTmdbId,40)
+        parentProviderKind = orbitText(item.seriesProviderKind,16)
+        if parentSlug <> "" and parentId <> ""
             if m.series = invalid or m.series.id <> parentId
                 seasonNumber = orbitInteger(item.season,999,0)
                 parentSeasons = []
@@ -629,9 +634,9 @@ sub launchVideo(item as object, url as string, format as string)
                 end for
                 if not hasCurrentSeason then parentSeasons.push({number:seasonNumber,episodes:[],loaded:false})
                 parentSeasons.sortBy("number")
-                m.series = {id:parentId,imdbId:"",kind:"series",library:"hd-online",provider:"seriesmetro",providerId:orbitInteger(item.providerId,999999999),providerSlug:parentSlug,title:orbitText(item.seriesTitle,180),poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),description:orbitText(item.description),year:orbitText(item.year,4),runtime:0,language:"",seasons:parentSeasons}
+                m.series = {id:parentId,imdbId:"",kind:"series",library:"hd-online",provider:itemProvider,providerId:parentProviderId,providerSlug:parentSlug,providerTmdbId:parentProviderTmdbId,providerKind:parentProviderKind,title:orbitText(item.seriesTitle,180),poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),description:orbitText(item.description),year:orbitText(item.year,4),runtime:0,language:"",seasons:parentSeasons}
                 m.seriesOrigin = "home"
-                print "[RokuPlus series] restored-parent id="; parentId; " season="; seasonNumber
+                print "[RokuPlus series] restored-parent provider="; itemProvider; " id="; parentId; " season="; seasonNumber
             end if
         end if
     end if
@@ -3233,7 +3238,11 @@ if m.view = "profiles"
                 if saved.doesExist("season") then resumeItem.season = orbitInteger(saved.season,999,0)
                 if saved.doesExist("episode") then resumeItem.episode = orbitInteger(saved.episode,9999,0)
                 if saved.doesExist("seriesTitle") then resumeItem.seriesTitle = orbitText(saved.seriesTitle,180)
+                if saved.doesExist("seriesId") then resumeItem.seriesId = orbitText(saved.seriesId,180)
+                if saved.doesExist("seriesProviderId") then resumeItem.seriesProviderId = saved.seriesProviderId
                 if saved.doesExist("seriesProviderSlug") then resumeItem.seriesProviderSlug = orbitText(saved.seriesProviderSlug,200)
+                if saved.doesExist("seriesProviderTmdbId") then resumeItem.seriesProviderTmdbId = orbitText(saved.seriesProviderTmdbId,40)
+                if saved.doesExist("seriesProviderKind") then resumeItem.seriesProviderKind = orbitText(saved.seriesProviderKind,16)
                 if saved.doesExist("seriesSeasonNumbers") and type(saved.seriesSeasonNumbers) = "roArray" then resumeItem.seriesSeasonNumbers = saved.seriesSeasonNumbers
                 if resumeItem.kind = "episode" and (not resumeItem.doesExist("season") or not resumeItem.doesExist("episode") or resumeItem.episode < 1)
                     m.note = "Faltan los datos del episodio para reanudarlo."
