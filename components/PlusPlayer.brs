@@ -1486,6 +1486,10 @@ sub syncSidecarAudio()
         return
     end if
     if m.sidecarAudioNode.state = "paused" then m.sidecarAudioNode.control = "resume"
+    if m.sidecarAudioNode.state = "stopped" or m.sidecarAudioNode.state = "none"
+        m.sidecarAudioNode.control = "play"
+        return
+    end if
     if m.sidecarAudioNode.state <> "playing" then return
     videoPosition = playerPosition()
     audioPosition = plusClockValue(m.sidecarAudioNode.position)
