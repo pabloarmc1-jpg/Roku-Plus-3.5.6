@@ -1566,7 +1566,8 @@ function rpHdTaskInputItem(value as dynamic, provider as string) as dynamic
         providerSlug:orbitText(value.providerSlug,200),title:orbitText(value.title,200)
         poster:orbitHttpsUrl(value.poster),background:orbitHttpsUrl(value.background)
         description:orbitText(value.description),year:orbitText(value.year,4)
-        runtime:orbitInteger(value.runtime,86400),language:"",seasons:[]
+        runtime:orbitInteger(value.runtime,86400),language:"",seasons:rpHdTaskArray(value.seasons)
+        seasonNumbers:rpHdTaskArray(value.seasonNumbers)
         season:orbitInteger(value.season,999),episode:orbitInteger(value.episode,9999)
         seriesTitle:orbitText(value.seriesTitle,200)
     }
@@ -2014,4 +2015,9 @@ function rpHdTaskFileSize(info as dynamic) as integer
     if size < 0 then return -1
     if size > 4194304 then return 4194305
     return int(size)
+end function
+
+function rpHdTaskArray(value as dynamic) as object
+    if type(value) = "roArray" then return value
+    return []
 end function
