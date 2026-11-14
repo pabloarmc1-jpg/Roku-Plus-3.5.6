@@ -1460,6 +1460,7 @@ sub startSidecarAudioTrack(track as object)
     if m.wantPaused or m.phase <> "playing"
         m.sidecarAudioNode.control = "prebuffer"
     else
+        m.sidecarAudioPlayRequested = true
         m.sidecarAudioNode.control = "play"
     end if
     print "[RokuPlus sidecar-audio] start label="; track.label; " startPosition="; position; " videoMuted=true"
