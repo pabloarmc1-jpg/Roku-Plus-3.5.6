@@ -141,7 +141,7 @@ end function
 ' Adapters may discover Vimeos links differently but share media validation.
 ' Playlist checks and three bounded consecutive audio-segment samples are diagnostic only.
 function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string, videoAudit as dynamic, videoManifest as dynamic) as object
-    result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0,timingAligned:0,timingRejected:0,spanishTracksChecked:0,spanishTimingAligned:false}
+    result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0,timingAligned:0,timingRejected:0,spanishTracksChecked:0,spanishTimingAligned:false,tracks:[]}
     videoPlaylistAudit = rpHdTaskAuditManifestTiming(videoManifest)
     print "[RokuPlus video-playlist] segments="; videoPlaylistAudit.segmentCount; " extinf="; videoPlaylistAudit.extinfCount; " sequence="; videoPlaylistAudit.mediaSequence; " discontinuities="; videoPlaylistAudit.discontinuities; " target="; videoPlaylistAudit.targetDuration; " totalDuration="; videoPlaylistAudit.totalDuration
     if type(videoAudit) = "roAssociativeArray"
@@ -188,6 +188,8 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
             if trackLanguage = "es" or trackLanguage = "spa" or left(trackLanguage,3) = "es-" then isSpanishTrack = true
             if instr(1,trackName,"español") > 0 or instr(1,trackName,"espanol") > 0 or instr(1,trackName,"spanish") > 0 or instr(1,trackName,"latino") > 0 or instr(1,trackName,"castellano") > 0 then isSpanishTrack = true
             if isSpanishTrack then result.spanishTracksChecked++
+            trackTsValidBefore = result.tsValid
+            trackAacBefore = result.aacSamples
             response = fetcher(track.url,"media",referer)
             if response.cancelled
                 print "[RokuPlus audio-audit] cancelled before playlist validation"
@@ -347,6 +349,15 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                         else
                             print "[RokuPlus audio-tail-audit] language="; track.language; " segment="; lastSegmentIndex; " request_failed status="; lastSample.httpStatus
                         end if
+                    end if
+                    if timingAligned and result.tsValid-trackTsValidBefore = sampleLimit and result.aacSamples-trackAacBefore = sampleLimit and left(track.url,8) = "https://"
+                        sidecarTrack = {language:track.language,name:track.name,url:track.url}
+                        if type(track.default) = "Boolean" then sidecarTrack.default = track.default
+                        if type(track.autoselect) = "Boolean" then sidecarTrack.autoselect = track.autoselect
+                        result.tracks.push(sidecarTrack)
+                        print "[RokuPlus sidecar-audio] validated language="; track.language; " name="; track.name; " timingAligned=true samples="; sampleLimit
+                    else
+                        print "[RokuPlus sidecar-audio] rejected language="; track.language; " timingAligned="; timingAligned; " tsValidSamples="; result.tsValid-trackTsValidBefore; " aacSamples="; result.aacSamples-trackAacBefore
                     end if
                 else
                     print "[RokuPlus audio-audit] language="; track.language; " name="; track.name; " playlist=empty"
@@ -901,6 +912,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 rpHdTaskBeginSlice(1)
                                 videoAudit = rpHdTaskAuditAudioSegment(sample.bytes)
                                 audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer,videoAudit,child.body)
+                                answer.externalAudioTracks = audioAudit.tracks
                                 answer.segmentUrls = relaySegments
                                 answer.tsRelayEnabled = true
                                 segmentDurations = rpHdTaskSegmentDurations(child.body,relaySegments.count())
