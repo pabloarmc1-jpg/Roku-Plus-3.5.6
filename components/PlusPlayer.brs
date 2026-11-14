@@ -3110,7 +3110,15 @@ function plusSeekLanding(ticket as object, position as dynamic, video as dynamic
     nativeAck = false
     if actualStart <> invalid and ticket.actualStartAt <> invalid and ticket.sawBuffering
         if ticket.actualStartAt >= ticket.issuedAt and ticket.actualStartAt <= now
-            nativeAck = abs(actualStart-ticket.origin) >= movementEpsilon and abs(actualStart-p) <= 1.25
+            if ticket.doesExist("verifyRenderedLocal") and ticket.verifyRenderedLocal
+                ' TS relay restarts the decoder on a new local clock. Compare
+                ' bufferingStatus.actualStart with the local decoder position,
+                ' not with the previous/global player timeline.
+                localReference = plusClockValue(localPosition)
+                if localReference <> invalid then nativeAck = abs(actualStart-localReference) <= 1.25
+            else
+                nativeAck = abs(actualStart-ticket.origin) >= movementEpsilon and abs(actualStart-p) <= 1.25
+            end if
         end if
     end if
     if ticket.sawClockJump <> true and not nativeAck then return answer
