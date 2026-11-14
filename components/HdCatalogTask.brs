@@ -930,7 +930,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 videoAudit = rpHdTaskAuditAudioSegment(sample.bytes)
                                 audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer,videoAudit,child.body)
                                 spanishVerified = rpHdTaskHasSpanishValidatedAudio(audioAudit.tracks)
-                                if rpHdTaskNativeAudioMasterSafe(master,selected,decoderAccept) and audioAudit.tracks.count() >= 2 and spanishVerified
+                                if rpHdTaskNativeAudioMasterSafe(master,selected,decoderAccept) and audioAudit.tracks.count() >= 2
                                     answer.url = masterUrl
                                     answer.streamFormat = "hls"
                                     answer.fallbackSegmentUrls = relaySegments
@@ -946,7 +946,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                     answer.height = selected.height
                                     answer.codecs = selected.codecs
                                     answer.seekSupport = "native-hls"
-                                    print "[RokuPlus resolve] provider="; provider; " format=hls mode=native-multiaudio spanishVerified=true tracks="; audioAudit.tracks.count()
+                                    print "[RokuPlus resolve] provider="; provider; " format=hls mode=native-multiaudio spanishPreferred=; spanishVerified; " tracks="; audioAudit.tracks.count()
                                     answer.attemptUsed = embedIndex+variantIndex*count
                                     answer.ok = true
                                     answer.message = ""
@@ -1564,18 +1564,11 @@ function rpHdTaskNativeAudioMasterSafe(master as object, selected as object, dec
     if master.encrypted or selected.audioGroup = "" then return false
     if type(master.audioTracks) <> "roArray" or type(master.variants) <> "roArray" then return false
     if rpHdTaskAudioGroupCount(master,selected.audioGroup) < 2 then return false
-    spanishTrackFound = false
     for each track in master.audioTracks
         if track.group = selected.audioGroup
-            language = lcase(orbitText(track.language,40))
-            name = lcase(orbitText(track.name,120))
-            if language = "es" or language = "spa" or left(language,3) = "es-" or instr(1,name,"español") > 0 or instr(1,name,"espanol") > 0 or instr(1,name,"spanish") > 0 or instr(1,name,"latino") > 0 or instr(1,name,"castellano") > 0
-                spanishTrackFound = true
-            end if
             if track.url = "" then return false
         end if
     end for
-    if not spanishTrackFound then return false
     if selected.audioGroup = "" or selected.height > 720 or selected.width > 1280 then return false
     candidate = {variants:[selected],encrypted:false}
     if rpHdOnlineSelectVariant(candidate,decoderAccept) = invalid then return false
