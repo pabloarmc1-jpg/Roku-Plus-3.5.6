@@ -174,6 +174,16 @@ function rpHdSeriesmetroInputItem(value as dynamic) as dynamic
     if value.provider <> "seriesmetro" then return invalid
     number = orbitInteger(value.providerId,999999999)
     kind = orbitText(value.kind,10)
+    if number < 1
+        canonical = orbitText(value.id,180)
+        prefix = "hdo-seriesmetro-"
+        if left(canonical,len(prefix)) = prefix
+            suffix = mid(canonical,len(prefix)+1)
+            marker = instr(1,suffix,"-s")
+            if marker > 1 then suffix = left(suffix,marker-1)
+            number = orbitInteger(suffix,999999999)
+        end if
+    end if
     path = rpHdSeriesmetroPath(value.providerSlug)
     id = "hdo-seriesmetro-"+number.toStr()
     season = orbitInteger(value.season,999,-1)
@@ -187,7 +197,11 @@ function rpHdSeriesmetroInputItem(value as dynamic) as dynamic
     else if kind <> "movie" and kind <> "series"
         return invalid
     end if
-    return {id:id,imdbId:"",kind:kind,library:"hd-online",provider:"seriesmetro",providerId:number,providerSlug:path,title:orbitText(value.title,200),poster:rpHdSeriesmetroArt(value.poster),background:rpHdSeriesmetroArt(value.background),description:orbitText(value.description),year:orbitText(value.year,4),runtime:orbitInteger(value.runtime,86400),language:"",seasons:[],season:season,episode:episode,seriesTitle:orbitText(value.seriesTitle,200)}
+    savedSeasons = []
+    if type(value.seasons) = "roArray" then savedSeasons = value.seasons
+    savedSeasonNumbers = []
+    if type(value.seasonNumbers) = "roArray" then savedSeasonNumbers = value.seasonNumbers
+    return {id:id,imdbId:"",kind:kind,library:"hd-online",provider:"seriesmetro",providerId:number,providerSlug:path,title:orbitText(value.title,200),poster:rpHdSeriesmetroArt(value.poster),background:rpHdSeriesmetroArt(value.background),description:orbitText(value.description),year:orbitText(value.year,4),runtime:orbitInteger(value.runtime,86400),language:"",seasons:savedSeasons,seasonNumbers:savedSeasonNumbers,season:season,episode:episode,seriesTitle:orbitText(value.seriesTitle,200)}
 end function
 
 function rpHdSeriesmetroMetadata(html as dynamic, item as object) as dynamic
@@ -250,7 +264,15 @@ function rpHdSeriesmetroEpisodes(html as dynamic, parent as object, requested as
                     ' Extract the still from this episode's own article.
                     episodePoster = rpHdSeriesmetroEpisodeArt(block)
                     ' Never reuse the series poster as an episode still.
-                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
+                    parentSeasonNumbers = []
+                    if type(parent.seasons) = "roArray"
+                        for each parentSeason in parent.seasons
+                            parentSeasonNumbers.push(parentSeason.number)
+                        end for
+                    else if type(parent.seasonNumbers) = "roArray"
+                        parentSeasonNumbers = parent.seasonNumbers
+                    end if
+                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,seriesId:parent.id,seriesProviderId:parent.providerId,seriesProviderSlug:parent.providerSlug,seriesSeasonNumbers:parentSeasonNumbers,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
                     seen[id] = true
                 end if
             end if
@@ -269,15 +291,18 @@ function rpHdSeriesmetroEmbedOptions(html as dynamic) as object
     if triplet.count() < 4 then return answer
     id = orbitInteger(triplet[2],999999999)
     itemType = orbitInteger(triplet[3],100,-1)
-    for each priority in [100,60]
+    ' Spanish is a preference, never a playback requirement.
+    ' Pass 1: Latino; pass 2: Spanish/Castellano; pass 3: every other
+    ' server option, including English and options with no language label.
+    for each priority in [100,60,0]
         for i = 1 to options.count()-1
             block = options[i]
             index = orbitInteger(rpHdSeriesmetroMatch(block,"^([0-9]+)"),100,-1)
             label = rpHdSeriesmetroText(rpHdSeriesmetroMatch(block,"<span[^>]*class="+chr(34)+"server"+chr(34)+"[^>]*>(.*?)</span>"),80)
-            score = 0
             lower = lcase(label)
+            score = 0
             if instr(1,lower,"latino") > 0 then score = 100
-            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0) then score = 60
+            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0 or instr(1,lower,"espanol") > 0) then score = 60
             if score = priority and index >= 0
                 url = rpHdSeriesmetroEndpoint("embed",{id:id,option:index,itemType:itemType})
                 if url <> "" then answer.push({url:url,language:label,score:score})

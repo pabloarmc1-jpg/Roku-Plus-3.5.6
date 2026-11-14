@@ -70,7 +70,14 @@ sub Main(args as dynamic)
         print "[RokuPlus memory] generalLevel="; deviceInfo.GetGeneralMemoryLevel()
     end if
 
-    display.createScene("PlusScene")
+    scene = display.createScene("PlusScene")
+    if type(args) = "roAssociativeArray"
+        scene.launchArgs = args
+    else
+        scene.launchArgs = {}
+    end if
+    input = CreateObject("roInput")
+    input.setMessagePort(messages)
     display.show()
     while true
         event = wait(0, messages)
@@ -90,6 +97,9 @@ sub Main(args as dynamic)
                 memoryLevel = memoryInfo.lookup("generalMemoryLevel")
                 print "[RokuPlus memory] generalWarning level="; memoryLevel
             end if
+        else if eventType = "roInputEvent"
+            info = event.getInfo()
+            scene.inputArgs = info
         end if
     end while
 end sub

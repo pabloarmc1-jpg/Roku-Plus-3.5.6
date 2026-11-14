@@ -21,10 +21,56 @@ end function
 function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dynamic, decoderAccept as dynamic) as object
     operation = orbitText(request.operation,20)
     if operation = "catalog" then return rpHdSeriesmetroCatalogRequest(request,fetcher)
-    item = rpHdSeriesmetroInputItem(request.item)
-    if item = invalid
-        answer.message = "Este título de SeriesMetro no tiene un identificador válido."
-        return answer
+    if operation = "resume-episode"
+        rawItem = request.item
+        if type(rawItem) <> "roAssociativeArray" or orbitText(rawItem.provider,32) <> "seriesmetro" or orbitText(rawItem.kind,10) <> "episode"
+            answer.message = "No se pudo recuperar la identidad del episodio de SeriesMetro."
+            return answer
+        end if
+        parentNumber = orbitInteger(rawItem.seriesProviderId,999999999)
+        if parentNumber < 1
+            parentCanonical = orbitText(rawItem.seriesId,180)
+            parentPrefix = "hdo-seriesmetro-"
+            if left(parentCanonical,len(parentPrefix)) = parentPrefix
+                parentNumber = orbitInteger(mid(parentCanonical,len(parentPrefix)+1),999999999)
+            end if
+        end if
+        parentPath = rpHdSeriesmetroPath(rawItem.seriesProviderSlug)
+        seasonNumber = orbitInteger(rawItem.season,999,-1)
+        episodeNumber = orbitInteger(rawItem.episode,9999)
+        if parentNumber < 1 or left(parentPath,7) <> "/serie/" or seasonNumber < 0 or episodeNumber < 1
+            answer.message = "El registro no conserva los datos necesarios para localizar este episodio de SeriesMetro."
+            return answer
+        end if
+        parent = {id:"hdo-seriesmetro-"+parentNumber.toStr(),kind:"series",provider:"seriesmetro",providerId:parentNumber,providerSlug:parentPath,title:orbitText(rawItem.seriesTitle,200),seasons:[]}
+        loaded = rpHdSeriesmetroLoadSeason(parent,seasonNumber,fetcher)
+        if not loaded.ok
+            answer.message = orbitText(loaded.message,240)
+            if answer.message = "" then answer.message = "No se pudieron recuperar los episodios de SeriesMetro."
+            return answer
+        end if
+        item = invalid
+        for each candidateEpisode in loaded.season.episodes
+            if candidateEpisode.episode = episodeNumber
+                item = candidateEpisode
+                exit for
+            end if
+        end for
+        if item = invalid
+            answer.message = "No se encontró el episodio guardado en la temporada de SeriesMetro."
+            return answer
+        end if
+        if item.id <> orbitText(rawItem.id,180)
+            answer.message = "El episodio recuperado no coincide con el registro de Continuar viendo."
+            return answer
+        end if
+        print "[RokuPlus series] resume-episode-recovered id="; item.id; " slug="; item.providerSlug
+    else
+        item = rpHdSeriesmetroInputItem(request.item)
+        if item = invalid
+            answer.message = "Este título de SeriesMetro no tiene un identificador válido."
+            return answer
+        end if
     end if
     if operation = "meta"
         endpoint = rpHdSeriesmetroEndpoint("meta",{slug:item.providerSlug})
@@ -68,8 +114,9 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
         answer.ok = true
         answer.message = ""
         return answer
-    else if operation = "resolve"
+    else if operation = "resolve" or operation = "resume-episode"
         if item.kind <> "movie" and item.kind <> "episode" then return answer
+        if operation = "resume-episode" then answer.item = item
         endpoint = rpHdSeriesmetroEndpoint("player",{slug:item.providerSlug})
         response = fetcher(endpoint,"seriesmetro-page","https://www3.seriesmetro.net/")
         if not response.ok then return rpHdTaskFailure(answer,response)
@@ -87,7 +134,7 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
         end for
         m.hdProviderDeadline = 0
         if embeds.count() = 0
-            answer.message = "No hay una opción en español de SeriesMetro disponible ahora. Prueba otra fuente."
+            answer.message = "SeriesMetro no devolvió un enlace de reproducción válido. Prueba otra opción del título o vuelve a intentarlo."
             return answer
         end if
         return rpHdTaskResolveEmbeds(embeds,"seriesmetro",answer,fetcher,decoderAccept,orbitInteger(request.attempt,999),"https://www3.seriesmetro.net/","https://fastream.to/")

@@ -2,6 +2,8 @@
 sub init()
     m.top.backgroundColor = "0x09090BFF"
     m.top.focusable = true
+    m.plusExperience = m.top.findNode("PlusExperience")
+    m.plusExperience.visible = true
     m.canvas = m.top.findNode("canvas")
     m.player = m.top.findNode("player")
     m.invidiousPlayer = m.top.findNode("invidiousPlayer")
@@ -16,6 +18,7 @@ sub init()
     m.player.observeField("diagnostics","playerDiagnostic")
     m.player.observeField("retryRequested","retryVideo")
     m.player.observeField("progress","playerProgress")
+    m.player.observeField("endSelection","playerEndSelection")
     m.player.observeField("progress","livePreviewProgress")
     m.player.observeField("previewReturned","livePreviewReturned")
     m.player.observeField("closedRequest","livePreviewClosed")
@@ -31,10 +34,8 @@ sub init()
     m.dialogFocusTimer.observeField("fire","dialogFocusRestoreElapsed")
     m.heroRotation = m.top.findNode("heroRotation")
     m.heroRotation.observeField("fire","heroRotationTick")
-    m.heroRotation.control = "start"
     m.discoveryRotation = m.top.findNode("discoveryRotation")
     m.discoveryRotation.observeField("fire","discoveryRotationTick")
-    m.discoveryRotation.control = "start"
     m.pageTransitionTimer = m.top.findNode("pageTransition")
     m.pageTransitionTimer.observeField("fire","pageTransitionTick")
     m.catalogFadeTimer = m.top.findNode("catalogFade")
@@ -51,6 +52,12 @@ sub init()
     m.watchState = rpWatchLoad(m.profileId)
     m.profileCursor = 0
     m.lastPlaybackProgress = invalid
+    m.endScreenRequestId = invalid
+    m.endScreenNextEpisodePending = false
+    m.endScreenWatchedRequestId = invalid
+    m.introDbTask = invalid
+    m.introDbCache = {}
+    m.introDbSegments = invalid
     m.watchSaveClock = CreateObject("roTimespan")
     m.watchSaveClock.mark()
     m.continueItems = rpWatchContinue(m.watchState)
@@ -140,7 +147,6 @@ sub init()
     m.hdLibrary = {movies: [], series: []}
     m.hdDataTask = CreateObject("roSGNode", "HdLocalDataTask")
     m.hdDataTask.observeField("result", "hdLocalDataLoaded")
-    m.hdDataTask.control = "RUN"
     m.features = []
     m.homeSeries = []
     m.discoveryOffset = 0
@@ -154,13 +160,54 @@ sub init()
     m.invidiousQuery = ""
     m.creditsPage = 0
     m.creditsPages = []
-    if not m.configured
-        beginSetup(false,false)
-    else
+    m.plusInitialized = false
+    ActivatePlusExperience()
+end sub
+
+sub ActivatePlusExperience()
+    print "[RokuPlus startup] activate begin"
+    ' Keep the Roku Plus scene focused for normal remote navigation.
+    m.top.focusable = true
+    m.plusExperience.visible = true
+    m.heroRotation.control = "start"
+    m.discoveryRotation.control = "start"
+    if not m.plusInitialized
+        m.plusInitialized = true
+        print "[RokuPlus startup] first activation configured="; m.configured
+        ' Paint the first Roku Plus frame before starting background work.
+        ' This keeps task creation and network requests out of the first-frame path.
+        if not m.configured
+            print "[RokuPlus startup] setup screen begin"
+            beginSetup(false,false)
+            print "[RokuPlus startup] setup screen complete"
+        else
+            print "[RokuPlus startup] home screen begin"
+            drawScreen()
+            print "[RokuPlus startup] home screen complete"
+        end if
+        if m.hdDataTask <> invalid
+            print "[RokuPlus startup] local data task begin"
+            m.hdDataTask.control = "RUN"
+            print "[RokuPlus startup] local data task started"
+        end if
+        if m.configured
+            print "[RokuPlus startup] home requests begin"
+            refreshHome()
+            print "[RokuPlus startup] home requests started"
+        end if
+    else if m.view = "home"
+        ' Background catalog requests are cancelled when Roku Plus is hidden.
+        ' Re-entering Home refreshes from the five-minute cache when possible.
+        print "[RokuPlus startup] home re-entry begin"
+        drawScreen()
+        print "[RokuPlus startup] home re-entry screen complete"
         refreshHome()
+        print "[RokuPlus startup] home re-entry requests started"
     end if
-    drawScreen()
+    m.top.focusable = true
     m.top.setFocus(true)
+    print "[RokuPlus input] scene focus restored="; m.top.hasFocus()
+    print "[RokuPlus startup] activate complete"
 end sub
 
 sub hdLocalDataLoaded(event as object)
@@ -171,7 +218,7 @@ sub hdLocalDataLoaded(event as object)
     m.hdDataTask = invalid
     if type(answer) <> "roAssociativeArray" then return
     if type(answer.library) = "roAssociativeArray" then m.hdLibrary = answer.library
-    if m.catalogMode = "hd" and not usesOnlineHd()
+    if m.plusExperience.visible and m.catalogMode = "hd" and not usesOnlineHd()
         refreshHome()
         drawScreen()
     end if
@@ -221,7 +268,7 @@ sub fetch(context as object)
         end if
     end if
     if online and type(m.tvmazeCache) = "roAssociativeArray" then task.tvmazeCache = m.tvmazeCache
-    if online and context.operation = "resolve" then task.attempt = orbitInteger(context.item.hdAttempt,99)
+    if online and (context.operation = "resolve" or context.operation = "resume-episode") then task.attempt = orbitInteger(context.item.hdAttempt,99)
     task.operation = context.operation
     task.kind = m.kind
     if context.doesExist("kind") then task.kind = context.kind
@@ -291,10 +338,19 @@ sub catalogTimedOut()
     if m.deadlineStart <> invalid
         if m.deadlineStart.totalMilliseconds() < m.deadlineMs - 100 then return
     end if
+    pendingContext = m.pending
     cancelRequest()
     m.autoplay = false
     m.note = "La consulta tardó demasiado. Pulsa OK para intentar de nuevo o Atrás para volver."
-    drawScreen()
+    if m.view = "player"
+        if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
+            showPlayerNextEpisodeError(m.note)
+        else
+            showPlayerEndError(m.note)
+        end if
+    else
+        drawScreen()
+    end if
 end sub
 
 sub catalogState(event as object)
@@ -302,10 +358,19 @@ sub catalogState(event as object)
     if not m.job.isSameNode(event.getRoSGNode()) then return
     if event.getData() <> "STOP" then return
     if type(m.job.result) = "roAssociativeArray" then return
+    pendingContext = m.pending
     cancelRequest()
     m.autoplay = false
     m.note = "No se pudo completar la consulta. Vuelve a intentar."
-    drawScreen()
+    if m.view = "player"
+        if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
+            showPlayerNextEpisodeError(m.note)
+        else
+            showPlayerEndError(m.note)
+        end if
+    else
+        drawScreen()
+    end if
 end sub
 
 sub fetched(event as object)
@@ -318,12 +383,39 @@ sub fetched(event as object)
     if type(answer.tvmazeCache) = "roAssociativeArray" then m.tvmazeCache = answer.tvmazeCache
     cancelRequest()
     if not answer.ok
+        if context.operation = "meta" or context.operation = "resolve" or context.operation = "episodes" or context.operation = "resume-episode"
+            retryItem = invalid
+            if context.doesExist("item") and type(context.item) = "roAssociativeArray" then retryItem = context.item
+            if retryItem = invalid and type(m.detail) = "roAssociativeArray" then retryItem = m.detail
+            if type(retryItem) = "roAssociativeArray"
+                autoRetry = orbitInteger(retryItem.hdAutoRetry,2)
+                if autoRetry < 1
+                    retryItem.hdAutoRetry = autoRetry+1
+                    if context.operation = "resolve" then retryItem.hdAttempt = orbitInteger(retryItem.hdAttempt,99)+1
+                    print "[RokuPlus hd-retry] automatic=1 operation="; context.operation; " provider="; orbitText(retryItem.provider,32)
+                    retryContext = {operation:context.operation,item:retryItem}
+                    if context.doesExist("season") then retryContext.season = context.season
+                    fetch(retryContext)
+                    return
+                end if
+            end if
+        end if
         m.autoplay = false
         m.note = answer.message
         if context.operation = "compatible" then m.note = "La reproducción con PC no está disponible. Puedes elegir Reproducir para usar la conexión directa."
-        drawScreen()
+        if m.view = "player"
+            if context.operation = "episodes"
+                showPlayerNextEpisodeError(m.note)
+            else
+                showPlayerEndError(m.note)
+            end if
+        else
+            drawScreen()
+        end if
         return
     end if
+    if type(m.detail) = "roAssociativeArray" then m.detail.hdAutoRetry = 0
+    if type(context.item) = "roAssociativeArray" then context.item.hdAutoRetry = 0
     if context.operation = "invidious-search"
         m.invidiousItems = answer.items
         m.invidiousCursor = 0
@@ -404,11 +496,19 @@ sub fetched(event as object)
             m.view = "episodes"
             m.zone = "seasons"
         end if
-    else if context.operation = "resolve"
+    else if context.operation = "resolve" or context.operation = "resume-episode"
+        if context.operation = "resume-episode" and type(answer.item) = "roAssociativeArray"
+            m.detail = answer.item
+        end if
+        m.detail.hdAutoRetry = 0
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSegmentUrls = answer.segmentUrls
         m.pendingSegmentDurations = answer.segmentDurations
+        m.pendingFallbackSegmentUrls = answer.fallbackSegmentUrls
+        m.pendingFallbackSegmentDurations = answer.fallbackSegmentDurations
+        m.pendingFallbackTsRelay = false
+        if answer.fallbackTsRelayEnabled = true then m.pendingFallbackTsRelay = true
         m.pendingTsRelay = false
         if answer.tsRelayEnabled = true then m.pendingTsRelay = true
         launchVideo(m.detail,answer.url,answer.streamFormat)
@@ -416,11 +516,20 @@ sub fetched(event as object)
     else if context.operation = "episodes"
         if m.series = invalid or context.item.id <> m.series.id then return
         for each incoming in answer.seasons
+            incoming.loaded = true
             for i = 0 to m.series.seasons.count()-1
                 if m.series.seasons[i].number = incoming.number then m.series.seasons[i] = incoming
             end for
         end for
         m.episode = 0
+        if m.view = "player" and m.endScreenNextEpisodePending
+            for each seasonEntry in m.series.seasons
+                if seasonEntry.number = context.season then seasonEntry.loaded = true
+            end for
+            m.endScreenNextEpisodePending = false
+            preparePlaybackEndScreen()
+            return
+        end if
     else if context.operation = "compatible"
         m.activeJobId = answer.jobid
         launchVideo(m.detail,answer.url,"hls")
@@ -459,6 +568,7 @@ end sub
 sub openDetails(item as object, origin as string, playNow = false as boolean)
     m.detail = item
     m.detail.hdAttempt = 0
+    m.detail.hdAutoRetry = 0
     m.detailOrigin = origin
     m.autoplay = playNow
     m.action = 0
@@ -474,7 +584,18 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
             drawScreen()
         end if
     else
-        fetch({operation:"meta",item:item})
+        ' Older LaMovie watch records can retain the numeric post ID but lack
+        ' the slug required by the metadata endpoint. Resolve playback directly
+        ' by numeric ID instead of showing a false source-connection error.
+        resumeProvider = lcase(orbitText(item.provider,32))
+        resumeSlug = orbitText(item.providerSlug,200)
+        resumeProviderId = orbitInteger(item.providerId,999999999)
+        if playNow and item.kind = "movie" and resumeProvider = "lamovie" and resumeSlug = "" and resumeProviderId > 0
+            print "[RokuPlus continue] resume-direct=1 reason=missing-lamovie-slug providerId="; resumeProviderId
+            playDetail()
+        else
+            fetch({operation:"meta",item:item})
+        end if
     end if
 end sub
 
@@ -503,6 +624,36 @@ sub launchVideo(item as object, url as string, format as string)
     ' Recover LaMovie numeric identity from the canonical HD id when a
     ' catalog item arrives with its slug but without providerId.
     itemProvider = lcase(orbitText(item.provider,32))
+    if item.kind = "episode"
+        parentSlug = orbitText(item.seriesProviderSlug,200)
+        parentId = orbitText(item.seriesId,180)
+        if parentId = "" and itemProvider = "seriesmetro" then parentId = "hdo-seriesmetro-"+orbitInteger(item.providerId,999999999).toStr()
+        parentProviderId = item.providerId
+        if item.doesExist("seriesProviderId") then parentProviderId = item.seriesProviderId
+        parentProviderTmdbId = orbitText(item.seriesProviderTmdbId,40)
+        parentProviderKind = orbitText(item.seriesProviderKind,16)
+        if parentSlug <> "" and parentId <> ""
+            if m.series = invalid or m.series.id <> parentId
+                seasonNumber = orbitInteger(item.season,999,0)
+                parentSeasons = []
+                if type(item.seriesSeasonNumbers) = "roArray"
+                    for each parentSeasonNumber in item.seriesSeasonNumbers
+                        safeSeasonNumber = orbitInteger(parentSeasonNumber,999,-1)
+                        if safeSeasonNumber >= 0 then parentSeasons.push({number:safeSeasonNumber,episodes:[],loaded:false})
+                    end for
+                end if
+                hasCurrentSeason = false
+                for each parentSeason in parentSeasons
+                    if parentSeason.number = seasonNumber then hasCurrentSeason = true
+                end for
+                if not hasCurrentSeason then parentSeasons.push({number:seasonNumber,episodes:[],loaded:false})
+                parentSeasons.sortBy("number")
+                m.series = {id:parentId,imdbId:"",kind:"series",library:"hd-online",provider:itemProvider,providerId:parentProviderId,providerSlug:parentSlug,providerTmdbId:parentProviderTmdbId,providerKind:parentProviderKind,title:orbitText(item.seriesTitle,180),poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),description:orbitText(item.description),year:orbitText(item.year,4),runtime:0,language:"",seasons:parentSeasons}
+                m.seriesOrigin = "home"
+                print "[RokuPlus series] restored-parent provider="; itemProvider; " id="; parentId; " season="; seasonNumber
+            end if
+        end if
+    end if
     if itemProvider = "lamovie"
         currentProviderId = ""
         if item.doesExist("providerId") then currentProviderId = orbitText(item.providerId,40)
@@ -525,7 +676,7 @@ sub launchVideo(item as object, url as string, format as string)
     if m.playbackMode <> "compatible" or item.kind = "live" then m.activeJobId = ""
     eraseScreen()
     m.canvas.visible = false
-    m.viewBeforePlayer = m.view
+    if m.view <> "player" then m.viewBeforePlayer = m.view
     m.view = "player"
     loadingTitleNode = m.player.findNode("loadingTitle")
     if loadingTitleNode <> invalid then loadingTitleNode.text = left(orbitText(item.title,130),130)
@@ -545,6 +696,16 @@ sub launchVideo(item as object, url as string, format as string)
         descriptor.resumePosition = savedProgress.position
     end if
     if item.doesExist("mediaHeaders") then descriptor.mediaHeaders = item.mediaHeaders
+    if type(m.pendingFallbackSegmentUrls) = "roArray"
+        descriptor.fallbackSegmentUrls = m.pendingFallbackSegmentUrls
+        m.pendingFallbackSegmentUrls = invalid
+    end if
+    if type(m.pendingFallbackSegmentDurations) = "roArray"
+        descriptor.fallbackSegmentDurations = m.pendingFallbackSegmentDurations
+        m.pendingFallbackSegmentDurations = invalid
+    end if
+    if m.pendingFallbackTsRelay = true then descriptor.fallbackTsRelayEnabled = true
+    m.pendingFallbackTsRelay = false
     if type(m.pendingSegmentUrls) = "roArray"
         descriptor.segmentUrls = m.pendingSegmentUrls
         m.pendingSegmentUrls = invalid
@@ -560,7 +721,48 @@ sub launchVideo(item as object, url as string, format as string)
     descriptor.requestId = CreateObject("roDeviceInfo").getRandomUUID()
     m.activePlaybackRequestId = descriptor.requestId
     m.lastPlaybackProgress = invalid
+    m.endScreenRequestId = invalid
+    m.endScreenWatchedRequestId = invalid
+    m.endScreenNextEpisodePending = false
+    m.introDbSegments = invalid
+    if m.introDbTask <> invalid
+        m.introDbTask.cancelRequested = true
+        m.introDbTask = invalid
+    end if
+    m.player.endScreenData = invalid
+    m.player.introDbData = invalid
     m.player.request = descriptor
+    imdbId = orbitText(descriptor.imdbId,24)
+    cacheKey = ""
+    if imdbId <> ""
+        if item.kind = "movie"
+            cacheKey = imdbId + "|movie"
+        else if item.kind = "episode"
+            cacheKey = imdbId + "|s" + orbitInteger(descriptor.season,999).toStr() + "e" + orbitInteger(descriptor.episode,9999).toStr()
+        end if
+    end if
+    if cacheKey <> "" and m.introDbCache.doesExist(cacheKey)
+        cachedSegments = m.introDbCache[cacheKey]
+        m.introDbSegments = cachedSegments
+        m.player.introDbData = {ok:true,requestId:descriptor.requestId,outro:cachedSegments.outro,post_credits:cachedSegments.post_credits,no_outro:cachedSegments.no_outro}
+        print "[RokuPlus introdb] cache_hit imdb="; imdbId
+    else if cacheKey <> ""
+        task = CreateObject("roSGNode","IntroDbTask")
+        task.imdbId = imdbId
+        task.isMovie = item.kind = "movie"
+        if item.kind = "episode"
+            task.season = orbitInteger(descriptor.season,999)
+            task.episode = orbitInteger(descriptor.episode,9999)
+        end if
+        task.requestId = descriptor.requestId
+        task.cacheKey = cacheKey
+        task.observeField("result","introDbResult")
+        m.introDbTask = task
+        task.control = "RUN"
+        print "[RokuPlus introdb] lookup_started imdb="; imdbId; " cacheKey="; cacheKey
+    else
+        print "[RokuPlus introdb] skipped reason=missing_imdb_or_episode_identity item="; orbitText(item.id,100)
+    end if
     if m.activeJobId <> "" then m.lease.control = "start"
 end sub
 
@@ -576,6 +778,25 @@ sub renewPlaybackLease()
     task.requestId = CreateObject("roDeviceInfo").getRandomUUID()
     m.leaseTask = task
     task.control = "RUN"
+end sub
+
+sub introDbResult(event as object)
+    if m.introDbTask = invalid then return
+    if not m.introDbTask.isSameNode(event.getRoSGNode()) then return
+    answer = event.getData()
+    m.introDbTask = invalid
+    if type(answer) <> "roAssociativeArray" then return
+    if answer.requestId <> m.activePlaybackRequestId then return
+    if answer.ok
+        cacheKey = orbitText(answer.cacheKey,100)
+        hasSegmentData = type(answer.outro) = "roAssociativeArray" or type(answer.post_credits) = "roAssociativeArray" or answer.no_outro = true
+        if cacheKey <> "" and hasSegmentData then m.introDbCache[cacheKey] = {outro:answer.outro,post_credits:answer.post_credits,no_outro:answer.no_outro}
+        m.introDbSegments = answer
+        m.player.introDbData = answer
+        print "[RokuPlus introdb] lookup_ok outro="; type(answer.outro); " postCredits="; type(answer.post_credits)
+    else
+        print "[RokuPlus introdb] lookup_unavailable reason="; orbitText(answer.message,160)
+    end if
 end sub
 
 sub playerProgress(event as object)
@@ -622,6 +843,44 @@ sub playerProgress(event as object)
     end if
     m.lastPlaybackProgress = sample
     m.watchState = rpWatchUpdate(m.watchState,m.detail,sample.position,sample.duration)
+    ' Prepare the end-card while the credits are still rolling.
+    ' The 60-second window is a fallback because providers do not expose a
+    ' reliable credits-start marker in their playback metadata.
+    creditsStart = -1.0
+    if type(m.introDbSegments) = "roAssociativeArray" and type(m.introDbSegments.outro) = "roAssociativeArray"
+        outroStart = m.introDbSegments.outro.start_sec
+        if GetInterface(outroStart,"ifFloat") <> invalid or GetInterface(outroStart,"ifDouble") <> invalid or GetInterface(outroStart,"ifInt") <> invalid or GetInterface(outroStart,"ifLongInt") <> invalid
+            creditsStart = outroStart
+        else if m.introDbSegments.outro.start_ms <> invalid
+            creditsStart = m.introDbSegments.outro.start_ms / 1000.0
+        end if
+    end if
+    if creditsStart < 0 then creditsStart = sample.duration - 60
+    if sample.state <> "finished" and sample.duration > 0 and sample.position >= creditsStart
+        if m.endScreenRequestId <> sample.requestId
+            m.endScreenRequestId = sample.requestId
+            print "[RokuPlus end-screen] credits-window position="; sample.position; " duration="; sample.duration
+            preparePlaybackEndScreen()
+        end if
+    end if
+    if sample.state = "finished"
+        watchedRequest = false
+        if m.endScreenWatchedRequestId <> invalid
+            if m.endScreenWatchedRequestId = sample.requestId then watchedRequest = true
+        end if
+        if not watchedRequest
+            m.endScreenWatchedRequestId = sample.requestId
+            watchedAtEnd = rpWatchGet(m.watchState,m.detail.id)
+            if watchedAtEnd = invalid or watchedAtEnd.watched <> true
+                m.watchState = rpWatchToggle(m.watchState,m.detail,"watched")
+                rpWatchSave(m.watchState,m.profileId)
+            end if
+        end if
+        if m.endScreenRequestId <> sample.requestId
+            m.endScreenRequestId = sample.requestId
+            preparePlaybackEndScreen()
+        end if
+    end if
     record = rpWatchGet(m.watchState,m.detail.id)
     if m.watchSaveClock = invalid
         saved = rpWatchSave(m.watchState,m.profileId)
@@ -687,6 +946,10 @@ sub playerClosed(event as object)
     if m.player.active = true then return
     if m.view = "live" then return
     if m.view <> "player" then return
+    ' A recommendation may still be resolving when the viewer presses BACK.
+    ' Cancel it so a late network response cannot unexpectedly reopen playback.
+    if m.busy then cancelRequest()
+    m.autoplay = false
     closeSaved = rpWatchSave(m.watchState,m.profileId)
     closeRecord = invalid
     if type(m.detail) = "roAssociativeArray" and m.detail.doesExist("id") then closeRecord = rpWatchGet(m.watchState,m.detail.id)
@@ -720,16 +983,6 @@ sub playerClosed(event as object)
         watchedRecord = rpWatchGet(m.watchState,m.detail.id)
         if watchedRecord = invalid or watchedRecord.watched <> true then m.watchState = rpWatchToggle(m.watchState,m.detail,"watched")
         rpWatchSave(m.watchState,m.profileId)
-        nextItem = rpFindNextEpisode()
-        m.lastPlaybackProgress = invalid
-        if nextItem <> invalid
-            m.nextEpisode = nextItem
-            m.nextEpisodeCountdown = 10
-            m.note = "Siguiente capítulo en 10 s · OK para reproducir ahora · Atrás para cancelar"
-            m.nextEpisodeTimer.control = "start"
-            drawScreen()
-            return
-        end if
     end if
     m.lastPlaybackProgress = invalid
     m.continueItems = rpWatchContinue(m.watchState)
@@ -738,9 +991,210 @@ sub playerClosed(event as object)
     m.top.setFocus(true)
 end sub
 
+sub showPlayerNextEpisodeError(message as string)
+    if m.view <> "player" then return
+    m.endScreenNextEpisodePending = false
+    safeMessage = orbitText(message,320)
+    if safeMessage = "" then safeMessage = "No se pudo cargar el siguiente episodio."
+    m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:safeMessage,items:[]}
+end sub
+
+sub showPlayerEndError(message as string)
+    if m.view <> "player" then return
+    safeMessage = orbitText(message,320)
+    if safeMessage = "" then safeMessage = "No se pudo abrir este título."
+    m.player.endScreenData = {kind:"movie",heading:"NO SE PUDO ABRIR",message:safeMessage,items:[]}
+end sub
+
+sub preparePlaybackEndScreen()
+    if m.view <> "player" or m.detail = invalid then return
+    if m.detail.kind = "episode"
+        nextItem = rpFindNextEpisode()
+        items = []
+        heading = "SERIE FINALIZADA"
+        if nextItem <> invalid
+            items.push(nextItem)
+            heading = "SIGUIENTE EPISODIO"
+        end if
+        if nextItem = invalid and m.series <> invalid and (usesOnlineHd() or rpIsOnlineHdItem(m.series))
+            ' Continue Watching may restore an episode without its parent season cache.
+            ' Load the current season once before declaring the series finished.
+            for each currentSeasonEntry in m.series.seasons
+                if currentSeasonEntry.number = m.detail.season
+                    if currentSeasonEntry.loaded <> true and not m.endScreenNextEpisodePending
+                        m.endScreenNextEpisodePending = true
+                        m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[]}
+                        fetch({operation:"episodes",item:m.series,season:currentSeasonEntry.number})
+                        return
+                    end if
+                end if
+            end for
+            if m.series.seasons.count() > 1
+                for seasonIndex = 0 to m.series.seasons.count()-2
+                    currentSeason = m.series.seasons[seasonIndex]
+                if currentSeason.number = m.detail.season
+                    followingSeason = m.series.seasons[seasonIndex+1]
+                    if followingSeason.loaded <> true and not m.endScreenNextEpisodePending
+                        m.endScreenNextEpisodePending = true
+                        m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[]}
+                        fetch({operation:"episodes",item:m.series,season:followingSeason.number})
+                        return
+                    end if
+                end if
+                end for
+            end if
+        end if
+        m.player.endScreenData = {kind:"episode",heading:heading,items:items}
+    else if m.detail.kind = "movie"
+        similar = rpSimilarMovies(m.detail)
+        heading = "PELÍCULAS SIMILARES"
+        if similar.count() = 0
+            similar = rpFallbackMovies(m.detail)
+            heading = "MÁS PELÍCULAS PARA VER"
+        end if
+        m.player.endScreenData = {kind:"movie",heading:heading,items:similar}
+    end if
+end sub
+
+sub playerEndSelection(event as object)
+    selection = event.getData()
+    if m.view <> "player" or type(selection) <> "roAssociativeArray" then return
+    if selection.requestId <> m.activePlaybackRequestId then return
+    if type(selection.item) <> "roAssociativeArray" then return
+    item = selection.item
+    print "[RokuPlus end-screen] selected title="; orbitText(item.title,180); " kind="; orbitText(item.kind,20)
+    ' Keep m.view="player" while metadata/source resolution runs so BACK and
+    ' the player lifecycle continue to be routed to the active decoder.
+    m.detail = item
+    m.detail.hdAttempt = 0
+    m.lastPlaybackProgress = invalid
+    m.endScreenRequestId = invalid
+    if item.kind = "episode"
+        m.detailOrigin = "episodes"
+        m.autoplay = false
+        playDetail()
+    else if item.kind = "movie"
+        m.detailOrigin = "home"
+        if usesOnlineHd() or rpIsOnlineHdItem(item)
+            m.autoplay = true
+            fetch({operation:"meta",item:item})
+        else
+            m.autoplay = false
+            playDetail()
+        end if
+    end if
+end sub
+
+function rpGenreNames(item as dynamic) as object
+    values = []
+    if type(item) <> "roAssociativeArray" then return values
+    source = invalid
+    if type(item.genres) = "roArray" then source = item.genres
+    if source = invalid and type(item.genre) = "roArray" then source = item.genre
+    if type(source) = "roArray"
+        for each entry in source
+            genreName = ""
+            if GetInterface(entry,"ifString") <> invalid
+                genreName = lcase(entry.trim())
+            else if type(entry) = "roAssociativeArray" and GetInterface(entry.name,"ifString") <> invalid
+                genreName = lcase(entry.name.trim())
+            end if
+            if genreName <> ""
+                exists = false
+                for each current in values
+                    if current = genreName then exists = true
+                end for
+                if not exists then values.push(genreName)
+            end if
+        end for
+    else if GetInterface(item.genre,"ifString") <> invalid
+        genreName = lcase(item.genre.trim())
+        if genreName <> "" then values.push(genreName)
+    end if
+    return values
+end function
+
+function rpSharedGenreScore(first as dynamic, second as dynamic) as integer
+    leftGenres = rpGenreNames(first)
+    rightGenres = rpGenreNames(second)
+    score = 0
+    for each leftGenre in leftGenres
+        for each rightGenre in rightGenres
+            if leftGenre = rightGenre then score++
+        end for
+    end for
+    return score
+end function
+
+function rpSimilarMovies(current as object) as object
+    candidates = []
+    for each source in [m.features,m.pageTitles,m.titles]
+        if type(source) = "roArray"
+            for each candidate in source
+                if type(candidate) = "roAssociativeArray"
+                    if candidate.kind = "movie" and candidate.id <> current.id then candidates.push(candidate)
+                end if
+            end for
+        end if
+    end for
+    uniqueCandidates = orbitUniqueCatalogItems(candidates)
+    ranked = []
+    for each candidate in uniqueCandidates
+        score = rpSharedGenreScore(current,candidate)
+        if score > 0 then ranked.push({item:candidate,score:score})
+    end for
+    for i = 1 to ranked.count()-1
+        position = i
+        while position > 0
+            if ranked[position-1].score >= ranked[position].score then exit while
+            swap = ranked[position-1]
+            ranked[position-1] = ranked[position]
+            ranked[position] = swap
+            position--
+        end while
+    end for
+    results = []
+    for each entry in ranked
+        results.push(entry.item)
+        if results.count() >= 6 then exit for
+    end for
+    print "[RokuPlus end-screen] similar-movies="; results.count()
+    return results
+end function
+
+function rpFallbackMovies(current as object) as object
+    candidates = []
+    for each source in [m.features,m.pageTitles,m.titles]
+        if type(source) = "roArray"
+            for each candidate in source
+                if type(candidate) = "roAssociativeArray"
+                    if candidate.kind = "movie" and candidate.id <> current.id then candidates.push(candidate)
+                end if
+            end for
+        end if
+    end for
+    uniqueCandidates = orbitUniqueCatalogItems(candidates)
+    results = []
+    for each candidate in uniqueCandidates
+        results.push(candidate)
+        if results.count() >= 6 then exit for
+    end for
+    return results
+end function
+
 function rpFindNextEpisode() as dynamic
     if m.series = invalid or m.detail = invalid then return invalid
     if m.detail.kind <> "episode" then return invalid
+    episodeSeriesId = ""
+    if GetInterface(m.detail.imdbId,"ifString") <> invalid then episodeSeriesId = m.detail.imdbId
+    if episodeSeriesId <> "" and m.series.doesExist("id")
+        if episodeSeriesId <> m.series.id then return invalid
+    end if
+    episodeSeriesTitle = ""
+    if GetInterface(m.detail.seriesTitle,"ifString") <> invalid then episodeSeriesTitle = m.detail.seriesTitle
+    if episodeSeriesTitle <> ""
+        if lcase(episodeSeriesTitle) <> lcase(m.series.title) then return invalid
+    end if
     for si = 0 to m.series.seasons.count()-1
         season = m.series.seasons[si]
         if season.number = m.detail.season
@@ -2172,7 +2626,12 @@ sub playDetail()
     if m.detail = invalid then return
     m.playbackMode = "direct"
     if usesOnlineHd() or rpIsOnlineHdItem(m.detail)
-        fetch({operation:"resolve",item:m.detail})
+        if lcase(orbitText(m.detail.provider,32)) = "seriesmetro" and m.detail.kind = "episode" and orbitText(m.detail.providerSlug,200) = "" and orbitInteger(m.detail.seriesProviderId,999999999) > 0 and orbitText(m.detail.seriesProviderSlug,200) <> ""
+            print "[RokuPlus series] resume-episode-recover id="; orbitText(m.detail.id,180); " season="; orbitInteger(m.detail.season,999); " episode="; orbitInteger(m.detail.episode,9999)
+            fetch({operation:"resume-episode",item:m.detail})
+        else
+            fetch({operation:"resolve",item:m.detail})
+        end if
     else if m.catalogMode = "hd"
         if m.detail.doesExist("directUrl") and m.detail.directUrl <> ""
             launchVideo(m.detail,m.detail.directUrl,m.detail.streamFormat)
@@ -2301,7 +2760,11 @@ sub loadEpisodeSeason()
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
+    ' Route remote input directly to the Roku Plus experience.
     if key = "home" then return false
+    if press
+        print "[RokuPlus input] key="; key; " view="; m.view; " zone="; m.zone; " sceneFocus="; m.top.hasFocus(); " plusVisible="; m.plusExperience.visible
+    end if
     if not press
         if m.view = "search-keyboard" and key = "OK" and m.searchDeleteHeld
             m.searchDeleteTimer.control = "stop"
@@ -2760,6 +3223,10 @@ if m.view = "profiles"
                     if left(savedId,len(candidatePrefix)) = candidatePrefix
                         resumeItem.provider = candidateProvider
                         candidateId = mid(savedId,len(candidatePrefix)+1)
+                        if candidateProvider = "seriesmetro"
+                            seriesMarker = instr(1,candidateId,"-s")
+                            if seriesMarker > 1 then candidateId = left(candidateId,seriesMarker-1)
+                        end if
                         if candidateProvider = "cinecalidad"
                             if candidateId <> "" then resumeItem.providerId = candidateId
                             if candidateId <> "" then resumeItem.providerSlug = candidateId
@@ -2790,6 +3257,12 @@ if m.view = "profiles"
                 if saved.doesExist("season") then resumeItem.season = orbitInteger(saved.season,999,0)
                 if saved.doesExist("episode") then resumeItem.episode = orbitInteger(saved.episode,9999,0)
                 if saved.doesExist("seriesTitle") then resumeItem.seriesTitle = orbitText(saved.seriesTitle,180)
+                if saved.doesExist("seriesId") then resumeItem.seriesId = orbitText(saved.seriesId,180)
+                if saved.doesExist("seriesProviderId") then resumeItem.seriesProviderId = saved.seriesProviderId
+                if saved.doesExist("seriesProviderSlug") then resumeItem.seriesProviderSlug = orbitText(saved.seriesProviderSlug,200)
+                if saved.doesExist("seriesProviderTmdbId") then resumeItem.seriesProviderTmdbId = orbitText(saved.seriesProviderTmdbId,40)
+                if saved.doesExist("seriesProviderKind") then resumeItem.seriesProviderKind = orbitText(saved.seriesProviderKind,16)
+                if saved.doesExist("seriesSeasonNumbers") and type(saved.seriesSeasonNumbers) = "roArray" then resumeItem.seriesSeasonNumbers = saved.seriesSeasonNumbers
                 if resumeItem.kind = "episode" and (not resumeItem.doesExist("season") or not resumeItem.doesExist("episode") or resumeItem.episode < 1)
                     m.note = "Faltan los datos del episodio para reanudarlo."
                     drawScreen()

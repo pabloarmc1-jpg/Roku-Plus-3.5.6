@@ -105,6 +105,34 @@ function rpHdOnlineArt(raw as dynamic, provider as string) as string
     return ""
 end function
 
+function rpHdOnlineGenres(raw as dynamic) as object
+    values = []
+    if type(raw) <> "roAssociativeArray" then return values
+    source = raw.genres
+    if type(source) <> "roArray" then source = raw.genre
+    if type(source) = "roArray"
+        for each entry in source
+            name = ""
+            if GetInterface(entry,"ifString") <> invalid
+                name = lcase(left(entry.trim(),60))
+            else if type(entry) = "roAssociativeArray" and GetInterface(entry.name,"ifString") <> invalid
+                name = lcase(left(entry.name.trim(),60))
+            end if
+            if name <> ""
+                exists = false
+                for each current in values
+                    if current = name then exists = true
+                end for
+                if not exists then values.push(name)
+            end if
+        end for
+    else if GetInterface(source,"ifString") <> invalid
+        name = lcase(left(source.trim(),120))
+        if name <> "" then values.push(name)
+    end if
+    return values
+end function
+
 function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as dynamic
     provider = rpHdOnlineProvider(provider)
     if provider = "" or provider = "all" or provider = "cinehax" or provider = "seriesmetro" or provider = "cinecalidad" or type(raw) <> "roAssociativeArray" then return invalid
@@ -124,7 +152,8 @@ function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as d
         provider: provider, providerId: number, providerSlug: orbitText(raw.slug,200)
         library: "hd-online", title: title, description: orbitText(raw.overview)
         poster: rpHdOnlineArt(images.poster,provider), background: rpHdOnlineArt(images.backdrop,provider)
-        year: left(orbitText(raw.release_date,32),4), runtime: int(runtime*60), language: "", seasons: []
+        year: left(orbitText(raw.release_date,32),4), runtime: int(runtime*60)
+        genres: rpHdOnlineGenres(raw), language: "", seasons: []
     }
 end function
 
@@ -233,9 +262,20 @@ function rpHdOnlineEpisodes(raw as dynamic, provider as string, parent as dynami
                     if episodePoster = "" then episodePoster = parent.poster
                     episodeDescription = orbitText(ep.overview,1200)
                     if episodeDescription = "" then episodeDescription = orbitText(ep.description,1200)
+                    parentSeasonNumbers = []
+                    if type(parent.seasons) = "roArray"
+                        for each parentSeason in parent.seasons
+                            parentSeasonNumbers.push(parentSeason.number)
+                        end for
+                    else if type(parent.seasonNumbers) = "roArray"
+                        parentSeasonNumbers = parent.seasonNumbers
+                    end if
                     item = {
                         id:id, imdbId:"", kind:"episode", library:"hd-online", provider:provider, providerId:number
-                        providerSlug:"", title:title, seriesTitle:parent.title, season:seasonNumber, episode:episodeNumber
+                        providerSlug:"", title:title, seriesTitle:parent.title, seriesId:parent.id
+                        seriesProviderId:parent.providerId, seriesProviderSlug:parent.providerSlug
+                        seriesProviderTmdbId:orbitText(parent.providerTmdbId,40), seriesProviderKind:orbitText(parent.providerKind,16)
+                        seriesSeasonNumbers:parentSeasonNumbers, season:seasonNumber, episode:episodeNumber
                         poster:episodePoster, background:parent.background, description:episodeDescription
                         year:parent.year, runtime:orbitInteger(ep.runtime,86400), language:"", seasons:[]
                     }
@@ -275,14 +315,15 @@ function rpHdOnlineEmbeds(raw as dynamic) as object
             score = 0
             lower = lcase(language)
             if instr(1,lower,"latino") > 0 then score = 100
-            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0) then score = 60
-            if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url) and score > 0
+            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0 or instr(1,lower,"espanol") > 0 or lower = "es" or lower = "spa" or left(lower,3) = "es-") then score = 60
+            ' Spanish is preferred, not required: retain English and unknown-language embeds.
+            if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url)
                 result.push({url:url,language:language,quality:orbitText(embed.quality,40),score:score})
             end if
         end if
     end for
     ordered = []
-    for each priority in [100,60]
+    for each priority in [100,60,0]
         for each row in result
             if row.score = priority then ordered.push(row)
         end for

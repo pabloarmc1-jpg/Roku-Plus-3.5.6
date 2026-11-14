@@ -6,6 +6,10 @@
     <field id="imdbId" type="string" value="" />
     <field id="subtitleId" type="string" value="" />
     <field id="apiKey" type="string" value="" />
+    <field id="subdlApiKey" type="string" value="" />
+    <field id="kind" type="string" value="movie" />
+    <field id="seasonNumber" type="string" value="" />
+    <field id="episodeNumber" type="string" value="" />
     <field id="language" type="string" value="es" />
     <field id="result" type="assocarray" alwaysNotify="true" />
   </interface>

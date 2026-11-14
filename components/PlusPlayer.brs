@@ -3,6 +3,7 @@ sub init()
     m.top.focusable = true
     m.top.visible = false
     m.decoder = m.top.findNode("decoder")
+    m.videoViewport = m.top.findNode("videoViewport")
     m.tsStreamServer = m.top.findNode("tsStreamServer")
     if m.decoder.hasField("enableDecoderStats")
         m.decoder.enableDecoderStats = true
@@ -32,6 +33,12 @@ sub init()
     m.titleText = m.top.findNode("titleText")
     m.startupOverlay = m.top.findNode("startupOverlay")
     m.startupTitle = m.top.findNode("startupTitle")
+    m.startupBanner = m.top.findNode("startupBanner")
+    m.startupLogo = m.top.findNode("startupLogo")
+    m.startupLogoPulse = m.top.findNode("startupLogoPulse")
+    m.streamXTask = invalid
+    m.streamXRequestId = ""
+    m.startupLoadingText = m.top.findNode("startupLoadingText")
     m.startupTimer = m.top.findNode("startupTypeTimer")
     m.startupCharIndex = 0
     if m.startupTimer <> invalid then m.startupTimer.observeField("fire", "onStartupTypePulse")
@@ -50,6 +57,52 @@ sub init()
     m.subtitleMenuGroup = m.top.findNode("subtitleMenu")
     m.subtitleMenuItems = m.top.findNode("subtitleMenuItems")
     m.subtitleMenuOpen = false
+    m.displayMenuGroup = m.top.findNode("displayMenu")
+    m.displayMenuItems = m.top.findNode("displayMenuItems")
+    m.displayMenuOpen = false
+    m.displayMenuIndex = 0
+    m.playerOptionsMenuGroup = m.top.findNode("playerOptionsMenu")
+    m.playerOptionsMenuItems = m.top.findNode("playerOptionsMenuItems")
+    m.endScreenGroup = m.top.findNode("playbackEndScreen")
+    m.endScreenItemsLabel = m.top.findNode("playbackEndItems")
+    m.endScreenOpen = false
+    m.endScreenIndex = 0
+    m.introDbData = invalid
+    m.skipPromptGroup = m.top.findNode("skipSegmentPrompt")
+    m.skipPromptText = m.top.findNode("skipSegmentText")
+    m.skipPromptVisible = false
+    m.skipPromptDismissed = false
+    m.skipPromptTarget = invalid
+    m.endScreenItems = []
+    m.endCountdownActive = false
+    m.endCountdownRemaining = 0
+    m.endCountdownLastAt = 0
+    m.playbackFinished = false
+    m.endScreenHeading = m.top.findNode("endScreenHeading")
+    m.endScreenMessage = m.top.findNode("endScreenMessage")
+    m.endMovieLayout = m.top.findNode("endMovieLayout")
+    m.endEpisodeLayout = m.top.findNode("endEpisodeLayout")
+    m.endMoviePosters = []
+    m.endMovieTitles = []
+    for posterIndex = 1 to 6
+        m.endMoviePosters.push(m.top.findNode("endMoviePoster" + posterIndex.toStr()))
+        m.endMovieTitles.push(m.top.findNode("endMovieTitle" + posterIndex.toStr()))
+    end for
+    m.endMovieSelection = m.top.findNode("endMovieSelection")
+    m.endEpisodePoster = m.top.findNode("endEpisodePoster")
+    m.endEpisodeTitle = m.top.findNode("endEpisodeTitle")
+    m.endEpisodeMeta = m.top.findNode("endEpisodeMeta")
+    m.endCountdownText = m.top.findNode("endCountdownText")
+    m.endCountdownDots = []
+    for dotIndex = 1 to 10
+        m.endCountdownDots.push(m.top.findNode("endCountdownDot" + dotIndex.toStr()))
+    end for
+    m.playerOptionsMenuOpen = false
+    m.playerOptionsMenuIndex = 0
+    m.playerOptionsLabels = ["Zoom / Imagen", "Subtítulos", "Audio", "Retroceder 10 segundos", "Adelantar 10 segundos", "Play / Pause"]
+    m.zoomIndex = 0
+    m.zoomLevels = [1.0, 1.10, 1.20, 1.33]
+    m.zoomLabels = ["Original", "Zoom suave (1.10x)", "Zoom medio (1.20x)", "Zoom completo (1.33x)"]
     m.subtitleTracks = []
     m.subtitleTrackIndex = 0
     m.subtitleOnlineResults = []
@@ -180,16 +233,31 @@ sub applyPresentation()
     m.top.focusable = not preview
     m.backdrop.visible = not preview
     if preview
+        if m.displayMenuOpen then closeDisplayMenu()
+        if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
+        if m.audioMenuOpen then closeAudioMenu()
+        if m.subtitleMenuOpen then closeSubtitleMenu()
         rect = plusPreviewBounds(m.top.previewRect)
-        m.decoder.translation = [rect[0],rect[1]]
+        if m.videoViewport <> invalid
+            m.videoViewport.translation = [rect[0],rect[1]]
+            m.videoViewport.clippingRect = [0,0,rect[2],rect[3]]
+        end if
+        m.decoder.translation = [0,0]
         m.decoder.width = rect[2]
         m.decoder.height = rect[3]
+        m.decoder.scaleRotateCenter = [rect[2]/2,rect[3]/2]
+        m.decoder.scale = [1.0,1.0]
         m.panel.visible = false
         if m.top.hasFocus() then m.top.setFocus(false)
     else
+        if m.videoViewport <> invalid
+            m.videoViewport.translation = [0,0]
+            m.videoViewport.clippingRect = [0,0,1920,1080]
+        end if
         m.decoder.translation = [0,0]
         m.decoder.width = 1920
         m.decoder.height = 1080
+        applyVideoZoom()
         if m.mediaOpen
             if m.hlsStartupIsolation
                 m.panel.visible = false
@@ -205,9 +273,16 @@ sub applyPresentation()
         m.startupOverlay.visible = not preview and m.mediaOpen and m.phase <> "playing" and not m.failed
     end if
     if m.previewMask <> invalid
-        m.previewMask.translation = m.decoder.translation
-        m.previewMask.width = m.decoder.width
-        m.previewMask.height = m.decoder.height
+        if preview
+            rect = plusPreviewBounds(m.top.previewRect)
+            m.previewMask.translation = [rect[0],rect[1]]
+            m.previewMask.width = rect[2]
+            m.previewMask.height = rect[3]
+        else
+            m.previewMask.translation = [0,0]
+            m.previewMask.width = 1920
+            m.previewMask.height = 1080
+        end if
         m.previewMask.visible = preview and m.mediaOpen
     end if
     m.decoder.visible = false
@@ -216,6 +291,22 @@ sub applyPresentation()
         m.decoder.visible = not m.failed
         publishProgress(true)
     end if
+end sub
+
+' Zoom is a presentation-only transform. The viewport clips the enlarged Video
+' node to the screen, so the decoder and stream remain open and seeking is untouched.
+sub applyVideoZoom()
+    if m.decoder = invalid then return
+    zoom = 1.0
+    if m.zoomLevels <> invalid and m.zoomIndex >= 0 and m.zoomIndex < m.zoomLevels.count()
+        zoom = m.zoomLevels[m.zoomIndex]
+    end if
+    width = m.decoder.width
+    height = m.decoder.height
+    if width <= 0 or height <= 0 then return
+    m.decoder.scaleRotateCenter = [width/2,height/2]
+    m.decoder.scale = [zoom,zoom]
+    print "[RokuPlus display] zoom="; zoom
 end sub
 
 ' Bounds are in the scene's 1920x1080 design coordinates, independent of the
@@ -234,6 +325,272 @@ function plusPreviewBounds(value as dynamic) as object
     return [value[0],value[1],value[2],value[3]]
 end function
 
+sub onIntroDbDataChanged(event as object)
+    data = event.getData()
+    if type(data) <> "roAssociativeArray" then return
+    if type(m.current) <> "roAssociativeArray" then return
+    if data.requestId <> m.current.requestId then return
+    m.introDbData = data
+    m.skipPromptDismissed = false
+    updateSkipSegmentPrompt()
+end sub
+
+sub updateSkipSegmentPrompt()
+    if m.skipPromptDismissed or type(m.introDbData) <> "roAssociativeArray" or m.introDbData.ok <> true
+        m.skipPromptVisible = false
+        m.skipPromptTarget = invalid
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    if m.live or m.failed or not m.mediaOpen
+        m.skipPromptVisible = false
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    outro = m.introDbData.outro
+    if type(outro) <> "roAssociativeArray"
+        m.skipPromptVisible = false
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    confidence = outro.confidence
+    if GetInterface(confidence,"ifFloat") <> invalid or GetInterface(confidence,"ifDouble") <> invalid
+        if confidence < 0.55
+            m.skipPromptVisible = false
+            if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+            return
+        end if
+    end if
+    startAt = -1.0
+    endAt = -1.0
+    if GetInterface(outro.start_sec,"ifFloat") <> invalid or GetInterface(outro.start_sec,"ifDouble") <> invalid or GetInterface(outro.start_sec,"ifInt") <> invalid or GetInterface(outro.start_sec,"ifLongInt") <> invalid then startAt = outro.start_sec
+    if GetInterface(outro.end_sec,"ifFloat") <> invalid or GetInterface(outro.end_sec,"ifDouble") <> invalid or GetInterface(outro.end_sec,"ifInt") <> invalid or GetInterface(outro.end_sec,"ifLongInt") <> invalid then endAt = outro.end_sec
+    if startAt < 0 and outro.start_ms <> invalid then startAt = outro.start_ms / 1000.0
+    if endAt < 0 and outro.end_ms <> invalid then endAt = outro.end_ms / 1000.0
+    position = playerPosition()
+    if startAt < 0 or endAt <= startAt or position = invalid or position < startAt or position >= endAt
+        m.skipPromptVisible = false
+        m.skipPromptTarget = invalid
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    target = endAt
+    label = "OK - SALTAR CRÉDITOS"
+    post = m.introDbData.post_credits
+    if type(post) = "roAssociativeArray"
+        postStart = -1.0
+        if GetInterface(post.start_sec,"ifFloat") <> invalid or GetInterface(post.start_sec,"ifDouble") <> invalid or GetInterface(post.start_sec,"ifInt") <> invalid or GetInterface(post.start_sec,"ifLongInt") <> invalid then postStart = post.start_sec
+        if postStart < 0 and post.start_ms <> invalid then postStart = post.start_ms / 1000.0
+        if postStart > position + 1
+            target = postStart
+            label = "OK - SALTAR A ESCENA POSTCRÉDITOS"
+        end if
+    end if
+    if target <= position + 1
+        m.skipPromptVisible = false
+        m.skipPromptTarget = invalid
+        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        return
+    end if
+    m.skipPromptTarget = target
+    m.skipPromptVisible = true
+    if m.skipPromptText <> invalid then m.skipPromptText.text = label
+    if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = true
+end sub
+
+sub skipToDetectedSegment()
+    target = plusClockValue(m.skipPromptTarget)
+    origin = playerPosition()
+    state = m.decoder.state
+    if target = invalid or origin = invalid or target <= origin + 1 then return
+    if state <> "playing" and state <> "paused" then return
+    cancelPendingResumeForUserSeek()
+    m.pendingSeek = {target:target,dueAt:m.monotonic.totalMilliseconds()+180}
+    m.skipPromptDismissed = true
+    m.skipPromptVisible = false
+    m.skipPromptTarget = invalid
+    if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+    m.notice = "Saltando a " + plusClockText(target)
+    m.noticeUntil = m.monotonic.totalMilliseconds()+5000
+    drawTransport()
+end sub
+
+sub onEndScreenDataChanged(event as object)
+    data = event.getData()
+    if type(data) <> "roAssociativeArray" then return
+    m.endCountdownActive = false
+    m.endCountdownRemaining = 0
+    if type(data.items) = "roArray" then m.endScreenItems = data.items else m.endScreenItems = []
+    m.endScreenIndex = 0
+    ' Show the recommendation card over the live video; do not pause or stop
+    ' the decoder, so the credits continue underneath the translucent panel.
+    m.endScreenOpen = true
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
+    drawPlaybackEndScreen()
+end sub
+
+sub drawPlaybackEndScreen()
+    if m.endScreenHeading = invalid then return
+    data = m.top.endScreenData
+    heading = "PELÍCULAS SIMILARES"
+    isEpisode = false
+    if type(data) = "roAssociativeArray"
+        isEpisode = data.kind = "episode"
+        if isEpisode then heading = "SIGUIENTE EPISODIO"
+        if GetInterface(data.heading,"ifString") <> invalid then heading = data.heading
+    end if
+    m.endScreenHeading.text = heading
+    if isEpisode
+        m.endScreenHeading.translation = [1510, 828]
+        m.endScreenHeading.width = 360
+        m.endScreenHeading.height = 36
+        m.endScreenHeading.horizAlign = "center"
+        m.endScreenHeading.vertAlign = "center"
+    else
+        m.endScreenHeading.translation = [0, 650]
+        m.endScreenHeading.width = 1920
+        m.endScreenHeading.height = 58
+        m.endScreenHeading.horizAlign = "center"
+        m.endScreenHeading.vertAlign = "center"
+    end if
+    if m.endScreenMessage <> invalid then m.endScreenMessage.text = ""
+    if m.endMovieLayout <> invalid then m.endMovieLayout.visible = not isEpisode
+    if m.endEpisodeLayout <> invalid then m.endEpisodeLayout.visible = isEpisode
+    if isEpisode
+        if m.endMovieSelection <> invalid then m.endMovieSelection.visible = false
+        if m.endScreenItems.count() > 0
+            item = m.endScreenItems[0]
+            poster = ""
+            title = "Siguiente episodio"
+            seasonNumber = 0
+            episodeNumber = 0
+            if type(item) = "roAssociativeArray"
+                if GetInterface(item.poster,"ifString") <> invalid then poster = item.poster
+                if GetInterface(item.title,"ifString") <> invalid then title = item.title
+                if item.doesExist("season") then seasonNumber = item.season
+                if item.doesExist("episode") then episodeNumber = item.episode
+            end if
+            if m.endEpisodePoster <> invalid
+                m.endEpisodePoster.uri = poster
+                m.endEpisodePoster.visible = poster <> ""
+            end if
+            if m.endEpisodeTitle <> invalid then m.endEpisodeTitle.text = title
+            if m.endEpisodeMeta <> invalid
+                m.endEpisodeMeta.text = "Temporada " + seasonNumber.toStr() + "  ·  Episodio " + episodeNumber.toStr()
+            end if
+            if not m.playbackFinished and not m.endCountdownActive
+                m.endCountdownRemaining = 10
+                m.endCountdownLastAt = m.monotonic.totalMilliseconds()
+                m.endCountdownActive = true
+                m.pulse.control = "start"
+            end if
+            updateEndCountdownVisual()
+        else
+            m.endCountdownActive = false
+            emptyMessage = "No hay más episodios disponibles."
+            if type(data) = "roAssociativeArray"
+                if GetInterface(data.message,"ifString") <> invalid and data.message <> "" then emptyMessage = data.message
+            end if
+            if m.endEpisodeTitle <> invalid then m.endEpisodeTitle.text = emptyMessage
+            if m.endEpisodeMeta <> invalid then m.endEpisodeMeta.text = ""
+            if m.endCountdownText <> invalid then m.endCountdownText.text = ""
+        end if
+    else
+        m.endCountdownActive = false
+        if m.endEpisodePoster <> invalid then m.endEpisodePoster.visible = false
+        for posterIndex = 0 to 5
+            posterNode = m.endMoviePosters[posterIndex]
+            titleNode = m.endMovieTitles[posterIndex]
+            if posterIndex < m.endScreenItems.count()
+                item = m.endScreenItems[posterIndex]
+                posterUri = ""
+                titleText = "Película"
+                if type(item) = "roAssociativeArray"
+                    if GetInterface(item.poster,"ifString") <> invalid then posterUri = item.poster
+                    if GetInterface(item.title,"ifString") <> invalid then titleText = item.title
+                    if GetInterface(item.year,"ifString") <> invalid and item.year <> "" then titleText += chr(10) + item.year
+                end if
+                if posterNode <> invalid
+                    posterNode.uri = posterUri
+                    posterNode.visible = posterUri <> ""
+                    posterNode.opacity = 1.0
+                    if posterIndex <> m.endScreenIndex then posterNode.opacity = 0.72
+                end if
+                if titleNode <> invalid
+                    titleNode.text = titleText
+                    titleNode.visible = true
+                    titleNode.opacity = 1.0
+                    if posterIndex <> m.endScreenIndex then titleNode.opacity = 0.72
+                end if
+            else
+                if posterNode <> invalid
+                    posterNode.uri = ""
+                    posterNode.visible = false
+                end if
+                if titleNode <> invalid
+                    titleNode.text = ""
+                    titleNode.visible = false
+                end if
+            end if
+        end for
+        if m.endMovieSelection <> invalid and m.endScreenItems.count() > 0
+            xPositions = [0,190,380,570,760,950]
+            m.endMovieSelection.translation = [xPositions[m.endScreenIndex],0]
+            m.endMovieSelection.visible = false
+        else if m.endMovieSelection <> invalid
+            m.endMovieSelection.visible = false
+        end if
+        if m.endScreenItems.count() = 0
+            emptyMessage = "No encontramos películas similares en el catálogo disponible."
+            if type(data) = "roAssociativeArray"
+                if GetInterface(data.message,"ifString") <> invalid and data.message <> "" then emptyMessage = data.message
+            end if
+            if m.endScreenMessage <> invalid then m.endScreenMessage.text = emptyMessage
+        end if
+    end if
+    if m.endScreenMessage <> invalid
+        m.endScreenMessage.text += chr(10) + "◀ / ▶ Elegir   OK Reproducir   BACK Salir"
+    end if
+end sub
+
+sub updateEndCountdownVisual()
+    if m.endCountdownText <> invalid then m.endCountdownText.text = m.endCountdownRemaining.toStr()
+    if type(m.endCountdownDots) <> "roArray" then return
+    dotsToShow = m.endCountdownRemaining
+    if dotsToShow < 0 then dotsToShow = 0
+    if dotsToShow > m.endCountdownDots.count() then dotsToShow = m.endCountdownDots.count()
+    for i = 0 to m.endCountdownDots.count() - 1
+        dot = m.endCountdownDots[i]
+        if dot <> invalid then dot.visible = i < dotsToShow
+    end for
+end sub
+
+sub movePlaybackEndSelection(direction as integer)
+    if m.endScreenItems.count() = 0 then return
+    m.endScreenIndex += direction
+    if m.endScreenIndex < 0 then m.endScreenIndex = m.endScreenItems.count()-1
+    if m.endScreenIndex >= m.endScreenItems.count() then m.endScreenIndex = 0
+    drawPlaybackEndScreen()
+end sub
+
+sub selectPlaybackEndItem()
+    if m.endScreenItems.count() = 0 then return
+    if m.endScreenIndex < 0 or m.endScreenIndex >= m.endScreenItems.count() then return
+    selected = m.endScreenItems[m.endScreenIndex]
+    m.endCountdownActive = false
+    m.endCountdownRemaining = 0
+    m.pulse.control = "stop"
+    m.endScreenItems = []
+    m.endScreenIndex = 0
+    m.endScreenOpen = true
+    if m.endScreenItemsLabel <> invalid then m.endScreenItemsLabel.text = "ABRIENDO TÍTULO... " + chr(10) + "Espera un momento. BACK para salir."
+    if m.endScreenMessage <> invalid then m.endScreenMessage.text = "ABRIENDO TÍTULO...  ·  BACK para salir."
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
+    if m.endMovieLayout <> invalid then m.endMovieLayout.visible = false
+    if m.endEpisodeLayout <> invalid then m.endEpisodeLayout.visible = false
+    m.top.endSelection = {item:selected,requestId:m.current.requestId}
+end sub
+
 sub openRequest()
     supplied = m.top.request
     if type(supplied) <> "roAssociativeArray" then return
@@ -241,6 +598,9 @@ sub openRequest()
     if len(supplied.url) = 0 then return
     ' Stop the preceding decoder without emitting a close for the new request.
     m.mediaOpen = false
+    m.endScreenOpen = false
+    m.endScreenItems = []
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
     m.pulse.control = "stop"
     if m.startupTimer <> invalid then m.startupTimer.control = "stop"
     m.decoder.visible = false
@@ -249,6 +609,13 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    cancelStreamXArtworkTask()
+    m.streamXRequestId = m.generation.toStr()
+    m.introDbData = invalid
+    m.skipPromptVisible = false
+    m.skipPromptDismissed = false
+    m.skipPromptTarget = invalid
+    if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
     m.mediaNode = invalid
     m.hlsRetryCount = 0
     m.hlsPrebufferPending = false
@@ -301,6 +668,9 @@ sub openRequest()
     if m.audioMenuGroup <> invalid then m.audioMenuGroup.visible = false
     m.subtitleMenuOpen = false
     if m.subtitleMenuGroup <> invalid then m.subtitleMenuGroup.visible = false
+    m.displayMenuOpen = false
+    m.displayMenuIndex = m.zoomIndex
+    if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
     m.audioTracks = []
     m.audioTrackIndex = 0
     cancelSubtitleSearchTask()
@@ -328,9 +698,24 @@ sub openRequest()
     if (not m.segmentMode or supplied.tsRelayEnabled = true) and not m.live and resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 then m.resumePending = resumeValue
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
-    if m.startupTitle <> invalid then m.startupTitle.text = ""
+    if m.startupTitle <> invalid then m.startupTitle.text = UCase(m.titleText.text)
+    if m.startupTitle <> invalid then m.startupTitle.visible = true
+    if m.startupLogo <> invalid
+        m.startupLogo.uri = ""
+        m.startupLogo.visible = false
+    end if
+    if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "stop"
+    if m.startupBanner <> invalid
+        bannerUri = ""
+        if GetInterface(supplied.background,"ifString") <> invalid then bannerUri = supplied.background
+        if bannerUri = "" and GetInterface(supplied.poster,"ifString") <> invalid then bannerUri = supplied.poster
+        m.startupBanner.uri = bannerUri
+        m.startupBanner.visible = bannerUri <> ""
+    end if
+    if m.startupLoadingText <> invalid then m.startupLoadingText.text = "CARGANDO..."
     m.startupCharIndex = 0
     if m.startupTimer <> invalid then m.startupTimer.control = "stop"
+    startStreamXArtwork(supplied)
     ' Compact metadata row: only display values supplied by the catalogue.
     metaParts = []
     if GetInterface(supplied.year, "ifString") <> invalid and len(supplied.year) > 0 then metaParts.push(supplied.year)
@@ -566,12 +951,19 @@ sub closePlayback()
     m.closing = true
     emitDiagnostic("close")
     m.mediaOpen = false
+    cancelStreamXArtworkTask()
     m.ticket = invalid
     m.pendingSeek = invalid
     m.tsRelayLocalSeekPending = invalid
     m.watch = invalid
     m.panel.visible = false
     m.decoder.visible = false
+    m.endScreenOpen = false
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
+    m.displayMenuOpen = false
+    if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
+    m.playerOptionsMenuOpen = false
+    if m.playerOptionsMenuGroup <> invalid then m.playerOptionsMenuGroup.visible = false
     if m.previewMask <> invalid then m.previewMask.visible = false
     m.top.visible = false
     m.pulse.control = "stop"
@@ -667,6 +1059,7 @@ sub onDecoderState()
             m.ticket.bufferingTimeoutExtended = false
         end if
         if m.startupTimer <> invalid then m.startupTimer.control = "stop"
+        if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "stop"
         if m.startupOverlay <> invalid then m.startupOverlay.visible = false
         if m.hlsStartupIsolation
             m.hlsStartupIsolation = false
@@ -697,6 +1090,32 @@ sub onDecoderState()
         end if
         revealTransport()
     else if m.phase = "error"
+        if m.effectiveStreamFormat = "hls" and type(m.current) = "roAssociativeArray"
+            if m.current.doesExist("fallbackTsRelayEnabled") and m.current.fallbackTsRelayEnabled = true
+                if m.current.doesExist("fallbackSegmentUrls") and type(m.current.fallbackSegmentUrls) = "roArray"
+                    if m.current.fallbackSegmentUrls.count() > 1
+                        fallbackRequest = {}
+                        for each fallbackKey in m.current
+                            fallbackRequest[fallbackKey] = m.current[fallbackKey]
+                        end for
+                        fallbackRequest.url = m.current.fallbackSegmentUrls[0]
+                        fallbackRequest.streamFormat = "ts"
+                        fallbackRequest.tsRelayEnabled = true
+                        fallbackRequest.segmentUrls = m.current.fallbackSegmentUrls
+                        fallbackRequest.segmentDurations = m.current.fallbackSegmentDurations
+                        fallbackRequest.fallbackTsRelayEnabled = false
+                        fallbackRequest.resumePosition = 0
+                        fallbackPosition = playerPosition()
+                        if fallbackPosition <> invalid
+                            if fallbackPosition > 0 then fallbackRequest.resumePosition = fallbackPosition
+                        end if
+                        print "[RokuPlus hls-fallback] action=ts-relay reason=native-hls-error position="; fallbackPosition
+                        m.top.request = fallbackRequest
+                        return
+                    end if
+                end if
+            end if
+        end if
         m.hlsStartupIsolation = false
         if m.startupTimer <> invalid then m.startupTimer.control = "stop"
         if m.startupOverlay <> invalid then m.startupOverlay.visible = false
@@ -714,8 +1133,28 @@ sub onDecoderState()
             revealTransport()
         else
             if not m.nativePlaylistMode and advanceSequentialSegment() then return
+            if m.live
+                publishProgress(true)
+                closePlayback()
+                return
+            end if
             publishProgress(true)
-            closePlayback()
+            if m.audioMenuOpen then closeAudioMenu()
+            if m.subtitleMenuOpen then closeSubtitleMenu()
+            if m.displayMenuOpen then closeDisplayMenu()
+            if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
+            if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
+            m.pulse.control = "stop"
+            m.watch = invalid
+            m.panel.visible = false
+            m.playbackFinished = true
+            m.endScreenOpen = true
+            m.endScreenIndex = 0
+            m.endCountdownActive = false
+            m.endCountdownRemaining = 0
+            if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
+            drawPlaybackEndScreen()
+            print "[RokuPlus playback] finished; showing in-player recommendations"
             return
         end if
     end if
@@ -833,8 +1272,9 @@ end sub
 ' Build a safe, user-facing list from the tracks reported by Roku. The Track
 ' value is kept unchanged because it is the identifier required by Video.audioTrack.
 sub refreshAudioTracks()
-    if m.decoder = invalid or not m.decoder.hasField("availableAudioTracks") then return
-    tracks = m.decoder.availableAudioTracks
+    if m.decoder = invalid then return
+    tracks = []
+    if m.decoder.hasField("availableAudioTracks") then tracks = m.decoder.availableAudioTracks
     updated = []
     if type(tracks) = "roArray"
         for each track in tracks
@@ -855,6 +1295,9 @@ sub refreshAudioTracks()
         end for
     end if
     m.audioTracks = updated
+    nativeCount = 0
+    if type(tracks) = "roArray" then nativeCount = tracks.count()
+    print "[RokuPlus audio] refresh native="; nativeCount; " selectable="; updated.count()
     if m.audioTracks.count() > 0
         selected = m.decoder.currentAudioTrack
         if GetInterface(selected,"ifString") = invalid or selected = "" then selected = m.decoder.audioTrack
@@ -889,6 +1332,8 @@ function plusAudioLanguageName(code as string) as string
 end function
 
 sub openAudioMenu()
+    if m.displayMenuOpen then closeDisplayMenu()
+    if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
     if m.subtitleMenuOpen then closeSubtitleMenu()
     refreshAudioTracks()
     print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " state="; m.decoder.state
@@ -948,7 +1393,6 @@ sub selectAudioTrack()
     drawTransport()
 end sub
 
-
 sub onNativeSubtitleTrackDetails()
     if not m.mediaOpen or m.closing then return
     refreshSubtitleTracks()
@@ -987,7 +1431,7 @@ sub refreshSubtitleTracks()
     found = false
     for i = 0 to m.subtitleTracks.count()-1
         if m.subtitleTracks[i].id = selected
-            m.subtitleTrackIndex = i + 3
+            m.subtitleTrackIndex = i + 4
             found = true
             exit for
         end if
@@ -1003,6 +1447,8 @@ sub refreshSubtitleTracks()
 end sub
 
 sub openSubtitleMenu()
+    if m.displayMenuOpen then closeDisplayMenu()
+    if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
     refreshSubtitleTracks()
     if m.subtitleMenuGroup = invalid then return
     m.subtitleMenuOpen = true
@@ -1023,10 +1469,16 @@ sub drawSubtitleMenu()
     if m.subtitleTrackIndex = 1 then prefix = "▶  "
     keyStatus = "Sin configurar"
     if subtitleApiKeyLoad() <> "" then keyStatus = "Configurada"
-    output += prefix + "Configurar API Key (" + keyStatus + ")"
+    output += prefix + "Configurar API Key Subtitle Search Engine (" + keyStatus + ")"
     output += chr(10)
     prefix = "   "
     if m.subtitleTrackIndex = 2 then prefix = "▶  "
+    subdlKeyStatus = "Sin configurar"
+    if subdlApiKeyLoad() <> "" then subdlKeyStatus = "Configurada"
+    output += prefix + "Configurar API Key SubDL (" + subdlKeyStatus + ")"
+    output += chr(10)
+    prefix = "   "
+    if m.subtitleTrackIndex = 3 then prefix = "▶  "
     searchLabel = "Buscar subtítulos en línea (Español)"
     if m.subtitleOnlineBusy
         if m.subtitleOnlineOperation = "download" then searchLabel = "Descargando subtítulo..."
@@ -1036,10 +1488,10 @@ sub drawSubtitleMenu()
     for i = 0 to m.subtitleOnlineResults.count()-1
         output += chr(10)
         prefix = "   "
-        if i + 3 = m.subtitleTrackIndex then prefix = "▶  "
+        if i + 4 = m.subtitleTrackIndex then prefix = "▶  "
         output += prefix + m.subtitleOnlineResults[i].label + "  (ES · en línea)"
     end for
-    nativeOffset = 3 + m.subtitleOnlineResults.count()
+    nativeOffset = 4 + m.subtitleOnlineResults.count()
     for i = 0 to m.subtitleTracks.count()-1
         output += chr(10)
         prefix = "   "
@@ -1061,7 +1513,7 @@ sub closeSubtitleMenu()
 end sub
 
 sub moveSubtitleMenuSelection(direction as integer)
-    count = 3 + m.subtitleOnlineResults.count() + m.subtitleTracks.count()
+    count = 4 + m.subtitleOnlineResults.count() + m.subtitleTracks.count()
     m.subtitleTrackIndex = m.subtitleTrackIndex + direction
     if m.subtitleTrackIndex < 0 then m.subtitleTrackIndex = count - 1
     if m.subtitleTrackIndex >= count then m.subtitleTrackIndex = 0
@@ -1085,13 +1537,16 @@ sub selectSubtitleTrack()
         openSubtitleApiKeyDialog()
         return
     else if m.subtitleTrackIndex = 2
+        openSubDlApiKeyDialog()
+        return
+    else if m.subtitleTrackIndex = 3
         m.subtitleOnlineBusy = true
         m.subtitleOnlineOperation = "search"
         drawSubtitleMenu()
         startSubtitleSearchTask("search","")
         return
-    else if m.subtitleTrackIndex < 3 + m.subtitleOnlineResults.count()
-        onlineIndex = m.subtitleTrackIndex - 3
+    else if m.subtitleTrackIndex < 4 + m.subtitleOnlineResults.count()
+        onlineIndex = m.subtitleTrackIndex - 4
         if onlineIndex < 0 or onlineIndex >= m.subtitleOnlineResults.count() then return
         m.subtitleOnlinePendingLabel = m.subtitleOnlineResults[onlineIndex].label
         m.subtitleOnlineBusy = true
@@ -1100,7 +1555,7 @@ sub selectSubtitleTrack()
         startSubtitleSearchTask("download",m.subtitleOnlineResults[onlineIndex].id)
         return
     else
-        nativeIndex = m.subtitleTrackIndex - 3 - m.subtitleOnlineResults.count()
+        nativeIndex = m.subtitleTrackIndex - 4 - m.subtitleOnlineResults.count()
         if nativeIndex < 0 or nativeIndex >= m.subtitleTracks.count() then return
         chosen = m.subtitleTracks[nativeIndex]
         if not m.decoder.hasField("subtitleTrack")
@@ -1121,6 +1576,140 @@ sub selectSubtitleTrack()
     m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
     revealTransport()
     drawTransport()
+end sub
+
+sub openPlayerOptionsMenu()
+    if m.playerOptionsMenuGroup = invalid or m.playerOptionsMenuItems = invalid then return
+    if m.audioMenuOpen then closeAudioMenu()
+    if m.subtitleMenuOpen then closeSubtitleMenu()
+    if m.displayMenuOpen then closeDisplayMenu()
+    m.playerOptionsMenuOpen = true
+    m.playerOptionsMenuIndex = 0
+    m.playerOptionsMenuGroup.visible = true
+    revealTransport()
+    drawPlayerOptionsMenu()
+end sub
+
+sub drawPlayerOptionsMenu()
+    if m.playerOptionsMenuItems = invalid then return
+    output = "CONTROLES DEL REPRODUCTOR" + chr(10) + chr(10)
+    for i = 0 to m.playerOptionsLabels.count()-1
+        prefix = "   "
+        if i = m.playerOptionsMenuIndex then prefix = "▶  "
+        output += prefix + m.playerOptionsLabels[i]
+        if i < m.playerOptionsLabels.count()-1 then output += chr(10)
+    end for
+    output += chr(10) + chr(10) + "▲ / ▼ Mover     OK Seleccionar     BACK Cerrar"
+    m.playerOptionsMenuItems.text = output
+end sub
+
+sub closePlayerOptionsMenu()
+    m.playerOptionsMenuOpen = false
+    if m.playerOptionsMenuGroup <> invalid then m.playerOptionsMenuGroup.visible = false
+end sub
+
+sub movePlayerOptionsMenuSelection(direction as integer)
+    m.playerOptionsMenuIndex += direction
+    if m.playerOptionsMenuIndex < 0 then m.playerOptionsMenuIndex = m.playerOptionsLabels.count()-1
+    if m.playerOptionsMenuIndex >= m.playerOptionsLabels.count() then m.playerOptionsMenuIndex = 0
+    drawPlayerOptionsMenu()
+end sub
+
+sub selectPlayerOptionsMenu()
+    selected = m.playerOptionsMenuIndex
+    if selected = 0
+        closePlayerOptionsMenu()
+        openDisplayMenu()
+    else if selected = 1
+        closePlayerOptionsMenu()
+        openSubtitleMenu()
+    else if selected = 2
+        closePlayerOptionsMenu()
+        openAudioMenu()
+    else if selected = 3
+        shiftTen(true)
+        drawPlayerOptionsMenu()
+    else if selected = 4
+        shiftTen(false)
+        drawPlayerOptionsMenu()
+    else if selected = 5
+        togglePause()
+        drawPlayerOptionsMenu()
+    end if
+end sub
+
+sub openDisplayMenu()
+    if m.displayMenuGroup = invalid or m.displayMenuItems = invalid then return
+    if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
+    if m.audioMenuOpen then closeAudioMenu()
+    if m.subtitleMenuOpen then closeSubtitleMenu()
+    m.displayMenuOpen = true
+    m.displayMenuIndex = m.zoomIndex
+    m.displayMenuGroup.visible = true
+    revealTransport()
+    drawDisplayMenu()
+end sub
+
+sub drawDisplayMenu()
+    if m.displayMenuItems = invalid then return
+    output = "IMAGEN Y ZOOM" + chr(10) + chr(10)
+    for i = 0 to m.zoomLabels.count()-1
+        prefix = "   "
+        if i = m.displayMenuIndex then prefix = "▶  "
+        output += prefix + m.zoomLabels[i]
+        if i < m.zoomLabels.count()-1 then output += chr(10)
+    end for
+    showSkip = false
+    if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
+        introStart = plusClockValue(m.current.introStart)
+        introEnd = plusClockValue(m.current.introEnd)
+        currentAt = playerPosition()
+        if introStart <> invalid and introEnd <> invalid and currentAt <> invalid
+            showSkip = introEnd > introStart and currentAt >= introStart and currentAt < introEnd
+        end if
+    end if
+    if showSkip
+        output += chr(10) + "   Saltar introducción"
+    end if
+    output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Aplicar     BACK Cerrar"
+    m.displayMenuItems.text = output
+end sub
+
+sub closeDisplayMenu()
+    m.displayMenuOpen = false
+    if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
+end sub
+
+sub moveDisplayMenuSelection(direction as integer)
+    count = m.zoomLabels.count()
+    if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
+        introStart = plusClockValue(m.current.introStart)
+        introEnd = plusClockValue(m.current.introEnd)
+        currentAt = playerPosition()
+        if introStart <> invalid and introEnd <> invalid and currentAt <> invalid
+            if introEnd > introStart and currentAt >= introStart and currentAt < introEnd then count++
+        end if
+    end if
+    m.displayMenuIndex += direction
+    if m.displayMenuIndex < 0 then m.displayMenuIndex = count - 1
+    if m.displayMenuIndex >= count then m.displayMenuIndex = 0
+    drawDisplayMenu()
+end sub
+
+sub selectDisplayMenu()
+    if m.displayMenuIndex < m.zoomLevels.count()
+        m.zoomIndex = m.displayMenuIndex
+        applyVideoZoom()
+        selectedLabel = m.zoomLabels[m.zoomIndex]
+        closeDisplayMenu()
+        m.notice = "Pantalla: " + selectedLabel
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
+        revealTransport()
+        drawTransport()
+    else
+        closeDisplayMenu()
+        skipIntro()
+    end if
 end sub
 
 sub openSubtitleApiKeyDialog()
@@ -1214,6 +1803,87 @@ function subtitleApiKeyClear() as boolean
     return false
 end function
 
+sub openSubDlApiKeyDialog()
+    scene = m.top.getScene()
+    if scene = invalid then
+        m.notice = "No se pudo abrir la configuración de SubDL."
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
+        return
+    end if
+    dialog = CreateObject("roSGNode","StandardKeyboardDialog")
+    if dialog = invalid then return
+    dialog.title = "API Key · SubDL"
+    dialog.message = ["Pega tu API Key de SubDL. Se guarda únicamente en este Roku."]
+    dialog.buttons = ["Guardar","Borrar","Cancelar"]
+    dialog.keyboardDomain = "password"
+    dialog.text = ""
+    if dialog.textEditBox <> invalid
+        dialog.textEditBox.secureMode = true
+        dialog.textEditBox.secureLastCharacter = true
+    end if
+    dialog.observeField("buttonSelected","onSubDlApiKeyDialogButton")
+    m.subtitleApiKeyDialog = dialog
+    scene.dialog = dialog
+end sub
+
+sub onSubDlApiKeyDialogButton()
+    dialog = m.subtitleApiKeyDialog
+    if dialog = invalid then return
+    selected = dialog.buttonSelected
+    scene = m.top.getScene()
+    if selected = 0
+        value = dialog.text
+        if GetInterface(value,"ifString") <> invalid then value = value.trim() else value = ""
+        if value <> "" and len(value) <= 512 and instr(1,value,chr(10)) = 0 and instr(1,value,chr(13)) = 0
+            if subdlApiKeySave(value) then m.notice = "API Key de SubDL guardada en este Roku." else m.notice = "No se pudo guardar la API Key de SubDL."
+        else
+            m.notice = "La API Key está vacía o no es válida."
+        end if
+    else if selected = 1
+        if subdlApiKeyClear() then m.notice = "API Key de SubDL borrada de este Roku." else m.notice = "No se pudo borrar la API Key de SubDL."
+    end if
+    m.subtitleApiKeyDialog = invalid
+    if scene <> invalid then scene.dialog = invalid
+    m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
+    drawSubtitleMenu()
+    revealTransport()
+    drawTransport()
+end sub
+
+function subdlApiKeyLoad() as string
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return ""
+    value = section.read("subdlApiKey")
+    if GetInterface(value,"ifString") = invalid then return ""
+    return value
+end function
+
+function subdlApiKeySave(value as dynamic) as boolean
+    if GetInterface(value,"ifString") = invalid then return false
+    candidate = value.trim()
+    if candidate = "" or len(candidate) > 512 or instr(1,candidate,chr(10)) > 0 or instr(1,candidate,chr(13)) > 0 then return false
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    previous = section.read("subdlApiKey")
+    if section.write("subdlApiKey",candidate) <> true then return false
+    if section.flush() = true then return true
+    if previous = "" then section.delete("subdlApiKey") else section.write("subdlApiKey",previous)
+    section.flush()
+    return false
+end function
+
+function subdlApiKeyClear() as boolean
+    section = CreateObject("roRegistrySection","RokuPlusSubtitleSecrets")
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    previous = section.read("subdlApiKey")
+    if previous = "" then return true
+    section.delete("subdlApiKey")
+    if section.flush() = true then return true
+    section.write("subdlApiKey",previous)
+    section.flush()
+    return false
+end function
+
 sub startSubtitleSearchTask(operation as string, subtitleId as string)
     cancelSubtitleSearchTask()
     task = CreateObject("roSGNode","SubtitleSearchTask")
@@ -1232,6 +1902,21 @@ sub startSubtitleSearchTask(operation as string, subtitleId as string)
     end if
     task.subtitleId = subtitleId
     task.apiKey = subtitleApiKeyLoad()
+    task.subdlApiKey = subdlApiKeyLoad()
+    if type(m.current) = "roAssociativeArray"
+        if m.current.doesExist("kind") then task.kind = m.current.kind
+        if m.current.doesExist("season")
+            if GetInterface(m.current.season,"ifString") <> invalid then task.seasonNumber = m.current.season
+            if GetInterface(m.current.season,"ifInt") <> invalid then task.seasonNumber = m.current.season.toStr()
+        end if
+        if m.current.doesExist("episodeNumber")
+            if GetInterface(m.current.episodeNumber,"ifString") <> invalid then task.episodeNumber = m.current.episodeNumber
+            if GetInterface(m.current.episodeNumber,"ifInt") <> invalid then task.episodeNumber = m.current.episodeNumber.toStr()
+        else if m.current.doesExist("episode")
+            if GetInterface(m.current.episode,"ifString") <> invalid then task.episodeNumber = m.current.episode
+            if GetInterface(m.current.episode,"ifInt") <> invalid then task.episodeNumber = m.current.episode.toStr()
+        end if
+    end if
     task.language = "es"
     task.observeField("result","onSubtitleSearchTaskResult")
     m.subtitleSearchTask = task
@@ -1277,10 +1962,10 @@ sub onSubtitleSearchTaskResult()
     if result.operation = "search"
         m.subtitleOnlineResults = result.items
         if m.subtitleOnlineResults.count() > 0
-            m.subtitleTrackIndex = 2
+            m.subtitleTrackIndex = 3
             m.notice = "Subtítulos encontrados: " + m.subtitleOnlineResults.count().toStr()
         else
-            m.subtitleTrackIndex = 1
+            m.subtitleTrackIndex = 3
             m.notice = result.message
         end if
         m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
@@ -1674,14 +2359,13 @@ sub drawTransport()
     m.rewindControl.visible = not m.live
     m.forwardControl.visible = not m.live
     applyControlSurfaces()
-    m.keyText.text = "Atrás · Volver al título"
-    if m.live then m.keyText.text = "Atrás · Volver a los canales"
+    m.keyText.text = "↓ Ajustes: Audio · Subtítulos · Imagen y zoom"
     if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
         introStart = plusClockValue(m.current.introStart)
         introEnd = plusClockValue(m.current.introEnd)
         currentPosition = playerPosition()
         if introStart <> invalid and introEnd <> invalid and currentPosition <> invalid
-            if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "OPTIONS · Saltar introducción"
+            if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "↓ Ajustes · Zoom / Saltar intro"
         end if
     end if
     m.keyText.text += "   ·   ↑ Audio   ·   ↓ Subtítulos"
@@ -1785,30 +2469,100 @@ sub advanceHlsSoftRestart(now as integer)
     end if
 end sub
 
+sub startStreamXArtwork(supplied as object)
+    if type(supplied) <> "roAssociativeArray" then return
+    imdbId = ""
+    if GetInterface(supplied.imdbId,"ifString") <> invalid then imdbId = supplied.imdbId.trim()
+    if imdbId = "" and GetInterface(supplied.imdb_id,"ifString") <> invalid then imdbId = supplied.imdb_id.trim()
+    mediaType = "movie"
+    kind = ""
+    if GetInterface(supplied.kind,"ifString") <> invalid then kind = LCase(supplied.kind)
+    if kind = "series" or kind = "episode" or kind = "tv" then mediaType = "series"
+    if m.streamXTask <> invalid then m.streamXTask.cancelRequested = true
+    task = CreateObject("roSGNode","StreamXImageTask")
+    if task = invalid then return
+    task.imdbId = imdbId
+    task.mediaType = mediaType
+    artworkTitle = ""
+    if GetInterface(supplied.title,"ifString") <> invalid then artworkTitle = supplied.title.trim()
+    if kind = "episode" and GetInterface(supplied.seriesTitle,"ifString") <> invalid and supplied.seriesTitle.trim() <> "" then artworkTitle = supplied.seriesTitle.trim()
+    task.title = left(artworkTitle,160)
+    if GetInterface(supplied.year,"ifString") <> invalid then task.year = left(supplied.year,16)
+    if GetInterface(supplied.year,"ifInt") <> invalid then task.year = supplied.year.toStr()
+    task.requestId = m.streamXRequestId
+    task.observeField("result","onStreamXArtworkChanged")
+    m.streamXTask = task
+    task.control = "RUN"
+end sub
+
+sub cancelStreamXArtworkTask()
+    if m.streamXTask <> invalid
+        m.streamXTask.cancelRequested = true
+        m.streamXTask = invalid
+    end if
+    if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "stop"
+end sub
+
+sub onStreamXArtworkChanged(event as object)
+    data = event.getData()
+    if type(data) <> "roAssociativeArray" then return
+    if data.requestId <> m.streamXRequestId then return
+    if type(m.current) <> "roAssociativeArray" then return
+    if data.ok <> true then return
+    if GetInterface(data.background,"ifString") <> invalid and left(data.background,8) = "https://"
+        if m.startupBanner <> invalid then m.startupBanner.uri = data.background
+    end if
+    if GetInterface(data.logo,"ifString") <> invalid and left(data.logo,8) = "https://"
+        if m.startupLogo <> invalid
+            m.startupLogo.uri = data.logo
+            m.startupLogo.visible = true
+            if m.startupTitle <> invalid then m.startupTitle.visible = false
+            if m.startupOverlay <> invalid and m.startupOverlay.visible and not isPreviewPresentation()
+                if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "start"
+            end if
+        end if
+    end if
+end sub
+
 sub startStartupTitleAnimation()
-    if isPreviewPresentation() or m.startupTimer = invalid or m.startupTitle = invalid then return
+    if m.startupTimer <> invalid then m.startupTimer.control = "stop"
+    if isPreviewPresentation() then return
     if m.startupOverlay = invalid or not m.startupOverlay.visible then return
-    m.startupCharIndex = 0
-    m.startupTitle.text = ""
-    m.startupTimer.control = "start"
+    if m.startupLogo <> invalid and m.startupLogo.visible
+        if m.startupLogoPulse <> invalid then m.startupLogoPulse.control = "start"
+    else
+        if m.startupTitle <> invalid
+            fullTitle = m.titleText.text
+            if GetInterface(fullTitle, "ifString") = invalid then fullTitle = "CARGANDO"
+            m.startupTitle.text = UCase(fullTitle)
+            m.startupTitle.visible = true
+        end if
+    end if
 end sub
 
 sub onStartupTypePulse()
-    if not m.mediaOpen or m.failed or m.phase = "playing" or m.startupOverlay = invalid or not m.startupOverlay.visible
-        if m.startupTimer <> invalid then m.startupTimer.control = "stop"
-        return
-    end if
-    fullTitle = m.titleText.text
-    if m.startupCharIndex < len(fullTitle)
-        m.startupCharIndex++
-        m.startupTitle.text = left(fullTitle,m.startupCharIndex)
-    else
-        m.startupTimer.control = "stop"
-    end if
+    if m.startupTimer <> invalid then m.startupTimer.control = "stop"
 end sub
 
 sub onPulse()
     if not m.mediaOpen then return
+    if m.endScreenOpen
+        if m.endCountdownActive
+            nowEnd = m.monotonic.totalMilliseconds()
+            elapsedSeconds = int((nowEnd - m.endCountdownLastAt) / 1000)
+            if elapsedSeconds > 0
+                m.endCountdownLastAt += elapsedSeconds * 1000
+                m.endCountdownRemaining = m.endCountdownRemaining - elapsedSeconds
+                if m.endCountdownRemaining <= 0
+                    m.endCountdownRemaining = 0
+                    m.endCountdownActive = false
+                    selectPlaybackEndItem()
+                    return
+                end if
+                updateEndCountdownVisual()
+            end if
+        end if
+    end if
     if m.tsRelayPending
         relayStatus = m.tsStreamServer.status
         nowRelay = m.monotonic.totalMilliseconds()
@@ -1931,6 +2685,7 @@ sub onPulse()
     if not m.hlsStartupIsolation
         if m.decoder.state <> "buffering" or now - m.lastTransportDrawAt >= 1000 then drawTransport()
     end if
+    updateSkipSegmentPrompt()
     publishProgress()
 end sub
 
@@ -2384,7 +3139,15 @@ function plusSeekLanding(ticket as object, position as dynamic, video as dynamic
     nativeAck = false
     if actualStart <> invalid and ticket.actualStartAt <> invalid and ticket.sawBuffering
         if ticket.actualStartAt >= ticket.issuedAt and ticket.actualStartAt <= now
-            nativeAck = abs(actualStart-ticket.origin) >= movementEpsilon and abs(actualStart-p) <= 1.25
+            if ticket.doesExist("verifyRenderedLocal") and ticket.verifyRenderedLocal
+                ' TS relay restarts the decoder on a new local clock. Compare
+                ' bufferingStatus.actualStart with the local decoder position,
+                ' not with the previous/global player timeline.
+                localReference = plusClockValue(localPosition)
+                if localReference <> invalid then nativeAck = abs(actualStart-localReference) <= 1.25
+            else
+                nativeAck = abs(actualStart-ticket.origin) >= movementEpsilon and abs(actualStart-p) <= 1.25
+            end if
         end if
     end if
     if ticket.sawClockJump <> true and not nativeAck then return answer
@@ -2475,6 +3238,31 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if not m.mediaOpen then return false
     if isPreviewPresentation() then return false
     if not press then return true
+    if m.skipPromptVisible and key = "OK"
+        skipToDetectedSegment()
+        return true
+    end if
+    if m.endScreenOpen
+        if m.skipPromptVisible and (key = "up" or key = "down" or key = "left" or key = "right")
+            m.skipPromptDismissed = true
+            m.skipPromptVisible = false
+            if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
+        end if
+        if key = "up"
+            movePlaybackEndSelection(-1)
+        else if key = "down"
+            movePlaybackEndSelection(1)
+        else if key = "OK" or key = "play"
+            selectPlaybackEndItem()
+        else if key = "left" or key = "rewind" or key = "right" or key = "fastforward"
+            direction = 1
+            if key = "left" or key = "rewind" then direction = -1
+            movePlaybackEndSelection(direction)
+        else if key = "back"
+            closePlayback()
+        end if
+        return true
+    end if
     if m.subtitleMenuOpen
         if key = "up"
             moveSubtitleMenuSelection(-1)
@@ -2484,6 +3272,34 @@ function onKeyEvent(key as string, press as boolean) as boolean
             selectSubtitleTrack()
         else if key = "back"
             closeSubtitleMenu()
+            revealTransport()
+            drawTransport()
+        end if
+        return true
+    end if
+    if m.playerOptionsMenuOpen
+        if key = "up"
+            movePlayerOptionsMenuSelection(-1)
+        else if key = "down"
+            movePlayerOptionsMenuSelection(1)
+        else if key = "OK" or key = "play"
+            selectPlayerOptionsMenu()
+        else if key = "back"
+            closePlayerOptionsMenu()
+            revealTransport()
+            drawTransport()
+        end if
+        return true
+    end if
+    if m.displayMenuOpen
+        if key = "up"
+            moveDisplayMenuSelection(-1)
+        else if key = "down"
+            moveDisplayMenuSelection(1)
+        else if key = "OK" or key = "play"
+            selectDisplayMenu()
+        else if key = "back"
+            closeDisplayMenu()
             revealTransport()
             drawTransport()
         end if
@@ -2514,12 +3330,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
     else if key = "play"
         revealTransport()
         togglePause()
-    else if key = "options"
-        skipIntro()
+    else if key = "options" or key = "down"
+        openPlayerOptionsMenu()
     else if key = "up"
         openAudioMenu()
-    else if key = "down"
-        openSubtitleMenu()
     else if key = "OK"
         if m.panel.visible
             revealTransport()
