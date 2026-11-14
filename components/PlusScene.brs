@@ -383,6 +383,16 @@ sub fetched(event as object)
     if type(answer.tvmazeCache) = "roAssociativeArray" then m.tvmazeCache = answer.tvmazeCache
     cancelRequest()
     if not answer.ok
+        if context.operation = "resolve" and type(m.detail) = "roAssociativeArray"
+            autoRetry = orbitInteger(m.detail.hdAutoRetry,2)
+            if autoRetry < 1
+                m.detail.hdAutoRetry = autoRetry+1
+                m.detail.hdAttempt = orbitInteger(m.detail.hdAttempt,99)+1
+                print "[RokuPlus resolve-retry] automatic=1 reason=resolve-failed provider="; orbitText(m.detail.provider,32); " attempt="; m.detail.hdAttempt
+                fetch({operation:"resolve",item:m.detail})
+                return
+            end if
+        end if
         m.autoplay = false
         m.note = answer.message
         if context.operation = "compatible" then m.note = "La reproducción con PC no está disponible. Puedes elegir Reproducir para usar la conexión directa."
@@ -478,6 +488,7 @@ sub fetched(event as object)
             m.zone = "seasons"
         end if
     else if context.operation = "resolve"
+        m.detail.hdAutoRetry = 0
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSegmentUrls = answer.segmentUrls
@@ -545,6 +556,7 @@ end sub
 sub openDetails(item as object, origin as string, playNow = false as boolean)
     m.detail = item
     m.detail.hdAttempt = 0
+    m.detail.hdAutoRetry = 0
     m.detailOrigin = origin
     m.autoplay = playNow
     m.action = 0
@@ -589,6 +601,18 @@ sub launchVideo(item as object, url as string, format as string)
     ' Recover LaMovie numeric identity from the canonical HD id when a
     ' catalog item arrives with its slug but without providerId.
     itemProvider = lcase(orbitText(item.provider,32))
+    if itemProvider = "seriesmetro" and item.kind = "episode"
+        parentSlug = orbitText(item.seriesProviderSlug,200)
+        parentId = "hdo-seriesmetro-"+orbitInteger(item.providerId,999999999).toStr()
+        if parentSlug <> ""
+            if m.series = invalid or m.series.id <> parentId
+                seasonNumber = orbitInteger(item.season,999,0)
+                m.series = {id:parentId,imdbId:"",kind:"series",library:"hd-online",provider:"seriesmetro",providerId:orbitInteger(item.providerId,999999999),providerSlug:parentSlug,title:orbitText(item.seriesTitle,180),poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),description:orbitText(item.description),year:orbitText(item.year,4),runtime:0,language:"",seasons:[{number:seasonNumber,episodes:[],loaded:false}]}
+                m.seriesOrigin = "home"
+                print "[RokuPlus series] restored-parent id="; parentId; " season="; seasonNumber
+            end if
+        end if
+    end if
     if itemProvider = "lamovie"
         currentProviderId = ""
         if item.doesExist("providerId") then currentProviderId = orbitText(item.providerId,40)
@@ -952,6 +976,18 @@ sub preparePlaybackEndScreen()
             heading = "SIGUIENTE EPISODIO"
         end if
         if nextItem = invalid and m.series <> invalid and (usesOnlineHd() or rpIsOnlineHdItem(m.series))
+            ' Continue Watching may restore an episode without its parent season cache.
+            ' Load the current season once before declaring the series finished.
+            for each currentSeasonEntry in m.series.seasons
+                if currentSeasonEntry.number = m.detail.season
+                    if currentSeasonEntry.loaded <> true and not m.endScreenNextEpisodePending
+                        m.endScreenNextEpisodePending = true
+                        m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[]}
+                        fetch({operation:"episodes",item:m.series,season:currentSeasonEntry.number})
+                        return
+                    end if
+                end if
+            end for
             if m.series.seasons.count() > 1
                 for seasonIndex = 0 to m.series.seasons.count()-2
                     currentSeason = m.series.seasons[seasonIndex]
@@ -3141,6 +3177,10 @@ if m.view = "profiles"
                     if left(savedId,len(candidatePrefix)) = candidatePrefix
                         resumeItem.provider = candidateProvider
                         candidateId = mid(savedId,len(candidatePrefix)+1)
+                        if candidateProvider = "seriesmetro"
+                            seriesMarker = instr(1,candidateId,"-s")
+                            if seriesMarker > 1 then candidateId = left(candidateId,seriesMarker-1)
+                        end if
                         if candidateProvider = "cinecalidad"
                             if candidateId <> "" then resumeItem.providerId = candidateId
                             if candidateId <> "" then resumeItem.providerSlug = candidateId
@@ -3171,6 +3211,7 @@ if m.view = "profiles"
                 if saved.doesExist("season") then resumeItem.season = orbitInteger(saved.season,999,0)
                 if saved.doesExist("episode") then resumeItem.episode = orbitInteger(saved.episode,9999,0)
                 if saved.doesExist("seriesTitle") then resumeItem.seriesTitle = orbitText(saved.seriesTitle,180)
+                if saved.doesExist("seriesProviderSlug") then resumeItem.seriesProviderSlug = orbitText(saved.seriesProviderSlug,200)
                 if resumeItem.kind = "episode" and (not resumeItem.doesExist("season") or not resumeItem.doesExist("episode") or resumeItem.episode < 1)
                     m.note = "Faltan los datos del episodio para reanudarlo."
                     drawScreen()
