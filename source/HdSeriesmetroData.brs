@@ -174,6 +174,16 @@ function rpHdSeriesmetroInputItem(value as dynamic) as dynamic
     if value.provider <> "seriesmetro" then return invalid
     number = orbitInteger(value.providerId,999999999)
     kind = orbitText(value.kind,10)
+    if number < 1
+        canonical = orbitText(value.id,180)
+        prefix = "hdo-seriesmetro-"
+        if left(canonical,len(prefix)) = prefix
+            suffix = mid(canonical,len(prefix)+1)
+            marker = instr(1,suffix,"-s")
+            if marker > 1 then suffix = left(suffix,marker-1)
+            number = orbitInteger(suffix,999999999)
+        end if
+    end if
     path = rpHdSeriesmetroPath(value.providerSlug)
     id = "hdo-seriesmetro-"+number.toStr()
     season = orbitInteger(value.season,999,-1)
@@ -250,7 +260,7 @@ function rpHdSeriesmetroEpisodes(html as dynamic, parent as object, requested as
                     ' Extract the still from this episode's own article.
                     episodePoster = rpHdSeriesmetroEpisodeArt(block)
                     ' Never reuse the series poster as an episode still.
-                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
+                    answer.episodes.push({id:id,imdbId:"",kind:"episode",library:"hd-online",provider:"seriesmetro",providerId:parent.providerId,providerSlug:path,seriesProviderSlug:parent.providerSlug,title:title,seriesTitle:parent.title,season:season,episode:episode,poster:episodePoster,background:episodePoster,description:parent.description,year:parent.year,runtime:0,language:"",seasons:[]})
                     seen[id] = true
                 end if
             end if
