@@ -28,6 +28,13 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
             return answer
         end if
         parentNumber = orbitInteger(rawItem.seriesProviderId,999999999)
+        if parentNumber < 1
+            parentCanonical = orbitText(rawItem.seriesId,180)
+            parentPrefix = "hdo-seriesmetro-"
+            if left(parentCanonical,len(parentPrefix)) = parentPrefix
+                parentNumber = orbitInteger(mid(parentCanonical,len(parentPrefix)+1),999999999)
+            end if
+        end if
         parentPath = rpHdSeriesmetroPath(rawItem.seriesProviderSlug)
         seasonNumber = orbitInteger(rawItem.season,999,-1)
         episodeNumber = orbitInteger(rawItem.episode,9999)
@@ -37,7 +44,11 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
         end if
         parent = {id:"hdo-seriesmetro-"+parentNumber.toStr(),kind:"series",provider:"seriesmetro",providerId:parentNumber,providerSlug:parentPath,title:orbitText(rawItem.seriesTitle,200),seasons:[]}
         loaded = rpHdSeriesmetroLoadSeason(parent,seasonNumber,fetcher)
-        if not loaded.ok then return rpHdTaskFailure(answer,loaded)
+        if not loaded.ok
+            answer.message = orbitText(loaded.message,240)
+            if answer.message = "" then answer.message = "No se pudieron recuperar los episodios de SeriesMetro."
+            return answer
+        end if
         item = invalid
         for each candidateEpisode in loaded.season.episodes
             if candidateEpisode.episode = episodeNumber
