@@ -141,7 +141,7 @@ end function
 ' Adapters may discover Vimeos links differently but share media validation.
 ' Playlist checks and three bounded consecutive audio-segment samples are diagnostic only.
 function rpHdTaskAuditExternalAudio(master as object, selected as object, fetcher as dynamic, referer as string, videoAudit as dynamic, videoManifest as dynamic) as object
-    result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0}
+    result = {checked:0,valid:0,segments:0,durationSets:0,samples:0,tsValid:0,aacSamples:0,timingAligned:0,timingRejected:0}
     videoPlaylistAudit = rpHdTaskAuditManifestTiming(videoManifest)
     print "[RokuPlus video-playlist] segments="; videoPlaylistAudit.segmentCount; " extinf="; videoPlaylistAudit.extinfCount; " sequence="; videoPlaylistAudit.mediaSequence; " discontinuities="; videoPlaylistAudit.discontinuities; " target="; videoPlaylistAudit.targetDuration; " totalDuration="; videoPlaylistAudit.totalDuration
     if type(videoAudit) = "roAssociativeArray"
@@ -194,6 +194,13 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
                 sequenceDelta = -1
                 if videoPlaylistAudit.mediaSequence >= 0 and audioPlaylistAudit.mediaSequence >= 0 then sequenceDelta = audioPlaylistAudit.mediaSequence-videoPlaylistAudit.mediaSequence
                 totalDurationDeltaMs = (audioPlaylistAudit.totalDuration-videoPlaylistAudit.totalDuration)*1000.0
+                timingAligned = rpHdTaskAudioTimingAligned(videoPlaylistAudit,audioPlaylistAudit)
+                if timingAligned
+                    result.timingAligned++
+                else
+                    result.timingRejected++
+                end if
+                print "[RokuPlus native-hls-audio-gate] language="; track.language; " timingAligned="; timingAligned; " videoSegments="; videoPlaylistAudit.segmentCount; " audioSegments="; audioPlaylistAudit.segmentCount; " sequenceDelta="; sequenceDelta; " totalDeltaMs="; totalDurationDeltaMs
                 durationPairCount = audioPlaylistAudit.durations.count()
                 if videoPlaylistAudit.durations.count() < durationPairCount then durationPairCount = videoPlaylistAudit.durations.count()
                 durationMismatchCount = 0
@@ -344,7 +351,28 @@ function rpHdTaskAuditExternalAudio(master as object, selected as object, fetche
     end for
     print "[RokuPlus audio-audit] checked="; result.checked; " valid="; result.valid; " segments="; result.segments; " durationSets="; result.durationSets
     print "[RokuPlus audio-audit] samples="; result.samples; " tsValid="; result.tsValid; " aacSamples="; result.aacSamples
+    print "[RokuPlus native-hls-audio-gate] alignedTracks="; result.timingAligned; " rejectedTracks="; result.timingRejected
     return result
+end function
+
+' Require matching VOD segment boundaries before considering a native HLS audio group.
+' Small per-segment rounding differences are allowed; truncated tails are not.
+function rpHdTaskAudioTimingAligned(video as object, audio as object) as boolean
+    if video.segmentCount < 1 or audio.segmentCount < 1 then return false
+    if video.extinfCount <> video.segmentCount or audio.extinfCount <> audio.segmentCount then return false
+    if video.segmentCount <> audio.segmentCount then return false
+    if video.mediaSequence < 0 or audio.mediaSequence < 0 then return false
+    if video.mediaSequence <> audio.mediaSequence then return false
+    if video.discontinuities <> audio.discontinuities then return false
+    if video.discontinuitySequence <> audio.discontinuitySequence then return false
+    if video.durations.count() <> video.segmentCount or audio.durations.count() <> audio.segmentCount then return false
+    totalDeltaMs = (audio.totalDuration-video.totalDuration)*1000.0
+    if totalDeltaMs > 500.0 or totalDeltaMs < -500.0 then return false
+    for i = 0 to video.segmentCount-1
+        deltaMs = (audio.durations[i]-video.durations[i])*1000.0
+        if deltaMs > 250.0 or deltaMs < -250.0 then return false
+    end for
+    return true
 end function
 
 ' Parse HLS timing and discontinuity metadata without exposing signed segment URLs.
