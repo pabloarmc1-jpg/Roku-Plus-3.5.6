@@ -269,15 +269,18 @@ function rpHdSeriesmetroEmbedOptions(html as dynamic) as object
     if triplet.count() < 4 then return answer
     id = orbitInteger(triplet[2],999999999)
     itemType = orbitInteger(triplet[3],100,-1)
-    for each priority in [100,60]
+    ' Spanish is a preference, never a playback requirement.
+    ' Pass 1: Latino; pass 2: Spanish/Castellano; pass 3: every other
+    ' server option, including English and options with no language label.
+    for each priority in [100,60,0]
         for i = 1 to options.count()-1
             block = options[i]
             index = orbitInteger(rpHdSeriesmetroMatch(block,"^([0-9]+)"),100,-1)
             label = rpHdSeriesmetroText(rpHdSeriesmetroMatch(block,"<span[^>]*class="+chr(34)+"server"+chr(34)+"[^>]*>(.*?)</span>"),80)
-            score = 0
             lower = lcase(label)
+            score = 0
             if instr(1,lower,"latino") > 0 then score = 100
-            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0) then score = 60
+            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0 or instr(1,lower,"espanol") > 0) then score = 60
             if score = priority and index >= 0
                 url = rpHdSeriesmetroEndpoint("embed",{id:id,option:index,itemType:itemType})
                 if url <> "" then answer.push({url:url,language:label,score:score})
