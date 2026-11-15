@@ -918,10 +918,40 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
             if masterUrl = "" and voeEmbedPage
                 bodyLower = lcase(orbitText(response.body,4096))
                 serverLower = lcase(orbitText(response.httpServer,80))
-                if instr(1,serverLower,"ddos-guard") > 0 or instr(1,bodyLower,"ddos-guard") > 0 or instr(1,bodyLower,"checking your browser") > 0 or instr(1,bodyLower,"captcha") > 0
+                antiBotPage = instr(1,serverLower,"ddos-guard") > 0 or instr(1,bodyLower,"ddos-guard") > 0 or instr(1,bodyLower,"checking your browser") > 0 or instr(1,bodyLower,"captcha") > 0
+                ' If the canonical VOE host serves an anti-bot interstitial, try
+                ' the same public embed ID on its known alternate HTTPS hostname.
+                ' This is a normal host fallback, not a challenge/CAPTCHA bypass.
+                if antiBotPage and instr(1,lcase(embed.url),"voe.sx") > 0
+                    voeMatch = CreateObject("roRegex","^https://(www\\.)?voe\\.sx/(e/)?([a-z0-9]{8,20})/?$","i").match(embed.url)
+                    if voeMatch.count() >= 4
+                        alternateUrl = "https://arianathankspecial.com/e/"+lcase(voeMatch[3])
+                        print "[RokuPlus voe] alternate_host_attempt=1 host=arianathankspecial.com"
+                        alternateResponse = fetcher(alternateUrl,"embed",embedReferer)
+                        if alternateResponse.cancelled then return rpHdTaskFailure(answer,alternateResponse)
+                        if alternateResponse.ok
+                            response = alternateResponse
+                            mediaReferer = alternateUrl
+                            if orbitText(response.httpFinalUrl,4096) <> "" then mediaReferer = response.httpFinalUrl
+                            masterUrl = rpHdOnlineMediaUrl(response.body)
+                            if masterUrl = "" then masterUrl = rpHdOnlineVoeMediaUrl(response.body)
+                            if masterUrl <> ""
+                                print "[RokuPlus voe] alternate_host_result=media-found"
+                            else
+                                alternateBodyLower = lcase(orbitText(response.body,4096))
+                                alternateServerLower = lcase(orbitText(response.httpServer,80))
+                                antiBotPage = instr(1,alternateServerLower,"ddos-guard") > 0 or instr(1,alternateBodyLower,"ddos-guard") > 0 or instr(1,alternateBodyLower,"checking your browser") > 0 or instr(1,alternateBodyLower,"captcha") > 0
+                                print "[RokuPlus voe] alternate_host_result=media-missing bytes="; len(response.body)
+                            end if
+                        else
+                            print "[RokuPlus voe] alternate_host_result=request-failed"
+                        end if
+                    end if
+                end if
+                if masterUrl = "" and antiBotPage
                     answer.voeBlocked = true
                     print "[RokuPlus voe] blocked=1 reason=anti-bot-page bytes="; len(response.body)
-                else
+                else if masterUrl = ""
                     print "[RokuPlus voe] manifest_missing=1 bytes="; len(response.body)
                 end if
             end if
