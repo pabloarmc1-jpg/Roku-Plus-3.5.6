@@ -465,7 +465,7 @@ sub fetched(event as object)
         ' Keep the original catalog identity when a provider metadata adapter
         ' returns a reduced item. Continue Watching needs these source fields.
         if type(answer.item) = "roAssociativeArray" and context.doesExist("item") and type(context.item) = "roAssociativeArray"
-            identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle"]
+            identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers"]
             for each identityField in identityFields
                 if context.item.doesExist(identityField)
                     sourceValue = context.item[identityField]
@@ -2626,8 +2626,8 @@ sub playDetail()
     if m.detail = invalid then return
     m.playbackMode = "direct"
     if usesOnlineHd() or rpIsOnlineHdItem(m.detail)
-        if lcase(orbitText(m.detail.provider,32)) = "seriesmetro" and m.detail.kind = "episode" and orbitText(m.detail.providerSlug,200) = "" and orbitInteger(m.detail.seriesProviderId,999999999) > 0 and orbitText(m.detail.seriesProviderSlug,200) <> ""
-            print "[RokuPlus series] resume-episode-recover id="; orbitText(m.detail.id,180); " season="; orbitInteger(m.detail.season,999); " episode="; orbitInteger(m.detail.episode,9999)
+        if lcase(orbitText(m.detail.provider,32)) = "seriesmetro" and m.detail.kind = "episode" and orbitText(m.detail.providerSlug,200) = "" and (orbitInteger(m.detail.seriesProviderId,999999999) > 0 or orbitInteger(m.detail.providerId,999999999) > 0)
+            print "[RokuPlus series] resume-episode-recover id="; orbitText(m.detail.id,180); " parentId="; orbitInteger(m.detail.seriesProviderId,999999999); " providerId="; orbitInteger(m.detail.providerId,999999999); " season="; orbitInteger(m.detail.season,999); " episode="; orbitInteger(m.detail.episode,9999)
             fetch({operation:"resume-episode",item:m.detail})
         else
             fetch({operation:"resolve",item:m.detail})
