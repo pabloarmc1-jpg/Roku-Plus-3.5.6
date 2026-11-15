@@ -3425,7 +3425,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     else if key = "options"
         openPlayerOptionsMenu()
     else if key = "up" or key = "down"
-        return true
+        revealTransport()
     else if key = "OK"
         if m.panel.visible
             activateTransportFocus()
@@ -3435,16 +3435,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
     else if key = "left"
         if m.panel.visible
             moveTransportFocus(-1)
-        else if not m.segmentMode
-            shiftTen(true)
         else
             revealTransport()
         end if
     else if key = "right"
         if m.panel.visible
             moveTransportFocus(1)
-        else if not m.segmentMode
-            shiftTen(false)
         else
             revealTransport()
         end if
