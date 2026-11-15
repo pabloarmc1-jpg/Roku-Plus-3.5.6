@@ -1425,7 +1425,7 @@ sub drawAudioMenu()
     else
         output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
     end if
-    if m.audioMenuFocus <> invalid then m.audioMenuFocus.translation = [28,118 + (m.audioTrackIndex * 52)]
+    if m.audioMenuFocus <> invalid then m.audioMenuFocus.translation = [14,110 + (m.audioTrackIndex * 52)]
     m.audioMenuItems.text = output
 end sub
 
@@ -1602,7 +1602,7 @@ sub drawSubtitleMenu()
     end for
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
     if m.subtitleTracks.count() = 0 and m.subtitleOnlineResults.count() = 0 then output += chr(10) + "También puedes buscar subtítulos en línea."
-    if m.subtitleMenuFocus <> invalid then m.subtitleMenuFocus.translation = [28,118 + (m.subtitleTrackIndex * 52)]
+    if m.subtitleMenuFocus <> invalid then m.subtitleMenuFocus.translation = [14,110 + (m.subtitleTrackIndex * 52)]
     m.subtitleMenuItems.text = output
 end sub
 
@@ -1777,7 +1777,7 @@ sub drawDisplayMenu()
         output += chr(10) + "   Saltar introducción"
     end if
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Aplicar     BACK Cerrar"
-    if m.displayMenuFocus <> invalid then m.displayMenuFocus.translation = [28,118 + (m.displayMenuIndex * 52)]
+    if m.displayMenuFocus <> invalid then m.displayMenuFocus.translation = [14,110 + (m.displayMenuIndex * 52)]
     m.displayMenuItems.text = output
 end sub
 
