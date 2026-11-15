@@ -684,9 +684,16 @@ function rpHdOnlineVimeosSubtitleTracks(masterUrl as dynamic) as object
     if url = "" then return tracks
     pathMatch = CreateObject("roRegex","^https://[^/]+/hls2/([0-9]{2}/[0-9]{5})/([a-z0-9]{8,32})_[^/]+/master\.m3u8","i").match(url)
     if pathMatch.count() < 3 then return tracks
+    ' Vimeos may expose the subtitle shard in the media hostname (s1.vimeos.net)
+    ' or as an srv query parameter. Prefer the explicit query value when present.
     serverMatch = CreateObject("roRegex","[?&]srv=(s[0-9]{1,2})(&|$)","i").match(url)
-    if serverMatch.count() < 2 then return tracks
-    server = lcase(serverMatch[1])
+    if serverMatch.count() >= 2
+        server = lcase(serverMatch[1])
+    else
+        hostMatch = CreateObject("roRegex","^https://(s[0-9]{1,2})\\.vimeos\\.(net|zip)/","i").match(url)
+        if hostMatch.count() < 2 then return tracks
+        server = lcase(hostMatch[1])
+    end if
     if not CreateObject("roRegex","^s[0-9]{1,2}$","i").isMatch(server) then return tracks
     subtitleBase = "https://"+server+".vimeos.net/vtt/"+pathMatch[1]+"/"+pathMatch[2]
     tracks.push({group:"",name:"Español",language:"es",default:true,forced:false,url:subtitleBase+"_spa.vtt"})
