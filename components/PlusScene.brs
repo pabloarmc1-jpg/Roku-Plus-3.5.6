@@ -5,7 +5,12 @@ sub init()
     m.plusExperience = m.top.findNode("PlusExperience")
     m.plusExperience.visible = true
     m.canvas = m.top.findNode("canvas")
-    m.player = m.top.findNode("player")
+    m.standardPlayer = m.top.findNode("player")
+    m.hostPlayer = m.top.findNode("hostPlayer")
+    ' Keep m.player as the active-player alias so existing controls, watch state,
+    ' TS relay, seek and close handling are shared without changing the main player.
+    m.player = m.standardPlayer
+    m.pendingEngineSwitch = invalid
     m.invidiousPlayer = m.top.findNode("invidiousPlayer")
     m.invidiousPlayer.observeField("closed","invidiousPlayerClosed")
     m.deadline = m.top.findNode("catalogDeadline")
@@ -22,6 +27,16 @@ sub init()
     m.player.observeField("progress","livePreviewProgress")
     m.player.observeField("previewReturned","livePreviewReturned")
     m.player.observeField("closedRequest","livePreviewClosed")
+    ' The dedicated host player is a separate decoder instance of the same
+    ' proven PlusPlayer engine; VOE never changes the standard player instance.
+    m.hostPlayer.observeField("closed","playerClosed")
+    m.hostPlayer.observeField("diagnostics","playerDiagnostic")
+    m.hostPlayer.observeField("retryRequested","retryVideo")
+    m.hostPlayer.observeField("progress","playerProgress")
+    m.hostPlayer.observeField("endSelection","playerEndSelection")
+    m.hostPlayer.observeField("progress","livePreviewProgress")
+    m.hostPlayer.observeField("previewReturned","livePreviewReturned")
+    m.hostPlayer.observeField("closedRequest","livePreviewClosed")
     m.previewTimer = m.top.findNode("livePreviewDelay")
     m.previewTimer.observeField("fire","startLivePreview")
     m.noteTimer = m.top.findNode("liveNoticeTimer")
@@ -502,6 +517,8 @@ sub fetched(event as object)
         end if
         m.detail.hdAutoRetry = 0
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
+        m.detail.playbackEngine = "standard"
+        if answer.doesExist("playbackEngine") and answer.playbackEngine = "host" then m.detail.playbackEngine = "host"
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSegmentUrls = answer.segmentUrls
         m.pendingSegmentDurations = answer.segmentDurations
@@ -621,6 +638,25 @@ sub invidiousPlayerClosed(event as object)
 end sub
 
 sub launchVideo(item as object, url as string, format as string)
+    targetPlayer = m.standardPlayer
+    targetEngine = "standard"
+    if type(item) = "roAssociativeArray" and item.doesExist("playbackEngine")
+        if lcase(orbitText(item.playbackEngine,20)) = "host"
+            targetPlayer = m.hostPlayer
+            targetEngine = "host"
+        end if
+    end if
+    ' Switch decoder instances only after the current native pipeline has stopped.
+    ' This prevents two Roku Video nodes from playing simultaneously.
+    if m.player <> targetPlayer and m.player.active = true
+        m.pendingEngineSwitch = {target:targetEngine,item:item,url:url,format:format}
+        print "[RokuPlus player-router] switch_pending from="; "active"; " to="; targetEngine
+        m.player.closePlayback()
+        return
+    end if
+    if m.player <> targetPlayer then m.player.visible = false
+    m.player = targetPlayer
+    print "[RokuPlus player-router] engine="; targetEngine; " instance="; targetEngine
     ' Recover LaMovie numeric identity from the canonical HD id when a
     ' catalog item arrives with its slug but without providerId.
     itemProvider = lcase(orbitText(item.provider,32))
@@ -946,6 +982,21 @@ sub playerClosed(event as object)
     if m.player.active = true then return
     if m.view = "live" then return
     if m.view <> "player" then return
+    ' A source switch requested from the end screen waits for the old decoder
+    ' to finish stopping before opening the other independent player instance.
+    if type(m.pendingEngineSwitch) = "roAssociativeArray"
+        pendingSwitch = m.pendingEngineSwitch
+        m.pendingEngineSwitch = invalid
+        m.player.visible = false
+        if pendingSwitch.target = "host"
+            m.player = m.hostPlayer
+        else
+            m.player = m.standardPlayer
+        end if
+        print "[RokuPlus player-router] switch_ready engine="; pendingSwitch.target
+        launchVideo(pendingSwitch.item,pendingSwitch.url,pendingSwitch.format)
+        return
+    end if
     ' A recommendation may still be resolving when the viewer presses BACK.
     ' Cancel it so a late network response cannot unexpectedly reopen playback.
     if m.busy then cancelRequest()
@@ -964,6 +1015,8 @@ sub playerClosed(event as object)
     m.leaseTask = invalid
     m.activeJobId = ""
     m.player.visible = false
+    ' Return the alias to the untouched standard instance after host playback.
+    m.player = m.standardPlayer
     m.view = m.viewBeforePlayer
     if m.recovering = true
         m.recovering = false
