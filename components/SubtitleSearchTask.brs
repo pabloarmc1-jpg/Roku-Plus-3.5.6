@@ -202,7 +202,7 @@ sub runSubtitleSearch()
     else if operation = "source"
         subtitleUrl = m.top.subtitleUrl
         safeUrl = orbitHttpsUrl(subtitleUrl)
-        allowed = CreateObject("roRegex","^https://(([a-z0-9-]+\\.)?vimeos\\.(net|zip)|([a-z0-9-]+\\.)?fastream\\.to|([a-z0-9-]+\\.)?voe-network\\.net|([a-z0-9-]+\\.)?voe\\.sx|([a-z0-9-]+\\.)?cloudwindow-route\\.com)/","i").isMatch(safeUrl)
+        allowed = CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(safeUrl)
         pathLower = lcase(safeUrl)
         isVtt = instr(1,pathLower,".vtt") > 0
         isPlaylist = instr(1,pathLower,".m3u8") > 0
@@ -264,7 +264,7 @@ function subtitleVttPlaylist(body as string, playlistUrl as string) as dynamic
             while i < segmentLines.count()
                 cueLine = segmentLines[i].trim()
                 if instr(1,cueLine,"-->") > 0
-                    timing = CreateObject("roRegex","^((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\\.[0-9]{3})[ \\t]+-->[ \\t]+((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\\.[0-9]{3})","").match(cueLine)
+                    timing = CreateObject("roRegex","^((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\.[0-9]{3})[ \t]+-->[ \t]+((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\.[0-9]{3})","").match(cueLine)
                     if timing.count() >= 5
                         cueStart = subtitleVttTime(timing[1]) + elapsed
                         cueEnd = subtitleVttTime(timing[4]) + elapsed
