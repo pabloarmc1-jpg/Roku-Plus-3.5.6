@@ -979,6 +979,9 @@ end sub
 
 sub playerClosed(event as object)
     if event.getData() <> true then return
+    ' Both decoder instances report close events; only the active instance may
+    ' change the scene lifecycle or consume a pending engine switch.
+    if not m.player.isSameNode(event.getRoSGNode()) then return
     if m.player.active = true then return
     if m.view = "live" then return
     if m.view <> "player" then return
