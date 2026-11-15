@@ -127,12 +127,6 @@ sub init()
     m.rewindControl = m.top.findNode("rewindControl")
     m.forwardControl = m.top.findNode("forwardControl")
     m.rewindSurface = m.top.findNode("rewindSurface")
-    m.rewindFocusBg = m.top.findNode("rewindFocusBg")
-    m.centerFocusBg = m.top.findNode("centerFocusBg")
-    m.forwardFocusBg = m.top.findNode("forwardFocusBg")
-    m.audioFocusBg = m.top.findNode("audioFocusBg")
-    m.subtitleFocusBg = m.top.findNode("subtitleFocusBg")
-    m.zoomFocusBg = m.top.findNode("zoomFocusBg")
     m.forwardSurface = m.top.findNode("forwardSurface")
     m.audioControlSurface = m.top.findNode("audioControlSurface")
     m.subtitleControlSurface = m.top.findNode("subtitleControlSurface")
@@ -203,25 +197,24 @@ sub applyPlayerTheme()
 end sub
 
 sub applyControlSurfaces()
-    ' Use a solid red backing plate for reliable visibility on every Roku model.
-    ' Poster blendColor is not consistently rendered by all SceneGraph firmware.
-    for each focusBg in [m.rewindFocusBg, m.centerFocusBg, m.forwardFocusBg, m.audioFocusBg, m.subtitleFocusBg, m.zoomFocusBg]
-        if focusBg <> invalid then focusBg.visible = false
-    end for
+    ' The focus artwork is a transparent rounded ring designed to follow
+    ' the control capsule; avoid rectangular backing plates or Poster tinting.
+    normalUri = playerSurfaceUri("control")
+    focusUri = playerSurfaceUri("control-focus")
 
-    if m.rewindSurface <> invalid then m.rewindSurface.uri = "pkg:/images/newplayer-control.png"
-    if m.forwardSurface <> invalid then m.forwardSurface.uri = "pkg:/images/newplayer-control.png"
-    if m.centerSurface <> invalid then m.centerSurface.uri = "pkg:/images/newplayer-control.png"
-    if m.audioControlSurface <> invalid then m.audioControlSurface.uri = "pkg:/images/newplayer-control.png"
-    if m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = "pkg:/images/newplayer-control.png"
-    if m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = "pkg:/images/newplayer-control.png"
+    if m.rewindSurface <> invalid then m.rewindSurface.uri = normalUri
+    if m.centerSurface <> invalid then m.centerSurface.uri = normalUri
+    if m.forwardSurface <> invalid then m.forwardSurface.uri = normalUri
+    if m.audioControlSurface <> invalid then m.audioControlSurface.uri = normalUri
+    if m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = normalUri
+    if m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = normalUri
 
-    if m.transportFocusIndex = 0 and m.rewindFocusBg <> invalid then m.rewindFocusBg.visible = true
-    if m.transportFocusIndex = 1 and m.centerFocusBg <> invalid then m.centerFocusBg.visible = true
-    if m.transportFocusIndex = 2 and m.forwardFocusBg <> invalid then m.forwardFocusBg.visible = true
-    if m.transportFocusIndex = 3 and m.audioFocusBg <> invalid then m.audioFocusBg.visible = true
-    if m.transportFocusIndex = 4 and m.subtitleFocusBg <> invalid then m.subtitleFocusBg.visible = true
-    if m.transportFocusIndex = 5 and m.zoomFocusBg <> invalid then m.zoomFocusBg.visible = true
+    if m.transportFocusIndex = 0 and m.rewindSurface <> invalid then m.rewindSurface.uri = focusUri
+    if m.transportFocusIndex = 1 and m.centerSurface <> invalid then m.centerSurface.uri = focusUri
+    if m.transportFocusIndex = 2 and m.forwardSurface <> invalid then m.forwardSurface.uri = focusUri
+    if m.transportFocusIndex = 3 and m.audioControlSurface <> invalid then m.audioControlSurface.uri = focusUri
+    if m.transportFocusIndex = 4 and m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = focusUri
+    if m.transportFocusIndex = 5 and m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = focusUri
 
     if m.monotonic = invalid or m.actionUntil = invalid then return
     if m.monotonic.totalMilliseconds() < m.actionUntil
