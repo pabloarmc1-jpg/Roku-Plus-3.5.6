@@ -54,6 +54,9 @@ sub init()
     m.audioMenuOpen = false
     m.audioTracks = []
     m.audioTrackIndex = 0
+    m.audioSelectionPending = invalid
+    m.audioMenuFocus = m.top.findNode("audioMenuFocus")
+    m.playerOptionsMenuFocus = m.top.findNode("playerOptionsMenuFocus")
     m.subtitleMenuGroup = m.top.findNode("subtitleMenu")
     m.subtitleMenuItems = m.top.findNode("subtitleMenuItems")
     m.subtitleMenuOpen = false
@@ -665,6 +668,7 @@ sub openRequest()
     m.noticeUntil = 0
     m.notice = ""
     m.audioMenuOpen = false
+    m.audioSelectionPending = invalid
     if m.audioMenuGroup <> invalid then m.audioMenuGroup.visible = false
     m.subtitleMenuOpen = false
     if m.subtitleMenuGroup <> invalid then m.subtitleMenuGroup.visible = false
@@ -1314,6 +1318,7 @@ sub refreshAudioTracks()
         m.audioTrackIndex = 0
     end if
     if m.audioMenuOpen then drawAudioMenu()
+    verifyAudioTrackSelection()
 end sub
 
 function plusAudioLanguageName(code as string) as string
@@ -1352,14 +1357,21 @@ sub drawAudioMenu()
         m.audioMenuItems.text = output
         return
     end if
+    activeTrack = m.decoder.currentAudioTrack
     for i = 0 to m.audioTracks.count()-1
         prefix = "   "
         if i = m.audioTrackIndex then prefix = "▶  "
         output += prefix + m.audioTracks[i].label
         if m.audioTracks[i].language <> "" then output += "  (" + m.audioTracks[i].language + ")"
+        if m.audioTracks[i].id = activeTrack then output += "  [ACTUAL]"
         if i < m.audioTracks.count()-1 then output += chr(10)
     end for
-    output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
+    if m.audioSelectionPending <> invalid
+        output += chr(10) + chr(10) + "Aplicando: " + m.audioSelectionPending.label + "..."
+    else
+        output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
+    end if
+    if m.audioMenuFocus <> invalid then m.audioMenuFocus.translation = [28,118 + (m.audioTrackIndex * 52)]
     m.audioMenuItems.text = output
 end sub
 
@@ -1381,16 +1393,50 @@ sub selectAudioTrack()
     if m.audioTrackIndex < 0 or m.audioTrackIndex >= m.audioTracks.count() then return
     chosen = m.audioTracks[m.audioTrackIndex]
     beforeTrack = m.decoder.currentAudioTrack
+    if beforeTrack = chosen.id
+        closeAudioMenu()
+        m.notice = "El audio ya está en " + chosen.label
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 3500
+        revealTransport()
+        drawTransport()
+        return
+    end if
     print "[RokuPlus audio] select_request label="; chosen.label; " language="; chosen.language; " id="; chosen.id; " currentBefore="; beforeTrack
+    m.audioSelectionPending = {id:chosen.id,label:chosen.label,requestedAt:m.monotonic.totalMilliseconds()}
     m.decoder.audioTrack = chosen.id
     afterTrack = m.decoder.currentAudioTrack
     requestedTrack = m.decoder.audioTrack
     print "[RokuPlus audio] select_write requested="; requestedTrack; " currentImmediatelyAfter="; afterTrack
-    closeAudioMenu()
-    m.notice = "Cambio solicitado: " + chosen.label
-    m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
-    revealTransport()
-    drawTransport()
+    drawAudioMenu()
+    verifyAudioTrackSelection()
+end sub
+
+sub verifyAudioTrackSelection()
+    if m.audioSelectionPending = invalid or m.decoder = invalid then return
+    current = invalid
+    if m.decoder.hasField("currentAudioTrack") then current = m.decoder.currentAudioTrack
+    if GetInterface(current,"ifString") <> invalid and current = m.audioSelectionPending.id
+        label = m.audioSelectionPending.label
+        print "[RokuPlus audio] select_confirmed id="; current; " label="; label
+        m.audioSelectionPending = invalid
+        closeAudioMenu()
+        m.notice = "Audio cambiado a " + label
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
+        revealTransport()
+        drawTransport()
+        return
+    end if
+    elapsed = m.monotonic.totalMilliseconds() - m.audioSelectionPending.requestedAt
+    if elapsed >= 6000
+        label = m.audioSelectionPending.label
+        print "[RokuPlus audio] select_unconfirmed requested="; m.audioSelectionPending.id; " current="; current
+        m.audioSelectionPending = invalid
+        m.notice = "Roku no confirmó el cambio a " + label
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 6000
+        drawAudioMenu()
+        revealTransport()
+        drawTransport()
+    end if
 end sub
 
 sub onNativeSubtitleTrackDetails()
@@ -1600,6 +1646,7 @@ sub drawPlayerOptionsMenu()
         if i < m.playerOptionsLabels.count()-1 then output += chr(10)
     end for
     output += chr(10) + chr(10) + "▲ / ▼ Mover     OK Seleccionar     BACK Cerrar"
+    if m.playerOptionsMenuFocus <> invalid then m.playerOptionsMenuFocus.translation = [28,118 + (m.playerOptionsMenuIndex * 52)]
     m.playerOptionsMenuItems.text = output
 end sub
 
@@ -2612,6 +2659,7 @@ sub onPulse()
     end if
     updateExternalSubtitle()
     verifySeekResult()
+    verifyAudioTrackSelection()
     now = m.monotonic.totalMilliseconds()
     advanceTsRelayRestart(now)
     advanceSegmentRestart(now)
