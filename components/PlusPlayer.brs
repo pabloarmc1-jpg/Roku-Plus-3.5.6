@@ -127,6 +127,12 @@ sub init()
     m.rewindControl = m.top.findNode("rewindControl")
     m.forwardControl = m.top.findNode("forwardControl")
     m.rewindSurface = m.top.findNode("rewindSurface")
+    m.rewindFocusBg = m.top.findNode("rewindFocusBg")
+    m.centerFocusBg = m.top.findNode("centerFocusBg")
+    m.forwardFocusBg = m.top.findNode("forwardFocusBg")
+    m.audioFocusBg = m.top.findNode("audioFocusBg")
+    m.subtitleFocusBg = m.top.findNode("subtitleFocusBg")
+    m.zoomFocusBg = m.top.findNode("zoomFocusBg")
     m.forwardSurface = m.top.findNode("forwardSurface")
     m.audioControlSurface = m.top.findNode("audioControlSurface")
     m.subtitleControlSurface = m.top.findNode("subtitleControlSurface")
@@ -197,69 +203,30 @@ sub applyPlayerTheme()
 end sub
 
 sub applyControlSurfaces()
-    if m.rewindSurface = invalid or m.forwardSurface = invalid then return
-    normalUri = "pkg:/images/newplayer-control.png"
-    focusUri = "pkg:/images/newplayer-control-focus.png"
-    m.rewindSurface.uri = normalUri
-    m.rewindSurface.blendColor = "0xFFFFFFFF"
-    m.rewindSurface.opacity = 1.0
-    m.forwardSurface.uri = normalUri
-    m.forwardSurface.blendColor = "0xFFFFFFFF"
-    m.forwardSurface.opacity = 1.0
-    if m.centerSurface <> invalid
-        m.centerSurface.uri = normalUri
-        m.centerSurface.blendColor = "0xFFFFFFFF"
-        m.centerSurface.opacity = 1.0
-    end if
-    if m.audioControlSurface <> invalid
-        m.audioControlSurface.uri = normalUri
-        m.audioControlSurface.blendColor = "0xFFFFFFFF"
-        m.audioControlSurface.opacity = 1.0
-    end if
-    if m.subtitleControlSurface <> invalid
-        m.subtitleControlSurface.uri = normalUri
-        m.subtitleControlSurface.blendColor = "0xFFFFFFFF"
-        m.subtitleControlSurface.opacity = 1.0
-    end if
-    if m.zoomControlSurface <> invalid
-        m.zoomControlSurface.uri = normalUri
-        m.zoomControlSurface.blendColor = "0xFFFFFFFF"
-        m.zoomControlSurface.opacity = 1.0
-    end if
-    if m.transportFocusIndex = 0
-        m.rewindSurface.uri = focusUri
-        m.rewindSurface.blendColor = "0xFFFF303B"
-        m.rewindSurface.opacity = 0.92
-    end if
-    if m.transportFocusIndex = 1 and m.centerSurface <> invalid
-        m.centerSurface.uri = focusUri
-        m.centerSurface.blendColor = "0xFFFF303B"
-        m.centerSurface.opacity = 0.92
-    end if
-    if m.transportFocusIndex = 2
-        m.forwardSurface.uri = focusUri
-        m.forwardSurface.blendColor = "0xFFFF303B"
-        m.forwardSurface.opacity = 0.92
-    end if
-    if m.transportFocusIndex = 3 and m.audioControlSurface <> invalid
-        m.audioControlSurface.uri = focusUri
-        m.audioControlSurface.blendColor = "0xFFFF303B"
-        m.audioControlSurface.opacity = 0.92
-    end if
-    if m.transportFocusIndex = 4 and m.subtitleControlSurface <> invalid
-        m.subtitleControlSurface.uri = focusUri
-        m.subtitleControlSurface.blendColor = "0xFFFF303B"
-        m.subtitleControlSurface.opacity = 0.92
-    end if
-    if m.transportFocusIndex = 5 and m.zoomControlSurface <> invalid
-        m.zoomControlSurface.uri = focusUri
-        m.zoomControlSurface.blendColor = "0xFFFF303B"
-        m.zoomControlSurface.opacity = 0.92
-    end if
+    ' Use a solid red backing plate for reliable visibility on every Roku model.
+    ' Poster blendColor is not consistently rendered by all SceneGraph firmware.
+    for each focusBg in [m.rewindFocusBg, m.centerFocusBg, m.forwardFocusBg, m.audioFocusBg, m.subtitleFocusBg, m.zoomFocusBg]
+        if focusBg <> invalid then focusBg.visible = false
+    end for
+
+    if m.rewindSurface <> invalid then m.rewindSurface.uri = "pkg:/images/newplayer-control.png"
+    if m.forwardSurface <> invalid then m.forwardSurface.uri = "pkg:/images/newplayer-control.png"
+    if m.centerSurface <> invalid then m.centerSurface.uri = "pkg:/images/newplayer-control.png"
+    if m.audioControlSurface <> invalid then m.audioControlSurface.uri = "pkg:/images/newplayer-control.png"
+    if m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = "pkg:/images/newplayer-control.png"
+    if m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = "pkg:/images/newplayer-control.png"
+
+    if m.transportFocusIndex = 0 and m.rewindFocusBg <> invalid then m.rewindFocusBg.visible = true
+    if m.transportFocusIndex = 1 and m.centerFocusBg <> invalid then m.centerFocusBg.visible = true
+    if m.transportFocusIndex = 2 and m.forwardFocusBg <> invalid then m.forwardFocusBg.visible = true
+    if m.transportFocusIndex = 3 and m.audioFocusBg <> invalid then m.audioFocusBg.visible = true
+    if m.transportFocusIndex = 4 and m.subtitleFocusBg <> invalid then m.subtitleFocusBg.visible = true
+    if m.transportFocusIndex = 5 and m.zoomFocusBg <> invalid then m.zoomFocusBg.visible = true
+
     if m.monotonic = invalid or m.actionUntil = invalid then return
     if m.monotonic.totalMilliseconds() < m.actionUntil
-        if m.actionDirection = "left" then m.rewindSurface.uri = playerSurfaceUri("control-pressed")
-        if m.actionDirection = "right" then m.forwardSurface.uri = playerSurfaceUri("control-pressed")
+        if m.actionDirection = "left" and m.rewindSurface <> invalid then m.rewindSurface.uri = playerSurfaceUri("control-pressed")
+        if m.actionDirection = "right" and m.forwardSurface <> invalid then m.forwardSurface.uri = playerSurfaceUri("control-pressed")
     end if
 end sub
 
