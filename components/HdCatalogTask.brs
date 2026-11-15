@@ -25,7 +25,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
     operation = orbitText(request.operation,20)
     kind = orbitText(request.kind,10)
     provider = rpHdOnlineProvider(request.provider)
-    answer = {ok:false, cancelled:false, requestId:orbitText(request.requestId,120), operation:operation, kind:kind, provider:provider, message:"No se pudo completar la consulta HD."}
+    answer = {ok:false, cancelled:false, requestId:orbitText(request.requestId,120), operation:operation, kind:kind, provider:provider, message:"No se pudo completar la consulta HD.", subtitleTracks:[], selectedSubtitleGroup:""}
     m.hdProviderDeadline = 0
     if provider = ""
         answer.message = "Elige una fuente HD válida."
@@ -971,6 +971,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 if response.cancelled then return rpHdTaskFailure(answer,response)
                 if response.ok
                     master = rpHdOnlineMaster(response.body,masterUrl)
+                    answer.subtitleTracks = master.subtitleTracks
                     print "[RokuPlus hls] master variants="; master.variants.count(); " audioTracks="; master.audioTracks.count(); " mediaTags="
                     print "[RokuPlus hls] master variants="; "cont"; master.mediaTagCount; " audioMediaTags="; master.audioMediaTagCount; " audioGroups="
                     print "[RokuPlus hls] master variants="; "cont"; master.audioGroupCount; " variantAudioGroups="; master.variantAudioGroupCount; " encrypted="
@@ -1008,6 +1009,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if rpHdTaskSliceExpired() then exit for
                         variantIndex = (qualityAttempt+variantOffset) mod choices.count()
                         selected = choices[variantIndex]
+                        answer.selectedSubtitleGroup = orbitText(selected.subtitleGroup,100)
                         print "[RokuPlus hls-test] selectedPlaylist="; rpHdTaskSafeUrl(selected.url)
                         answer.variantAttempts++
                         child = fetcher(selected.url,"media",mediaReferer)
