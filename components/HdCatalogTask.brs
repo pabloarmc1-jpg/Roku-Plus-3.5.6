@@ -135,7 +135,42 @@ function rpHdTaskResolveItem(item as object, provider as string, answer as objec
     m.hdProviderDeadline = 0
     if not response.ok then return rpHdTaskFailure(answer,response)
     embeds = rpHdOnlineEmbeds(response.data)
-    return rpHdTaskResolveEmbeds(embeds,provider,answer,fetcher,decoderAccept,retry)
+    resolved = rpHdTaskResolveEmbeds(embeds,provider,answer,fetcher,decoderAccept,retry)
+    if resolved.ok or resolved.cancelled or provider <> "allcalidad" or item.kind <> "movie" or resolved.voeBlocked <> true then return resolved
+
+    ' VOE may answer with an anti-bot interstitial instead of its public player.
+    ' Do not attempt to defeat that protection. Search other installed HD catalogs
+    ' for the same exact title and resolve only an exact title/year match.
+    fallbackProviders = ["lamovie","cinehax","seriesmetro","cinecalidad"]
+    for fallbackIndex = 0 to fallbackProviders.count()-1
+        if rpHdTaskSliceExpired() then exit for
+        fallbackProvider = fallbackProviders[fallbackIndex]
+        rpHdTaskBeginSlice(fallbackProviders.count()-fallbackIndex)
+        catalog = rpHdTaskCatalogPage(fallbackProvider,"movie",1,item.title,fetcher)
+        if catalog.cancelled then return rpHdTaskFailure(resolved,catalog)
+        if catalog.ok
+            for each candidate in catalog.items
+                if rpHdTaskSameCatalogItem(item,candidate)
+                    print "[RokuPlus source-fallback] matched title="; item.title; " from=allcalidad to="; fallbackProvider; " id="; candidate.id
+                    candidateAnswer = {
+                        ok:false,cancelled:false,requestId:answer.requestId
+                        operation:"resolve",provider:fallbackProvider,message:""
+                    }
+                    candidateAnswer = rpHdTaskResolveItem(candidate,fallbackProvider,candidateAnswer,fetcher,decoderAccept,retry)
+                    if candidateAnswer.ok
+                        candidateAnswer.sourceFallback = true
+                        candidateAnswer.sourceProvider = fallbackProvider
+                        print "[RokuPlus source-fallback] result=accepted provider="; fallbackProvider
+                        return candidateAnswer
+                    end if
+                    if candidateAnswer.cancelled then return candidateAnswer
+                    print "[RokuPlus source-fallback] result=unavailable provider="; fallbackProvider
+                end if
+            end for
+        end if
+    end for
+    resolved.message = "VOE está temporalmente protegido y no se encontró otra fuente compatible para este título."
+    return resolved
 end function
 
 ' Adapters may discover Vimeos links differently but share media validation.
@@ -848,6 +883,16 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         if response.cancelled then return rpHdTaskFailure(answer,response)
         if response.ok
             masterUrl = rpHdOnlineMediaUrl(response.body)
+            if masterUrl = "" and instr(1,lcase(embed.url),"voe.sx") > 0
+                bodyLower = lcase(orbitText(response.body,4096))
+                serverLower = lcase(orbitText(response.httpServer,80))
+                if instr(1,serverLower,"ddos-guard") > 0 or instr(1,bodyLower,"ddos-guard") > 0 or instr(1,bodyLower,"checking your browser") > 0 or instr(1,bodyLower,"captcha") > 0
+                    answer.voeBlocked = true
+                    print "[RokuPlus voe] blocked=1 reason=anti-bot-page bytes="; len(response.body)
+                else
+                    print "[RokuPlus voe] manifest_missing=1 bytes="; len(response.body)
+                end if
+            end if
             if masterUrl <> ""
                 response = fetcher(masterUrl,"media",mediaReferer)
                 if response.cancelled then return rpHdTaskFailure(answer,response)
