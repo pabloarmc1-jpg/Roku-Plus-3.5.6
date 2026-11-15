@@ -1544,7 +1544,7 @@ sub refreshSubtitleTracks()
     found = false
     for i = 0 to m.subtitleTracks.count()-1
         if m.subtitleTracks[i].id = selected
-            m.subtitleTrackIndex = i + 4
+            m.subtitleTrackIndex = i + 1 + m.sourceSubtitleTracks.count()
             found = true
             exit for
         end if
@@ -2121,7 +2121,7 @@ function plusParseWebVtt(body as dynamic) as object
         match = timingRegex.match(lines[i].trim())
         if match.count() >= 5
             startAt = plusVttTime(match[1])
-            endAt = plusVttTime(match[5])
+            endAt = plusVttTime(match[4])
             i++
             textLines = []
             while i < lines.count() and lines[i].trim() <> ""
