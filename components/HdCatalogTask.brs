@@ -892,6 +892,13 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     for i = 0 to count-1
         embedIndex = (i+embedOffset) mod count
         embed = embeds[embedIndex]
+        ' VOE and future compatible host adapters use their own decoder instance.
+        ' Reset for each candidate so a failed VOE embed cannot mark a later
+        ' Vimeos candidate as host playback.
+        answer.playbackEngine = "standard"
+        if CreateObject("roRegex","^https://(www\\.)?voe\\.sx/","i").isMatch(orbitText(embed.url,2048))
+            answer.playbackEngine = "host"
+        end if
         ' The HLS host may validate the page that embeds its player.
         ' Use the exact validated embed page as Referer instead of a fixed site root.
         mediaReferer = embed.url
