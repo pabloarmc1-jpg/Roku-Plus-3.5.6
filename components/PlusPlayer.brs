@@ -2046,6 +2046,7 @@ sub onSubtitleSearchTaskResult()
     end if
     if result.ok <> true
         message = "No se pudo obtener subtítulos en línea."
+        if result.operation = "source" then message = "No se pudo cargar la pista de subtítulos de esta fuente."
         if GetInterface(result.message,"ifString") <> invalid and result.message <> "" then message = result.message
         m.notice = message
         m.noticeUntil = m.monotonic.totalMilliseconds() + 5500
