@@ -202,24 +202,27 @@ sub runSubtitleSearch()
     else if operation = "source"
         subtitleUrl = m.top.subtitleUrl
         safeUrl = orbitHttpsUrl(subtitleUrl)
-        allowed = CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(safeUrl)
+        allowed = CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com|([a-z0-9-]+\.)?arianathankspecial\.com)/","i").isMatch(safeUrl)
         pathLower = lcase(safeUrl)
         isVtt = instr(1,pathLower,".vtt") > 0
+        isSrt = instr(1,pathLower,".srt") > 0
         isPlaylist = instr(1,pathLower,".m3u8") > 0
-        if not allowed or (not isVtt and not isPlaylist)
+        if not allowed or (not isVtt and not isSrt and not isPlaylist)
             answer.message = "La dirección de subtítulos de la fuente no es válida."
             m.top.result = answer
             return
         end if
         transfer = subtitleTransfer("")
-        transfer.addHeader("Accept","text/vtt,application/vnd.apple.mpegurl,text/plain,*/*")
+        transfer.addHeader("Accept","text/vtt,application/x-subrip,application/vnd.apple.mpegurl,text/plain,*/*")
         subtitleText = subtitleGet(transfer,safeUrl)
         if GetInterface(subtitleText,"ifString") = invalid or len(subtitleText) = 0 or len(subtitleText) > 2097152
             answer.message = "No se pudo descargar la pista de subtítulos de la fuente."
             m.top.result = answer
             return
         end if
-        if instr(1,subtitleText,"WEBVTT") = 0 and left(subtitleText.trim(),7) = "#EXTM3U"
+        if isSrt and instr(1,subtitleText,"-->") > 0
+            subtitleText = subtitleSrtToVtt(subtitleText)
+        else if instr(1,subtitleText,"WEBVTT") = 0 and left(subtitleText.trim(),7) = "#EXTM3U"
             subtitleText = subtitleVttPlaylist(subtitleText,safeUrl)
         end if
         if GetInterface(subtitleText,"ifString") = invalid or instr(1,subtitleText,"WEBVTT") = 0
@@ -237,6 +240,27 @@ sub runSubtitleSearch()
     m.top.result = answer
 end sub
 
+function subtitleSrtToVtt(body as string) as dynamic
+    if len(body) = 0 or len(body) > 2097152 then return invalid
+    clean = body.replace(chr(13),"")
+    if left(clean,3) = chr(239) + chr(187) + chr(191) then clean = mid(clean,4)
+    lines = clean.split(chr(10))
+    output = "WEBVTT" + chr(10) + chr(10)
+    timingRegex = CreateObject("roRegex","^([0-9]{2}:[0-9]{2}:[0-9]{2}),([0-9]{3})[ \\t]+-->[ \\t]+([0-9]{2}:[0-9]{2}:[0-9]{2}),([0-9]{3})(.*)$","")
+    cueCount = 0
+    for each line in lines
+        timing = timingRegex.match(line)
+        if timing.count() >= 6
+            output += timing[1] + "." + timing[2] + " --> " + timing[3] + "." + timing[4] + timing[5] + chr(10)
+            cueCount++
+        else
+            output += line + chr(10)
+        end if
+        if len(output) > 2097152 then return invalid
+    end for
+    if cueCount = 0 then return invalid
+    return output
+end function
 function subtitleVttPlaylist(body as string, playlistUrl as string) as dynamic
     output = "WEBVTT" + chr(10) + chr(10)
     lines = body.replace(chr(13),"").split(chr(10))
@@ -407,7 +431,7 @@ function subtitleGet(transfer as object, endpoint as string) as dynamic
     if left(endpoint,41) = "https://subtitles.website/strapi/uploads/" then allowed = true
     if left(endpoint,29) = "https://api.subdl.com/api/v1/" then allowed = true
     if left(endpoint,30) = "https://dl.subdl.com/subtitle/" then allowed = true
-    if CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(endpoint) and (instr(1,lcase(endpoint),".vtt") > 0 or instr(1,lcase(endpoint),".m3u8") > 0) then allowed = true
+    if CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com|([a-z0-9-]+\.)?arianathankspecial\.com|([a-z0-9-]+\.)?arianathankspecial\.com)/","i").isMatch(endpoint) and (instr(1,lcase(endpoint),".vtt") > 0 or instr(1,lcase(endpoint),".srt") > 0 or instr(1,lcase(endpoint),".m3u8") > 0) then allowed = true
     if not allowed then return invalid
     m.subtitleHttpStatus = 0
     port = CreateObject("roMessagePort")
