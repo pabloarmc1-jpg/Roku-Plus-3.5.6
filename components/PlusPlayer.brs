@@ -131,12 +131,6 @@ sub init()
     m.audioControlSurface = m.top.findNode("audioControlSurface")
     m.subtitleControlSurface = m.top.findNode("subtitleControlSurface")
     m.zoomControlSurface = m.top.findNode("zoomControlSurface")
-    m.rewindFocusTint = m.top.findNode("rewindFocusTint")
-    m.centerFocusTint = m.top.findNode("centerFocusTint")
-    m.forwardFocusTint = m.top.findNode("forwardFocusTint")
-    m.audioFocusTint = m.top.findNode("audioFocusTint")
-    m.subtitleFocusTint = m.top.findNode("subtitleFocusTint")
-    m.zoomFocusTint = m.top.findNode("zoomFocusTint")
     m.transportFocusIndex = 1
     m.pulse = m.top.findNode("uiPulse")
     m.decoder.observeField("state", "onDecoderState")
@@ -212,18 +206,6 @@ sub applyControlSurfaces()
     if m.audioControlSurface <> invalid then m.audioControlSurface.uri = normalUri
     if m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = normalUri
     if m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = normalUri
-    if m.rewindFocusTint <> invalid then m.rewindFocusTint.visible = false
-    if m.centerFocusTint <> invalid then m.centerFocusTint.visible = false
-    if m.forwardFocusTint <> invalid then m.forwardFocusTint.visible = false
-    if m.audioFocusTint <> invalid then m.audioFocusTint.visible = false
-    if m.subtitleFocusTint <> invalid then m.subtitleFocusTint.visible = false
-    if m.zoomFocusTint <> invalid then m.zoomFocusTint.visible = false
-    if m.transportFocusIndex = 0 and m.rewindFocusTint <> invalid then m.rewindFocusTint.visible = true
-    if m.transportFocusIndex = 1 and m.centerFocusTint <> invalid then m.centerFocusTint.visible = true
-    if m.transportFocusIndex = 2 and m.forwardFocusTint <> invalid then m.forwardFocusTint.visible = true
-    if m.transportFocusIndex = 3 and m.audioFocusTint <> invalid then m.audioFocusTint.visible = true
-    if m.transportFocusIndex = 4 and m.subtitleFocusTint <> invalid then m.subtitleFocusTint.visible = true
-    if m.transportFocusIndex = 5 and m.zoomFocusTint <> invalid then m.zoomFocusTint.visible = true
     if m.transportFocusIndex = 0 then m.rewindSurface.uri = focusUri
     if m.transportFocusIndex = 1 and m.centerSurface <> invalid then m.centerSurface.uri = focusUri
     if m.transportFocusIndex = 2 then m.forwardSurface.uri = focusUri
@@ -2471,8 +2453,8 @@ sub drawTransport()
     m.clockText.text = clock
     m.durationText.text = ""
     if showBar and not m.live then m.durationText.text = plusClockText(d)
-    m.pauseText.text = "OK / Play · Pausar"
-    if m.wantPaused then m.pauseText.text = "OK / Play · Reanudar"
+    m.pauseText.text = "OK · Seleccionar"
+    if m.wantPaused then m.pauseText.text = "OK · Seleccionar"
     if m.failed then m.pauseText.text = "OK · Reintentar"
     m.playGlyph.visible = m.wantPaused or m.failed
     m.pauseGlyph.visible = not m.playGlyph.visible
