@@ -189,9 +189,13 @@ function rpHdSeriesmetroInputItem(value as dynamic) as dynamic
     season = orbitInteger(value.season,999,-1)
     episode = orbitInteger(value.episode,9999)
     if kind = "episode" then id += "-s"+season.toStr()+"-e"+episode.toStr()
-    if number < 1 or value.id <> id or path = "" then return invalid
-    if kind = "movie" and left(path,10) <> "/pelicula/" then return invalid
-    if kind = "series" and left(path,7) <> "/serie/" then return invalid
+    if number < 1 or value.id <> id then return invalid
+    ' Legacy Continue Watching movie records may have the numeric post ID but
+    ' no permalink. Allow that one recoverable case; the task resolves its
+    ' exact slug by searching SeriesMetro and matching the same numeric ID.
+    if path = "" and kind <> "movie" then return invalid
+    if path <> "" and kind = "movie" and left(path,10) <> "/pelicula/" then return invalid
+    if path <> "" and kind = "series" and left(path,7) <> "/serie/" then return invalid
     if kind = "episode"
         if left(path,10) <> "/capitulo/" or season < 0 or episode < 1 then return invalid
     else if kind <> "movie" and kind <> "series"
