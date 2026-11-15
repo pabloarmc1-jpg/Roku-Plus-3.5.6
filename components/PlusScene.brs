@@ -398,7 +398,14 @@ sub fetched(event as object)
     if type(answer.tvmazeCache) = "roAssociativeArray" then m.tvmazeCache = answer.tvmazeCache
     cancelRequest()
     if not answer.ok
-        if context.operation = "meta" or context.operation = "resolve" or context.operation = "episodes" or context.operation = "resume-episode"
+        voeBlocked = false
+        if answer.doesExist("voeBlocked") and answer.voeBlocked = true then voeBlocked = true
+        if voeBlocked
+            if type(context.item) = "roAssociativeArray" then context.item.voeBlocked = true
+            if type(m.detail) = "roAssociativeArray" then m.detail.voeBlocked = true
+            print "[RokuPlus voe] retry_suppressed=1 reason=anti-bot-session"
+        end if
+        if not voeBlocked and (context.operation = "meta" or context.operation = "resolve" or context.operation = "episodes" or context.operation = "resume-episode")
             retryItem = invalid
             if context.doesExist("item") and type(context.item) = "roAssociativeArray" then retryItem = context.item
             if retryItem = invalid and type(m.detail) = "roAssociativeArray" then retryItem = m.detail
@@ -586,6 +593,7 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
     m.detail = item
     m.detail.hdAttempt = 0
     m.detail.hdAutoRetry = 0
+    m.detail.voeBlocked = false
     m.detailOrigin = origin
     m.autoplay = playNow
     m.action = 0
@@ -2683,6 +2691,12 @@ end function
 
 sub playDetail()
     if m.detail = invalid then return
+    if m.busy then return
+    if m.detail.doesExist("voeBlocked") and m.detail.voeBlocked = true
+        m.note = "VOE está temporalmente protegido. Intenta más tarde o elige otra fuente."
+        drawScreen()
+        return
+    end if
     m.playbackMode = "direct"
     if usesOnlineHd() or rpIsOnlineHdItem(m.detail)
         if lcase(orbitText(m.detail.provider,32)) = "seriesmetro" and m.detail.kind = "episode" and orbitText(m.detail.providerSlug,200) = "" and (orbitInteger(m.detail.seriesProviderId,999999999) > 0 or orbitInteger(m.detail.providerId,999999999) > 0)
