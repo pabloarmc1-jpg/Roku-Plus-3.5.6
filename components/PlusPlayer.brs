@@ -2137,7 +2137,7 @@ function plusParseWebVtt(body as dynamic) as object
                 if textLines.count() < 8
                     clean = CreateObject("roRegex","<[^>]*>","g").replaceAll(lines[i].trim(),"")
                     clean = clean.replace("&amp;","&").replace("&lt;","<").replace("&gt;",">").replace("&nbsp;"," ")
-                    if clean <> "" then textLines.push(left(clean,240))
+                    if clean <> "" then textLines.push(clean)
                 end if
                 i++
             end while
@@ -2178,7 +2178,7 @@ function plusParseSrt(body as dynamic) as object
             i++
             textLines = []
             while i < lines.count() and lines[i].trim() <> ""
-                if textLines.count() < 8 then textLines.push(left(lines[i].trim(),240))
+                if textLines.count() < 8 then textLines.push(lines[i].trim())
                 i++
             end while
             caption = ""
