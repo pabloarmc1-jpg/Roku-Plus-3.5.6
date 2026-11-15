@@ -246,7 +246,7 @@ function subtitleSrtToVtt(body as string) as dynamic
     if left(clean,3) = chr(239) + chr(187) + chr(191) then clean = mid(clean,4)
     lines = clean.split(chr(10))
     output = "WEBVTT" + chr(10) + chr(10)
-    timingRegex = CreateObject("roRegex","^([0-9]{2}:[0-9]{2}:[0-9]{2}),([0-9]{3})[ \\t]+-->[ \\t]+([0-9]{2}:[0-9]{2}:[0-9]{2}),([0-9]{3})(.*)$","")
+    timingRegex = CreateObject("roRegex","^([0-9]{2}:[0-9]{2}:[0-9]{2}),([0-9]{3})[ \t]+-->[ \t]+([0-9]{2}:[0-9]{2}:[0-9]{2}),([0-9]{3})(.*)$","")
     cueCount = 0
     for each line in lines
         timing = timingRegex.match(line)
@@ -431,7 +431,7 @@ function subtitleGet(transfer as object, endpoint as string) as dynamic
     if left(endpoint,41) = "https://subtitles.website/strapi/uploads/" then allowed = true
     if left(endpoint,29) = "https://api.subdl.com/api/v1/" then allowed = true
     if left(endpoint,30) = "https://dl.subdl.com/subtitle/" then allowed = true
-    if CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com|([a-z0-9-]+\.)?arianathankspecial\.com|([a-z0-9-]+\.)?arianathankspecial\.com)/","i").isMatch(endpoint) and (instr(1,lcase(endpoint),".vtt") > 0 or instr(1,lcase(endpoint),".srt") > 0 or instr(1,lcase(endpoint),".m3u8") > 0) then allowed = true
+    if CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com|([a-z0-9-]+\.)?arianathankspecial\.com)/","i").isMatch(endpoint) and (instr(1,lcase(endpoint),".vtt") > 0 or instr(1,lcase(endpoint),".srt") > 0 or instr(1,lcase(endpoint),".m3u8") > 0) then allowed = true
     if not allowed then return invalid
     m.subtitleHttpStatus = 0
     port = CreateObject("roMessagePort")
