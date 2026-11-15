@@ -892,11 +892,12 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     for i = 0 to count-1
         embedIndex = (i+embedOffset) mod count
         embed = embeds[embedIndex]
-        ' Vimeos stays on the standard decoder. VOE and any future host
-        ' admitted by rpHdOnlineEmbeds use the isolated host-player instance.
-        ' Reset per candidate so a failed host does not mark a later Vimeos hit.
+        ' Only VOE is routed to the dedicated host-player instance for now.
+        ' Keep Fastream, Vimeos and every existing provider on the standard
+        ' player until a separate host adapter is explicitly validated.
+        ' Reset for every candidate to prevent provider crossover.
         answer.playbackEngine = "standard"
-        if not CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(orbitText(embed.url,2048))
+        if CreateObject("roRegex","^https://(www\.)?voe\.sx/","i").isMatch(orbitText(embed.url,2048))
             answer.playbackEngine = "host"
         end if
         ' The HLS host may validate the page that embeds its player.
