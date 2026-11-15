@@ -1314,6 +1314,14 @@ sub refreshAudioTracks()
             end if
         end for
         if not found and m.audioTrackIndex >= m.audioTracks.count() then m.audioTrackIndex = 0
+        if m.audioSelectionPending <> invalid
+            for i = 0 to m.audioTracks.count()-1
+                if m.audioTracks[i].id = m.audioSelectionPending.id
+                    m.audioTrackIndex = i
+                    exit for
+                end if
+            end for
+        end if
     else
         m.audioTrackIndex = 0
     end if
