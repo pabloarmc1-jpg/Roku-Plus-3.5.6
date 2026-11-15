@@ -908,6 +908,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         response = fetcher(embed.url,"embed",embedReferer)
         if response.cancelled then return rpHdTaskFailure(answer,response)
         if response.ok
+            if orbitText(response.httpFinalUrl,4096) <> "" then mediaReferer = response.httpFinalUrl
             masterUrl = rpHdOnlineMediaUrl(response.body)
             voeEmbedPage = instr(1,lcase(embed.url),"voe.sx") > 0 or instr(1,lcase(embed.url),"arianathankspecial.com") > 0
             if masterUrl = "" and voeEmbedPage
@@ -2021,7 +2022,15 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     answer.httpAge = rpHdTaskResponseHeader(responseHeaders,"age")
     answer.httpServer = rpHdTaskResponseHeader(responseHeaders,"server")
     answer.httpVia = rpHdTaskResponseHeader(responseHeaders,"via")
-    successCode = code = 200
+    answer.httpFinalUrl = orbitText(transfer.getUrl(),4096)
+    if answer.httpFinalUrl = "" then answer.httpFinalUrl = endpoint
+    redirectAllowed = true
+    if role = "embed" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"embed")
+        redirectAllowed = false
+        answer.message = "La fuente redirigió a un dominio no permitido."
+        print "[RokuPlus http] role=embed redirect_rejected=1 finalHost="; rpHdTaskSafeHost(answer.httpFinalUrl)
+    end if
+    successCode = code = 200 and redirectAllowed
     if role = "sample" or role = "audio-sample" or role = "sample-tail" then successCode = code = 206
     if finished and successCode and not m.top.cancelRequested
         bytes = rpHdTaskFileSize(files.stat(filename))
