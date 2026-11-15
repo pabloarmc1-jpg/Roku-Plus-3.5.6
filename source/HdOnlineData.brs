@@ -535,7 +535,8 @@ function rpHdOnlineVoeMediaUrl(html as dynamic) as string
     match = CreateObject("roRegex",pattern,"i").match(page)
     if match.count() < 2 then return ""
     wrapper = ParseJson(match[1])
-    if type(wrapper) <> "roArray" or wrapper.count() <> 1 then return ""
+    if type(wrapper) <> "roArray" then return ""
+    if wrapper.count() <> 1 then return ""
     encoded = orbitText(wrapper[0],65536)
     if encoded = "" then return ""
     decoded = rpHdOnlineVoeDecrypt(encoded)
