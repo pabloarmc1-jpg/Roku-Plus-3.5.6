@@ -3335,6 +3335,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
             moveSubtitleMenuSelection(-1)
         else if key = "down"
             moveSubtitleMenuSelection(1)
+        else if key = "left"
+            moveSubtitleMenuSelection(-1)
+        else if key = "right"
+            moveSubtitleMenuSelection(1)
         else if key = "OK" or key = "play"
             selectSubtitleTrack()
         else if key = "back"
@@ -3348,6 +3352,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
         if key = "up"
             movePlayerOptionsMenuSelection(-1)
         else if key = "down"
+            movePlayerOptionsMenuSelection(1)
+        else if key = "left"
+            movePlayerOptionsMenuSelection(-1)
+        else if key = "right"
             movePlayerOptionsMenuSelection(1)
         else if key = "OK" or key = "play"
             selectPlayerOptionsMenu()
@@ -3363,6 +3371,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
             moveDisplayMenuSelection(-1)
         else if key = "down"
             moveDisplayMenuSelection(1)
+        else if key = "left"
+            moveDisplayMenuSelection(-1)
+        else if key = "right"
+            moveDisplayMenuSelection(1)
         else if key = "OK" or key = "play"
             selectDisplayMenu()
         else if key = "back"
@@ -3376,6 +3388,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
         if key = "up"
             moveAudioMenuSelection(-1)
         else if key = "down"
+            moveAudioMenuSelection(1)
+        else if key = "left"
+            moveAudioMenuSelection(-1)
+        else if key = "right"
             moveAudioMenuSelection(1)
         else if key = "OK" or key = "play"
             selectAudioTrack()
