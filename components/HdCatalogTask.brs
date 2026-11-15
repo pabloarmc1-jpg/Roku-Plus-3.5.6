@@ -136,11 +136,18 @@ function rpHdTaskResolveItem(item as object, provider as string, answer as objec
     if not response.ok then return rpHdTaskFailure(answer,response)
     embeds = rpHdOnlineEmbeds(response.data)
     resolved = rpHdTaskResolveEmbeds(embeds,provider,answer,fetcher,decoderAccept,retry)
-    if resolved.ok or resolved.cancelled or provider <> "allcalidad" or item.kind <> "movie" or resolved.voeBlocked <> true then return resolved
+    if resolved.ok or resolved.cancelled or provider <> "allcalidad" or resolved.voeBlocked <> true then return resolved
 
     ' VOE may answer with an anti-bot interstitial instead of its public player.
-    ' Do not attempt to defeat that protection. Search other installed HD catalogs
-    ' for the same exact title and resolve only an exact title/year match.
+    ' Do not attempt to defeat that protection. Episodes do not have a safe
+    ' cross-catalog identity match here, so return a clear, non-retry message.
+    if item.kind <> "movie"
+        resolved.message = "VOE está temporalmente protegido y no se pudo obtener un enlace compatible para este episodio."
+        return resolved
+    end if
+
+    ' For movies, search other installed HD catalogs for the same exact
+    ' title/year match only.
     fallbackProviders = ["lamovie","cinehax","seriesmetro","cinecalidad"]
     for fallbackIndex = 0 to fallbackProviders.count()-1
         if rpHdTaskSliceExpired() then exit for
