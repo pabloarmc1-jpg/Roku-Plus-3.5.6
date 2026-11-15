@@ -57,6 +57,8 @@ sub init()
     m.audioSelectionPending = invalid
     m.audioMenuFocus = m.top.findNode("audioMenuFocus")
     m.playerOptionsMenuFocus = m.top.findNode("playerOptionsMenuFocus")
+    m.displayMenuFocus = m.top.findNode("displayMenuFocus")
+    m.subtitleMenuFocus = m.top.findNode("subtitleMenuFocus")
     m.subtitleMenuGroup = m.top.findNode("subtitleMenu")
     m.subtitleMenuItems = m.top.findNode("subtitleMenuItems")
     m.subtitleMenuOpen = false
@@ -1294,6 +1296,7 @@ sub refreshAudioTracks()
                     if label = "" then label = "Pista de audio"
                     if language <> "" and lcase(label) = lcase(language) then label = plusAudioLanguageName(language)
                     updated.push({id:trackId,label:label,language:language})
+                    print "[RokuPlus audio] track id="; trackId; " language="; language; " name="; name; " label="; label
                 end if
             end if
         end for
@@ -1352,6 +1355,7 @@ sub openAudioMenu()
     print "[RokuPlus audio] menu_open tracks="; m.audioTracks.count(); " state="; m.decoder.state
     m.audioMenuOpen = true
     m.audioMenuGroup.visible = true
+    m.top.setFocus(true)
     revealTransport()
     drawAudioMenu()
 end sub
@@ -1507,6 +1511,7 @@ sub openSubtitleMenu()
     if m.subtitleMenuGroup = invalid then return
     m.subtitleMenuOpen = true
     m.subtitleMenuGroup.visible = true
+    m.top.setFocus(true)
     if m.audioMenuOpen then closeAudioMenu()
     revealTransport()
     drawSubtitleMenu()
@@ -1555,6 +1560,7 @@ sub drawSubtitleMenu()
     end for
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
     if m.subtitleTracks.count() = 0 and m.subtitleOnlineResults.count() = 0 then output += chr(10) + "También puedes buscar subtítulos en línea."
+    if m.subtitleMenuFocus <> invalid then m.subtitleMenuFocus.translation = [28,118 + (m.subtitleTrackIndex * 52)]
     m.subtitleMenuItems.text = output
 end sub
 
@@ -1640,6 +1646,7 @@ sub openPlayerOptionsMenu()
     m.playerOptionsMenuOpen = true
     m.playerOptionsMenuIndex = 0
     m.playerOptionsMenuGroup.visible = true
+    m.top.setFocus(true)
     revealTransport()
     drawPlayerOptionsMenu()
 end sub
@@ -1701,6 +1708,7 @@ sub openDisplayMenu()
     m.displayMenuOpen = true
     m.displayMenuIndex = m.zoomIndex
     m.displayMenuGroup.visible = true
+    m.top.setFocus(true)
     revealTransport()
     drawDisplayMenu()
 end sub
@@ -1727,6 +1735,7 @@ sub drawDisplayMenu()
         output += chr(10) + "   Saltar introducción"
     end if
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Aplicar     BACK Cerrar"
+    if m.displayMenuFocus <> invalid then m.displayMenuFocus.translation = [28,118 + (m.displayMenuIndex * 52)]
     m.displayMenuItems.text = output
 end sub
 
