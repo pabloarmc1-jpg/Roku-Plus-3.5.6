@@ -318,8 +318,9 @@ function rpHdOnlineEmbeds(raw as dynamic) as object
             if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0 or instr(1,lower,"espanol") > 0 or lower = "es" or lower = "spa" or left(lower,3) = "es-") then score = 60
             ' Spanish is preferred, not required: retain English and unknown-language embeds.
             voeEmbed = CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(url)
+            voeRedirectEmbed = CreateObject("roRegex","^https://arianathankspecial\.com/e/[a-z0-9]{8,20}/?$","i").isMatch(url)
             vimeosEmbed = CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url)
-            if vimeosEmbed or voeEmbed
+            if vimeosEmbed or voeEmbed or voeRedirectEmbed
                 result.push({url:url,language:language,quality:orbitText(embed.quality,40),score:score})
             end if
         end if
@@ -523,6 +524,72 @@ function rpHdOnlineCdn(value as dynamic) as string
     url = orbitHttpsUrl(value)
     if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx)/","i").isMatch(url) then return ""
     return url
+end function
+
+' VOE public player parser. It reads the host's JSON payload without executing JavaScript.
+' Only an HTTPS media URL on the existing CDN allowlist is returned.
+function rpHdOnlineVoeMediaUrl(html as dynamic) as string
+    page = orbitText(html,2097152)
+    if page = "" or len(page) > 2097152 then return ""
+    pattern = "<script[^>]+type=" + chr(34) + "application/json" + chr(34) + "[^>]*>([\s\S]*?)</script>"
+    match = CreateObject("roRegex",pattern,"i").match(page)
+    if match.count() < 2 then return ""
+    wrapper = ParseJson(match[1])
+    if type(wrapper) <> "roArray" or wrapper.count() <> 1 then return ""
+    encoded = orbitText(wrapper[0],65536)
+    if encoded = "" then return ""
+    decoded = rpHdOnlineVoeDecrypt(encoded)
+    if decoded = "" then return ""
+    payload = ParseJson(decoded)
+    if type(payload) <> "roAssociativeArray" then return ""
+    streamUrl = orbitText(payload.source,4096)
+    if streamUrl = "" then streamUrl = orbitText(payload.hls,4096)
+    streamUrl = rpHdOnlineCdn(streamUrl)
+    if streamUrl = "" or instr(1,lcase(streamUrl),".m3u8") = 0 then return ""
+    return streamUrl
+end function
+
+function rpHdOnlineVoeDecrypt(encoded as string) as string
+    if encoded = "" or len(encoded) > 65536 then return ""
+    value = rpHdOnlineVoeRot13(encoded)
+    markers = CreateObject("roRegex","@\$|\^\^|~@|%\?|\*~|!!|#&","g")
+    value = markers.replaceAll(value,"")
+    first = CreateObject("roByteArray")
+    first.FromBase64String(value)
+    count = first.count()
+    if count < 1 or count > 32768 then return ""
+    for i = 0 to count-1
+        shifted = first[i]-3
+        if shifted < 0 then shifted += 256
+        first[i] = shifted
+    end for
+    leftIndex = 0
+    rightIndex = count-1
+    while leftIndex < rightIndex
+        swap = first[leftIndex]
+        first[leftIndex] = first[rightIndex]
+        first[rightIndex] = swap
+        leftIndex++
+        rightIndex--
+    end while
+    second = CreateObject("roByteArray")
+    second.FromBase64String(first.ToAsciiString())
+    if second.count() < 1 or second.count() > 32768 then return ""
+    return second.ToAsciiString()
+end function
+
+function rpHdOnlineVoeRot13(value as string) as string
+    bytes = CreateObject("roByteArray")
+    bytes.FromAsciiString(value)
+    for i = 0 to bytes.count()-1
+        charCode = bytes[i]
+        if charCode >= 65 and charCode <= 90
+            bytes[i] = ((charCode-65+13) mod 26)+65
+        else if charCode >= 97 and charCode <= 122
+            bytes[i] = ((charCode-97+13) mod 26)+97
+        end if
+    end for
+    return bytes.ToAsciiString()
 end function
 
 function rpHdOnlineMediaUrl(html as dynamic) as string
