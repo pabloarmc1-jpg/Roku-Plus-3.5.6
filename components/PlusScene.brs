@@ -990,6 +990,9 @@ sub playerClosed(event as object)
     if type(m.pendingEngineSwitch) = "roAssociativeArray"
         pendingSwitch = m.pendingEngineSwitch
         m.pendingEngineSwitch = invalid
+        ' Persist the previous title before changing decoder instances.
+        rpWatchSave(m.watchState,m.profileId)
+        if m.watchSaveClock <> invalid then m.watchSaveClock.mark()
         m.player.visible = false
         if pendingSwitch.target = "host"
             m.player = m.hostPlayer
