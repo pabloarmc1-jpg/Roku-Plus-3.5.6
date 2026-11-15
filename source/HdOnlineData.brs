@@ -675,7 +675,7 @@ function rpHdOnlineAttributes(line as string) as object
 end function
 
 function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
-    answer = {variants:[],audioTracks:[],subtitleTracks:[],encrypted:false,mediaTagCount:0,audioMediaTagCount:0,audioGroupCount:0,variantAudioGroupCount:0,subtitleMediaTagCount:0}
+    answer = {variants:[],audioTracks:[],subtitleTracks:[],closedCaptionGroups:[],encrypted:false,mediaTagCount:0,audioMediaTagCount:0,audioGroupCount:0,variantAudioGroupCount:0,subtitleMediaTagCount:0,closedCaptionMediaTagCount:0}
     text = orbitText(body,1048577)
     if len(text) > 1048576 or rpHdOnlineCdn(baseUrl) = "" then return answer
     if left(text,7) <> "#EXTM3U" then return answer
@@ -695,6 +695,11 @@ function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
                 groupId = orbitText(attrs["GROUP-ID"],100)
                 subtitleUrl = rpHdOnlineJoin(baseUrl,orbitText(attrs.URI,4096))
                 answer.subtitleTracks.push({group:groupId,name:orbitText(attrs.NAME,80),language:orbitText(attrs.LANGUAGE,20),default:lcase(orbitText(attrs.DEFAULT,10)) = "yes",forced:lcase(orbitText(attrs.FORCED,10)) = "yes",url:subtitleUrl})
+            else if mediaType = "closed-captions"
+                answer.closedCaptionMediaTagCount++
+                captionGroup = orbitText(attrs["GROUP-ID"],100)
+                captionInstream = orbitText(attrs["INSTREAM-ID"],40)
+                answer.closedCaptionGroups.push({group:captionGroup,instreamId:captionInstream,language:orbitText(attrs.LANGUAGE,20),name:orbitText(attrs.NAME,80),default:lcase(orbitText(attrs.DEFAULT,10)) = "yes"})
             else if mediaType = "audio"
                 answer.audioMediaTagCount++
                 groupId = orbitText(attrs["GROUP-ID"],100)
@@ -713,7 +718,7 @@ function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
             end if
             url = rpHdOnlineJoin(baseUrl,line)
             if url <> ""
-                answer.variants.push({url:url,codecs:orbitText(pending.CODECS,200),width:width,height:height,fps:orbitText(pending["FRAME-RATE"],32).toFloat(),bandwidth:orbitInteger(pending.BANDWIDTH,100000000),averageBandwidth:orbitInteger(pending["AVERAGE-BANDWIDTH"],100000000),videoRange:orbitText(pending["VIDEO-RANGE"],20),hdcpLevel:orbitText(pending["HDCP-LEVEL"],20),audioGroup:orbitText(pending.AUDIO,100),subtitleGroup:orbitText(pending.SUBTITLES,100)})
+                answer.variants.push({url:url,codecs:orbitText(pending.CODECS,200),width:width,height:height,fps:orbitText(pending["FRAME-RATE"],32).toFloat(),bandwidth:orbitInteger(pending.BANDWIDTH,100000000),averageBandwidth:orbitInteger(pending["AVERAGE-BANDWIDTH"],100000000),videoRange:orbitText(pending["VIDEO-RANGE"],20),hdcpLevel:orbitText(pending["HDCP-LEVEL"],20),audioGroup:orbitText(pending.AUDIO,100),subtitleGroup:orbitText(pending.SUBTITLES,100),closedCaptionGroup:orbitText(pending["CLOSED-CAPTIONS"],100)})
                 if orbitText(pending.AUDIO,100) <> "" then answer.variantAudioGroupCount++
             end if
             pending = invalid
