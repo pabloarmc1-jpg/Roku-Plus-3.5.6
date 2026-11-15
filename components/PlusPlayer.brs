@@ -27,8 +27,6 @@ sub init()
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
     m.panel = m.top.findNode("transport")
-    m.capsule = m.top.findNode("capsule")
-    m.titleShade = m.top.findNode("titleShade")
     m.centerSurface = m.top.findNode("centerSurface")
     m.titleText = m.top.findNode("titleText")
     m.startupOverlay = m.top.findNode("startupOverlay")
@@ -47,7 +45,6 @@ sub init()
     m.modeText = m.top.findNode("modeText")
     m.durationText = m.top.findNode("durationText")
     m.pauseText = m.top.findNode("pauseText")
-    m.keyText = m.top.findNode("keyText")
     m.noticeText = m.top.findNode("noticeText")
     m.audioMenuGroup = m.top.findNode("audioMenu")
     m.audioMenuItems = m.top.findNode("audioMenuItems")
@@ -191,8 +188,6 @@ end function
 ' Changing material must not change decoder state, transport visibility, or
 ' focus. Callbacks before init are harmless; init reapplies once nodes exist.
 sub applyPlayerTheme()
-    if m.capsule <> invalid then m.capsule.uri = playerSurfaceUri("capsule")
-    if m.titleShade <> invalid then m.titleShade.uri = playerSurfaceUri("title-shade")
     if m.centerSurface <> invalid then m.centerSurface.uri = playerSurfaceUri("control-focus")
     if m.previewMask <> invalid
         m.previewMask.uri = "pkg:/images/ui/live-preview-mask.png"
@@ -2469,16 +2464,6 @@ sub drawTransport()
     if m.top.findNode("subtitleControl") <> invalid then m.top.findNode("subtitleControl").visible = true
     if m.top.findNode("zoomControl") <> invalid then m.top.findNode("zoomControl").visible = true
     applyControlSurfaces()
-    m.keyText.text = "↓ Ajustes: Audio · Subtítulos · Imagen y zoom"
-    if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
-        introStart = plusClockValue(m.current.introStart)
-        introEnd = plusClockValue(m.current.introEnd)
-        currentPosition = playerPosition()
-        if introStart <> invalid and introEnd <> invalid and currentPosition <> invalid
-            if currentPosition >= introStart and currentPosition < introEnd then m.keyText.text = "↓ Ajustes · Zoom / Saltar intro"
-        end if
-    end if
-    m.keyText.text += "   ·   ↑ Audio   ·   ↓ Subtítulos"
     m.noticeText.text = ""
     if m.monotonic.totalMilliseconds() < m.noticeUntil then m.noticeText.text = m.notice
 end sub
