@@ -3339,16 +3339,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.endScreenOpen
-        if m.skipPromptVisible and (key = "up" or key = "down" or key = "left" or key = "right")
+        if m.skipPromptVisible and (key = "left" or key = "right")
             m.skipPromptDismissed = true
             m.skipPromptVisible = false
             if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
         end if
-        if key = "up"
-            movePlaybackEndSelection(-1)
-        else if key = "down"
-            movePlaybackEndSelection(1)
-        else if key = "OK" or key = "play"
+        if key = "OK" or key = "play"
             selectPlaybackEndItem()
         else if key = "left" or key = "rewind" or key = "right" or key = "fastforward"
             direction = 1
@@ -3360,11 +3356,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.subtitleMenuOpen
-        if key = "up"
-            moveSubtitleMenuSelection(-1)
-        else if key = "down"
-            moveSubtitleMenuSelection(1)
-        else if key = "left"
+        if key = "left"
             moveSubtitleMenuSelection(-1)
         else if key = "right"
             moveSubtitleMenuSelection(1)
@@ -3378,11 +3370,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.playerOptionsMenuOpen
-        if key = "up"
-            movePlayerOptionsMenuSelection(-1)
-        else if key = "down"
-            movePlayerOptionsMenuSelection(1)
-        else if key = "left"
+        if key = "left"
             movePlayerOptionsMenuSelection(-1)
         else if key = "right"
             movePlayerOptionsMenuSelection(1)
@@ -3396,11 +3384,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.displayMenuOpen
-        if key = "up"
-            moveDisplayMenuSelection(-1)
-        else if key = "down"
-            moveDisplayMenuSelection(1)
-        else if key = "left"
+        if key = "left"
             moveDisplayMenuSelection(-1)
         else if key = "right"
             moveDisplayMenuSelection(1)
@@ -3414,11 +3398,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.audioMenuOpen
-        if key = "up"
-            moveAudioMenuSelection(-1)
-        else if key = "down"
-            moveAudioMenuSelection(1)
-        else if key = "left"
+        if key = "left"
             moveAudioMenuSelection(-1)
         else if key = "right"
             moveAudioMenuSelection(1)
@@ -3442,10 +3422,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
     else if key = "play"
         revealTransport()
         togglePause()
-    else if key = "options" or key = "down"
+    else if key = "options"
         openPlayerOptionsMenu()
-    else if key = "up"
-        openAudioMenu()
+    else if key = "up" or key = "down"
+        return true
     else if key = "OK"
         if m.panel.visible
             activateTransportFocus()
