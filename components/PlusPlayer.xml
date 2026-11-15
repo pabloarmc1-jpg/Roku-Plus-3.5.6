@@ -77,7 +77,6 @@
         <Label id="zoomControlGlyph" translation="[0,7]" width="72" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="⛶" />
       </Group>
 
-      <Label id="keyText" translation="[112,316]" width="760" height="30" font="font:SmallSystemFont" color="0xD7D9E0FF" />
       <Label id="pauseText" translation="[1000,316]" width="808" height="30" font="font:SmallSystemFont" color="0xD7D9E0FF" horizAlign="right" />
       <Label id="noticeText" translation="[112,0]" width="1696" height="32" font="font:SmallSystemFont" color="0xFFFFFFFF" />
     </Group>
