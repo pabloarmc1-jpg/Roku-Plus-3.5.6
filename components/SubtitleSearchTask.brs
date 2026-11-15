@@ -214,6 +214,10 @@ sub runSubtitleSearch()
         end if
         transfer = subtitleTransfer("")
         transfer.addHeader("Accept","text/vtt,application/x-subrip,application/vnd.apple.mpegurl,text/plain,*/*")
+        ' Match the Vimeos player request captured in the HAR.
+        if CreateObject("roRegex","^https://([a-z0-9-]+\.)?vimeos\.(net|zip)/","i").isMatch(safeUrl)
+            transfer.addHeader("Referer","https://vimeos.net/")
+        end if
         subtitleText = subtitleGet(transfer,safeUrl)
         if GetInterface(subtitleText,"ifString") = invalid or len(subtitleText) = 0 or len(subtitleText) > 2097152
             answer.message = "No se pudo descargar la pista de subtítulos de la fuente."
