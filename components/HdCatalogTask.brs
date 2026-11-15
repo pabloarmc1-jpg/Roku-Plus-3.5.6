@@ -972,6 +972,12 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 if response.ok
                     master = rpHdOnlineMaster(response.body,masterUrl)
                     answer.subtitleTracks = master.subtitleTracks
+                    print "[RokuPlus hls-subtitles] mediaTags="; master.subtitleMediaTagCount; " tracks="; master.subtitleTracks.count()
+                    for each subtitleTrack in master.subtitleTracks
+                        subtitleUriState = "missing"
+                        if subtitleTrack.url <> "" then subtitleUriState = "present"
+                        print "[RokuPlus hls-subtitles] group="; subtitleTrack.group; " language="; subtitleTrack.language; " name="; subtitleTrack.name; " default="; subtitleTrack.default; " uri="; subtitleUriState
+                    end for
                     print "[RokuPlus hls] master variants="; master.variants.count(); " audioTracks="; master.audioTracks.count(); " mediaTags="
                     print "[RokuPlus hls] master variants="; "cont"; master.mediaTagCount; " audioMediaTags="; master.audioMediaTagCount; " audioGroups="
                     print "[RokuPlus hls] master variants="; "cont"; master.audioGroupCount; " variantAudioGroups="; master.variantAudioGroupCount; " encrypted="
