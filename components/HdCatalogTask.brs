@@ -972,7 +972,20 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 if response.ok
                     master = rpHdOnlineMaster(response.body,masterUrl)
                     answer.subtitleTracks = master.subtitleTracks
-                    print "[RokuPlus hls-subtitles] mediaTags="; master.subtitleMediaTagCount; " tracks="; master.subtitleTracks.count()
+                    ' VOE/JWPlayer publishes subtitle files beside the embed, not in its HLS master.
+                    ' HAR confirms the public naming convention: /vtt/{embed-id}_es.srt and _en.srt.
+                    if answer.subtitleTracks.count() = 0
+                        voePageUrl = orbitText(mediaReferer,4096)
+                        if voePageUrl = "" then voePageUrl = orbitText(embed.url,4096)
+                        voePageMatch = CreateObject("roRegex","^https://arianathankspecial\\.com/e/([a-z0-9]{8,20})/?$","i").match(voePageUrl)
+                        if voePageMatch.count() >= 2
+                            voePageId = lcase(voePageMatch[1])
+                            answer.subtitleTracks.push({group:"",name:"Español",language:"es",default:true,forced:false,url:"https://arianathankspecial.com/vtt/"+voePageId+"_es.srt"})
+                            answer.subtitleTracks.push({group:"",name:"English",language:"en",default:false,forced:false,url:"https://arianathankspecial.com/vtt/"+voePageId+"_en.srt"})
+                            print "[RokuPlus voe-subtitles] sourceTracks=2 languages=es,en"
+                        end if
+                    end if
+                    print "[RokuPlus hls-subtitles] mediaTags="; master.subtitleMediaTagCount; " tracks="; answer.subtitleTracks.count()
                     print "[RokuPlus hls-captions] mediaTags="; master.closedCaptionMediaTagCount; " groups="; master.closedCaptionGroups.count()
                     for each captionGroup in master.closedCaptionGroups
                         print "[RokuPlus hls-captions] group="; captionGroup.group; " instream="; captionGroup.instreamId; " language="; captionGroup.language; " name="; captionGroup.name
