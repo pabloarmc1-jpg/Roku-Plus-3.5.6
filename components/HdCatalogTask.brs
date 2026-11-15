@@ -156,7 +156,18 @@ function rpHdTaskResolveItem(item as object, provider as string, answer as objec
                         ok:false,cancelled:false,requestId:answer.requestId
                         operation:"resolve",provider:fallbackProvider,message:""
                     }
-                    candidateAnswer = rpHdTaskResolveItem(candidate,fallbackProvider,candidateAnswer,fetcher,decoderAccept,retry)
+                    ' Provider-specific catalogs must use their own resolver; the generic
+                    ' online resolver does not understand CineCalidad or SeriesMetro IDs.
+                    fallbackRequest = {operation:"resolve",provider:fallbackProvider,item:candidate,attempt:retry}
+                    if fallbackProvider = "cinehax"
+                        candidateAnswer = rpHdCinehaxTask(fallbackRequest,candidateAnswer,fetcher,decoderAccept)
+                    else if fallbackProvider = "seriesmetro"
+                        candidateAnswer = rpHdSeriesmetroTask(fallbackRequest,candidateAnswer,fetcher,decoderAccept)
+                    else if fallbackProvider = "cinecalidad"
+                        candidateAnswer = rpHdCinecalidadTask(fallbackRequest,candidateAnswer,fetcher,decoderAccept)
+                    else
+                        candidateAnswer = rpHdTaskResolveItem(candidate,fallbackProvider,candidateAnswer,fetcher,decoderAccept,retry)
+                    end if
                     if candidateAnswer.ok
                         candidateAnswer.sourceFallback = true
                         candidateAnswer.sourceProvider = fallbackProvider
