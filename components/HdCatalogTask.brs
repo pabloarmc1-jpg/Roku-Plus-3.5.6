@@ -916,13 +916,17 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 if masterUrl <> "" then print "[RokuPlus voe] extractor=obfuscated-json result=hls"
             end if
             if masterUrl = "" and voeEmbedPage
-                bodyLower = lcase(orbitText(response.body,4096))
+                bodyLower = lcase(orbitText(response.body,65536))
                 serverLower = lcase(orbitText(response.httpServer,80))
-                antiBotPage = instr(1,serverLower,"ddos-guard") > 0 or instr(1,bodyLower,"ddos-guard") > 0 or instr(1,bodyLower,"checking your browser") > 0 or instr(1,bodyLower,"captcha") > 0
-                ' If the canonical VOE host serves an anti-bot interstitial, try
-                ' the same public embed ID on its known alternate HTTPS hostname.
-                ' This is a normal host fallback, not a challenge/CAPTCHA bypass.
-                if antiBotPage and instr(1,lcase(embed.url),"voe.sx") > 0
+                bodyChallenge = instr(1,bodyLower,"ddos-guard") > 0 or instr(1,bodyLower,"checking your browser") > 0 or instr(1,bodyLower,"captcha") > 0 or instr(1,bodyLower,"challenge-platform") > 0 or instr(1,bodyLower,"cf-chl-") > 0 or instr(1,bodyLower,"verify you are human") > 0 or instr(1,bodyLower,"enable javascript and cookies") > 0
+                serverGuard = instr(1,serverLower,"ddos-guard") > 0
+                ' A server header is only a hint: the response body must contain
+                ' an actual challenge marker before this session is marked blocked.
+                antiBotPage = bodyChallenge
+                ' If the canonical VOE host appears guarded, try the same public
+                ' embed ID on its known alternate HTTPS hostname. This does not
+                ' solve or bypass any challenge/CAPTCHA.
+                if (serverGuard or antiBotPage) and instr(1,lcase(embed.url),"voe.sx") > 0
                     voeMatch = CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?([a-z0-9]{8,20})/?$","i").match(embed.url)
                     if voeMatch.count() >= 4
                         alternateUrl = "https://arianathankspecial.com/e/"+lcase(voeMatch[3])
@@ -938,9 +942,11 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             if masterUrl <> ""
                                 print "[RokuPlus voe] alternate_host_result=media-found"
                             else
-                                alternateBodyLower = lcase(orbitText(response.body,4096))
+                                alternateBodyLower = lcase(orbitText(response.body,65536))
                                 alternateServerLower = lcase(orbitText(response.httpServer,80))
-                                antiBotPage = instr(1,alternateServerLower,"ddos-guard") > 0 or instr(1,alternateBodyLower,"ddos-guard") > 0 or instr(1,alternateBodyLower,"checking your browser") > 0 or instr(1,alternateBodyLower,"captcha") > 0
+                                antiBotPage = instr(1,alternateBodyLower,"ddos-guard") > 0 or instr(1,alternateBodyLower,"checking your browser") > 0 or instr(1,alternateBodyLower,"captcha") > 0 or instr(1,alternateBodyLower,"challenge-platform") > 0 or instr(1,alternateBodyLower,"cf-chl-") > 0 or instr(1,alternateBodyLower,"verify you are human") > 0 or instr(1,alternateBodyLower,"enable javascript and cookies") > 0
+                                print "[RokuPlus voe] page_probe json="; instr(1,alternateBodyLower,"application/json") > 0; " source="; instr(1,alternateBodyLower,chr(34)+"source"+chr(34)) > 0; " hls="; instr(1,alternateBodyLower,chr(34)+"hls"+chr(34)) > 0; " player="; instr(1,alternateBodyLower,"player") > 0
+                                print "[RokuPlus voe] page_probe challenge="; antiBotPage; " server_guard="; instr(1,alternateServerLower,"ddos-guard") > 0; " title="; instr(1,alternateBodyLower,"<title") > 0
                                 print "[RokuPlus voe] alternate_host_result=media-missing bytes="; len(response.body)
                             end if
                         else
