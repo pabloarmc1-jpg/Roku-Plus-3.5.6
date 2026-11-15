@@ -657,7 +657,7 @@ sub openRequest()
     m.current = supplied
     m.sourceSubtitleTracks = []
     if type(supplied.subtitleTracks) = "roArray"
-        selectedGroup = orbitText(supplied.selectedSubtitleGroup,100)
+        selectedGroup = plusPlayerText(supplied.selectedSubtitleGroup,100)
         for each sourceTrack in supplied.subtitleTracks
             if type(sourceTrack) = "roAssociativeArray" and GetInterface(sourceTrack.url,"ifString") <> invalid and sourceTrack.url <> ""
                 if selectedGroup = "" or sourceTrack.group = selectedGroup
@@ -1577,8 +1577,8 @@ sub drawSubtitleMenu()
     output = "Desactivados"
     for i = 0 to m.sourceSubtitleTracks.count()-1
         track = m.sourceSubtitleTracks[i]
-        trackLabel = orbitText(track.name,80)
-        if trackLabel = "" then trackLabel = plusAudioLanguageName(orbitText(track.language,20))
+        trackLabel = plusPlayerText(track.name,80)
+        if trackLabel = "" then trackLabel = plusAudioLanguageName(plusPlayerText(track.language,20))
         if trackLabel = "" then trackLabel = "Pista de subtítulos"
         output += chr(10) + trackLabel
         if track.language <> "" then output += "  (" + track.language + ")"
@@ -1629,7 +1629,7 @@ sub selectSubtitleTrack()
         sourceIndex = m.subtitleTrackIndex - 1
         if sourceIndex < 0 or sourceIndex >= m.sourceSubtitleTracks.count() then return
         chosenSource = m.sourceSubtitleTracks[sourceIndex]
-        m.subtitleOnlinePendingLabel = orbitText(chosenSource.name,80)
+        m.subtitleOnlinePendingLabel = plusPlayerText(chosenSource.name,80)
         m.subtitleOnlineBusy = true
         m.subtitleOnlineOperation = "source"
         drawSubtitleMenu()
@@ -3513,4 +3513,15 @@ function onKeyEvent(key as string, press as boolean) as boolean
         revealTransport()
     end if
     return true
+end function
+
+
+' Component-local text sanitizer. SceneGraph component scripts do not share
+' helper functions declared only inside another component's script.
+function plusPlayerText(value, maxLength as integer) as string
+    if value = invalid then return ""
+    if GetInterface(value, "ifString") = invalid then return ""
+    clean = trim(value)
+    if maxLength > 0 and len(clean) > maxLength then clean = left(clean, maxLength)
+    return clean
 end function
