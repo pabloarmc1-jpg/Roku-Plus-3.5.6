@@ -923,7 +923,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 ' the same public embed ID on its known alternate HTTPS hostname.
                 ' This is a normal host fallback, not a challenge/CAPTCHA bypass.
                 if antiBotPage and instr(1,lcase(embed.url),"voe.sx") > 0
-                    voeMatch = CreateObject("roRegex","^https://(www\\.)?voe\\.sx/(e/)?([a-z0-9]{8,20})/?$","i").match(embed.url)
+                    voeMatch = CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?([a-z0-9]{8,20})/?$","i").match(embed.url)
                     if voeMatch.count() >= 4
                         alternateUrl = "https://arianathankspecial.com/e/"+lcase(voeMatch[3])
                         print "[RokuPlus voe] alternate_host_attempt=1 host=arianathankspecial.com"
