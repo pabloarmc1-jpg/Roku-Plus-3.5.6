@@ -756,8 +756,16 @@ sub launchVideo(item as object, url as string, format as string)
     if item.doesExist("introStart") then descriptor.introStart = item.introStart
     if item.doesExist("introEnd") then descriptor.introEnd = item.introEnd
     savedProgress = rpWatchGet(m.watchState,item.id)
-    if savedProgress <> invalid and savedProgress.position > 15 and savedProgress.watched <> true
-        descriptor.resumePosition = savedProgress.position
+    if savedProgress <> invalid
+        print "[RokuPlus resume] bookmark itemId="; orbitText(item.id,180); " position="; savedProgress.position; " watched="; savedProgress.watched
+        if savedProgress.position > 15 and savedProgress.watched <> true
+            descriptor.resumePosition = savedProgress.position
+            print "[RokuPlus resume] descriptor itemId="; orbitText(item.id,180); " target="; descriptor.resumePosition
+        else
+            print "[RokuPlus resume] bookmark_ignored itemId="; orbitText(item.id,180); " reason=position_or_watched"
+        end if
+    else
+        print "[RokuPlus resume] bookmark_missing itemId="; orbitText(item.id,180)
     end if
     if item.doesExist("mediaHeaders") then descriptor.mediaHeaders = item.mediaHeaders
     if type(m.pendingFallbackSegmentUrls) = "roArray"
