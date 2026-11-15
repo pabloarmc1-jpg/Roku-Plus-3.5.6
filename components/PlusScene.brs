@@ -648,13 +648,13 @@ sub launchVideo(item as object, url as string, format as string)
     end if
     ' Switch decoder instances only after the current native pipeline has stopped.
     ' This prevents two Roku Video nodes from playing simultaneously.
-    if m.player <> targetPlayer and m.player.active = true
+    if not m.player.isSameNode(targetPlayer) and m.player.active = true
         m.pendingEngineSwitch = {target:targetEngine,item:item,url:url,format:format}
         print "[RokuPlus player-router] switch_pending from="; "active"; " to="; targetEngine
         m.player.closePlayback()
         return
     end if
-    if m.player <> targetPlayer then m.player.visible = false
+    if not m.player.isSameNode(targetPlayer) then m.player.visible = false
     m.player = targetPlayer
     print "[RokuPlus player-router] engine="; targetEngine; " instance="; targetEngine
     ' Recover LaMovie numeric identity from the canonical HD id when a
