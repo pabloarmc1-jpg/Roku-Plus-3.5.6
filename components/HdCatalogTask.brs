@@ -897,7 +897,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         ' player until a separate host adapter is explicitly validated.
         ' Reset for every candidate to prevent provider crossover.
         answer.playbackEngine = "standard"
-        if CreateObject("roRegex","^https://(www\.)?voe\.sx/","i").isMatch(orbitText(embed.url,2048))
+        if CreateObject("roRegex","^https://(www\.)?voe\.sx/","i").isMatch(orbitText(embed.url,2048)) or CreateObject("roRegex","^https://arianathankspecial\.com/","i").isMatch(orbitText(embed.url,2048))
             answer.playbackEngine = "host"
         end if
         ' The HLS host may validate the page that embeds its player.
@@ -909,7 +909,12 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         if response.cancelled then return rpHdTaskFailure(answer,response)
         if response.ok
             masterUrl = rpHdOnlineMediaUrl(response.body)
-            if masterUrl = "" and instr(1,lcase(embed.url),"voe.sx") > 0
+            voeEmbedPage = instr(1,lcase(embed.url),"voe.sx") > 0 or instr(1,lcase(embed.url),"arianathankspecial.com") > 0
+            if masterUrl = "" and voeEmbedPage
+                masterUrl = rpHdOnlineVoeMediaUrl(response.body)
+                if masterUrl <> "" then print "[RokuPlus voe] extractor=obfuscated-json result=hls"
+            end if
+            if masterUrl = "" and voeEmbedPage
                 bodyLower = lcase(orbitText(response.body,4096))
                 serverLower = lcase(orbitText(response.httpServer,80))
                 if instr(1,serverLower,"ddos-guard") > 0 or instr(1,bodyLower,"ddos-guard") > 0 or instr(1,bodyLower,"checking your browser") > 0 or instr(1,bodyLower,"captcha") > 0
@@ -1893,7 +1898,8 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if role = "embed"
         if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","").isMatch(endpoint) then return true
         if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","").isMatch(endpoint) then return true
-        return CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(endpoint)
+        if CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(endpoint) then return true
+        return CreateObject("roRegex","^https://arianathankspecial\.com/e/[a-z0-9]{8,20}/?$","i").isMatch(endpoint)
     end if
     if role = "media" or role = "sample" or role = "audio-sample" or role = "sample-tail" or role = "sample-full" then return rpHdOnlineCdn(endpoint) <> ""
     return false
