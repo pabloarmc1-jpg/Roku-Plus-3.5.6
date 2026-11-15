@@ -658,6 +658,7 @@ sub openRequest()
     m.sourceSubtitleTracks = []
     if type(supplied.subtitleTracks) = "roArray"
         selectedGroup = plusPlayerText(supplied.selectedSubtitleGroup,100)
+        print "[RokuPlus subtitles-hls] received="; supplied.subtitleTracks.count(); " selectedGroup="; selectedGroup
         for each sourceTrack in supplied.subtitleTracks
             if type(sourceTrack) = "roAssociativeArray" and GetInterface(sourceTrack.url,"ifString") <> invalid and sourceTrack.url <> ""
                 if selectedGroup = "" or sourceTrack.group = selectedGroup
