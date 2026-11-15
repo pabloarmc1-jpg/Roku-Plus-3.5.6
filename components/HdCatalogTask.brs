@@ -973,6 +973,10 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                     master = rpHdOnlineMaster(response.body,masterUrl)
                     answer.subtitleTracks = master.subtitleTracks
                     print "[RokuPlus hls-subtitles] mediaTags="; master.subtitleMediaTagCount; " tracks="; master.subtitleTracks.count()
+                    print "[RokuPlus hls-captions] mediaTags="; master.closedCaptionMediaTagCount; " groups="; master.closedCaptionGroups.count()
+                    for each captionGroup in master.closedCaptionGroups
+                        print "[RokuPlus hls-captions] group="; captionGroup.group; " instream="; captionGroup.instreamId; " language="; captionGroup.language; " name="; captionGroup.name
+                    end for
                     for each subtitleTrack in master.subtitleTracks
                         subtitleUriState = "missing"
                         if subtitleTrack.url <> "" then subtitleUriState = "present"
@@ -1016,6 +1020,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         variantIndex = (qualityAttempt+variantOffset) mod choices.count()
                         selected = choices[variantIndex]
                         answer.selectedSubtitleGroup = orbitText(selected.subtitleGroup,100)
+                        print "[RokuPlus hls-captions] selectedGroup="; orbitText(selected.closedCaptionGroup,100)
                         print "[RokuPlus hls-test] selectedPlaylist="; rpHdTaskSafeUrl(selected.url)
                         answer.variantAttempts++
                         child = fetcher(selected.url,"media",mediaReferer)
