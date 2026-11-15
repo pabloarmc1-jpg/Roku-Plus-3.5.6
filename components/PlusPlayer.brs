@@ -1519,6 +1519,9 @@ sub refreshSubtitleTracks()
     if m.decoder = invalid or not m.decoder.hasField("availableSubtitleTracks") then return
     tracks = m.decoder.availableSubtitleTracks
     updated = []
+    nativeCount = 0
+    if type(tracks) = "roArray" then nativeCount = tracks.count()
+    print "[RokuPlus subtitles-native] available="; nativeCount
     if type(tracks) = "roArray"
         for each track in tracks
             if type(track) = "roAssociativeArray"
@@ -1533,6 +1536,7 @@ sub refreshSubtitleTracks()
                     if label = "" and GetInterface(track["Name"],"ifString") <> invalid then label = track["Name"]
                     if label = "" then label = plusAudioLanguageName(language)
                     if label = "" then label = "Subtítulos"
+                    print "[RokuPlus subtitles-native] id="; trackId; " language="; language; " label="; label
                     updated.push({id:trackId,label:label,language:language})
                 end if
             end if
