@@ -1413,9 +1413,7 @@ sub drawAudioMenu()
     if m.audioMenuFocus <> invalid then m.audioMenuFocus.visible = true
     activeTrack = m.decoder.currentAudioTrack
     for i = 0 to m.audioTracks.count()-1
-        prefix = "   "
-        if i = m.audioTrackIndex then prefix = "▶  "
-        output += prefix + m.audioTracks[i].label
+        output += m.audioTracks[i].label
         if m.audioTracks[i].language <> "" then output += "  (" + m.audioTracks[i].language + ")"
         if m.audioTracks[i].id = activeTrack then output += "  [ACTUAL]"
         if i < m.audioTracks.count()-1 then output += chr(10)
@@ -1562,42 +1560,30 @@ end sub
 sub drawSubtitleMenu()
     if m.subtitleMenuItems = invalid then return
     output = ""
-    prefix = "   "
-    if m.subtitleTrackIndex = 0 then prefix = "▶  "
-    output += prefix + "Desactivados"
+    output += "Desactivados"
     output += chr(10)
-    prefix = "   "
-    if m.subtitleTrackIndex = 1 then prefix = "▶  "
     keyStatus = "Sin configurar"
     if subtitleApiKeyLoad() <> "" then keyStatus = "Configurada"
-    output += prefix + "Configurar API Key Subtitle Search Engine (" + keyStatus + ")"
+    output += "Configurar API Key Subtitle Search Engine (" + keyStatus + ")"
     output += chr(10)
-    prefix = "   "
-    if m.subtitleTrackIndex = 2 then prefix = "▶  "
     subdlKeyStatus = "Sin configurar"
     if subdlApiKeyLoad() <> "" then subdlKeyStatus = "Configurada"
-    output += prefix + "Configurar API Key SubDL (" + subdlKeyStatus + ")"
+    output += "Configurar API Key SubDL (" + subdlKeyStatus + ")"
     output += chr(10)
-    prefix = "   "
-    if m.subtitleTrackIndex = 3 then prefix = "▶  "
     searchLabel = "Buscar subtítulos en línea (Español)"
     if m.subtitleOnlineBusy
         if m.subtitleOnlineOperation = "download" then searchLabel = "Descargando subtítulo..."
         if m.subtitleOnlineOperation = "search" then searchLabel = "Buscando en línea..."
     end if
-    output += prefix + searchLabel
+    output += searchLabel
     for i = 0 to m.subtitleOnlineResults.count()-1
         output += chr(10)
-        prefix = "   "
-        if i + 4 = m.subtitleTrackIndex then prefix = "▶  "
-        output += prefix + m.subtitleOnlineResults[i].label + "  (ES · en línea)"
+        output += m.subtitleOnlineResults[i].label + "  (ES · en línea)"
     end for
     nativeOffset = 4 + m.subtitleOnlineResults.count()
     for i = 0 to m.subtitleTracks.count()-1
         output += chr(10)
-        prefix = "   "
-        if nativeOffset + i = m.subtitleTrackIndex then prefix = "▶  "
-        output += prefix + m.subtitleTracks[i].label
+        output += m.subtitleTracks[i].label
         if m.subtitleTracks[i].language <> "" then output += "  (" + m.subtitleTracks[i].language + ")"
     end for
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
@@ -1759,9 +1745,7 @@ sub drawDisplayMenu()
     if m.displayMenuItems = invalid then return
     output = ""
     for i = 0 to m.zoomLabels.count()-1
-        prefix = "   "
-        if i = m.displayMenuIndex then prefix = "▶  "
-        output += prefix + m.zoomLabels[i]
+        output += m.zoomLabels[i]
         if i < m.zoomLabels.count()-1 then output += chr(10)
     end for
     showSkip = false
