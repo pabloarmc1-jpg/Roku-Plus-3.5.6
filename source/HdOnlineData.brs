@@ -522,7 +522,7 @@ end function
 
 function rpHdOnlineCdn(value as dynamic) as string
     url = orbitHttpsUrl(value)
-    if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx)/","i").isMatch(url) then return ""
+    if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(url) then return ""
     return url
 end function
 
