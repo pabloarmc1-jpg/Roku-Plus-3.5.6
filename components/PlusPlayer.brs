@@ -3516,12 +3516,20 @@ function onKeyEvent(key as string, press as boolean) as boolean
 end function
 
 
-' Component-local text sanitizer. SceneGraph component scripts do not share
-' helper functions declared only inside another component's script.
+' Component-local text sanitizer.
 function plusPlayerText(value, maxLength as integer) as string
-    if value = invalid then return ""
-    if GetInterface(value, "ifString") = invalid then return ""
-    clean = trim(value)
-    if maxLength > 0 and len(clean) > maxLength then clean = left(clean, maxLength)
+    clean = ""
+
+    if value = invalid then return clean
+
+    valueType = GetInterface(value, "ifString")
+    if valueType = invalid then return clean
+
+    clean = value.toStr()
+
+    if maxLength > 0 and len(clean) > maxLength
+        clean = left(clean, maxLength)
+    end if
+
     return clean
 end function
