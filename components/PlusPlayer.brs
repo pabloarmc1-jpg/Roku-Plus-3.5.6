@@ -1577,7 +1577,10 @@ sub drawSubtitleMenu()
     output = "Desactivados"
     for i = 0 to m.sourceSubtitleTracks.count()-1
         track = m.sourceSubtitleTracks[i]
-        output += chr(10) + orbitText(track.name,80)
+        trackLabel = orbitText(track.name,80)
+        if trackLabel = "" then trackLabel = plusAudioLanguageName(orbitText(track.language,20))
+        if trackLabel = "" then trackLabel = "Pista de subtítulos"
+        output += chr(10) + trackLabel
         if track.language <> "" then output += "  (" + track.language + ")"
         if track.default = true then output += "  · Predeterminado"
     end for
