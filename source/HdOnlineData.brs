@@ -690,7 +690,7 @@ function rpHdOnlineVimeosSubtitleTracks(masterUrl as dynamic) as object
     if serverMatch.count() >= 2
         server = lcase(serverMatch[1])
     else
-        hostMatch = CreateObject("roRegex","^https://(s[0-9]{1,2})\\.vimeos\\.(net|zip)/","i").match(url)
+        hostMatch = CreateObject("roRegex","^https://(s[0-9]{1,2})\.vimeos\.(net|zip)/","i").match(url)
         if hostMatch.count() < 2 then return tracks
         server = lcase(hostMatch[1])
     end if
