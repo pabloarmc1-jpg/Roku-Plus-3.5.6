@@ -14,5 +14,7 @@
     <field id="language" type="string" value="es" />
     <field id="result" type="assocarray" alwaysNotify="true" />
   </interface>
+  <script type="text/brightscript" uri="pkg:/source/CatalogData.brs" />
+  <script type="text/brightscript" uri="pkg:/source/HdOnlineData.brs" />
   <script type="text/brightscript" uri="SubtitleSearchTask.brs" />
 </component>
