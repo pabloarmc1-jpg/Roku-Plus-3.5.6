@@ -199,11 +199,10 @@ sub runSubtitleSearch()
         print "[RokuPlus subtitles-online] download bytes="; len(subtitleText)
         m.top.result = answer
         return
-    end if
     else if operation = "source"
         subtitleUrl = m.top.subtitleUrl
         safeUrl = orbitHttpsUrl(subtitleUrl)
-        allowed = CreateObject("roRegex","^https://(([a-z0-9-]+\\.)?vimeos\\.(net|zip)|([a-z0-9-]+\\.)?fastream\\.to|([a-z0-9-]+\\.)?voe-network\\.net|([a-z0-9-]+\\.)?voe\\.sx|([a-z0-9-]+\\.)?cloudwindow-route\\.com)/","i").isMatch(safeUrl)
+        allowed = CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(safeUrl)
         if not allowed or instr(1,lcase(safeUrl),".vtt") = 0
             answer.message = "La dirección de subtítulos de la fuente no es válida."
             m.top.result = answer
@@ -227,6 +226,7 @@ sub runSubtitleSearch()
         answer.message = ""
         m.top.result = answer
         return
+    end if
     answer.message = "Operación de subtítulos desconocida."
     m.top.result = answer
 end sub
@@ -312,7 +312,7 @@ function subtitleGet(transfer as object, endpoint as string) as dynamic
     if left(endpoint,41) = "https://subtitles.website/strapi/uploads/" then allowed = true
     if left(endpoint,29) = "https://api.subdl.com/api/v1/" then allowed = true
     if left(endpoint,30) = "https://dl.subdl.com/subtitle/" then allowed = true
-    if CreateObject("roRegex","^https://(([a-z0-9-]+\\.)?vimeos\\.(net|zip)|([a-z0-9-]+\\.)?fastream\\.to|([a-z0-9-]+\\.)?voe-network\\.net|([a-z0-9-]+\\.)?voe\\.sx|([a-z0-9-]+\\.)?cloudwindow-route\\.com)/","i").isMatch(endpoint) and instr(1,lcase(endpoint),".vtt") > 0 then allowed = true
+    if CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(endpoint) and instr(1,lcase(endpoint),".vtt") > 0 then allowed = true
     if not allowed then return invalid
     m.subtitleHttpStatus = 0
     port = CreateObject("roMessagePort")
