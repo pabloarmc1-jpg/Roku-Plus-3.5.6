@@ -1402,7 +1402,7 @@ end sub
 
 sub drawAudioMenu()
     if m.audioMenuItems = invalid then return
-    output = "IDIOMA DE AUDIO" + chr(10) + chr(10)
+    output = ""
     if m.audioTracks.count() = 0
         if m.audioMenuFocus <> invalid then m.audioMenuFocus.visible = false
         output += "Roku no ha informado pistas seleccionables para esta fuente." + chr(10) + chr(10) + "El audio disponible puede estar integrado en el video."
@@ -1425,7 +1425,7 @@ sub drawAudioMenu()
     else
         output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
     end if
-    if m.audioMenuFocus <> invalid then m.audioMenuFocus.translation = [14,110 + (m.audioTrackIndex * 52)]
+    if m.audioMenuFocus <> invalid then m.audioMenuFocus.translation = [10,54 + (m.audioTrackIndex * 38)]
     m.audioMenuItems.text = output
 end sub
 
@@ -1561,7 +1561,7 @@ end sub
 
 sub drawSubtitleMenu()
     if m.subtitleMenuItems = invalid then return
-    output = "SUBTÍTULOS" + chr(10) + chr(10)
+    output = ""
     prefix = "   "
     if m.subtitleTrackIndex = 0 then prefix = "▶  "
     output += prefix + "Desactivados"
@@ -1602,7 +1602,7 @@ sub drawSubtitleMenu()
     end for
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
     if m.subtitleTracks.count() = 0 and m.subtitleOnlineResults.count() = 0 then output += chr(10) + "También puedes buscar subtítulos en línea."
-    if m.subtitleMenuFocus <> invalid then m.subtitleMenuFocus.translation = [14,110 + (m.subtitleTrackIndex * 52)]
+    if m.subtitleMenuFocus <> invalid then m.subtitleMenuFocus.translation = [10,54 + (m.subtitleTrackIndex * 38)]
     m.subtitleMenuItems.text = output
 end sub
 
@@ -1757,7 +1757,7 @@ end sub
 
 sub drawDisplayMenu()
     if m.displayMenuItems = invalid then return
-    output = "IMAGEN Y ZOOM" + chr(10) + chr(10)
+    output = ""
     for i = 0 to m.zoomLabels.count()-1
         prefix = "   "
         if i = m.displayMenuIndex then prefix = "▶  "
@@ -1777,7 +1777,7 @@ sub drawDisplayMenu()
         output += chr(10) + "   Saltar introducción"
     end if
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Aplicar     BACK Cerrar"
-    if m.displayMenuFocus <> invalid then m.displayMenuFocus.translation = [14,110 + (m.displayMenuIndex * 52)]
+    if m.displayMenuFocus <> invalid then m.displayMenuFocus.translation = [10,54 + (m.displayMenuIndex * 38)]
     m.displayMenuItems.text = output
 end sub
 
