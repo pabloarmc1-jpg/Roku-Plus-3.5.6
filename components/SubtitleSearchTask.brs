@@ -202,22 +202,28 @@ sub runSubtitleSearch()
     else if operation = "source"
         subtitleUrl = m.top.subtitleUrl
         safeUrl = orbitHttpsUrl(subtitleUrl)
-        allowed = CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(safeUrl)
-        if not allowed or instr(1,lcase(safeUrl),".vtt") = 0
+        allowed = CreateObject("roRegex","^https://(([a-z0-9-]+\\.)?vimeos\\.(net|zip)|([a-z0-9-]+\\.)?fastream\\.to|([a-z0-9-]+\\.)?voe-network\\.net|([a-z0-9-]+\\.)?voe\\.sx|([a-z0-9-]+\\.)?cloudwindow-route\\.com)/","i").isMatch(safeUrl)
+        pathLower = lcase(safeUrl)
+        isVtt = instr(1,pathLower,".vtt") > 0
+        isPlaylist = instr(1,pathLower,".m3u8") > 0
+        if not allowed or (not isVtt and not isPlaylist)
             answer.message = "La dirección de subtítulos de la fuente no es válida."
             m.top.result = answer
             return
         end if
         transfer = subtitleTransfer("")
-        transfer.addHeader("Accept","text/vtt,text/plain,*/*")
+        transfer.addHeader("Accept","text/vtt,application/vnd.apple.mpegurl,text/plain,*/*")
         subtitleText = subtitleGet(transfer,safeUrl)
         if GetInterface(subtitleText,"ifString") = invalid or len(subtitleText) = 0 or len(subtitleText) > 2097152
-            answer.message = "No se pudo descargar la pista WebVTT de la fuente."
+            answer.message = "No se pudo descargar la pista de subtítulos de la fuente."
             m.top.result = answer
             return
         end if
-        if instr(1,subtitleText,"WEBVTT") = 0
-            answer.message = "La fuente no entregó un archivo WebVTT válido."
+        if instr(1,subtitleText,"WEBVTT") = 0 and left(subtitleText.trim(),7) = "#EXTM3U"
+            subtitleText = subtitleVttPlaylist(subtitleText,safeUrl)
+        end if
+        if GetInterface(subtitleText,"ifString") = invalid or instr(1,subtitleText,"WEBVTT") = 0
+            answer.message = "La fuente no entregó una pista WebVTT válida o compatible."
             m.top.result = answer
             return
         end if
@@ -230,6 +236,95 @@ sub runSubtitleSearch()
     answer.message = "Operación de subtítulos desconocida."
     m.top.result = answer
 end sub
+
+function subtitleVttPlaylist(body as string, playlistUrl as string) as dynamic
+    output = "WEBVTT" + chr(10) + chr(10)
+    lines = body.replace(chr(13),"").split(chr(10))
+    pendingDuration = 0.0
+    elapsed = 0.0
+    segmentCount = 0
+    for each rawLine in lines
+        line = rawLine.trim()
+        if left(line,8) = "#EXTINF:"
+            durationText = mid(line,9)
+            commaAt = instr(1,durationText,",")
+            if commaAt > 0 then durationText = left(durationText,commaAt-1)
+            pendingDuration = val(durationText)
+        else if left(line,12) = "#EXT-X-KEY:"
+            attrs = rpHdOnlineAttributes(line)
+            if lcase(orbitText(attrs.METHOD,20)) <> "none" then return invalid
+        else if line <> "" and left(line,1) <> "#"
+            if segmentCount >= 200 then exit for
+            segmentUrl = rpHdOnlineJoin(playlistUrl,line)
+            if segmentUrl = "" or instr(1,lcase(segmentUrl),".vtt") = 0 then return invalid
+            segment = subtitleGet(subtitleTransfer(""),segmentUrl)
+            if GetInterface(segment,"ifString") = invalid or len(segment) = 0 or len(segment) > 262144 or instr(1,segment,"WEBVTT") = 0 then return invalid
+            segmentLines = segment.replace(chr(13),"").split(chr(10))
+            i = 0
+            while i < segmentLines.count()
+                cueLine = segmentLines[i].trim()
+                if instr(1,cueLine,"-->") > 0
+                    timing = CreateObject("roRegex","^((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\\.[0-9]{3})[ \\t]+-->[ \\t]+((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\\.[0-9]{3})","").match(cueLine)
+                    if timing.count() >= 5
+                        cueStart = subtitleVttTime(timing[1]) + elapsed
+                        cueEnd = subtitleVttTime(timing[4]) + elapsed
+                        if cueStart >= 0 and cueEnd > cueStart
+                            output += subtitleVttStamp(cueStart) + " --> " + subtitleVttStamp(cueEnd) + chr(10)
+                            i++
+                            while i < segmentLines.count() and segmentLines[i].trim() <> ""
+                                output += segmentLines[i].trim() + chr(10)
+                                i++
+                            end while
+                            output += chr(10)
+                        end if
+                    end if
+                end if
+                i++
+            end while
+            if pendingDuration > 0 then elapsed += pendingDuration
+            pendingDuration = 0.0
+            segmentCount++
+            if len(output) > 2097152 then return invalid
+        end if
+    end for
+    if segmentCount = 0 then return invalid
+    return output
+end function
+
+function subtitleVttTime(value as string) as float
+    parts = value.split(":")
+    if parts.count() = 2 then value = "00:" + value
+    parts = value.split(":")
+    if parts.count() <> 3 then return -1
+    seconds = parts[2].split(".")
+    if seconds.count() <> 2 then return -1
+    hours = val(parts[0])
+    minutes = val(parts[1])
+    whole = val(seconds[0])
+    millis = val(seconds[1])
+    if hours < 0 or minutes < 0 or minutes > 59 or whole < 0 or whole > 59 or millis < 0 or millis > 999 then return -1
+    return hours*3600 + minutes*60 + whole + millis/1000.0
+end function
+
+function subtitleVttStamp(value as float) as string
+    totalMillis = int(value*1000 + 0.5)
+    hours = totalMillis \ 3600000
+    remainder = totalMillis mod 3600000
+    minutes = remainder \ 60000
+    remainder = remainder mod 60000
+    seconds = remainder \ 1000
+    millis = remainder mod 1000
+    hourText = hours.toStr()
+    minuteText = minutes.toStr()
+    secondText = seconds.toStr()
+    milliText = millis.toStr()
+    if len(hourText) < 2 then hourText = "0" + hourText
+    if len(minuteText) < 2 then minuteText = "0" + minuteText
+    if len(secondText) < 2 then secondText = "0" + secondText
+    if len(milliText) < 3 then milliText = "0" + milliText
+    if len(milliText) < 3 then milliText = "0" + milliText
+    return hourText + ":" + minuteText + ":" + secondText + "." + milliText
+end function
 
 function subtitleSubDlSearch(title as string, imdb as string, language as string, apiKey as string, kind as dynamic, seasonNumber as dynamic, episodeNumber as dynamic) as object
     items = []
@@ -312,7 +407,7 @@ function subtitleGet(transfer as object, endpoint as string) as dynamic
     if left(endpoint,41) = "https://subtitles.website/strapi/uploads/" then allowed = true
     if left(endpoint,29) = "https://api.subdl.com/api/v1/" then allowed = true
     if left(endpoint,30) = "https://dl.subdl.com/subtitle/" then allowed = true
-    if CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(endpoint) and instr(1,lcase(endpoint),".vtt") > 0 then allowed = true
+    if CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(endpoint) and (instr(1,lcase(endpoint),".vtt") > 0 or instr(1,lcase(endpoint),".m3u8") > 0) then allowed = true
     if not allowed then return invalid
     m.subtitleHttpStatus = 0
     port = CreateObject("roMessagePort")
