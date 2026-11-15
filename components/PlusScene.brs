@@ -63,6 +63,7 @@ sub init()
     m.discoveryOffset = 0
     m.nextEpisode = invalid
     m.nextEpisodeCountdown = 0
+    m.voeBlockedSession = {}
     m.profileId = rpLoadProfileId()
     m.watchState = rpWatchLoad(m.profileId)
     m.profileCursor = 0
@@ -401,8 +402,16 @@ sub fetched(event as object)
         voeBlocked = false
         if answer.doesExist("voeBlocked") and answer.voeBlocked = true then voeBlocked = true
         if voeBlocked
-            if type(context.item) = "roAssociativeArray" then context.item.voeBlocked = true
-            if type(m.detail) = "roAssociativeArray" then m.detail.voeBlocked = true
+            if type(context.item) = "roAssociativeArray"
+                context.item.voeBlocked = true
+                blockKey = rpVoeBlockKey(context.item)
+                if blockKey <> "" then m.voeBlockedSession[blockKey] = true
+            end if
+            if type(m.detail) = "roAssociativeArray"
+                m.detail.voeBlocked = true
+                blockKey = rpVoeBlockKey(m.detail)
+                if blockKey <> "" then m.voeBlockedSession[blockKey] = true
+            end if
             print "[RokuPlus voe] retry_suppressed=1 reason=anti-bot-session"
         end if
         if not voeBlocked and (context.operation = "meta" or context.operation = "resolve" or context.operation = "episodes" or context.operation = "resume-episode")
@@ -593,7 +602,8 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
     m.detail = item
     m.detail.hdAttempt = 0
     m.detail.hdAutoRetry = 0
-    m.detail.voeBlocked = false
+    blockKey = rpVoeBlockKey(m.detail)
+    m.detail.voeBlocked = blockKey <> "" and m.voeBlockedSession.doesExist(blockKey)
     m.detailOrigin = origin
     m.autoplay = playNow
     m.action = 0
@@ -2692,7 +2702,10 @@ end function
 sub playDetail()
     if m.detail = invalid then return
     if m.busy then return
-    if m.detail.doesExist("voeBlocked") and m.detail.voeBlocked = true
+    blockKey = rpVoeBlockKey(m.detail)
+    if (m.detail.doesExist("voeBlocked") and m.detail.voeBlocked = true) or (blockKey <> "" and m.voeBlockedSession.doesExist(blockKey))
+        m.detail.voeBlocked = true
+        print "[RokuPlus voe] request_skipped=1 reason=blocked-session"
         m.note = "VOE está temporalmente protegido. Intenta más tarde o elige otra fuente."
         drawScreen()
         return
@@ -3543,4 +3556,18 @@ if m.view = "profiles"
     end if
     paintFocus()
     return true
+end function
+
+
+function rpVoeBlockKey(item as dynamic) as string
+    if type(item) <> "roAssociativeArray" then return ""
+    provider = lcase(orbitText(item.provider,32))
+    if provider = "" then return ""
+    itemId = orbitText(item.id,180)
+    if itemId = "" then itemId = orbitText(item.providerId,80)
+    if itemId = ""
+        itemId = orbitText(item.title,160) + "|s" + orbitInteger(item.season,999).toStr() + "|e" + orbitInteger(item.episode,9999).toStr()
+    end if
+    if itemId = "" then return ""
+    return provider + "|" + lcase(itemId)
 end function
