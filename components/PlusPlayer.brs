@@ -131,6 +131,10 @@ sub init()
     m.forwardControl = m.top.findNode("forwardControl")
     m.rewindSurface = m.top.findNode("rewindSurface")
     m.forwardSurface = m.top.findNode("forwardSurface")
+    m.audioControlSurface = m.top.findNode("audioControlSurface")
+    m.subtitleControlSurface = m.top.findNode("subtitleControlSurface")
+    m.zoomControlSurface = m.top.findNode("zoomControlSurface")
+    m.transportFocusIndex = 1
     m.pulse = m.top.findNode("uiPulse")
     m.decoder.observeField("state", "onDecoderState")
     m.decoder.observeField("position", "onNativePosition")
@@ -199,12 +203,49 @@ end sub
 
 sub applyControlSurfaces()
     if m.rewindSurface = invalid or m.forwardSurface = invalid then return
-    m.rewindSurface.uri = playerSurfaceUri("control")
-    m.forwardSurface.uri = playerSurfaceUri("control")
+    normalUri = "pkg:/images/newplayer-control.png"
+    focusUri = "pkg:/images/newplayer-control-focus.png"
+    m.rewindSurface.uri = normalUri
+    m.forwardSurface.uri = normalUri
+    if m.centerSurface <> invalid then m.centerSurface.uri = normalUri
+    if m.audioControlSurface <> invalid then m.audioControlSurface.uri = normalUri
+    if m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = normalUri
+    if m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = normalUri
+    if m.transportFocusIndex = 0 then m.rewindSurface.uri = focusUri
+    if m.transportFocusIndex = 1 and m.centerSurface <> invalid then m.centerSurface.uri = focusUri
+    if m.transportFocusIndex = 2 then m.forwardSurface.uri = focusUri
+    if m.transportFocusIndex = 3 and m.audioControlSurface <> invalid then m.audioControlSurface.uri = focusUri
+    if m.transportFocusIndex = 4 and m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = focusUri
+    if m.transportFocusIndex = 5 and m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = focusUri
     if m.monotonic = invalid or m.actionUntil = invalid then return
     if m.monotonic.totalMilliseconds() < m.actionUntil
         if m.actionDirection = "left" then m.rewindSurface.uri = playerSurfaceUri("control-pressed")
         if m.actionDirection = "right" then m.forwardSurface.uri = playerSurfaceUri("control-pressed")
+    end if
+end sub
+
+sub moveTransportFocus(direction as integer)
+    m.transportFocusIndex = m.transportFocusIndex + direction
+    if m.transportFocusIndex < 0 then m.transportFocusIndex = 5
+    if m.transportFocusIndex > 5 then m.transportFocusIndex = 0
+    applyControlSurfaces()
+    revealTransport()
+end sub
+
+sub activateTransportFocus()
+    revealTransport()
+    if m.transportFocusIndex = 0
+        if not m.live then shiftTen(true)
+    else if m.transportFocusIndex = 1
+        togglePause()
+    else if m.transportFocusIndex = 2
+        if not m.live then shiftTen(false)
+    else if m.transportFocusIndex = 3
+        openAudioMenu()
+    else if m.transportFocusIndex = 4
+        openSubtitleMenu()
+    else if m.transportFocusIndex = 5
+        openDisplayMenu()
     end if
 end sub
 
@@ -2424,6 +2465,9 @@ sub drawTransport()
     m.pauseGlyph.visible = not m.playGlyph.visible
     m.rewindControl.visible = not m.live
     m.forwardControl.visible = not m.live
+    if m.top.findNode("audioControl") <> invalid then m.top.findNode("audioControl").visible = true
+    if m.top.findNode("subtitleControl") <> invalid then m.top.findNode("subtitleControl").visible = true
+    if m.top.findNode("zoomControl") <> invalid then m.top.findNode("zoomControl").visible = true
     applyControlSurfaces()
     m.keyText.text = "↓ Ajustes: Audio · Subtítulos · Imagen y zoom"
     if not m.live and m.current <> invalid and m.current.doesExist("introStart") and m.current.doesExist("introEnd")
@@ -3419,23 +3463,32 @@ function onKeyEvent(key as string, press as boolean) as boolean
         openAudioMenu()
     else if key = "OK"
         if m.panel.visible
-            revealTransport()
-            togglePause()
+            activateTransportFocus()
         else
             revealTransport()
         end if
-    else if key = "left" or key = "rewind" or key = "replay"
-        if m.segmentMode
-            revealTransport()
-        else
+    else if key = "left"
+        if m.panel.visible
+            moveTransportFocus(-1)
+        else if not m.segmentMode
             shiftTen(true)
-        end if
-    else if key = "right" or key = "fastforward"
-        if m.segmentMode
-            revealTransport()
         else
-            shiftTen(false)
+            revealTransport()
         end if
+    else if key = "right"
+        if m.panel.visible
+            moveTransportFocus(1)
+        else if not m.segmentMode
+            shiftTen(false)
+        else
+            revealTransport()
+        end if
+    else if key = "rewind" or key = "replay"
+        if not m.segmentMode then shiftTen(true)
+        revealTransport()
+    else if key = "fastforward"
+        if not m.segmentMode then shiftTen(false)
+        revealTransport()
     else
         revealTransport()
     end if
