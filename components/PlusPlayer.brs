@@ -131,6 +131,12 @@ sub init()
     m.audioControlSurface = m.top.findNode("audioControlSurface")
     m.subtitleControlSurface = m.top.findNode("subtitleControlSurface")
     m.zoomControlSurface = m.top.findNode("zoomControlSurface")
+    m.rewindFocusTint = m.top.findNode("rewindFocusTint")
+    m.centerFocusTint = m.top.findNode("centerFocusTint")
+    m.forwardFocusTint = m.top.findNode("forwardFocusTint")
+    m.audioFocusTint = m.top.findNode("audioFocusTint")
+    m.subtitleFocusTint = m.top.findNode("subtitleFocusTint")
+    m.zoomFocusTint = m.top.findNode("zoomFocusTint")
     m.transportFocusIndex = 1
     m.pulse = m.top.findNode("uiPulse")
     m.decoder.observeField("state", "onDecoderState")
@@ -206,6 +212,12 @@ sub applyControlSurfaces()
     if m.audioControlSurface <> invalid then m.audioControlSurface.uri = normalUri
     if m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = normalUri
     if m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = normalUri
+    if m.rewindFocusTint <> invalid then m.rewindFocusTint.visible = m.transportFocusIndex = 0
+    if m.centerFocusTint <> invalid then m.centerFocusTint.visible = m.transportFocusIndex = 1
+    if m.forwardFocusTint <> invalid then m.forwardFocusTint.visible = m.transportFocusIndex = 2
+    if m.audioFocusTint <> invalid then m.audioFocusTint.visible = m.transportFocusIndex = 3
+    if m.subtitleFocusTint <> invalid then m.subtitleFocusTint.visible = m.transportFocusIndex = 4
+    if m.zoomFocusTint <> invalid then m.zoomFocusTint.visible = m.transportFocusIndex = 5
     if m.transportFocusIndex = 0 then m.rewindSurface.uri = focusUri
     if m.transportFocusIndex = 1 and m.centerSurface <> invalid then m.centerSurface.uri = focusUri
     if m.transportFocusIndex = 2 then m.forwardSurface.uri = focusUri
