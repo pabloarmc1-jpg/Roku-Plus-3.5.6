@@ -79,7 +79,31 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
         end if
     end if
     if operation = "meta"
+        if item.kind = "movie" and item.providerSlug = ""
+            ' Old movie watch records can retain the exact numeric post ID but
+            ' lose the permalink. Search by title, then accept only the same
+            ' SeriesMetro post ID; never trust a title-only/fuzzy match.
+            lookupRequest = {kind:"movie",query:item.title,skip:0}
+            lookup = rpHdSeriesmetroCatalogRequest(lookupRequest,fetcher)
+            if lookup.ok
+                for each candidate in lookup.items
+                    if candidate.providerId = item.providerId
+                        item.providerSlug = candidate.providerSlug
+                        exit for
+                    end if
+                end for
+            end if
+            if item.providerSlug = ""
+                answer.message = "No se pudo recuperar la ruta de esta película de SeriesMetro. Intenta abrirla desde el catálogo."
+                return answer
+            end if
+            print "[RokuPlus seriesmetro] movie-slug-recovered id="; item.providerId; " slug="; item.providerSlug
+        end if
         endpoint = rpHdSeriesmetroEndpoint("meta",{slug:item.providerSlug})
+        if endpoint = "" then
+            answer.message = "La película de SeriesMetro no tiene una ruta de origen válida."
+            return answer
+        end if
         response = fetcher(endpoint,"seriesmetro-page","https://www3.seriesmetro.net/")
         if not response.ok then return rpHdTaskFailure(answer,response)
         item = rpHdSeriesmetroMetadata(response.body,item)
