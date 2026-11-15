@@ -2115,7 +2115,7 @@ function plusParseWebVtt(body as dynamic) as object
     if len(body) = 0 or len(body) > 2097152 then return cues
     normalized = body.replace(chr(13),"")
     lines = normalized.split(chr(10))
-    timingRegex = CreateObject("roRegex","^((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\\.[0-9]{3})[ \\t]+-->[ \\t]+((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\\.[0-9]{3})","")
+    timingRegex = CreateObject("roRegex","^((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\.[0-9]{3})[ \t]+-->[ \t]+((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\.[0-9]{3})","")
     i = 0
     while i < lines.count() and cues.count() < 5000
         match = timingRegex.match(lines[i].trim())
