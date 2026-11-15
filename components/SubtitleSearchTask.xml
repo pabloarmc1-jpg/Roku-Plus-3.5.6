@@ -5,6 +5,7 @@
     <field id="title" type="string" value="" />
     <field id="imdbId" type="string" value="" />
     <field id="subtitleId" type="string" value="" />
+    <field id="subtitleUrl" type="string" value="" />
     <field id="apiKey" type="string" value="" />
     <field id="subdlApiKey" type="string" value="" />
     <field id="kind" type="string" value="movie" />
