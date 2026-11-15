@@ -66,15 +66,15 @@
       </Group>
       <Group id="audioControl" translation="[1260,222]">
         <Poster id="audioControlSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
-        <Label id="audioControlGlyph" translation="[0,7]" width="72" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center">♫</Label>
+        <Label id="audioControlGlyph" translation="[0,7]" width="72" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="♫" />
       </Group>
       <Group id="subtitleControl" translation="[1370,222]">
         <Poster id="subtitleControlSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
-        <Label id="subtitleControlGlyph" translation="[0,7]" width="72" height="58" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center">CC</Label>
+        <Label id="subtitleControlGlyph" translation="[0,7]" width="72" height="58" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="CC" />
       </Group>
       <Group id="zoomControl" translation="[1480,222]">
         <Poster id="zoomControlSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
-        <Label id="zoomControlGlyph" translation="[0,7]" width="72" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center">⛶</Label>
+        <Label id="zoomControlGlyph" translation="[0,7]" width="72" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="⛶" />
       </Group>
 
       <Label id="keyText" translation="[112,316]" width="760" height="30" font="font:SmallSystemFont" color="0xD7D9E0FF" />
