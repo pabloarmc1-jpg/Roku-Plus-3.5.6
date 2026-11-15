@@ -55,31 +55,25 @@
 
       <Group id="rewindControl" translation="[730,222]">
         <Poster id="rewindSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
-        <Rectangle id="rewindFocusTint" width="72" height="72" color="0xE5091438" visible="false" />
         <Poster translation="[4,4]" width="64" height="64" uri="pkg:/images/newplayer-rewind.png" />
       </Group>
       <Poster id="centerSurface" translation="[920,214]" width="88" height="88" uri="pkg:/images/newplayer-control-focus.png" />
-      <Rectangle id="centerFocusTint" translation="[920,214]" width="88" height="88" color="0xE5091438" visible="false" />
       <Poster id="playGlyph" translation="[932,226]" width="64" height="64" uri="pkg:/images/newplayer-play.png" visible="false" />
       <Poster id="pauseGlyph" translation="[932,226]" width="64" height="64" uri="pkg:/images/newplayer-pause.png" />
       <Group id="forwardControl" translation="[1126,222]">
         <Poster id="forwardSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
-        <Rectangle id="forwardFocusTint" width="72" height="72" color="0xE5091438" visible="false" />
         <Poster translation="[4,4]" width="64" height="64" uri="pkg:/images/newplayer-forward.png" />
       </Group>
       <Group id="audioControl" translation="[1260,222]">
         <Poster id="audioControlSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
-        <Rectangle id="audioFocusTint" width="72" height="72" color="0xE5091438" visible="false" />
         <Label id="audioControlGlyph" translation="[0,7]" width="72" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="♫" />
       </Group>
       <Group id="subtitleControl" translation="[1370,222]">
         <Poster id="subtitleControlSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
-        <Rectangle id="subtitleFocusTint" width="72" height="72" color="0xE5091438" visible="false" />
         <Label id="subtitleControlGlyph" translation="[0,7]" width="72" height="58" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="CC" />
       </Group>
       <Group id="zoomControl" translation="[1480,222]">
         <Poster id="zoomControlSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
-        <Rectangle id="zoomFocusTint" width="72" height="72" color="0xE5091438" visible="false" />
         <Label id="zoomControlGlyph" translation="[0,7]" width="72" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="⛶" />
       </Group>
 
