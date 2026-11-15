@@ -1099,6 +1099,9 @@ sub onDecoderState()
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
+        ' Refresh once playback is active; some HLS decoders publish audio tracks
+        ' only after the first rendition has started, especially on the host player.
+        refreshAudioTracks()
         if m.ticket <> invalid and m.ticket.bufferingTimeoutExtended = true
             ' Once playback resumes, allow a fresh 12 seconds for confirmation.
             m.ticket.deadlineAt = m.monotonic.totalMilliseconds() + 12000
