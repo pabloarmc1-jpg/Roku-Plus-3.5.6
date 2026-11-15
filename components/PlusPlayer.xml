@@ -73,6 +73,7 @@
     <Group id="playerOptionsMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
+      <Rectangle id="playerOptionsMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091440" />
       <Label id="playerOptionsMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
     </Group>
     <Group id="playbackEndScreen" translation="[0,0]" visible="false">
@@ -125,6 +126,7 @@
     <Group id="audioMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
+      <Rectangle id="audioMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091440" />
       <Label id="audioMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
     </Group>
     <Group id="subtitleMenu" translation="[460,210]" visible="false">
