@@ -1425,7 +1425,7 @@ sub drawAudioMenu()
     else
         output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
     end if
-    if m.audioMenuFocus <> invalid then m.audioMenuFocus.translation = [10,54 + (m.audioTrackIndex * 38)]
+    if m.audioMenuFocus <> invalid then m.audioMenuFocus.translation = [10,16 + (m.audioTrackIndex * 38)]
     m.audioMenuItems.text = output
 end sub
 
@@ -1602,7 +1602,7 @@ sub drawSubtitleMenu()
     end for
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
     if m.subtitleTracks.count() = 0 and m.subtitleOnlineResults.count() = 0 then output += chr(10) + "También puedes buscar subtítulos en línea."
-    if m.subtitleMenuFocus <> invalid then m.subtitleMenuFocus.translation = [10,54 + (m.subtitleTrackIndex * 38)]
+    if m.subtitleMenuFocus <> invalid then m.subtitleMenuFocus.translation = [10,16 + (m.subtitleTrackIndex * 38)]
     m.subtitleMenuItems.text = output
 end sub
 
@@ -1777,7 +1777,7 @@ sub drawDisplayMenu()
         output += chr(10) + "   Saltar introducción"
     end if
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Aplicar     BACK Cerrar"
-    if m.displayMenuFocus <> invalid then m.displayMenuFocus.translation = [10,54 + (m.displayMenuIndex * 38)]
+    if m.displayMenuFocus <> invalid then m.displayMenuFocus.translation = [10,16 + (m.displayMenuIndex * 38)]
     m.displayMenuItems.text = output
 end sub
 
@@ -3360,11 +3360,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.subtitleMenuOpen
-        if key = "left"
+        if key = "up"
             moveSubtitleMenuSelection(-1)
-        else if key = "right"
+        else if key = "down"
             moveSubtitleMenuSelection(1)
-        else if key = "OK" or key = "play"
+        else if key = "OK"
             selectSubtitleTrack()
         else if key = "back"
             closeSubtitleMenu()
@@ -3388,11 +3388,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.displayMenuOpen
-        if key = "left"
+        if key = "up"
             moveDisplayMenuSelection(-1)
-        else if key = "right"
+        else if key = "down"
             moveDisplayMenuSelection(1)
-        else if key = "OK" or key = "play"
+        else if key = "OK"
             selectDisplayMenu()
         else if key = "back"
             closeDisplayMenu()
@@ -3402,11 +3402,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.audioMenuOpen
-        if key = "left"
+        if key = "up"
             moveAudioMenuSelection(-1)
-        else if key = "right"
+        else if key = "down"
             moveAudioMenuSelection(1)
-        else if key = "OK" or key = "play"
+        else if key = "OK"
             selectAudioTrack()
         else if key = "back"
             closeAudioMenu()

@@ -132,21 +132,23 @@
     <Group id="displayMenu" translation="[1390,390]" visible="false">
       <Rectangle width="340" height="250" color="0x080A0FEF" />
       <Rectangle width="340" height="2" color="0xE50914FF" />
+      <Rectangle id="displayMenuFocus" translation="[10,16]" width="320" height="38" color="0xE5091460" />
       <Label id="displayMenuItems" translation="[20,16]" width="304" height="218" font="font:SmallSystemFont" color="0xFFFFFFFF" wrap="false" />
-      <Rectangle id="displayMenuFocus" translation="[10,54]" width="320" height="38" color="0xE5091460" />
     </Group>
     <Group id="audioMenu" translation="[1110,390]" visible="false">
       <Rectangle width="390" height="300" color="0x080A0FEF" />
       <Rectangle width="390" height="2" color="0xE50914FF" />
+      <Rectangle id="audioMenuFocus" translation="[10,16]" width="370" height="38" color="0xE5091460" />
       <Label id="audioMenuItems" translation="[20,16]" width="350" height="270" font="font:SmallSystemFont" color="0xFFFFFFFF" wrap="false" />
-      <Rectangle id="audioMenuFocus" translation="[10,54]" width="370" height="38" color="0xE5091460" />
     </Group>
     <Group id="subtitleMenu" translation="[1250,210]" visible="false">
       <Rectangle width="560" height="500" color="0x080A0FEF" />
       <Rectangle width="560" height="2" color="0xE50914FF" />
+      <Rectangle id="subtitleMenuFocus" translation="[10,16]" width="540" height="38" color="0xE5091460" />
       <Label id="subtitleMenuItems" translation="[20,16]" width="520" height="468" font="font:SmallSystemFont" color="0xFFFFFFFF" wrap="false" />
-      <Rectangle id="subtitleMenuFocus" translation="[10,54]" width="540" height="38" color="0xE5091460" />
     </Group>
+undefined
+undefined
     <Group id="externalSubtitleOverlay" translation="[160,790]" visible="false">
       <Rectangle width="1600" height="100" color="0x000000B8" />
       <Label id="externalSubtitleText" translation="[40,8]" width="1520" height="84" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
