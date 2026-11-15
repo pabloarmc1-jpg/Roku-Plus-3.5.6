@@ -1752,7 +1752,8 @@ function rpHdTaskNativeAudioMasterSafe(master as object, selected as object, dec
             if track.url = "" then return false
         end if
     end for
-    if selected.audioGroup = "" or selected.height > 720 or selected.width > 1280 then return false
+    ' The Roku Video node is capped to 1280x720 for decode-memory use, but validated 1440x720 HLS renditions can still be decoded (the same source already passes the TS/AVC path). Keep the multiaudio exception bounded to 720p height and 1440px width.
+    if selected.audioGroup = "" or selected.height > 720 or selected.width > 1440 then return false
     candidate = {variants:[selected],encrypted:false}
     if rpHdOnlineSelectVariant(candidate,decoderAccept) = invalid then return false
     return true
