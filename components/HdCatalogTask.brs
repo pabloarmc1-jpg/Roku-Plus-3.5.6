@@ -1752,8 +1752,17 @@ function rpHdTaskNativeAudioMasterSafe(master as object, selected as object, dec
             if track.url = "" then return false
         end if
     end for
-    ' The Roku Video node is capped to 1280x720 for decode-memory use, but validated 1440x720 HLS renditions can still be decoded (the same source already passes the TS/AVC path). Keep the multiaudio exception bounded to 720p height and 1440px width.
-    if selected.audioGroup = "" or selected.height > 720 or selected.width > 1440 then return false
+    if not rpHdTaskNativeRenditionSafe(selected,decoderAccept) then return false
+    return true
+end function
+
+' Shared native-HLS capability gate for BOTH player instances and both audio modes.
+' Keep the ceiling aligned so a valid 1440x720 rendition is not sent to TS relay
+' solely because the default-audio and multiaudio paths use different limits.
+' The decoder's 1280x720 memory cap remains in place; this gate bounds the
+' source rendition and still delegates device codec support to the existing selector.
+function rpHdTaskNativeRenditionSafe(selected as object, decoderAccept as dynamic) as boolean
+    if selected.height > 720 or selected.width > 1440 then return false
     candidate = {variants:[selected],encrypted:false}
     if rpHdOnlineSelectVariant(candidate,decoderAccept) = invalid then return false
     return true
@@ -1763,9 +1772,7 @@ end function
 ' validator cannot certify the sample. No audio-language metadata is required.
 function rpHdTaskNativeDefaultAudioSafe(master as object, selected as object, decoderAccept as dynamic) as boolean
     if master.encrypted then return false
-    if selected.height > 720 or selected.width > 1280 then return false
-    candidate = {variants:[selected],encrypted:false}
-    if rpHdOnlineSelectVariant(candidate,decoderAccept) = invalid then return false
+    if not rpHdTaskNativeRenditionSafe(selected,decoderAccept) then return false
     return true
 end function
 
