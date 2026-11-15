@@ -228,33 +228,33 @@ sub applyControlSurfaces()
     end if
     if m.transportFocusIndex = 0
         m.rewindSurface.uri = focusUri
-        m.rewindSurface.blendColor = "0xF04B55FF"
-        m.rewindSurface.opacity = 0.52
+        m.rewindSurface.blendColor = "0xFFFF303B"
+        m.rewindSurface.opacity = 0.92
     end if
     if m.transportFocusIndex = 1 and m.centerSurface <> invalid
         m.centerSurface.uri = focusUri
-        m.centerSurface.blendColor = "0xF04B55FF"
-        m.centerSurface.opacity = 0.52
+        m.centerSurface.blendColor = "0xFFFF303B"
+        m.centerSurface.opacity = 0.92
     end if
     if m.transportFocusIndex = 2
         m.forwardSurface.uri = focusUri
-        m.forwardSurface.blendColor = "0xF04B55FF"
-        m.forwardSurface.opacity = 0.52
+        m.forwardSurface.blendColor = "0xFFFF303B"
+        m.forwardSurface.opacity = 0.92
     end if
     if m.transportFocusIndex = 3 and m.audioControlSurface <> invalid
         m.audioControlSurface.uri = focusUri
-        m.audioControlSurface.blendColor = "0xF04B55FF"
-        m.audioControlSurface.opacity = 0.52
+        m.audioControlSurface.blendColor = "0xFFFF303B"
+        m.audioControlSurface.opacity = 0.92
     end if
     if m.transportFocusIndex = 4 and m.subtitleControlSurface <> invalid
         m.subtitleControlSurface.uri = focusUri
-        m.subtitleControlSurface.blendColor = "0xF04B55FF"
-        m.subtitleControlSurface.opacity = 0.52
+        m.subtitleControlSurface.blendColor = "0xFFFF303B"
+        m.subtitleControlSurface.opacity = 0.92
     end if
     if m.transportFocusIndex = 5 and m.zoomControlSurface <> invalid
         m.zoomControlSurface.uri = focusUri
-        m.zoomControlSurface.blendColor = "0xF04B55FF"
-        m.zoomControlSurface.opacity = 0.52
+        m.zoomControlSurface.blendColor = "0xFFFF303B"
+        m.zoomControlSurface.opacity = 0.92
     end if
     if m.monotonic = invalid or m.actionUntil = invalid then return
     if m.monotonic.totalMilliseconds() < m.actionUntil
