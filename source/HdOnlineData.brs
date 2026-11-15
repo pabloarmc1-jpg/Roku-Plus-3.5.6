@@ -674,6 +674,27 @@ function rpHdOnlineAttributes(line as string) as object
     return answer
 end function
 
+
+' Vimeos publishes side-loaded WebVTT files beside the HLS asset path.
+' Derive the folder, media ID and subtitle server from the actual master URL;
+' never assume a fixed directory or a hard-coded title ID.
+function rpHdOnlineVimeosSubtitleTracks(masterUrl as dynamic) as object
+    tracks = []
+    url = orbitText(masterUrl,4096)
+    if url = "" then return tracks
+    pathMatch = CreateObject("roRegex","^https://[^/]+/hls2/([0-9]{2}/[0-9]{5})/([a-z0-9]{8,32})_[^/]+/master\.m3u8","i").match(url)
+    if pathMatch.count() < 3 then return tracks
+    serverMatch = CreateObject("roRegex","[?&]srv=(s[0-9]{1,2})(&|$)","i").match(url)
+    if serverMatch.count() < 2 then return tracks
+    server = lcase(serverMatch[1])
+    if not CreateObject("roRegex","^s[0-9]{1,2}$","i").isMatch(server) then return tracks
+    subtitleBase = "https://"+server+".vimeos.net/vtt/"+pathMatch[1]+"/"+pathMatch[2]
+    tracks.push({group:"",name:"Español",language:"es",default:true,forced:false,url:subtitleBase+"_spa.vtt"})
+    tracks.push({group:"",name:"English",language:"en",default:false,forced:false,url:subtitleBase+"_eng.vtt"})
+    print "[RokuPlus vimeos-subtitles] sourceTracks="; tracks.count(); " server="; server
+    return tracks
+end function
+
 function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
     answer = {variants:[],audioTracks:[],subtitleTracks:[],closedCaptionGroups:[],encrypted:false,mediaTagCount:0,audioMediaTagCount:0,audioGroupCount:0,variantAudioGroupCount:0,subtitleMediaTagCount:0,closedCaptionMediaTagCount:0}
     text = orbitText(body,1048577)
