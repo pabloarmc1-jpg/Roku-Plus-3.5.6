@@ -317,7 +317,9 @@ function rpHdOnlineEmbeds(raw as dynamic) as object
             if instr(1,lower,"latino") > 0 then score = 100
             if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0 or instr(1,lower,"espanol") > 0 or lower = "es" or lower = "spa" or left(lower,3) = "es-") then score = 60
             ' Spanish is preferred, not required: retain English and unknown-language embeds.
-            if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url)
+            voeEmbed = CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(url)
+            vimeosEmbed = CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url)
+            if vimeosEmbed or voeEmbed
                 result.push({url:url,language:language,quality:orbitText(embed.quality,40),score:score})
             end if
         end if
@@ -519,7 +521,7 @@ end function
 
 function rpHdOnlineCdn(value as dynamic) as string
     url = orbitHttpsUrl(value)
-    if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to)/","i").isMatch(url) then return ""
+    if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx)/","i").isMatch(url) then return ""
     return url
 end function
 
@@ -527,6 +529,14 @@ function rpHdOnlineMediaUrl(html as dynamic) as string
     text = rpHdOnlineUnpack(html)
     quotes = chr(34)+"'"
     pattern = "file\s*:\s*["+quotes+"]([^"+quotes+"]+\.m3u8[^"+quotes+"]*)["+quotes+"]"
+    match = CreateObject("roRegex",pattern,"i").match(text)
+    if match.count() >= 2
+        url = rpHdOnlineCdn(rpHdOnlineJsString(match[1]))
+        if url <> "" then return url
+    end if
+    ' VOE exposes its HLS master in a JSON "hls" property on the embed page.
+    ' Read the literal URL only; never execute the host page's JavaScript.
+    pattern = chr(34)+"hls"+chr(34)+"\s*:\s*["+quotes+"]([^"+quotes+"]+\.m3u8[^"+quotes+"]*)["+quotes+"]"
     match = CreateObject("roRegex",pattern,"i").match(text)
     if match.count() >= 2
         url = rpHdOnlineCdn(rpHdOnlineJsString(match[1]))
