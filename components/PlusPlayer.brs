@@ -106,6 +106,7 @@ sub init()
     m.zoomLevels = [1.0, 1.10, 1.20, 1.33]
     m.zoomLabels = ["Original", "Zoom suave (1.10x)", "Zoom medio (1.20x)", "Zoom completo (1.33x)"]
     m.subtitleTracks = []
+    m.sourceSubtitleTracks = []
     m.subtitleTrackIndex = 0
     m.subtitleOnlineResults = []
     m.subtitleApiKeyDialog = invalid
@@ -654,6 +655,17 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    m.sourceSubtitleTracks = []
+    if type(supplied.subtitleTracks) = "roArray"
+        selectedGroup = orbitText(supplied.selectedSubtitleGroup,100)
+        for each sourceTrack in supplied.subtitleTracks
+            if type(sourceTrack) = "roAssociativeArray" and GetInterface(sourceTrack.url,"ifString") <> invalid and sourceTrack.url <> ""
+                if selectedGroup = "" or sourceTrack.group = selectedGroup
+                    m.sourceSubtitleTracks.push(sourceTrack)
+                end if
+            end if
+        end for
+    end if
     cancelStreamXArtworkTask()
     m.streamXRequestId = m.generation.toStr()
     m.introDbData = invalid
@@ -1562,35 +1574,21 @@ end sub
 
 sub drawSubtitleMenu()
     if m.subtitleMenuItems = invalid then return
-    output = ""
-    output += "Desactivados"
-    output += chr(10)
-    keyStatus = "Sin configurar"
-    if subtitleApiKeyLoad() <> "" then keyStatus = "Configurada"
-    output += "Configurar API Key Subtitle Search Engine (" + keyStatus + ")"
-    output += chr(10)
-    subdlKeyStatus = "Sin configurar"
-    if subdlApiKeyLoad() <> "" then subdlKeyStatus = "Configurada"
-    output += "Configurar API Key SubDL (" + subdlKeyStatus + ")"
-    output += chr(10)
-    searchLabel = "Buscar subtítulos en línea (Español)"
-    if m.subtitleOnlineBusy
-        if m.subtitleOnlineOperation = "download" then searchLabel = "Descargando subtítulo..."
-        if m.subtitleOnlineOperation = "search" then searchLabel = "Buscando en línea..."
-    end if
-    output += searchLabel
-    for i = 0 to m.subtitleOnlineResults.count()-1
-        output += chr(10)
-        output += m.subtitleOnlineResults[i].label + "  (ES · en línea)"
+    output = "Desactivados"
+    for i = 0 to m.sourceSubtitleTracks.count()-1
+        track = m.sourceSubtitleTracks[i]
+        output += chr(10) + orbitText(track.name,80)
+        if track.language <> "" then output += "  (" + track.language + ")"
+        if track.default = true then output += "  · Predeterminado"
     end for
-    nativeOffset = 4 + m.subtitleOnlineResults.count()
     for i = 0 to m.subtitleTracks.count()-1
-        output += chr(10)
-        output += m.subtitleTracks[i].label
+        output += chr(10) + m.subtitleTracks[i].label
         if m.subtitleTracks[i].language <> "" then output += "  (" + m.subtitleTracks[i].language + ")"
     end for
     output += chr(10) + chr(10) + "▲ / ▼ Elegir     OK Confirmar     BACK Cerrar"
-    if m.subtitleTracks.count() = 0 and m.subtitleOnlineResults.count() = 0 then output += chr(10) + "También puedes buscar subtítulos en línea."
+    if m.sourceSubtitleTracks.count() = 0 and m.subtitleTracks.count() = 0
+        output += chr(10) + "Esta fuente no anuncia pistas HLS de subtítulos."
+    end if
     if m.subtitleMenuFocus <> invalid then m.subtitleMenuFocus.translation = [10,16 + (m.subtitleTrackIndex * 38)]
     m.subtitleMenuItems.text = output
 end sub
@@ -1604,7 +1602,7 @@ sub closeSubtitleMenu()
 end sub
 
 sub moveSubtitleMenuSelection(direction as integer)
-    count = 4 + m.subtitleOnlineResults.count() + m.subtitleTracks.count()
+    count = 1 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count()
     m.subtitleTrackIndex = m.subtitleTrackIndex + direction
     if m.subtitleTrackIndex < 0 then m.subtitleTrackIndex = count - 1
     if m.subtitleTrackIndex >= count then m.subtitleTrackIndex = 0
@@ -1624,29 +1622,18 @@ sub selectSubtitleTrack()
         closeSubtitleMenu()
         m.notice = "Subtítulos desactivados."
         print "[RokuPlus subtitles] selected=off"
-    else if m.subtitleTrackIndex = 1
-        openSubtitleApiKeyDialog()
-        return
-    else if m.subtitleTrackIndex = 2
-        openSubDlApiKeyDialog()
-        return
-    else if m.subtitleTrackIndex = 3
+    else if m.subtitleTrackIndex <= m.sourceSubtitleTracks.count()
+        sourceIndex = m.subtitleTrackIndex - 1
+        if sourceIndex < 0 or sourceIndex >= m.sourceSubtitleTracks.count() then return
+        chosenSource = m.sourceSubtitleTracks[sourceIndex]
+        m.subtitleOnlinePendingLabel = orbitText(chosenSource.name,80)
         m.subtitleOnlineBusy = true
-        m.subtitleOnlineOperation = "search"
+        m.subtitleOnlineOperation = "source"
         drawSubtitleMenu()
-        startSubtitleSearchTask("search","")
-        return
-    else if m.subtitleTrackIndex < 4 + m.subtitleOnlineResults.count()
-        onlineIndex = m.subtitleTrackIndex - 4
-        if onlineIndex < 0 or onlineIndex >= m.subtitleOnlineResults.count() then return
-        m.subtitleOnlinePendingLabel = m.subtitleOnlineResults[onlineIndex].label
-        m.subtitleOnlineBusy = true
-        m.subtitleOnlineOperation = "download"
-        drawSubtitleMenu()
-        startSubtitleSearchTask("download",m.subtitleOnlineResults[onlineIndex].id)
+        startSourceSubtitleTask(chosenSource.url)
         return
     else
-        nativeIndex = m.subtitleTrackIndex - 4 - m.subtitleOnlineResults.count()
+        nativeIndex = m.subtitleTrackIndex - 1 - m.sourceSubtitleTracks.count()
         if nativeIndex < 0 or nativeIndex >= m.subtitleTracks.count() then return
         chosen = m.subtitleTracks[nativeIndex]
         if not m.decoder.hasField("subtitleTrack")
@@ -1667,6 +1654,18 @@ sub selectSubtitleTrack()
     m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
     revealTransport()
     drawTransport()
+end sub
+
+sub startSourceSubtitleTask(subtitleUrl as string)
+    cancelSubtitleSearchTask()
+    task = CreateObject("roSGNode","SubtitleSearchTask")
+    task.operation = "source"
+    task.subtitleUrl = subtitleUrl
+    task.observeField("result","onSubtitleSearchTaskResult")
+    m.subtitleSearchTask = task
+    m.top.appendChild(task)
+    task.control = "RUN"
+    print "[RokuPlus subtitles-hls] download_started"
 end sub
 
 sub openPlayerOptionsMenu()
@@ -2067,6 +2066,27 @@ sub onSubtitleSearchTaskResult()
         drawTransport()
         return
     end if
+    if result.operation = "source"
+        cues = plusParseWebVtt(result.subtitleText)
+        if cues.count() = 0
+            m.notice = "La pista HLS no contiene subtítulos WebVTT válidos."
+        else
+            m.externalSubtitleCues = cues
+            m.externalSubtitleIndex = 0
+            m.externalSubtitleLastPosition = -1
+            m.externalSubtitleSelectedIndex = m.subtitleTrackIndex
+            if m.decoder.hasField("subtitleTrack") then m.decoder.subtitleTrack = ""
+            if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "Off"
+            m.notice = "Subtítulos de la fuente activados: " + m.subtitleOnlinePendingLabel
+            print "[RokuPlus subtitles-hls] active cues="; cues.count()
+            closeSubtitleMenu()
+            updateExternalSubtitle()
+        end if
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 5500
+        revealTransport()
+        drawTransport()
+        return
+    end if
     if result.operation = "download"
         cues = plusParseSrt(result.subtitleText)
         if cues.count() = 0
@@ -2088,6 +2108,50 @@ sub onSubtitleSearchTaskResult()
         drawTransport()
     end if
 end sub
+
+function plusParseWebVtt(body as dynamic) as object
+    cues = []
+    if GetInterface(body,"ifString") = invalid then return cues
+    if len(body) = 0 or len(body) > 2097152 then return cues
+    normalized = body.replace(chr(13),"")
+    lines = normalized.split(chr(10))
+    timingRegex = CreateObject("roRegex","^((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\\.[0-9]{3})[ \\t]+-->[ \\t]+((([0-9]{2}:)?[0-9]{2}:[0-9]{2})\\.[0-9]{3})","")
+    i = 0
+    while i < lines.count() and cues.count() < 5000
+        match = timingRegex.match(lines[i].trim())
+        if match.count() >= 5
+            startAt = plusVttTime(match[1])
+            endAt = plusVttTime(match[5])
+            i++
+            textLines = []
+            while i < lines.count() and lines[i].trim() <> ""
+                if textLines.count() < 8
+                    clean = CreateObject("roRegex","<[^>]*>","g").replaceAll(lines[i].trim(),"")
+                    clean = clean.replace("&amp;","&").replace("&lt;","<").replace("&gt;",">").replace("&nbsp;"," ")
+                    if clean <> "" then textLines.push(left(clean,240))
+                end if
+                i++
+            end while
+            caption = ""
+            for each captionLine in textLines
+                if caption <> "" then caption += chr(10)
+                caption += captionLine
+            end for
+            if startAt >= 0 and endAt > startAt and caption <> ""
+                cues.push({start:startAt,finish:endAt,text:caption})
+            end if
+        else
+            i++
+        end if
+    end while
+    return cues
+end function
+
+function plusVttTime(value as string) as float
+    parts = value.split(":")
+    if parts.count() = 2 then value = "00:" + value
+    return plusSrtTime(value.replace(".",","))
+end function
 
 function plusParseSrt(body as dynamic) as object
     cues = []
