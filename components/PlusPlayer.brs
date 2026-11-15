@@ -201,17 +201,61 @@ sub applyControlSurfaces()
     normalUri = "pkg:/images/newplayer-control.png"
     focusUri = "pkg:/images/newplayer-control-focus.png"
     m.rewindSurface.uri = normalUri
+    m.rewindSurface.blendColor = "0xFFFFFFFF"
+    m.rewindSurface.opacity = 1.0
     m.forwardSurface.uri = normalUri
-    if m.centerSurface <> invalid then m.centerSurface.uri = normalUri
-    if m.audioControlSurface <> invalid then m.audioControlSurface.uri = normalUri
-    if m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = normalUri
-    if m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = normalUri
-    if m.transportFocusIndex = 0 then m.rewindSurface.uri = focusUri
-    if m.transportFocusIndex = 1 and m.centerSurface <> invalid then m.centerSurface.uri = focusUri
-    if m.transportFocusIndex = 2 then m.forwardSurface.uri = focusUri
-    if m.transportFocusIndex = 3 and m.audioControlSurface <> invalid then m.audioControlSurface.uri = focusUri
-    if m.transportFocusIndex = 4 and m.subtitleControlSurface <> invalid then m.subtitleControlSurface.uri = focusUri
-    if m.transportFocusIndex = 5 and m.zoomControlSurface <> invalid then m.zoomControlSurface.uri = focusUri
+    m.forwardSurface.blendColor = "0xFFFFFFFF"
+    m.forwardSurface.opacity = 1.0
+    if m.centerSurface <> invalid
+        m.centerSurface.uri = normalUri
+        m.centerSurface.blendColor = "0xFFFFFFFF"
+        m.centerSurface.opacity = 1.0
+    end if
+    if m.audioControlSurface <> invalid
+        m.audioControlSurface.uri = normalUri
+        m.audioControlSurface.blendColor = "0xFFFFFFFF"
+        m.audioControlSurface.opacity = 1.0
+    end if
+    if m.subtitleControlSurface <> invalid
+        m.subtitleControlSurface.uri = normalUri
+        m.subtitleControlSurface.blendColor = "0xFFFFFFFF"
+        m.subtitleControlSurface.opacity = 1.0
+    end if
+    if m.zoomControlSurface <> invalid
+        m.zoomControlSurface.uri = normalUri
+        m.zoomControlSurface.blendColor = "0xFFFFFFFF"
+        m.zoomControlSurface.opacity = 1.0
+    end if
+    if m.transportFocusIndex = 0
+        m.rewindSurface.uri = focusUri
+        m.rewindSurface.blendColor = "0xF04B55FF"
+        m.rewindSurface.opacity = 0.52
+    end if
+    if m.transportFocusIndex = 1 and m.centerSurface <> invalid
+        m.centerSurface.uri = focusUri
+        m.centerSurface.blendColor = "0xF04B55FF"
+        m.centerSurface.opacity = 0.52
+    end if
+    if m.transportFocusIndex = 2
+        m.forwardSurface.uri = focusUri
+        m.forwardSurface.blendColor = "0xF04B55FF"
+        m.forwardSurface.opacity = 0.52
+    end if
+    if m.transportFocusIndex = 3 and m.audioControlSurface <> invalid
+        m.audioControlSurface.uri = focusUri
+        m.audioControlSurface.blendColor = "0xF04B55FF"
+        m.audioControlSurface.opacity = 0.52
+    end if
+    if m.transportFocusIndex = 4 and m.subtitleControlSurface <> invalid
+        m.subtitleControlSurface.uri = focusUri
+        m.subtitleControlSurface.blendColor = "0xF04B55FF"
+        m.subtitleControlSurface.opacity = 0.52
+    end if
+    if m.transportFocusIndex = 5 and m.zoomControlSurface <> invalid
+        m.zoomControlSurface.uri = focusUri
+        m.zoomControlSurface.blendColor = "0xF04B55FF"
+        m.zoomControlSurface.opacity = 0.52
+    end if
     if m.monotonic = invalid or m.actionUntil = invalid then return
     if m.monotonic.totalMilliseconds() < m.actionUntil
         if m.actionDirection = "left" then m.rewindSurface.uri = playerSurfaceUri("control-pressed")
