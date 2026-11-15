@@ -73,7 +73,6 @@
     <Group id="playerOptionsMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
-      <Rectangle id="playerOptionsMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091490" />
       <Label id="playerOptionsMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
       <Rectangle id="playerOptionsMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091450" />
     </Group>
@@ -122,21 +121,18 @@
     <Group id="displayMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
-      <Rectangle id="displayMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091490" />
       <Label id="displayMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
       <Rectangle id="displayMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091450" />
     </Group>
     <Group id="audioMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
-      <Rectangle id="audioMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091490" />
       <Label id="audioMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
       <Rectangle id="audioMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091450" />
     </Group>
     <Group id="subtitleMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
-      <Rectangle id="subtitleMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091490" />
       <Label id="subtitleMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
       <Rectangle id="subtitleMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091450" />
     </Group>
