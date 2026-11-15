@@ -28,21 +28,27 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
             return answer
         end if
         parentNumber = orbitInteger(rawItem.seriesProviderId,999999999)
+        if parentNumber < 1 then parentNumber = orbitInteger(rawItem.providerId,999999999)
         if parentNumber < 1
             parentCanonical = orbitText(rawItem.seriesId,180)
+            if parentCanonical = "" then parentCanonical = orbitText(rawItem.id,180)
             parentPrefix = "hdo-seriesmetro-"
             if left(parentCanonical,len(parentPrefix)) = parentPrefix
-                parentNumber = orbitInteger(mid(parentCanonical,len(parentPrefix)+1),999999999)
+                parentSuffix = mid(parentCanonical,len(parentPrefix)+1)
+                parentMarker = instr(1,parentSuffix,"-s")
+                if parentMarker > 1 then parentSuffix = left(parentSuffix,parentMarker-1)
+                parentNumber = orbitInteger(parentSuffix,999999999)
             end if
         end if
-        parentPath = rpHdSeriesmetroPath(rawItem.seriesProviderSlug)
         seasonNumber = orbitInteger(rawItem.season,999,-1)
         episodeNumber = orbitInteger(rawItem.episode,9999)
-        if parentNumber < 1 or left(parentPath,7) <> "/serie/" or seasonNumber < 0 or episodeNumber < 1
-            answer.message = "El registro no conserva los datos necesarios para localizar este episodio de SeriesMetro."
+        if parentNumber < 1 or seasonNumber < 0 or episodeNumber < 1
+            answer.message = "El registro no conserva el ID de la serie, temporada y episodio necesarios para recuperarlo."
             return answer
         end if
-        parent = {id:"hdo-seriesmetro-"+parentNumber.toStr(),kind:"series",provider:"seriesmetro",providerId:parentNumber,providerSlug:parentPath,title:orbitText(rawItem.seriesTitle,200),seasons:[]}
+        ' The season endpoint accepts the numeric series ID; the parent slug is
+        ' not required to enumerate chapter URLs for legacy watch records.
+        parent = {id:"hdo-seriesmetro-"+parentNumber.toStr(),kind:"series",provider:"seriesmetro",providerId:parentNumber,providerSlug:"",title:orbitText(rawItem.seriesTitle,200),seasons:[]}
         loaded = rpHdSeriesmetroLoadSeason(parent,seasonNumber,fetcher)
         if not loaded.ok
             answer.message = orbitText(loaded.message,240)
