@@ -896,7 +896,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         ' Reset for each candidate so a failed VOE embed cannot mark a later
         ' Vimeos candidate as host playback.
         answer.playbackEngine = "standard"
-        if CreateObject("roRegex","^https://(www\\.)?voe\\.sx/","i").isMatch(orbitText(embed.url,2048))
+        if CreateObject("roRegex","^https://(www\.)?voe\.sx/","i").isMatch(orbitText(embed.url,2048))
             answer.playbackEngine = "host"
         end if
         ' The HLS host may validate the page that embeds its player.
