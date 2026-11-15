@@ -985,6 +985,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                             print "[RokuPlus voe-subtitles] sourceTracks=2 languages=es,en"
                         end if
                     end if
+                    if answer.subtitleTracks.count() = 0
+                        answer.subtitleTracks = rpHdOnlineVimeosSubtitleTracks(masterUrl)
+                    end if
                     print "[RokuPlus hls-subtitles] mediaTags="; master.subtitleMediaTagCount; " tracks="; answer.subtitleTracks.count()
                     print "[RokuPlus hls-captions] mediaTags="; master.closedCaptionMediaTagCount; " groups="; master.closedCaptionGroups.count()
                     for each captionGroup in master.closedCaptionGroups
