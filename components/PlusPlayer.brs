@@ -1364,11 +1364,13 @@ sub drawAudioMenu()
     if m.audioMenuItems = invalid then return
     output = "IDIOMA DE AUDIO" + chr(10) + chr(10)
     if m.audioTracks.count() = 0
+        if m.audioMenuFocus <> invalid then m.audioMenuFocus.visible = false
         output += "Roku no ha informado pistas seleccionables para esta fuente." + chr(10) + chr(10) + "El audio disponible puede estar integrado en el video."
         output += chr(10) + chr(10) + "BACK Cerrar"
         m.audioMenuItems.text = output
         return
     end if
+    if m.audioMenuFocus <> invalid then m.audioMenuFocus.visible = true
     activeTrack = m.decoder.currentAudioTrack
     for i = 0 to m.audioTracks.count()-1
         prefix = "   "
