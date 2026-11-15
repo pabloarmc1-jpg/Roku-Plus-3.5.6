@@ -977,7 +977,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                     if answer.subtitleTracks.count() = 0
                         voePageUrl = orbitText(mediaReferer,4096)
                         if voePageUrl = "" then voePageUrl = orbitText(embed.url,4096)
-                        voePageMatch = CreateObject("roRegex","^https://arianathankspecial\\.com/e/([a-z0-9]{8,20})/?$","i").match(voePageUrl)
+                        voePageMatch = CreateObject("roRegex","^https://arianathankspecial\.com/e/([a-z0-9]{8,20})/?$","i").match(voePageUrl)
                         if voePageMatch.count() >= 2
                             voePageId = lcase(voePageMatch[1])
                             answer.subtitleTracks.push({group:"",name:"Español",language:"es",default:true,forced:false,url:"https://arianathankspecial.com/vtt/"+voePageId+"_es.srt"})
