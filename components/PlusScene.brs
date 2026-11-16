@@ -1410,13 +1410,25 @@ end function
 
 sub applyGenreFilter()
     m.titles = []
+    genreMatchCount = 0
+    genreLoggedCount = 0
+    print "[RokuPlus genres] filter="; m.genreFilter; " catalog_items="; m.pageTitles.count()
     for each item in m.pageTitles
+        itemGenres = browseItemGenres(item)
         include = true
         if m.genreFilter <> "Todos"
-            include = instr(1,browseItemGenres(item),lcase(m.genreFilter)) > 0
+            include = instr(1,itemGenres,lcase(m.genreFilter)) > 0
         end if
-        if include then m.titles.push(item)
+        if include
+            m.titles.push(item)
+            genreMatchCount++
+        end if
+        if genreLoggedCount < 30
+            print "[RokuPlus genres] provider="; orbitText(item.provider,24); " title="; orbitText(item.title,80); " genres="; itemGenres
+            genreLoggedCount++
+        end if
     end for
+    print "[RokuPlus genres] matches="; genreMatchCount; " filter="; m.genreFilter
     ' The provider's default catalog order is its popularity ranking.
     ' Newest sorts by the year metadata supplied by the catalog.
     if m.catalogSort = "recent" and m.titles.count() > 1
