@@ -1719,6 +1719,19 @@ end function
 ' Resolve a Cinemeta discovery record against installed catalogs only when the
 ' user chooses Play (or opens a series episode list). Search the original
 ' localized query first, then the Cinemeta title as a fallback.
+' Keep query order stable while removing duplicates after the same normalization
+' used by provider identity checks (including punctuation and accents).
+function rpHdTaskAppendUniqueSearchQuery(queries as object, value as dynamic) as object
+    query = orbitText(value,200).trim()
+    queryKey = rpHdTaskCinemetaTitleKey(query)
+    if queryKey = "" then return queries
+    for each existingQuery in queries
+        if rpHdTaskCinemetaTitleKey(existingQuery) = queryKey then return queries
+    end for
+    queries.push(query)
+    return queries
+end function
+
 function rpHdTaskFindSource(request as object, answer as object, fetcher as dynamic, decoderAccept as dynamic, sources as dynamic) as object
     item = request.item
     if type(item) <> "roAssociativeArray"
@@ -1738,40 +1751,51 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             if source <> "cinecalidad" or kind <> "series" then providers.push(source)
         end if
     end for
+    if providers.count() = 0
+        answer.message = "No hay proveedores compatibles para este tipo de contenido."
+        print "[RokuPlus source-search] result=no-providers kind="; kind
+        return answer
+    end if
     searchQueries = []
     originalQuery = orbitText(item.searchQuery,200).trim()
     cinemetaTitle = orbitText(item.title,200).trim()
-    if originalQuery <> "" then searchQueries.push(originalQuery)
-    if cinemetaTitle <> "" and rpHdTaskCinemetaTitleKey(cinemetaTitle) <> rpHdTaskCinemetaTitleKey(originalQuery)
-        searchQueries.push(cinemetaTitle)
-    end if
+    searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,originalQuery)
+    searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,cinemetaTitle)
     ' Some provider search indexes tokenize the release year separately.
     ' Try that spelling only after the plain title, without relaxing identity checks.
     discoveryYear = rpHdTaskCinemetaYear(item.year)
     if cinemetaTitle <> "" and discoveryYear <> ""
         yearQuery = cinemetaTitle+" "+discoveryYear
-        yearQueryExists = false
-        for each savedQuery in searchQueries
-            if rpHdTaskCinemetaTitleKey(savedQuery) = rpHdTaskCinemetaTitleKey(yearQuery) then yearQueryExists = true
-        end for
-        if not yearQueryExists then searchQueries.push(yearQuery)
+        searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,yearQuery)
+    end if
+    if searchQueries.count() = 0
+        answer.message = "No hay un título válido para buscar en las fuentes."
+        return answer
     end if
     if searchQueries.count() = 0
         answer.message = "No hay un título válido para buscar en las fuentes."
         return answer
     end if
     failures = 0
+    print "[RokuPlus source-search] start kind="; kind; " providers="; providers.count(); " queries="; searchQueries.count()
     for providerIndex = 0 to providers.count()-1
         if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
         source = providers[providerIndex]
         providerFailed = false
+        providerQueries = 0
+        providerErrors = 0
+        providerNoMatches = 0
+        providerAmbiguous = 0
+        providerUnavailable = 0
         for each searchQuery in searchQueries
             if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
             rpHdTaskBeginSlice(providers.count()-providerIndex)
+            providerQueries++
             catalog = rpHdTaskCatalogPage(source,kind,1,searchQuery,fetcher)
             if catalog.cancelled and m.top.cancelRequested then return rpHdTaskFailure(answer,catalog)
             if not catalog.ok
                 providerFailed = true
+                providerErrors++
                 print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=error"
             else
                 matches = []
@@ -1797,14 +1821,19 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                         sourceAnswer.sourceProvider = source
                         if kind = "movie" or type(sourceAnswer.item) <> "roAssociativeArray" then sourceAnswer.item = candidate
                         print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=matched kind="; kind
+                        print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
+                        print "[RokuPlus source-search] finish result=matched provider="; source
                         return sourceAnswer
                     end if
                     if sourceAnswer.cancelled and m.top.cancelRequested then return sourceAnswer
                     providerFailed = true
+                    providerUnavailable++
                     print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=unavailable"
                 else if matches.count() > 1
+                    providerAmbiguous++
                     print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=ambiguous matches="; matches.count()
                 else
+                    providerNoMatches++
                     print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=no-match candidates="; catalog.items.count()
                     diagnosticCount = 0
                     for each diagnosticCandidate in catalog.items
@@ -1817,10 +1846,12 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 end if
             end if
         end for
+        print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
         if providerFailed then failures++
     end for
     answer.message = "No se encontró una fuente compatible para este título. Prueba otro título o inténtalo más tarde."
     if failures = providers.count() then answer.message = "Las fuentes no respondieron. Inténtalo de nuevo más tarde."
+    print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
 end function
 
@@ -1839,6 +1870,7 @@ function rpHdTaskLocalizedTitleAliasKey(title as dynamic) as string
     if normalized = "rickandmorty" or normalized = "rickymorty" then return "rick-and-morty"
     if normalized = "thesimpsons" or normalized = "lossimpson" then return "the-simpsons"
     if normalized = "familyguy" or normalized = "padredefamilia" then return "family-guy"
+    if normalized = "avatarthelastairbender" or normalized = "avatarlaleyendadeaang" then return "avatar-the-last-airbender"
     return ""
 end function
 
