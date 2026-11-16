@@ -208,7 +208,7 @@
 - Las imágenes de esas tarjetas ahora se decodifican a 256×219 mediante las dimensiones opcionales de `art()`, tanto con la transición de entrada como sin ella. Esto reduce aproximadamente un 23% los píxeles decodificados por portada, sin cambiar el tamaño en pantalla ni el flujo de foco.
 - No se modificaron portadas de Home, fichas, fondos, búsqueda ni reproductor.
 - Cambio en `components/PlusSceneViews.brs`, commit `2d482c3`.
-- Estado: **pendiente compilar y probar en Roku**. Revisar nitidez de las portadas en ambas filas, carga inicial, cambio de páginas y foco. Si se ven borrosas en el televisor, volver a cargar a 292×250.
+- Estado: **validado por el usuario en Roku**. El usuario confirmó que funciona; se conserva la carga de portadas a 256×219 con tamaño visual de 292×250.
 
 ### Carga del fondo de la cuadrícula del catálogo (2026-11-15)
 
