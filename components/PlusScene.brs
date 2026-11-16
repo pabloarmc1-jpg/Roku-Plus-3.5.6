@@ -511,6 +511,14 @@ sub fetched(event as object)
             m.offset = context.offset
             m.nextOffset = answer.nextSkip
             m.more = answer.hasMore
+            ' Genre catalogs scan independent source pages instead of stopping
+            ' at the first general-catalog page. Fetch at most three pages
+            ' automatically; directional navigation continues pagination.
+            if m.genreFilter <> "Todos" and m.titles.count() < 10 and answer.hasMore and context.offset < 40
+                print "[RokuPlus genres] scan_next=1 filter="; m.genreFilter; " source_offset="; answer.nextSkip; " matches="; m.titles.count()
+                loadBrowsePage(answer.nextSkip)
+                return
+            end if
             m.cursor = 0
             if context.offset > 0 and m.titles.count() > previousVisibleCount
                 m.cursor = previousVisibleCount
@@ -3687,9 +3695,22 @@ if m.view = "profiles"
                     m.catalogSort = "popular"
                     m.genreFilter = selectedCategory
                 end if
-                applyGenreFilter()
+                ' A category is a separate browse session: do not filter the
+                ' previously loaded Todos pages. Start again at source page 1.
+                m.pageTitles = []
+                m.titles = []
+                m.offset = 0
+                m.nextOffset = 0
+                m.more = false
+                m.cursor = 0
                 m.note = ""
                 m.zone = "grid"
+                if m.catalogMode = "hd" and not usesOnlineHd()
+                    applyGenreFilter()
+                    drawScreen()
+                else
+                    loadBrowsePage(0)
+                end if
             end if
             drawScreen()
             return true
