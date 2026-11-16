@@ -3528,7 +3528,7 @@ if m.view = "profiles"
                 paintFocus()
             end if
         else if m.zone = "episodes" and previousEpisode <> m.episode
-            if (previousEpisode \\ 4) = (m.episode \\ 4)
+            if (previousEpisode \ 4) = (m.episode \ 4)
                 paintFocus()
             else
                 drawScreen()
