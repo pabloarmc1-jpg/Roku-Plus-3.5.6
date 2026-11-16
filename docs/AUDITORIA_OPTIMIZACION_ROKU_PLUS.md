@@ -423,3 +423,13 @@
 - El catálogo de Inicio y la búsqueda de fuentes para reproducción no se modifican. Tampoco se modifican adaptadores, motor, controles, pausa, seek, reanudación, audio ni subtítulos.
 - La clave de caché de páginas ahora incluye género, orden y operación para evitar reutilizar una página de otra categoría. Se desactiva el escaneo adicional de páginas de proveedores para esta ruta, porque Cinemeta ya entrega el género filtrado.
 - **Estado:** cambios guardados y revisados estáticamente en GitHub. Pendiente compilar y validar en Roku; no se afirma que esté probado en el dispositivo.
+
+
+### Corrección de lista permitida para catálogos Cinemeta (2026-11-16)
+
+- El log Roku confirmó que las selecciones de categorías llegaban a `cinemeta-catalog`, pero cada petición terminaba en `result=error` antes de generar una línea HTTP.
+- Causa identificada: `rpHdTaskAllowedUrl` solo permitía el catálogo `top` sin filtro de género ni paginación, y no permitía el catálogo `year`. Por tanto, el validador local rechazaba las nuevas URLs antes de descargarlas.
+- Se amplía exclusivamente la expresión de lista permitida para aceptar `top` con `genre` y `skip`, `year` con año y `skip`, y se conservan las rutas existentes de búsqueda y metadatos.
+- No se cambia la URL generada, la respuesta de Cinemeta, la selección de fuentes ni ningún archivo del reproductor.
+- Commit de corrección: `67565da` en `components/HdCatalogTask.brs`.
+- **Estado:** corrección guardada y verificada en GitHub; pendiente instalar/compilar y validar las categorías en Roku.
