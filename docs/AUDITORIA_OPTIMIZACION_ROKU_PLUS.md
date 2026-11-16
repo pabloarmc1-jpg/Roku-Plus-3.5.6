@@ -113,3 +113,14 @@
 - Hallazgo defensivo: `homeFetched()` tiene retornos tempranos si el modo/proveedor de una tarea ya no coincide; esos retornos no retiran la entrada de `m.homeJobs`. Los flujos actuales de cambio de modo y proveedor llaman a `cancelHomeRequests()` antes del cambio, por lo que no se demostró una fuga reproducible. No se parchea sin una prueba que reproduzca el estado.
 - `rpHdTaskCombinedCatalog()` consulta fuentes secuencialmente, con deadline y resultados parciales. No conviene paralelizar: el reparto de tiempo, cancelación y deduplicación están ligados a ese orden; el costo de deduplicación observado es pequeño frente a las esperas de red.
 - Resultado: no se encontró un cuello de botella confirmado que justifique modificar el ciclo de tareas. Mantener el comportamiento actual hasta medir en Roku.
+
+
+### Auditoría de recursos gráficos (2026-11-15)
+
+- Inventario de la rama `feature/rokuplus-resume-work`: 119 archivos bajo `images/` (incluye recursos de interfaz, imágenes de ejemplo, splash/iconos y recursos del reproductor).
+- `manifest` declara explícitamente los iconos HD/FHD y las pantallas splash HD/FHD. `PlusSceneViews.brs` carga recursos de interfaz mediante `art()`, `glassSurface()`, arrays de iconos de navegación y nombres construidos dinámicamente; por eso una búsqueda literal de cada ruta no basta para declarar una imagen huérfana.
+- `PlusPlayer.xml` referencia recursos gráficos del reproductor. También hay recursos usados desde datos de programación en `source/RealityData.brs` y `source/LivePresentationData.brs` (imágenes `live-program-granja.png` y `live-program-casa.png`). Se conservan.
+- Se detectó al menos un duplicado binario exacto por SHA: `images/newplayer-control-focus.png` y `images/newplayer-classic-control-focus.png` comparten el mismo blob. No se elimina ni consolida porque pertenecen al conjunto visual del reproductor, expresamente fuera del alcance.
+- Los archivos de imágenes de muestra/portadas en la raíz de `images/` requieren rastrear también los JSON y los datos de catálogo antes de concluir que no se usan. No se ha eliminado ni convertido ningún recurso.
+- No se midieron dimensiones ni consumo real de memoria en un Roku; el tamaño comprimido en Git no permite inferir el costo de decodificación. Para una optimización segura, primero hay que obtener dimensiones y verificar carga/uso en dispositivo.
+- Resultado: auditoría gráfica inicial completada sin cambios en la aplicación. No hay todavía una imagen que pueda borrarse con seguridad ni evidencia para recomprimir recursos sin alterar calidad o presentación.
