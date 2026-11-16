@@ -146,6 +146,7 @@ sub init()
     m.job = invalid
     m.request = ""
     m.pending = invalid
+    m.pendingEpisodeFallback = invalid
     m.tvmazeCache = invalid
     m.pendingSegmentUrls = invalid
     m.pendingSegmentDurations = invalid
@@ -412,6 +413,12 @@ sub fetched(event as object)
     if type(answer.tvmazeCache) = "roAssociativeArray" then m.tvmazeCache = answer.tvmazeCache
     cancelRequest()
     if not answer.ok
+        if (context.operation = "resolve" or context.operation = "resume-episode") and type(context.item) = "roAssociativeArray" and orbitText(context.item.kind,16) = "episode" and rpHdOnlineProvider(context.item.provider) <> "" and context.item.hdFallbackTried <> true
+            context.item.hdFallbackTried = true
+            print "[RokuPlus source-fallback] trigger=resolve-failed provider="; orbitText(context.item.provider,32); " season="; orbitInteger(context.item.season,999); " episode="; orbitInteger(context.item.episode,9999)
+            fetch({operation:"find-source",item:context.item,returnView:"detail",origin:m.detailOrigin})
+            return
+        end if
         if context.operation = "find-source"
             m.view = orbitText(context.returnView,24)
             if m.view = "" then m.view = "detail"
@@ -1152,6 +1159,13 @@ sub playerClosed(event as object)
     ' Return the alias to the untouched standard instance after host playback.
     m.player = m.standardPlayer
     m.view = m.viewBeforePlayer
+    if type(m.pendingEpisodeFallback) = "roAssociativeArray"
+        fallback = m.pendingEpisodeFallback
+        m.pendingEpisodeFallback = invalid
+        m.recovering = false
+        fetch({operation:"find-source",item:fallback.item,returnView:m.view,origin:fallback.origin})
+        return
+    end if
     if m.recovering = true
         m.recovering = false
         if m.view = "live"
@@ -1414,6 +1428,14 @@ sub retryVideo(event as object)
         return
     end if
     if m.view <> "player" then return
+    if type(m.detail) = "roAssociativeArray" and orbitText(m.detail.kind,16) = "episode" and rpHdOnlineProvider(m.detail.provider) <> "" and m.detail.hdFallbackTried <> true
+        m.detail.hdFallbackTried = true
+        m.pendingEpisodeFallback = {item:m.detail,origin:m.detailOrigin}
+        m.recovering = false
+        print "[RokuPlus source-fallback] trigger=playback-error provider="; orbitText(m.detail.provider,32); " season="; orbitInteger(m.detail.season,999); " episode="; orbitInteger(m.detail.episode,9999)
+        m.player.callFunc("closePlayback")
+        return
+    end if
     if m.detail <> invalid and usesOnlineHd()
         m.detail.hdAttempt = orbitInteger(m.detail.hdAttempt,99)+1
         if m.detail.hdAttempt > 99 then m.detail.hdAttempt = 0
