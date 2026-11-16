@@ -2118,7 +2118,7 @@ function rpHdTaskFetchJson(endpoint as string, fetcher as dynamic) as object
     if instr(1,endpoint,"https://cinehax.org/api/rest/v1/") = 1 then body = rpHdCinehaxJsonText(body)
     data = ParseJson(body)
     if type(data) <> "roAssociativeArray"
-        if left(endpoint,32) = "https://lamovie.org/wp-api/v1/"
+        if instr(1,endpoint,"https://lamovie.org/wp-api/v1/") = 1
             diagnosticBody = body.replace(chr(13)," ").replace(chr(10)," ")
             if len(diagnosticBody) > 120 then diagnosticBody = left(diagnosticBody,120)
             print "[RokuPlus lamovie-diagnostic] invalid_json bytes="; len(body); " body="; diagnosticBody
