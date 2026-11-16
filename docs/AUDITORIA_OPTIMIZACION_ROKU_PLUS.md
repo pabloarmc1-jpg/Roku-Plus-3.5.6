@@ -24,10 +24,11 @@
 - [x] Home: la rotación y selección manual del destacado actualizan el poster, título, datos y puntos existentes sin reconstruir toda la pantalla. Commits `35eb15c`, `81dfa54` y `49d68d7`. **Validado por el usuario: funciona en su Roku.**
 - [x] Home: al recibir páginas posteriores de películas, actualizar el contador del destacado y conservar los nodos existentes en vez de reconstruir toda la pantalla. Commit `847623a`. **Pendiente compilar y validar en Roku.**
 - [x] Catálogo: se probó la reutilización parcial de nodos para mover el foco, pero se revirtió por regresión visual: al cambiar de bloque de diez títulos, el foco podía desaparecer y la cuadrícula no se actualizaba. La navegación vuelve a usar `drawScreen()` al cambiar el cursor. Commits de prueba `20e91dc` y `9c2e4e7`; reversión registrada en esta revisión. **Validado por el usuario: el foco volvió a funcionar correctamente tras actualizar la rama.**
-- [ ] Extender la reutilización de nodos a detalle después de medir y diseñar cambios específicos; no se modificó todavía.
+- [x] Revisar detalle y episodios: `detailScreen()` crea un conjunto acotado de nodos (acciones y metadatos); `episodeScreen()` muestra hasta seis temporadas y cuatro episodios por página. La navegación actual redibuja la vista al mover el foco. **Candidato de optimización**, pero no se cambió: cualquier actualización parcial debe sincronizar foco, selección, metadatos y paginación; la regresión anterior demuestra que no conviene actualizar solo el contorno.
 - [ ] Revisar transiciones y animaciones para evitar trabajo cuando no son visibles.
 - [ ] Revisar el manejo del foco y la creación/destrucción de elementos para reducir trabajo de CPU y recolección de basura.
 - [ ] Probar navegación rápida entre Home, películas, series, detalle y búsqueda después de cada cambio de interfaz.
+- [x] Revisar el manejo de foco en detalle/episodios: el redibujado completo mantiene coherencia con los grupos visibles; conservarlo hasta diseñar y probar una actualización parcial que también respete los límites de página.
 
 ## 3. Catálogos, tareas y rendimiento
 
@@ -96,3 +97,6 @@
 
 
 - Reversión de optimización del foco del catálogo: se retiró `updateBrowseSelection()` y se restauró el redibujado completo al cambiar la selección. Se mantiene la implementación previa y validada de Home; no se tocó el reproductor.
+
+
+- Revisión de detalle/episodios (2026-11-15): `detailScreen()` dibuja una pantalla fija con hasta tres acciones; `episodeScreen()` dibuja hasta seis pestañas de temporada y cuatro tarjetas de episodio. `onKeyEvent()` vuelve a llamar `drawScreen()` al mover la selección en detalle y episodios. No se identificó una reconstrucción repetitiva causada por temporizadores; el costo está ligado a cada pulsación. Por seguridad se conserva el comportamiento actual y se documenta como oportunidad, sin modificar código.
