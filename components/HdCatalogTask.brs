@@ -232,7 +232,7 @@ end function
 
 function rpHdTaskCinemetaTitleKey(value as dynamic) as string
     title = lcase(orbitText(value,200).trim())
-    title = CreateObject("roRegex","[^a-z0-9áéíóúüñ]","").replace(title,"")
+    title = CreateObject("roRegex","[^a-z0-9áéíóúüñ]","").replaceAll(title,"")
     return title
 end function
 
