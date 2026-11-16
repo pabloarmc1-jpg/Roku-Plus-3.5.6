@@ -289,13 +289,18 @@ sub fetch(context as object)
     end if
     if online and type(m.tvmazeCache) = "roAssociativeArray" then task.tvmazeCache = m.tvmazeCache
     if online and (context.operation = "resolve" or context.operation = "resume-episode") then task.attempt = orbitInteger(context.item.hdAttempt,99)
+    if online and context.operation = "cinemeta-catalog"
+        task.query = m.genreFilter
+        task.attempt = 0
+        if m.catalogSort = "recent" then task.attempt = 1
+    end if
     task.operation = context.operation
     task.kind = m.kind
     if context.doesExist("kind") then task.kind = context.kind
     if context.operation = "country" then task.countryCode = m.countryCode
     task.requestId = m.request
     task.query = m.query
-    if context.operation = "catalog" then task.skip = context.offset
+    if context.operation = "catalog" or context.operation = "cinemeta-catalog" then task.skip = context.offset
     if context.doesExist("item")
         if online then task.item = context.item else task.imdbId = context.item.imdbId
         if context.item.kind = "episode"
@@ -495,7 +500,7 @@ sub fetched(event as object)
         loadEpisodeSeason()
         m.top.setFocus(true)
         return
-    else if context.operation = "catalog" or context.operation = "search"
+    else if context.operation = "catalog" or context.operation = "cinemeta-catalog" or context.operation = "search"
         if context.operation = "search"
             if answer.partial <> true and answer.items.count() > 0
                 cacheQuery = lcase(orbitText(context.query,120))
@@ -518,7 +523,7 @@ sub fetched(event as object)
             m.note = "Llegaste al final de los resultados."
         else
             if answer.partial <> true
-                pageKey = m.catalogMode + "|" + m.hdProvider + "|" + m.kind + "|" + orbitText(m.query,120) + "|" + context.offset.toStr()
+                pageKey = m.catalogMode + "|" + m.hdProvider + "|" + m.kind + "|" + orbitText(m.query,120) + "|" + m.genreFilter + "|" + m.catalogSort + "|" + context.operation + "|" + context.offset.toStr()
                 m.catalogPageCache = {key:pageKey,items:answer.items,nextOffset:answer.nextSkip,hasMore:answer.hasMore,clock:CreateObject("roTimespan")}
                 m.catalogPageCache.clock.mark()
             end if
@@ -542,7 +547,7 @@ sub fetched(event as object)
             ' Genre catalogs scan independent source pages instead of stopping
             ' at the first general-catalog page. Fetch at most three pages
             ' automatically; directional navigation continues pagination.
-            if m.genreFilter <> "Todos" and m.titles.count() < 10 and answer.hasMore and context.offset < 40
+            if context.operation = "catalog" and m.genreFilter <> "Todos" and m.titles.count() < 10 and answer.hasMore and context.offset < 40
                 print "[RokuPlus genres] scan_next=1 filter="; m.genreFilter; " source_offset="; answer.nextSkip; " matches="; m.titles.count()
                 loadBrowsePage(answer.nextSkip)
                 return
@@ -2892,7 +2897,9 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
         m.zone = "grid"
         drawScreen()
     else
-        pageKey = m.catalogMode + "|" + m.hdProvider + "|" + m.kind + "|" + orbitText(m.query,120) + "|" + offset.toStr()
+        browseOperation = "catalog"
+        if m.catalogMode = "hd" and usesOnlineHd() then browseOperation = "cinemeta-catalog"
+        pageKey = m.catalogMode + "|" + m.hdProvider + "|" + m.kind + "|" + orbitText(m.query,120) + "|" + m.genreFilter + "|" + m.catalogSort + "|" + browseOperation + "|" + offset.toStr()
         if type(m.catalogPageCache) = "roAssociativeArray" and m.catalogPageCache.key = pageKey and m.catalogPageCache.clock <> invalid
             pageAge = m.catalogPageCache.clock.totalMilliseconds()
             if pageAge >= 0 and pageAge < 90000
@@ -2913,7 +2920,7 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
                 m.offset = offset
                 m.nextOffset = m.catalogPageCache.nextOffset
                 m.more = m.catalogPageCache.hasMore
-                if m.genreFilter <> "Todos" and m.titles.count() < 10 and m.more and offset < 40
+                if browseOperation = "catalog" and m.genreFilter <> "Todos" and m.titles.count() < 10 and m.more and offset < 40
                     print "[RokuPlus genres] scan_cached_next=1 filter="; m.genreFilter; " source_offset="; m.nextOffset; " matches="; m.titles.count()
                     loadBrowsePage(m.nextOffset)
                     return
@@ -2933,7 +2940,7 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
                 return
             end if
         end if
-        fetch({operation:"catalog",offset:offset,last:last})
+        fetch({operation:browseOperation,offset:offset,last:last})
     end if
 end sub
 
