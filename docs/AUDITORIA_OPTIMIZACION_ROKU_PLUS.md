@@ -356,3 +356,11 @@
 - La recuperación desde caché aplica la misma unión; una respuesta final vacía conserva los títulos existentes.
 - Código: commit `635083f` en `components/PlusScene.brs`.
 - Estado: implementado y revisado estáticamente; pendiente compilar y probar en Roku. No se modificó el motor de reproducción.
+
+
+### Categorías y orden del catálogo (2026-11-15)
+- Se amplió el diálogo de opciones del catálogo con "Más populares" (conserva el orden de relevancia que entrega la fuente), "Más recientes" (ordena por año descendente) y los géneros disponibles en los títulos cargados.
+- El filtro de género y el orden se aplican sobre la lista acumulada, sin cambiar la paginación continua.
+- **Mejor valoradas queda pendiente:** los modelos de catálogo actuales no conservan una puntuación/rating fiable de las fuentes; no se inventa una clasificación.
+- Código: commit `a1177a1` en `components/PlusScene.brs`.
+- Estado: implementado y revisado estáticamente; pendiente compilar y probar en Roku.
