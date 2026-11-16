@@ -37,16 +37,21 @@ sub rpHdTaskEnrichCatalogMetadata(items as object, kind as string, fetcher as dy
             end if
         end if
     end for
-    if candidates.count() = 0 then return
+    if candidates.count() = 0
+        print "[RokuPlus cinemeta-catalog] kind="; kind; " candidates=0 reason=already_complete"
+        return
+    end if
     maxQueries = 12
     if candidates.count() < maxQueries then maxQueries = candidates.count()
     cinemetaEnriched = 0
     tvmazeFallbacks = 0
+    attempted = 0
     for i = 0 to maxQueries-1
         if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
         remaining = maxQueries-i
         rpHdTaskBeginSlice(remaining)
         item = candidates[i]
+        attempted++
         answer = {ok:true,item:item}
         metadataRequest = {operation:"meta"}
         answer = rpHdCinemetaEnrichAnswer(answer,metadataRequest,fetcher)
@@ -55,9 +60,12 @@ sub rpHdTaskEnrichCatalogMetadata(items as object, kind as string, fetcher as dy
         else if kind = "series"
             tvmazeFallbacks++
             rpHdTaskEnrichItemFromTvmaze(item,fetcher)
+        else
+            print "[RokuPlus cinemeta-catalog] candidate_failed kind="; kind; " title="; left(orbitText(item.title,200),100); " fallback=none"
         end if
     end for
-    print "[RokuPlus cinemeta-catalog] kind="; kind; " candidates="; candidates.count(); " enriched="; cinemetaEnriched; " tvmaze_fallback="; tvmazeFallbacks
+    skipped = candidates.count()-attempted
+    print "[RokuPlus cinemeta-catalog] kind="; kind; " candidates="; candidates.count(); " attempted="; attempted; " enriched="; cinemetaEnriched; " tvmaze_fallback="; tvmazeFallbacks; " skipped_budget="; skipped
 end sub
 
 function rpHdTaskEnrichItemFromTvmaze(item as object, fetcher as dynamic) as boolean
@@ -67,10 +75,17 @@ function rpHdTaskEnrichItemFromTvmaze(item as object, fetcher as dynamic) as boo
     transfer = CreateObject("roUrlTransfer")
     endpoint = "https://api.tvmaze.com/search/shows?q="+transfer.escape(searchTitle)
     response = fetcher(endpoint,"tvmaze","https://www.tvmaze.com/")
-    if response.cancelled or not response.ok then return false
+    if response.cancelled then return false
+    if not response.ok
+        print "[RokuPlus tvmaze-catalog] result=search_failed title="; left(title,100); " status="; orbitInteger(response.httpStatus,9999)
+        return false
+    end if
     if rpHdTaskSliceExpired() then return false
     matches = ParseJson(response.body)
-    if type(matches) <> "roArray" then return false
+    if type(matches) <> "roArray"
+        print "[RokuPlus tvmaze-catalog] result=invalid_search_json title="; left(title,100)
+        return false
+    end if
     targetKey = rpHdTaskCinemetaTitleKey(searchTitle)
     selected = invalid
     exactCount = 0
@@ -84,10 +99,15 @@ function rpHdTaskEnrichItemFromTvmaze(item as object, fetcher as dynamic) as boo
         end if
     end for
     if exactCount <> 1
-        print "[RokuPlus tvmaze-catalog] exact_match_count="; exactCount; " title="; title
+        reason = "title_not_found"
+        if exactCount > 1 then reason = "ambiguous_match"
+        print "[RokuPlus tvmaze-catalog] result="; reason; " exact_match_count="; exactCount; " title="; left(title,100); " results="; matches.count()
         return false
     end if
-    if type(selected.genres) <> "roArray" then return false
+    if type(selected.genres) <> "roArray"
+        print "[RokuPlus tvmaze-catalog] result=genres_missing title="; left(title,100); " show="; orbitText(selected.name,100)
+        return false
+    end if
     if type(item.genres) <> "roArray" then item.genres = []
     beforeCount = item.genres.count()
     for each genre in selected.genres
@@ -103,7 +123,7 @@ function rpHdTaskEnrichItemFromTvmaze(item as object, fetcher as dynamic) as boo
         end if
     end for
     added = item.genres.count() > beforeCount
-    if added then print "[RokuPlus tvmaze-catalog] matched title="; title; " show="; orbitText(selected.name,160); " genres="; item.genres.count()-beforeCount
+    print "[RokuPlus tvmaze-catalog] result=matched title="; left(title,100); " show="; orbitText(selected.name,100); " genres_added="; item.genres.count()-beforeCount
     return added
 end function
 
