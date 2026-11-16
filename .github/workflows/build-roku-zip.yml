@@ -75,10 +75,10 @@ jobs:
             }
           ' manifest)"
           PACKAGE_NAME="Roku-Plus-${VERSION}"
-          python3 - <<'PY'
-          import subprocess, zipfile
+          OUT="/tmp/${PACKAGE_NAME}.zip" python3 - <<'PY'
+          import os, subprocess, zipfile
           paths = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
-          with zipfile.ZipFile("/tmp/${PACKAGE_NAME}.zip", "w", zipfile.ZIP_DEFLATED) as archive:
+          with zipfile.ZipFile(os.environ["OUT"], "w", zipfile.ZIP_DEFLATED) as archive:
               for path in paths:
                   if not path or path.startswith(".github/") or path.lower().endswith(".zip"):
                       continue
