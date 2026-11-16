@@ -396,3 +396,12 @@
 - Cuando una película tiene un enlace validado, se entrega al flujo de reproducción existente. El reproductor, sus controles, pausa, seek, reanudación, audio, subtítulos y motor de reproducción no se modificaron.
 - Código en components/HdCatalogTask.brs, components/PlusScene.brs y components/PlusSceneViews.brs. Commits principales: 8220772, 2871b09, 7d5daa8, 4452a43, c55890c, 1e4cbaa, 09b5e88, ee26097, c05bc8d y cdbefa4.
 - **Estado:** implementado en la rama de trabajo y revisado estáticamente; todavía no compilado ni probado en Roku. Deben verificarse resultados de búsqueda, ficha, coincidencias de fuente, series/temporadas, cancelación con Atrás, reproducción, continuidad, audio y subtítulos antes de considerarlo validado.
+
+### Búsqueda de fuentes con consulta original localizada (2026-11-16)
+- Se conserva en cada resultado de Cinemeta la consulta original que produjo la búsqueda.
+- Al pulsar Reproducir (o abrir episodios de una serie), cada proveedor recibe primero la consulta original del usuario y, si no hay coincidencia, el título canónico de Cinemeta como alternativa.
+- La identidad sigue exigiendo tipo correcto, título normalizado exacto o IMDb ID coincidente. Si ambos registros tienen año, los años deben coincidir; si uno no informa año, solo se admite el título exacto y una coincidencia única.
+- Se registran la consulta y el resultado por proveedor para distinguir errores de fuente, ausencia de resultados y coincidencias ambiguas.
+- No se cambió el reproductor, el motor de reproducción ni sus controles.
+- Código: commit `6e765cf` en `components/HdCatalogTask.brs`.
+- Estado: cambio guardado y revisado estáticamente; pendiente compilar y probar en Roku. La respuesta HTTP 200 de LaMovie con cuerpo de 32 bytes sigue pendiente de diagnóstico independiente; no se alteró su adaptador.
