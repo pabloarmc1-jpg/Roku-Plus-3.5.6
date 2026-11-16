@@ -76,7 +76,9 @@ function introDbResolveCinemetaId(title as string, year as string, isMovie as bo
     mediaType = "series"
     if isMovie then mediaType = "movie"
     transfer = CreateObject("roUrlTransfer")
-    searchUrl = "https://v3-cinemeta.strem.io/catalog/" + mediaType + "/top/search=" + transfer.Escape(title) + ".json"
+    searchTitle = CreateObject("roRegex","\\s*[\\(\\[]((19|20)[0-9]{2})[\\)\\]]\\s*$","").replace(title,"").trim()
+    if searchTitle = "" then searchTitle = title
+    searchUrl = "https://v3-cinemeta.strem.io/catalog/" + mediaType + "/top/search=" + transfer.Escape(searchTitle) + ".json"
     searchData = introDbGetJson(searchUrl,6000)
     if type(searchData) <> "roAssociativeArray" then return ""
     if type(searchData.metas) <> "roArray" then return ""
@@ -89,7 +91,7 @@ function introDbResolveCinemetaId(title as string, year as string, isMovie as bo
         if type(candidate) = "roAssociativeArray"
             candidateTitle = introDbNormalizeTitle(candidate.name)
             candidateId = candidate.id
-            if candidateTitle = cleanTitle and GetInterface(candidateId,"ifString") <> invalid
+            if candidateTitle = cleanTitle and type(candidateId) = "String"
                 validYear = true
                 candidateYear = orbitYearText(candidate.releaseInfo)
                 if candidateYear = "" then candidateYear = orbitYearText(candidate.year)
@@ -150,14 +152,23 @@ function introDbGetJson(url as string, timeoutMs as integer) as dynamic
 end function
 
 function introDbNormalizeTitle(value as dynamic) as string
-    if GetInterface(value,"ifString") = invalid then return ""
+    if type(value) <> "String" then return ""
+    title = value.trim()
+    title = CreateObject("roRegex","\\s*[\\(\\[]((19|20)[0-9]{2})[\\)\\]]\\s*$","").replace(title,"").trim()
     regex = CreateObject("roRegex","[^a-z0-9]","i")
-    return regex.replaceAll(lcase(value.trim()),"")
+    return regex.replaceAll(lcase(title),"")
 end function
 
 function orbitYearText(value as dynamic) as string
-    if GetInterface(value,"ifString") <> invalid
-        if len(value) >= 4 then return left(value,4)
+    yearValue = ""
+    if type(value) = "String"
+        yearValue = value
+    else if type(value) = "Integer" or type(value) = "LongInteger" or type(value) = "Float" or type(value) = "Double"
+        yearValue = value.toStr()
+    else
+        return ""
     end if
-    return ""
+    match = CreateObject("roRegex","(19|20)[0-9]{2}","").match(yearValue)
+    if match.count() < 1 then return ""
+    return match[0]
 end function
