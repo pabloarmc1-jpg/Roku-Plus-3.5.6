@@ -324,6 +324,10 @@ sub fetch(context as object)
     if online
         m.deadline.duration = 45
         m.deadlineMs = 45000
+        if context.operation = "find-source"
+            m.deadline.duration = 55
+            m.deadlineMs = 55000
+        end if
     end if
     m.deadlineStart = CreateObject("roTimespan")
     m.deadlineStart.mark()
