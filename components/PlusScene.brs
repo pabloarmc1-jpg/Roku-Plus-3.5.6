@@ -3644,7 +3644,8 @@ if m.view = "profiles"
                 if m.kind = "series" then m.nav = 2
             end if
             if key = "OK"
-                selectedCategory = ["Más populares","Más recientes","Acción","Comedia","Drama","Terror","Ciencia ficción","Animación","Todos"][m.categoryCursor]
+                categoryOptions = ["Más populares","Más recientes","Acción","Comedia","Drama","Terror","Ciencia ficción","Animación","Todos"]
+                selectedCategory = categoryOptions[m.categoryCursor]
                 if selectedCategory = "Más recientes"
                     m.catalogSort = "recent"
                     m.genreFilter = "Todos"
