@@ -543,3 +543,13 @@
 - Se corrigieron las claves compactas exactas. Se mantienen las comprobaciones de tipo, año, unicidad e IMDb cuando está disponible.
 - Commit de corrección: ad02034df8aa4bd4f0151eceba7ce6f749b7c317.
 - Estado: código verificado en GitHub; pendiente volver a instalar y probar en Roku.
+
+
+## 2026-11-16 — TVmaze para Rick y Morty y diagnóstico del catálogo local
+
+- El registro confirmó que CineHax ya encuentra y reproduce Rick y Morty (2013), pero el enriquecimiento opcional de TVmaze no reconocía el título español.
+- Se añadió el alias exacto `Rick y Morty` / `Rick y Morty (2013)` → `Rick and Morty` en `source/HdOnlineData.brs`. La selección de TVmaze sigue exigiendo coincidencia exacta con el nombre canónico. El alias solo se usa para metadatos; no cambia título, proveedor, ID ni URL del episodio.
+- En `source/HdData.brs` se añadieron registros de diagnóstico para comprobar si `pkg:/data/hd-library.json` existe en el paquete y cuántos bytes logra leer. No se da por corregido el empaquetado hasta revisar el siguiente log de Roku.
+- Commits: TVmaze `52e3b268a1967786bfac24ddd8507e93cd51223a`; diagnóstico de catálogo local `61f53cce5d06394f1a26a5345437cf683d8dbdb4`.
+- No se modificaron `PlusPlayer`, motor de reproducción, controles, audio, subtítulos ni reanudación.
+- Estado: cambios guardados en `feature/rokuplus-resume-work`; pendientes de instalar y validar en Roku.
