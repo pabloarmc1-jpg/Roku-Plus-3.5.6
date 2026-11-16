@@ -102,7 +102,8 @@ function rpHdCinehaxItem(raw as dynamic, kind as string) as dynamic
         provider:"cinehax", providerId:id, providerTmdbId:tmdb, providerKind:sourceKind, providerSlug:slug
         library:"hd-online", title:title, description:orbitText(raw.overview)
         poster:rpHdCinehaxArt(raw.poster_path), background:rpHdCinehaxArt(raw.backdrop_path,true)
-        year:yearText, runtime:orbitInteger(raw.runtime,1440)*60, language:"", seasons:[]
+        year:yearText, runtime:orbitInteger(raw.runtime,1440)*60
+        genres:rpHdOnlineGenres(raw), language:"", seasons:[]
     }
 end function
 

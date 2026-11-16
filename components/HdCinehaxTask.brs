@@ -85,7 +85,9 @@ function rpHdCinehaxTask(request as object, answer as object, fetcher as dynamic
         answer.message = "CineHax no tiene un servidor compatible disponible. Prueba otra opción de esta película."
         return answer
     end if
-    embeds = [{url:iframe,language:"Español latino",quality:""}]
+    ' CineHax exposes one embed without reliable language metadata.
+    ' Do not label it Spanish unless the provider actually identifies the track.
+    embeds = [{url:iframe,language:"",quality:""}]
     retry = orbitInteger(request.attempt,999)
     return rpHdTaskResolveEmbeds(embeds,"cinehax",answer,fetcher,decoderAccept,retry,"https://videoapp.mov/")
 end function

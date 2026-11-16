@@ -111,7 +111,9 @@ function rpHdCinecalidadEmbeds(raw as dynamic) as object
         url = rpHdCinecalidadBase64(found[1])
         allowed = CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(?:\.html)?$","").isMatch(url)
         if allowed and not seen.doesExist(url)
-            result.push({url:url,language:"Español latino",quality:""})
+            ' The embed URL is valid, but its language is not exposed by this page.
+            ' Leave it unknown instead of falsely requiring or claiming Spanish.
+            result.push({url:url,language:"",quality:""})
             seen[url] = true
         end if
         if result.count() >= 6 then exit for

@@ -105,6 +105,34 @@ function rpHdOnlineArt(raw as dynamic, provider as string) as string
     return ""
 end function
 
+function rpHdOnlineGenres(raw as dynamic) as object
+    values = []
+    if type(raw) <> "roAssociativeArray" then return values
+    source = raw.genres
+    if type(source) <> "roArray" then source = raw.genre
+    if type(source) = "roArray"
+        for each entry in source
+            name = ""
+            if GetInterface(entry,"ifString") <> invalid
+                name = lcase(left(entry.trim(),60))
+            else if type(entry) = "roAssociativeArray" and GetInterface(entry.name,"ifString") <> invalid
+                name = lcase(left(entry.name.trim(),60))
+            end if
+            if name <> ""
+                exists = false
+                for each current in values
+                    if current = name then exists = true
+                end for
+                if not exists then values.push(name)
+            end if
+        end for
+    else if GetInterface(source,"ifString") <> invalid
+        name = lcase(left(source.trim(),120))
+        if name <> "" then values.push(name)
+    end if
+    return values
+end function
+
 function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as dynamic
     provider = rpHdOnlineProvider(provider)
     if provider = "" or provider = "all" or provider = "cinehax" or provider = "seriesmetro" or provider = "cinecalidad" or type(raw) <> "roAssociativeArray" then return invalid
@@ -124,7 +152,8 @@ function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as d
         provider: provider, providerId: number, providerSlug: orbitText(raw.slug,200)
         library: "hd-online", title: title, description: orbitText(raw.overview)
         poster: rpHdOnlineArt(images.poster,provider), background: rpHdOnlineArt(images.backdrop,provider)
-        year: left(orbitText(raw.release_date,32),4), runtime: int(runtime*60), language: "", seasons: []
+        year: left(orbitText(raw.release_date,32),4), runtime: int(runtime*60)
+        genres: rpHdOnlineGenres(raw), language: "", seasons: []
     }
 end function
 
@@ -233,9 +262,20 @@ function rpHdOnlineEpisodes(raw as dynamic, provider as string, parent as dynami
                     if episodePoster = "" then episodePoster = parent.poster
                     episodeDescription = orbitText(ep.overview,1200)
                     if episodeDescription = "" then episodeDescription = orbitText(ep.description,1200)
+                    parentSeasonNumbers = []
+                    if type(parent.seasons) = "roArray"
+                        for each parentSeason in parent.seasons
+                            parentSeasonNumbers.push(parentSeason.number)
+                        end for
+                    else if type(parent.seasonNumbers) = "roArray"
+                        parentSeasonNumbers = parent.seasonNumbers
+                    end if
                     item = {
                         id:id, imdbId:"", kind:"episode", library:"hd-online", provider:provider, providerId:number
-                        providerSlug:"", title:title, seriesTitle:parent.title, season:seasonNumber, episode:episodeNumber
+                        providerSlug:"", title:title, seriesTitle:parent.title, seriesId:parent.id
+                        seriesProviderId:parent.providerId, seriesProviderSlug:parent.providerSlug
+                        seriesProviderTmdbId:orbitText(parent.providerTmdbId,40), seriesProviderKind:orbitText(parent.providerKind,16)
+                        seriesSeasonNumbers:parentSeasonNumbers, season:seasonNumber, episode:episodeNumber
                         poster:episodePoster, background:parent.background, description:episodeDescription
                         year:parent.year, runtime:orbitInteger(ep.runtime,86400), language:"", seasons:[]
                     }
@@ -275,14 +315,18 @@ function rpHdOnlineEmbeds(raw as dynamic) as object
             score = 0
             lower = lcase(language)
             if instr(1,lower,"latino") > 0 then score = 100
-            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0) then score = 60
-            if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url) and score > 0
+            if score = 0 and (instr(1,lower,"castellano") > 0 or instr(1,lower,"español") > 0 or instr(1,lower,"espanol") > 0 or lower = "es" or lower = "spa" or left(lower,3) = "es-") then score = 60
+            ' Spanish is preferred, not required: retain English and unknown-language embeds.
+            voeEmbed = CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(url)
+            voeRedirectEmbed = CreateObject("roRegex","^https://arianathankspecial\.com/e/[a-z0-9]{8,20}/?$","i").isMatch(url)
+            vimeosEmbed = CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url)
+            if vimeosEmbed or voeEmbed or voeRedirectEmbed
                 result.push({url:url,language:language,quality:orbitText(embed.quality,40),score:score})
             end if
         end if
     end for
     ordered = []
-    for each priority in [100,60]
+    for each priority in [100,60,0]
         for each row in result
             if row.score = priority then ordered.push(row)
         end for
@@ -478,14 +522,89 @@ end function
 
 function rpHdOnlineCdn(value as dynamic) as string
     url = orbitHttpsUrl(value)
-    if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to)/","i").isMatch(url) then return ""
+    if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(url) then return ""
     return url
+end function
+
+' VOE public player parser. It reads the host's JSON payload without executing JavaScript.
+' Only an HTTPS media URL on the existing CDN allowlist is returned.
+function rpHdOnlineVoeMediaUrl(html as dynamic) as string
+    page = orbitText(html,2097152)
+    if page = "" or len(page) > 2097152 then return ""
+    pattern = "<script[^>]+type=" + chr(34) + "application/json" + chr(34) + "[^>]*>([\s\S]*?)</script>"
+    match = CreateObject("roRegex",pattern,"i").match(page)
+    if match.count() < 2 then return ""
+    wrapper = ParseJson(match[1])
+    if type(wrapper) <> "roArray" then return ""
+    if wrapper.count() <> 1 then return ""
+    encoded = orbitText(wrapper[0],65536)
+    if encoded = "" then return ""
+    decoded = rpHdOnlineVoeDecrypt(encoded)
+    if decoded = "" then return ""
+    payload = ParseJson(decoded)
+    if type(payload) <> "roAssociativeArray" then return ""
+    streamUrl = orbitText(payload.source,4096)
+    if streamUrl = "" then streamUrl = orbitText(payload.hls,4096)
+    streamUrl = rpHdOnlineCdn(streamUrl)
+    if streamUrl = "" or instr(1,lcase(streamUrl),".m3u8") = 0 then return ""
+    return streamUrl
+end function
+
+function rpHdOnlineVoeDecrypt(encoded as string) as string
+    if encoded = "" or len(encoded) > 65536 then return ""
+    value = rpHdOnlineVoeRot13(encoded)
+    markers = CreateObject("roRegex","@\$|\^\^|~@|%\?|\*~|!!|#&","g")
+    value = markers.replaceAll(value,"")
+    first = CreateObject("roByteArray")
+    first.FromBase64String(value)
+    count = first.count()
+    if count < 1 or count > 32768 then return ""
+    for i = 0 to count-1
+        shifted = first[i]-3
+        if shifted < 0 then shifted += 256
+        first[i] = shifted
+    end for
+    leftIndex = 0
+    rightIndex = count-1
+    while leftIndex < rightIndex
+        swap = first[leftIndex]
+        first[leftIndex] = first[rightIndex]
+        first[rightIndex] = swap
+        leftIndex++
+        rightIndex--
+    end while
+    second = CreateObject("roByteArray")
+    second.FromBase64String(first.ToAsciiString())
+    if second.count() < 1 or second.count() > 32768 then return ""
+    return second.ToAsciiString()
+end function
+
+function rpHdOnlineVoeRot13(value as string) as string
+    bytes = CreateObject("roByteArray")
+    bytes.FromAsciiString(value)
+    for i = 0 to bytes.count()-1
+        charCode = bytes[i]
+        if charCode >= 65 and charCode <= 90
+            bytes[i] = ((charCode-65+13) mod 26)+65
+        else if charCode >= 97 and charCode <= 122
+            bytes[i] = ((charCode-97+13) mod 26)+97
+        end if
+    end for
+    return bytes.ToAsciiString()
 end function
 
 function rpHdOnlineMediaUrl(html as dynamic) as string
     text = rpHdOnlineUnpack(html)
     quotes = chr(34)+"'"
     pattern = "file\s*:\s*["+quotes+"]([^"+quotes+"]+\.m3u8[^"+quotes+"]*)["+quotes+"]"
+    match = CreateObject("roRegex",pattern,"i").match(text)
+    if match.count() >= 2
+        url = rpHdOnlineCdn(rpHdOnlineJsString(match[1]))
+        if url <> "" then return url
+    end if
+    ' VOE exposes its HLS master in a JSON "hls" property on the embed page.
+    ' Read the literal URL only; never execute the host page's JavaScript.
+    pattern = chr(34)+"hls"+chr(34)+"\s*:\s*["+quotes+"]([^"+quotes+"]+\.m3u8[^"+quotes+"]*)["+quotes+"]"
     match = CreateObject("roRegex",pattern,"i").match(text)
     if match.count() >= 2
         url = rpHdOnlineCdn(rpHdOnlineJsString(match[1]))
@@ -555,8 +674,36 @@ function rpHdOnlineAttributes(line as string) as object
     return answer
 end function
 
+
+' Vimeos publishes side-loaded WebVTT files beside the HLS asset path.
+' Derive the folder, media ID and subtitle server from the actual master URL;
+' never assume a fixed directory or a hard-coded title ID.
+function rpHdOnlineVimeosSubtitleTracks(masterUrl as dynamic) as object
+    tracks = []
+    url = orbitText(masterUrl,4096)
+    if url = "" then return tracks
+    pathMatch = CreateObject("roRegex","^https://[^/]+/hls2/([0-9]{2}/[0-9]{5})/([a-z0-9]{8,32})_[^/]+/master\.m3u8","i").match(url)
+    if pathMatch.count() < 3 then return tracks
+    ' Vimeos may expose the subtitle shard in the media hostname (s1.vimeos.net)
+    ' or as an srv query parameter. Prefer the explicit query value when present.
+    serverMatch = CreateObject("roRegex","[?&]srv=(s[0-9]{1,2})(&|$)","i").match(url)
+    if serverMatch.count() >= 2
+        server = lcase(serverMatch[1])
+    else
+        hostMatch = CreateObject("roRegex","^https://(s[0-9]{1,2})\.vimeos\.(net|zip)/","i").match(url)
+        if hostMatch.count() < 2 then return tracks
+        server = lcase(hostMatch[1])
+    end if
+    if not CreateObject("roRegex","^s[0-9]{1,2}$","i").isMatch(server) then return tracks
+    subtitleBase = "https://"+server+".vimeos.net/vtt/"+pathMatch[1]+"/"+pathMatch[2]
+    tracks.push({group:"",name:"Español",language:"es",default:true,forced:false,url:subtitleBase+"_spa.vtt"})
+    tracks.push({group:"",name:"English",language:"en",default:false,forced:false,url:subtitleBase+"_eng.vtt"})
+    print "[RokuPlus vimeos-subtitles] sourceTracks="; tracks.count(); " server="; server
+    return tracks
+end function
+
 function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
-    answer = {variants:[],audioTracks:[],encrypted:false,mediaTagCount:0,audioMediaTagCount:0,audioGroupCount:0,variantAudioGroupCount:0}
+    answer = {variants:[],audioTracks:[],subtitleTracks:[],closedCaptionGroups:[],encrypted:false,mediaTagCount:0,audioMediaTagCount:0,audioGroupCount:0,variantAudioGroupCount:0,subtitleMediaTagCount:0,closedCaptionMediaTagCount:0}
     text = orbitText(body,1048577)
     if len(text) > 1048576 or rpHdOnlineCdn(baseUrl) = "" then return answer
     if left(text,7) <> "#EXTM3U" then return answer
@@ -571,7 +718,17 @@ function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
             answer.mediaTagCount++
             attrs = rpHdOnlineAttributes(line)
             mediaType = lcase(orbitText(attrs.TYPE,20))
-            if mediaType = "audio"
+            if mediaType = "subtitles"
+                answer.subtitleMediaTagCount++
+                groupId = orbitText(attrs["GROUP-ID"],100)
+                subtitleUrl = rpHdOnlineJoin(baseUrl,orbitText(attrs.URI,4096))
+                answer.subtitleTracks.push({group:groupId,name:orbitText(attrs.NAME,80),language:orbitText(attrs.LANGUAGE,20),default:lcase(orbitText(attrs.DEFAULT,10)) = "yes",forced:lcase(orbitText(attrs.FORCED,10)) = "yes",url:subtitleUrl})
+            else if mediaType = "closed-captions"
+                answer.closedCaptionMediaTagCount++
+                captionGroup = orbitText(attrs["GROUP-ID"],100)
+                captionInstream = orbitText(attrs["INSTREAM-ID"],40)
+                answer.closedCaptionGroups.push({group:captionGroup,instreamId:captionInstream,language:orbitText(attrs.LANGUAGE,20),name:orbitText(attrs.NAME,80),default:lcase(orbitText(attrs.DEFAULT,10)) = "yes"})
+            else if mediaType = "audio"
                 answer.audioMediaTagCount++
                 groupId = orbitText(attrs["GROUP-ID"],100)
                 if groupId <> "" then answer.audioGroupCount++
@@ -589,7 +746,7 @@ function rpHdOnlineMaster(body as dynamic, baseUrl as string) as object
             end if
             url = rpHdOnlineJoin(baseUrl,line)
             if url <> ""
-                answer.variants.push({url:url,codecs:orbitText(pending.CODECS,200),width:width,height:height,fps:orbitText(pending["FRAME-RATE"],32).toFloat(),bandwidth:orbitInteger(pending.BANDWIDTH,100000000),averageBandwidth:orbitInteger(pending["AVERAGE-BANDWIDTH"],100000000),videoRange:orbitText(pending["VIDEO-RANGE"],20),hdcpLevel:orbitText(pending["HDCP-LEVEL"],20),audioGroup:orbitText(pending.AUDIO,100)})
+                answer.variants.push({url:url,codecs:orbitText(pending.CODECS,200),width:width,height:height,fps:orbitText(pending["FRAME-RATE"],32).toFloat(),bandwidth:orbitInteger(pending.BANDWIDTH,100000000),averageBandwidth:orbitInteger(pending["AVERAGE-BANDWIDTH"],100000000),videoRange:orbitText(pending["VIDEO-RANGE"],20),hdcpLevel:orbitText(pending["HDCP-LEVEL"],20),audioGroup:orbitText(pending.AUDIO,100),subtitleGroup:orbitText(pending.SUBTITLES,100),closedCaptionGroup:orbitText(pending["CLOSED-CAPTIONS"],100)})
                 if orbitText(pending.AUDIO,100) <> "" then answer.variantAudioGroupCount++
             end if
             pending = invalid

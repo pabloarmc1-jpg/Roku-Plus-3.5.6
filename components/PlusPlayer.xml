@@ -8,6 +8,9 @@
     <field id="diagnostics" type="assocarray" alwaysNotify="true" />
     <field id="progress" type="assocarray" alwaysNotify="true" />
     <field id="retryRequested" type="assocarray" alwaysNotify="true" />
+    <field id="endScreenData" type="assocarray" onChange="onEndScreenDataChanged" alwaysNotify="true" />
+    <field id="introDbData" type="assocarray" onChange="onIntroDbDataChanged" alwaysNotify="true" />
+    <field id="endSelection" type="assocarray" alwaysNotify="true" />
     <field id="presentation" type="string" value="fullscreen" onChange="onPresentationChanged" />
     <field id="previewRect" type="floatarray" value="[294,206,1016,572]" onChange="onPreviewRectChanged" />
     <field id="allowPreviewReturn" type="boolean" value="false" />
@@ -22,11 +25,17 @@
   <script type="text/brightscript" uri="PlusPlayer.brs" />
   <children>
     <Rectangle id="backdrop" width="1920" height="1080" color="0x000000FF" />
-    <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
+    <Group id="videoViewport" clippingRect="[0,0,1920,1080]">
+      <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
+    </Group>
     <TsStreamServer id="tsStreamServer" />
     <Poster id="previewMask" translation="[294,206]" width="1016" height="572" uri="pkg:/images/ui/live-preview-mask.png" loadDisplayMode="scaleToFit" visible="false" />
     <Group id="startupOverlay" translation="[0,0]" visible="false">
-      <Label id="startupTitle" translation="[160,490]" width="1600" height="100" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
+      <Poster id="startupBanner" translation="[0,0]" width="1920" height="1080" loadDisplayMode="scaleToFill" />
+      <Rectangle id="startupBannerShade" translation="[0,0]" width="1920" height="1080" color="0x00000088" />
+      <Label id="startupTitle" translation="[160,430]" width="1600" height="220" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
+      <Poster id="startupLogo" translation="[510,330]" width="900" height="420" loadDisplayMode="scaleToFit" opacity="0.92" visible="false" />
+      <Label id="startupLoadingText" translation="[160,650]" width="1600" height="54" visible="false" />
     </Group>
 
     <!-- Clean glass transport: lightweight translucent controls over the video. -->
@@ -48,34 +57,105 @@
         <Poster id="rewindSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
         <Poster translation="[4,4]" width="64" height="64" uri="pkg:/images/newplayer-rewind.png" />
       </Group>
-      <Poster id="centerSurface" translation="[920,214]" width="88" height="88" uri="pkg:/images/newplayer-control-focus.png" />
+      <Poster id="centerSurface" translation="[920,214]" width="88" height="88" uri="pkg:/images/newplayer-control.png" />
       <Poster id="playGlyph" translation="[932,226]" width="64" height="64" uri="pkg:/images/newplayer-play.png" visible="false" />
       <Poster id="pauseGlyph" translation="[932,226]" width="64" height="64" uri="pkg:/images/newplayer-pause.png" />
       <Group id="forwardControl" translation="[1126,222]">
         <Poster id="forwardSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
         <Poster translation="[4,4]" width="64" height="64" uri="pkg:/images/newplayer-forward.png" />
       </Group>
+      <Group id="audioControl" translation="[1260,222]">
+        <Poster id="audioControlSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
+        <Label id="audioControlGlyph" translation="[0,7]" width="72" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="♫" />
+      </Group>
+      <Group id="subtitleControl" translation="[1370,222]">
+        <Poster id="subtitleControlSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
+        <Label id="subtitleControlGlyph" translation="[0,7]" width="72" height="58" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="CC" />
+      </Group>
+      <Group id="zoomControl" translation="[1480,222]">
+        <Poster id="zoomControlSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
+        <Label id="zoomControlGlyph" translation="[0,7]" width="72" height="58" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" text="⛶" />
+      </Group>
 
-      <Label id="keyText" translation="[112,316]" width="760" height="30" font="font:SmallSystemFont" color="0xD7D9E0FF" />
       <Label id="pauseText" translation="[1000,316]" width="808" height="30" font="font:SmallSystemFont" color="0xD7D9E0FF" horizAlign="right" />
       <Label id="noticeText" translation="[112,0]" width="1696" height="32" font="font:SmallSystemFont" color="0xFFFFFFFF" />
     </Group>
 
-    <Group id="audioMenu" translation="[460,210]" visible="false">
+    <Group id="playerOptionsMenu" translation="[460,210]" visible="false">
       <Rectangle width="1000" height="660" color="0x10131BEF" />
       <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
-      <Label id="audioMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+      <Label id="playerOptionsMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+      <Rectangle id="playerOptionsMenuFocus" translation="[28,118]" width="900" height="48" color="0xE5091450" />
     </Group>
-    <Group id="subtitleMenu" translation="[460,210]" visible="false">
-      <Rectangle width="1000" height="660" color="0x10131BEF" />
-      <Rectangle translation="[2,2]" width="996" height="4" color="0xE50914FF" />
-      <Label id="subtitleMenuItems" translation="[64,44]" width="872" height="572" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    <Group id="playbackEndScreen" translation="[0,0]" visible="false">
+      <Label id="endScreenHeading" translation="[0,650]" width="1920" height="58" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" />
+      <Group id="endMovieLayout" translation="[330,720]" visible="true">
+        <Rectangle id="endMovieSelection" width="174" height="224" color="0x00000000" />
+        <Poster id="endMoviePoster1" width="170" height="220" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster2" translation="[190,0]" width="170" height="220" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster3" translation="[380,0]" width="170" height="220" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster4" translation="[570,0]" width="170" height="220" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster5" translation="[760,0]" width="170" height="220" loadDisplayMode="scaleToFill" visible="false" />
+        <Poster id="endMoviePoster6" translation="[950,0]" width="170" height="220" loadDisplayMode="scaleToFill" visible="false" />
+        <Label id="endMovieTitle1" translation="[0,224]" width="170" height="54" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle2" translation="[190,224]" width="170" height="54" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle3" translation="[380,224]" width="170" height="54" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle4" translation="[570,224]" width="170" height="54" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle5" translation="[760,224]" width="170" height="54" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+        <Label id="endMovieTitle6" translation="[950,224]" width="170" height="54" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" wrap="true" visible="false" />
+      </Group>
+      <Group id="endEpisodeLayout" translation="[1510,820]" visible="false">
+        <Poster id="endEpisodePoster" width="360" height="216" opacity="0.55" loadDisplayMode="scaleToFill" visible="false" />
+        <Label id="endEpisodeTitle" translation="[0,42]" width="360" height="48" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
+        <Group id="endCountdownBadge" translation="[146,112]">
+          <Rectangle id="endCountdownDot1" translation="[34,0]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot2" translation="[54,7]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot3" translation="[68,24]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot4" translation="[68,44]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot5" translation="[54,61]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot6" translation="[34,68]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot7" translation="[14,61]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot8" translation="[0,44]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot9" translation="[0,24]" width="8" height="8" color="0xE50914FF"  />
+          <Rectangle id="endCountdownDot10" translation="[14,7]" width="8" height="8" color="0xE50914FF"  />
+          <Label id="endCountdownText" translation="[8,10]" width="60" height="56" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
+        </Group>
+      </Group>
+      <Label id="endScreenMessage" translation="[0,0]" width="1" height="1" visible="false" />
+      <Label id="playbackEndItems" translation="[0,0]" width="1" height="1" visible="false" />
     </Group>
-    <Group id="externalSubtitleOverlay" translation="[160,790]" visible="false">
-      <Rectangle width="1600" height="100" color="0x000000B8" />
-      <Label id="externalSubtitleText" translation="[40,8]" width="1520" height="84" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
+    <Group id="skipSegmentPrompt" translation="[520,900]" visible="false">
+      <Rectangle width="880" height="92" color="0x080A0FE8" />
+      <Rectangle width="6" height="92" color="0xE50914FF" />
+      <Label id="skipSegmentText" translation="[32,14]" width="820" height="64" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
+    </Group>
+    <Group id="displayMenu" translation="[1346,660]" visible="false">
+      <Rectangle width="340" height="250" color="0x10131BEF" />
+      <Rectangle translation="[0,0]" width="340" height="4" color="0xE50914FF" />
+      <Rectangle id="displayMenuFocus" translation="[10,16]" width="320" height="38" color="0xE5091450" />
+      <Label id="displayMenuItems" translation="[20,18]" width="304" height="218" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    </Group>
+    <Group id="audioMenu" translation="[1101,610]" visible="false">
+      <Rectangle width="390" height="300" color="0x10131BEF" />
+      <Rectangle translation="[0,0]" width="390" height="4" color="0xE50914FF" />
+      <Rectangle id="audioMenuFocus" translation="[10,16]" width="370" height="38" color="0xE5091450" />
+      <Label id="audioMenuItems" translation="[20,18]" width="350" height="270" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    </Group>
+    <Group id="subtitleMenu" translation="[1126,410]" visible="false">
+      <Rectangle width="560" height="500" color="0x10131BEF" />
+      <Rectangle translation="[0,0]" width="560" height="4" color="0xE50914FF" />
+      <Rectangle id="subtitleMenuFocus" translation="[10,16]" width="540" height="38" color="0xE5091450" />
+      <Label id="subtitleMenuItems" translation="[20,18]" width="520" height="468" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    </Group>
+undefined
+undefined
+    <Group id="externalSubtitleOverlay" translation="[160,750]" visible="false">
+      <Label id="externalSubtitleText" translation="[40,0]" width="1520" height="120" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
     </Group>
     <Timer id="uiPulse" duration="0.25" repeat="true" />
     <Timer id="startupTypeTimer" duration="0.08" repeat="true" />
+    <Animation id="startupLogoPulse" duration="1.8" repeat="true" easeFunction="linear">
+      <FloatFieldInterpolator key="[0.0,0.5,1.0]" keyValue="[0.72,1.0,0.72]" fieldToInterp="startupLogo.opacity" />
+    </Animation>
   </children>
 </component>

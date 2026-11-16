@@ -114,11 +114,25 @@ function orbitTitle(raw as dynamic, kind as string) as dynamic
     year = orbitText(raw.releaseInfo, 32)
     if year = "" then year = orbitText(raw.year, 32)
     description = orbitText(raw.description)
+    genres = []
+    rawGenres = raw.genre
+    if type(rawGenres) <> "roArray" then rawGenres = raw.genres
+    if type(rawGenres) = "roArray"
+        for each rawGenre in rawGenres
+            if GetInterface(rawGenre,"ifString") <> invalid
+                genreValue = lcase(left(rawGenre.trim(),60))
+                if genreValue <> "" then genres.push(genreValue)
+            end if
+        end for
+    else if GetInterface(rawGenres,"ifString") <> invalid
+        genreValue = lcase(left(rawGenres.trim(),120))
+        if genreValue <> "" then genres.push(genreValue)
+    end if
     return {
         id: id, imdbId: id, title: title, kind: kind
         poster: orbitHttpsUrl(raw.poster), background: orbitHttpsUrl(raw.background)
         description: description, year: year, runtime: orbitRuntime(raw.runtime)
-        language: "", seasons: []
+        genres: genres, language: "", seasons: []
     }
 end function
 

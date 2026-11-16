@@ -173,14 +173,14 @@ sub rpTsRelayServe(connection as object, server as object)
             if not tsAudit.aligned or tsAudit.syncErrors > 0 or tsAudit.patPackets = 0 or tsAudit.continuityErrors > 0 or tsAudit.pmtPackets > 0
                 print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " aligned="; tsAudit.aligned; " syncErrors="; tsAudit.syncErrors; " firstBad="; tsAudit.firstBadOffset
                 print "[RokuPlus ts-audit] pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors
-                print "[RokuPlus ts-audit] pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
+                print "[RokuPlus ts-audit] pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " audioPidCount="; tsAudit.audioPidCount; " audioPids="; tsAudit.audioPidList; " aac="; tsAudit.aac
                 print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
                 print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
                 print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " firstPcr90k="; tsAudit.firstPcr; " lastPcr90k="; tsAudit.lastPcr
                 print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
             else if sentSegments mod 25 = 0
                 print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked
-                print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " aac="; tsAudit.aac
+                print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " audioPidCount="; tsAudit.audioPidCount; " audioPids="; tsAudit.audioPidList; " aac="; tsAudit.aac
                 print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
                 print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
                 print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " firstPcr90k="; tsAudit.firstPcr; " lastPcr90k="; tsAudit.lastPcr
@@ -318,6 +318,8 @@ function rpTsRelayAuditPayload(payload as object) as object
     result.pmtPackets = 0
     result.videoPid = -1
     result.audioPid = -1
+    result.audioPidCount = 0
+    result.audioPidList = ""
     result.h264 = false
     result.aac = false
     result.idrCount = 0
@@ -426,7 +428,10 @@ function rpTsRelayAuditPayload(payload as object) as object
                                         result.videoPid = elementaryPid
                                     else if streamType = 15 or streamType = 17
                                         result.aac = true
-                                        result.audioPid = elementaryPid
+                                        if result.audioPid < 0 then result.audioPid = elementaryPid
+                                        result.audioPidCount++
+                                        if result.audioPidList <> "" then result.audioPidList += ","
+                                        result.audioPidList += elementaryPid.toStr()
                                     end if
                                     entry += 5 + esInfoLength
                                 end while
@@ -497,5 +502,9 @@ function rpTsRelayReadPts(payload as object, offset as integer) as dynamic
     b2 = payload[offset+2]
     b3 = payload[offset+3]
     b4 = payload[offset+4]
-    return (b0 mod 16) * 536870912 + b1 * 4194304 + (b2 \ 4) * 32768 + b3 * 128 + (b4 \ 2)
+    prefix = b0 \ 16
+    if prefix <> 1 and prefix <> 2 and prefix <> 3 then return -1
+    if (b0 mod 2) <> 1 or (b2 mod 2) <> 1 or (b4 mod 2) <> 1 then return -1
+    ' MPEG-2 PTS/DTS is a 33-bit clock. Ignore marker bits and retain bit 1 of byte 2.
+    return ((b0 mod 16) \ 2) * 1073741824 + b1 * 4194304 + (b2 \ 2) * 32768 + b3 * 128 + (b4 \ 2)
 end function
