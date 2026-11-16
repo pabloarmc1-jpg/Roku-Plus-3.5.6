@@ -525,3 +525,12 @@
 - El reproductor abrió el item hdo-lamovie-98730 con provider=lamovie y avanzó en estado playing; los eventos native_stream_details muestran duration=5629, failed=false y errorCode=0, con posiciones progresivas al menos hasta ~90 segundos.
 - Esto valida en Roku la corrección de coincidencia de título con separador de dos puntos (commit de código 9e3856c9a581319e6d8441fc7254f5459280a812).
 - No se modificó el motor de reproducción ni controles/audio/subtítulos/reanudación en esta corrección.
+
+
+## 2026-11-16 — Coincidencia de título traducido Rick and Morty
+
+- El BrightScript Log más reciente muestra Rick and Morty (2013) sin fuente: CineHax devolvió un único candidato Rick y Morty (2013), pero el comparador solo aceptaba título idéntico o un subtítulo añadido al título original. LaMovie reportó error y los demás proveedores no aportaron un candidato compatible.
+- Se añadió un alias explícito y limitado entre Rick and Morty y Rick y Morty. La coincidencia solo se admite dentro de la regla existente de candidato único, mismo tipo, año exacto y compatibilidad de IMDb cuando ambos IDs existen; no se habilitó búsqueda difusa general.
+- Cambio limitado a components/HdCatalogTask.brs. No se modificaron reproductor, selección de proveedores, reanudación, audio, subtítulos ni controles.
+- Commit de código: 0d6d69192d1c02751e3198f3c57a519ffb9e99ef.
+- Estado: revisión estática y verificación del archivo en GitHub; pendiente instalar y probar Rick and Morty en Roku.
