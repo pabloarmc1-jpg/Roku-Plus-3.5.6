@@ -1016,6 +1016,14 @@ sub playerProgress(event as object)
         if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=id-mismatch sample="; sampleId; " detail="; detailId
         return
     end if
+    if sample.failed = true and orbitText(m.detail.kind,16) = "episode" and rpHdOnlineProvider(m.detail.provider) <> "" and m.detail.hdFallbackTried <> true
+        m.detail.hdFallbackTried = true
+        m.pendingEpisodeFallback = {item:m.detail,origin:m.detailOrigin}
+        m.recovering = false
+        print "[RokuPlus source-fallback] trigger=automatic-playback-failure provider="; orbitText(m.detail.provider,32); " season="; orbitInteger(m.detail.season,999); " episode="; orbitInteger(m.detail.episode,9999)
+        m.player.callFunc("closePlayback")
+        return
+    end if
     m.lastPlaybackProgress = sample
     m.watchState = rpWatchUpdate(m.watchState,m.detail,sample.position,sample.duration)
     ' Prepare the end-card while the credits are still rolling.
