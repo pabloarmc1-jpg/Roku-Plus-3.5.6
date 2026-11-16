@@ -93,6 +93,7 @@ sub eraseScreen()
     m.images = []
     m.focusItems = []
     m.heroBackgroundPoster = invalid
+    m.browseBackdropPoster = invalid
     m.heroTitleNode = invalid
     m.heroFactsNode = invalid
     m.heroIndexNode = invalid
@@ -627,6 +628,21 @@ sub libraryScreen()
     words("↑ / ↓: seleccionar     OK: abrir ficha     OPTIONS: eliminar del perfil",324,1010,1480,34,20,"0x808080FF")
 end sub
 
+function updateBrowseSelection() as boolean
+    if m.view <> "browse" then return false
+    if type(m.titles) <> "roArray" or m.cursor < 0 or m.cursor >= m.titles.count() then return false
+    item = m.titles[m.cursor]
+    backdrop = orbitText(item.background,2048)
+    if backdrop = "" then backdrop = orbitText(item.poster,2048)
+    if m.browseBackdropPoster = invalid
+        if backdrop <> "" then return false
+    else
+        m.browseBackdropPoster.uri = themeAsset(backdrop)
+    end if
+    paintFocus()
+    return true
+end function
+
 sub browseScreen()
     ' Two-row poster carousel: ten titles remain visible while navigating.
     browseBackdrop = ""
@@ -635,7 +651,8 @@ sub browseScreen()
         browseBackdrop = orbitText(selectedBackdrop.background,2048)
         if browseBackdrop = "" then browseBackdrop = orbitText(selectedBackdrop.poster,2048)
     end if
-    if browseBackdrop <> "" then art(browseBackdrop,0,0,1920,1080)
+    m.browseBackdropPoster = invalid
+    if browseBackdrop <> "" then m.browseBackdropPoster = art(browseBackdrop,0,0,1920,1080)
     panel(0,0,1920,1080,"0x080808E8")
     topBar()
 
