@@ -51,6 +51,8 @@ sub init()
     m.heroRotation.observeField("fire","heroRotationTick")
     m.discoveryRotation = m.top.findNode("discoveryRotation")
     m.discoveryRotation.observeField("fire","discoveryRotationTick")
+    m.heroRotationActive = false
+    m.discoveryRotationActive = false
     m.pageTransitionTimer = m.top.findNode("pageTransition")
     m.pageTransitionTimer.observeField("fire","pageTransitionTick")
     m.catalogFadeTimer = m.top.findNode("catalogFade")
@@ -184,8 +186,6 @@ sub ActivatePlusExperience()
     ' Keep the Roku Plus scene focused for normal remote navigation.
     m.top.focusable = true
     m.plusExperience.visible = true
-    m.heroRotation.control = "start"
-    m.discoveryRotation.control = "start"
     if not m.plusInitialized
         m.plusInitialized = true
         print "[RokuPlus startup] first activation configured="; m.configured
@@ -219,6 +219,7 @@ sub ActivatePlusExperience()
         refreshHome()
         print "[RokuPlus startup] home re-entry requests started"
     end if
+    syncHomeRotationTimers()
     m.top.focusable = true
     m.top.setFocus(true)
     print "[RokuPlus input] scene focus restored="; m.top.hasFocus()
@@ -640,6 +641,7 @@ sub launchInvidiousVideo(item as object, url as string, format as string, bitrat
     stopLivePreview()
     m.viewBeforeInvidiousPlayer = "invidious"
     m.view = "invidious-player"
+    syncHomeRotationTimers()
     m.canvas.visible = false
     eraseScreen()
     m.invidiousPlayer.visible = true
@@ -733,6 +735,7 @@ sub launchVideo(item as object, url as string, format as string)
     m.canvas.visible = false
     if m.view <> "player" then m.viewBeforePlayer = m.view
     m.view = "player"
+    syncHomeRotationTimers()
     loadingTitleNode = m.player.findNode("loadingTitle")
     if loadingTitleNode <> invalid then loadingTitleNode.text = left(orbitText(item.title,130),130)
     m.player.visible = true
