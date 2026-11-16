@@ -76,7 +76,7 @@ function introDbResolveCinemetaId(title as string, year as string, isMovie as bo
     mediaType = "series"
     if isMovie then mediaType = "movie"
     transfer = CreateObject("roUrlTransfer")
-    searchTitle = CreateObject("roRegex","\\s*[\\(\\[]((19|20)[0-9]{2})[\\)\\]]\\s*$","").replace(title,"").trim()
+    searchTitle = CreateObject("roRegex","\s*[\(\[]((19|20)[0-9]{2})[\)\]]\s*$","").replace(title,"").trim()
     if searchTitle = "" then searchTitle = title
     searchUrl = "https://v3-cinemeta.strem.io/catalog/" + mediaType + "/top/search=" + transfer.Escape(searchTitle) + ".json"
     searchData = introDbGetJson(searchUrl,6000)
@@ -154,7 +154,7 @@ end function
 function introDbNormalizeTitle(value as dynamic) as string
     if type(value) <> "String" then return ""
     title = value.trim()
-    title = CreateObject("roRegex","\\s*[\\(\\[]((19|20)[0-9]{2})[\\)\\]]\\s*$","").replace(title,"").trim()
+    title = CreateObject("roRegex","\s*[\(\[]((19|20)[0-9]{2})[\)\]]\s*$","").replace(title,"").trim()
     regex = CreateObject("roRegex","[^a-z0-9]","i")
     return regex.replaceAll(lcase(title),"")
 end function
