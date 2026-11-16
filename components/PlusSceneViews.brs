@@ -432,6 +432,7 @@ sub updateHomeHero() as boolean
     item = m.features[heroIndex]
     heroUri = orbitText(item.background,2048)
     if heroUri = "" then heroUri = orbitText(item.poster,2048)
+    if m.heroBackgroundPoster = invalid and heroUri <> "" then return false
     if m.heroBackgroundPoster <> invalid
         nextUri = ""
         if heroUri <> "" then nextUri = themeAsset(heroUri)
