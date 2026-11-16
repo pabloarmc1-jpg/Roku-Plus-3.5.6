@@ -65,6 +65,8 @@ sub runTsPrefetch()
                             print "[RokuPlus ts-prefetch] fetch_ready segment="; index; " elapsedMs="; elapsed
                         else
                             DeleteFile(filePath)
+                            ready[key] = "FAILED"
+                            m.top.readyFiles = ready
                             print "[RokuPlus ts-prefetch] fetch_failed segment="; index; " status="; code; " elapsedMs="; elapsed
                         end if
                     end if
