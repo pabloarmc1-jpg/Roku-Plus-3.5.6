@@ -173,7 +173,6 @@ sub init()
     m.invidiousItems = []
     m.invidiousCursor = 0
     m.invidiousQuery = ""
-    m.invidiousQuery = ""
     m.creditsPage = 0
     m.creditsPages = []
     m.plusInitialized = false
