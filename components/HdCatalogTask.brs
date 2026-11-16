@@ -1799,7 +1799,11 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             else
                 matches = []
                 for each candidate in catalog.items
-                    if rpHdTaskSameDiscoveryItem(item,candidate,searchQuery)
+                    if rpHdTaskCinemetaTitleKey(item.title) = "avatarthelastairbender"
+                        print "[RokuPlus avatar-match-trace] provider="; source; " query="; searchQuery; " discoveryTitle="; orbitText(item.title,100); " discoveryKind="; orbitText(item.kind,16); " discoveryYear="; rpHdTaskCinemetaYear(item.year); " candidateTitle="; orbitText(candidate.title,100); " candidateKind="; orbitText(candidate.kind,16); " candidateYear="; rpHdTaskCinemetaYear(candidate.year); " exactTitleKey="; rpHdTaskCinemetaTitleKey(candidate.title); " queryKey="; rpHdTaskCinemetaTitleKey(searchQuery)
+                    end if
+                    exactDiscoveryMatch = rpHdTaskSameDiscoveryItem(item,candidate,searchQuery)
+                    if exactDiscoveryMatch
                         matches.push(candidate)
                     else if rpHdTaskSameDiscoveryYearUnique(item,candidate,catalog.items,searchQuery)
                         ' A provider may return its localized title for an exact title search.
