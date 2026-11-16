@@ -208,7 +208,7 @@
 - El fondo de la vista `browse` se muestra a 1920×1080, pero su imagen se decodifica a 960×540. En esa vista queda bajo una capa oscura casi opaca, por lo que se reduce el tamaño de decodificación sin cambiar el tamaño visual del fondo.
 - Las portadas de las tarjetas, los Posters de Home, las imágenes de detalle, los objetivos de foco y los componentes del reproductor no se modificaron.
 - Cambio en `components/PlusSceneViews.brs`, commit `0535509`.
-- Estado: **pendiente compilar y probar en Roku**. Verificar que el fondo del catálogo siga viéndose bien, que las diez portadas carguen igual, que el foco no cambie y que navegar entre páginas siga funcionando. Si la calidad del fondo no es suficiente, restaurar la carga a resolución completa.
+- Estado: **validado por el usuario en Roku**. El usuario confirmó que funciona; se conserva la carga del fondo a 960×540. No se modificaron las portadas, el foco ni la navegación.
 
 ### Caché breve de búsquedas repetidas (2026-11-15)
 
