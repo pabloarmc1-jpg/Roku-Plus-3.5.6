@@ -667,7 +667,7 @@ sub browseScreen()
     categoryW = 174
     for i = 0 to categories.count()-1
         x = categoryX+i*180
-        active = (m.catalogSort = "popular" and categories[i] = "Más populares") or (m.catalogSort = "recent" and categories[i] = "Más recientes") or (m.genreFilter = categories[i] and categories[i] <> "Todos")
+        active = (m.catalogSort = "popular" and categories[i] = "Más populares") or (m.catalogSort = "recent" and categories[i] = "Más recientes") or (m.catalogSort = "all" and categories[i] = "Todos") or (m.genreFilter = categories[i] and categories[i] <> "Todos")
         surface = "0x25252BEE"
         ink = "0xD8D8DFFF"
         if active
