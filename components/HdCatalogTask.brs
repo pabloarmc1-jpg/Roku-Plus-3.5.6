@@ -187,6 +187,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         catalog = rpHdTaskCatalogPage(provider,kind,page,query,fetcher)
         if not catalog.ok then return rpHdTaskFailure(answer,catalog)
         answer.items = catalog.items
+        rpHdTaskEnrichCatalogGenres(answer.items,kind,fetcher)
         answer.hasMore = catalog.hasMore
         answer.nextSkip = catalog.nextSkip
         answer.total = catalog.total
