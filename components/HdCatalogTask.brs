@@ -1835,7 +1835,8 @@ end function
 ' It is intentionally exact; it is not a general fuzzy-title matcher.
 function rpHdTaskLocalizedTitleAliasKey(title as dynamic) as string
     normalized = rpHdTaskCinemetaTitleKey(title)
-    if normalized = "rick and morty" or normalized = "rick y morty" then return "rick-and-morty"
+    ' CinemetaTitleKey removes spaces and punctuation, so compare compact keys.
+    if normalized = "rickandmorty" or normalized = "rickymorty" then return "rick-and-morty"
     return ""
 end function
 
