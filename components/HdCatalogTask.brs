@@ -19,7 +19,7 @@ sub runHdCatalogRequest()
 end sub
 
 ' Search Cinemeta by each missing title instead of comparing against its small popular catalog.
-' Keep the enrichment bounded so provider results remain available even if metadata is slow.
+' Enrich up to sixteen cards per catalog page while sharing the remaining 40-second task budget.
 sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dynamic)
     if type(items) <> "roArray" or items.count() = 0 then return
     if kind <> "movie" and kind <> "series" then return
@@ -34,7 +34,7 @@ sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dyna
         end if
     end for
     if candidates.count() = 0 then return
-    maxQueries = 8
+    maxQueries = 16
     if candidates.count() < maxQueries then maxQueries = candidates.count()
     enriched = 0
     attempted = 0
@@ -53,6 +53,7 @@ sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dyna
         response = fetcher(endpoint,"cinemeta","")
         attempted++
         if response.cancelled then exit for
+        if rpHdTaskSliceExpired() then exit for
         if response.ok
             data = ParseJson(response.body)
             if type(data) = "roAssociativeArray" and type(data.metas) = "roArray"
@@ -85,7 +86,7 @@ sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dyna
                     ' Localized titles can differ; accept only one search result for the exact year.
                     match = yearMatch
                 end if
-                if match <> invalid
+                if match <> invalid and not rpHdTaskSliceExpired()
                     metaId = orbitText(match.id,80)
                     if CreateObject("roRegex","^tt[0-9]{6,12}$","").isMatch(metaId)
                         metaEndpoint = "https://v3-cinemeta.strem.io/meta/"+kind+"/"+metaId+".json"
