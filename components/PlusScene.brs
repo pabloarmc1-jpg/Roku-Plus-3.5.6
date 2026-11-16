@@ -3222,7 +3222,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 return true
             end if
         end if
-        drawScreen()
+        paintFocus()
         return true
     end if
     if m.busy and m.view <> "live" then return true
