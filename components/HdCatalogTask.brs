@@ -1782,7 +1782,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         source = providers[providerIndex]
         rpHdTaskBeginSlice(providers.count()-providerIndex)
         catalog = rpHdTaskCatalogPage(source,kind,1,item.title,fetcher)
-        if catalog.cancelled then return rpHdTaskFailure(answer,catalog)
+        if catalog.cancelled and m.top.cancelRequested then return rpHdTaskFailure(answer,catalog)
         if not catalog.ok
             failures++
             print "[RokuPlus source-search] provider="; source; " result=error"
@@ -1805,7 +1805,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     print "[RokuPlus source-search] provider="; source; " result=matched kind="; kind
                     return sourceAnswer
                 end if
-                if sourceAnswer.cancelled then return sourceAnswer
+                if sourceAnswer.cancelled and m.top.cancelRequested then return sourceAnswer
                 failures++
                 print "[RokuPlus source-search] provider="; source; " result=unavailable"
             else if matches.count() > 1
