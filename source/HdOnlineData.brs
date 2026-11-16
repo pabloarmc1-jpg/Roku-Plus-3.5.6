@@ -1398,7 +1398,7 @@ function rpHdCinemetaEnrichAnswer(answer as object, request as object, fetcher a
         if searchTitle = "" then searchTitle = title
         transfer = CreateObject("roUrlTransfer")
         searchUrl = "https://v3-cinemeta.strem.io/catalog/"+mediaKind+"/top/search="+transfer.Escape(searchTitle)+".json"
-        rpHdTaskBeginSlice(3)
+        if m.top.operation <> "catalog" then rpHdTaskBeginSlice(3)
         searchResponse = fetcher(searchUrl,"cinemeta","")
         if searchResponse.cancelled then return rpHdTaskFailure(answer,searchResponse)
         if not searchResponse.ok then return answer
@@ -1426,7 +1426,7 @@ function rpHdCinemetaEnrichAnswer(answer as object, request as object, fetcher a
         imdbId = selectedId
     end if
 
-    rpHdTaskBeginSlice(2)
+    if m.top.operation <> "catalog" then rpHdTaskBeginSlice(2)
     metaResponse = fetcher("https://v3-cinemeta.strem.io/meta/"+mediaKind+"/"+imdbId+".json","cinemeta","")
     if metaResponse.cancelled then return rpHdTaskFailure(answer,metaResponse)
     if not metaResponse.ok then return answer
