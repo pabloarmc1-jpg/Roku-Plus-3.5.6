@@ -1114,9 +1114,8 @@ sub playerProgress(event as object)
     end if
     m.lastPlaybackProgress = sample
     m.watchState = rpWatchUpdate(m.watchState,m.detail,sample.position,sample.duration)
-    ' Prepare the end-card while the credits are still rolling.
-    ' The 60-second window is a fallback because providers do not expose a
-    ' reliable credits-start marker in their playback metadata.
+    ' Show the end card only when IntroDB gives a real credits marker.
+    ' Without a confirmed marker, wait for the decoder's finished event.
     creditsStart = -1.0
     if type(m.introDbSegments) = "roAssociativeArray" and type(m.introDbSegments.outro) = "roAssociativeArray"
         outroStart = m.introDbSegments.outro.start_sec
@@ -1126,8 +1125,7 @@ sub playerProgress(event as object)
             creditsStart = m.introDbSegments.outro.start_ms / 1000.0
         end if
     end if
-    if creditsStart < 0 then creditsStart = sample.duration - 60
-    if sample.state <> "finished" and sample.duration > 0 and sample.position >= creditsStart
+    if creditsStart >= 0 and sample.state <> "finished" and sample.duration > 0 and sample.position >= creditsStart
         if m.endScreenRequestId <> sample.requestId
             m.endScreenRequestId = sample.requestId
             print "[RokuPlus end-screen] credits-window position="; sample.position; " duration="; sample.duration
