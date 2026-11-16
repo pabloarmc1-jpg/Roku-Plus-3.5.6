@@ -1837,6 +1837,8 @@ function rpHdTaskLocalizedTitleAliasKey(title as dynamic) as string
     normalized = rpHdTaskCinemetaTitleKey(title)
     ' CinemetaTitleKey removes spaces and punctuation, so compare compact keys.
     if normalized = "rickandmorty" or normalized = "rickymorty" then return "rick-and-morty"
+    if normalized = "thesimpsons" or normalized = "lossimpson" then return "the-simpsons"
+    if normalized = "familyguy" or normalized = "padredefamilia" then return "family-guy"
     return ""
 end function
 
