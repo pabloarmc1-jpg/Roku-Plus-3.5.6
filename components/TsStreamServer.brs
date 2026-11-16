@@ -266,12 +266,18 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
             end if
         else if count < 0 and (connection.eAgain() or connection.eWouldBlock())
             if not rpTsRelayWaitWritable(connection,port,server)
-                print "[RokuPlus ts-relay] send_wait_failed kind=bytes offset="; offset; " requested="; sendLength; " total="; total; " elapsedMs="; timer.TotalMilliseconds(); " status="; connection.status(); " eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock(); " eConnReset="; connection.eConnReset(); " eConnAborted="; connection.eConnAborted(); " eNotConn="; connection.eNotConn(); " eIsConn="; connection.eIsConn()
+                print "[RokuPlus ts-relay] send_wait_failed kind=bytes offset="; offset; " requested="; sendLength; " total="; total
+                print "[RokuPlus ts-relay] send_wait_failed elapsedMs="; timer.TotalMilliseconds(); " status="; connection.status()
+                print "[RokuPlus ts-relay] socket_flags eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock(); " eConnReset="; connection.eConnReset()
+                print "[RokuPlus ts-relay] socket_flags eConnAborted="; connection.eConnAborted(); " eNotConn="; connection.eNotConn(); " eIsConn="; connection.eIsConn()
                 server.sendOk = false
                 exit while
             end if
         else
-            print "[RokuPlus ts-relay] send_failed kind=bytes count="; count; " offset="; offset; " requested="; sendLength; " total="; total; " elapsedMs="; timer.TotalMilliseconds(); " status="; connection.status(); " eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock(); " eConnReset="; connection.eConnReset(); " eConnAborted="; connection.eConnAborted(); " eNotConn="; connection.eNotConn(); " eIsConn="; connection.eIsConn()
+            print "[RokuPlus ts-relay] send_failed kind=bytes count="; count; " offset="; offset; " requested="; sendLength; " total="; total
+            print "[RokuPlus ts-relay] send_failed elapsedMs="; timer.TotalMilliseconds(); " status="; connection.status()
+            print "[RokuPlus ts-relay] socket_flags eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock(); " eConnReset="; connection.eConnReset()
+            print "[RokuPlus ts-relay] socket_flags eConnAborted="; connection.eConnAborted(); " eNotConn="; connection.eNotConn(); " eIsConn="; connection.eIsConn()
             server.sendOk = false
             exit while
         end if
