@@ -8,7 +8,7 @@ sub runHdCatalogRequest()
     m.hdElapsed = CreateObject("roTimespan")
     m.hdElapsed.mark()
     m.hdTotalBudgetMs = 40000
-    if m.top.operation = "resolve" then m.hdTotalBudgetMs = 60000
+    if m.top.operation = "resolve" or m.top.operation = "find-source" then m.hdTotalBudgetMs = 60000
     request = {
         operation:m.top.operation, kind:m.top.kind, provider:m.top.provider
         query:m.top.query, skip:m.top.skip, item:m.top.item, season:m.top.season
