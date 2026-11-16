@@ -491,3 +491,11 @@
 - No se cambia la distribución de portadas, el tamaño de filas/columnas, los filtros ni el reproductor.
 - Código: commit `7aa8aa6` en `components/PlusScene.brs`.
 - Estado: guardado y revisado estáticamente; pendiente validar en Roku.
+
+### Corrección del índice inicial al cambiar de género (2026-11-15)
+- Se detectó que el escaneo progresivo de Cinemeta agrega páginas para reunir coincidencias y podía dejar `m.cursor` en el índice de una página agregada (por ejemplo, alrededor del índice 30).
+- Se añade `m.categoryInitialScan` para conservar el índice 0 durante toda la carga inicial del género, tanto con respuestas de red como con páginas recuperadas de caché.
+- Al terminar el escaneo inicial, la navegación normal por filas vuelve a funcionar sin alterar el índice de entrada.
+- No se modifica la disposición visual, los filtros, las fuentes de reproducción ni ningún componente del reproductor.
+- Código: commit `822dc4431d2d327bae925c6b41a2e0ba2775939a` en `components/PlusScene.brs`.
+- Estado: guardado y revisado estáticamente; pendiente instalar/compilar y validar en Roku.
