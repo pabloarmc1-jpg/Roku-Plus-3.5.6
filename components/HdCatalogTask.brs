@@ -39,6 +39,8 @@ sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dyna
     enriched = 0
     attempted = 0
     metaRequests = 0
+    tvmazeAttempted = 0
+    tvmazeEnriched = 0
     for i = 0 to maxQueries-1
         if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
         remaining = maxQueries-i
@@ -47,7 +49,19 @@ sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dyna
         title = orbitText(item.title,200).trim()
         searchTitle = CreateObject("roRegex","\s*\((19|20)[0-9]{2}\)\s*$","").replace(title,"").trim()
         if searchTitle = "" then searchTitle = title
-        transfer = CreateObject("roUrlTransfer")
+        tvmazeAdded = false
+        if kind = "series"
+            tvmazeAttempted++
+            tvmazeAdded = rpHdTaskEnrichItemFromTvmaze(item,fetcher)
+            if tvmazeAdded
+                tvmazeEnriched++
+                enriched++
+            end if
+        end if
+        if not tvmazeAdded
+            rpHdTaskBeginSlice(remaining)
+            if rpHdTaskSliceExpired() then exit for
+            transfer = CreateObject("roUrlTransfer")
         escapedTitle = transfer.escape(searchTitle)
         endpoint = "https://v3-cinemeta.strem.io/catalog/"+kind+"/top/search="+escapedTitle+".json"
         response = fetcher(endpoint,"cinemeta","")
@@ -125,10 +139,87 @@ sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dyna
                 end if
             end if
         end if
+        end if
     end for
     m.hdProviderDeadline = 0
+    if kind = "series"
+        print "[RokuPlus tvmaze-catalog] searched="; tvmazeAttempted; " enriched="; tvmazeEnriched
+    end if
     print "[RokuPlus cinemeta] kind="; kind; " searched="; attempted; " meta_requests="; metaRequests; " enriched="; enriched; " candidates="; candidates.count()
 end sub
+
+function rpHdTaskEnrichItemFromTvmaze(item as object, fetcher as dynamic) as boolean
+    title = orbitText(item.title,200).trim()
+    if title = "" then return false
+    searchTitle = rpHdTaskTvmazeSearchTitle(title)
+    transfer = CreateObject("roUrlTransfer")
+    endpoint = "https://api.tvmaze.com/search/shows?q="+transfer.escape(searchTitle)
+    response = fetcher(endpoint,"tvmaze","https://www.tvmaze.com/")
+    if response.cancelled or not response.ok then return false
+    if rpHdTaskSliceExpired() then return false
+    matches = ParseJson(response.body)
+    if type(matches) <> "roArray" then return false
+    targetKey = rpHdTaskCinemetaTitleKey(searchTitle)
+    selected = invalid
+    exactCount = 0
+    for each match in matches
+        if type(match) = "roAssociativeArray" and type(match.show) = "roAssociativeArray"
+            candidate = match.show
+            if rpHdTaskCinemetaTitleKey(candidate.name) = targetKey
+                selected = candidate
+                exactCount++
+            end if
+        end if
+    end for
+    if exactCount <> 1 or type(selected.genres) <> "roArray" then return false
+    if type(item.genres) <> "roArray" then item.genres = []
+    beforeCount = item.genres.count()
+    for each genre in selected.genres
+        if GetInterface(genre,"ifString") <> invalid
+            genreName = lcase(genre.trim())
+            if genreName <> ""
+                found = false
+                for each savedGenre in item.genres
+                    if GetInterface(savedGenre,"ifString") <> invalid and lcase(savedGenre.trim()) = genreName then found = true
+                end for
+                if not found then item.genres.push(genreName)
+            end if
+        end if
+    end for
+    added = item.genres.count() > beforeCount
+    if added then print "[RokuPlus tvmaze-catalog] matched title="; title; " show="; orbitText(selected.name,160); " genres="; item.genres.count()-beforeCount
+    return added
+end function
+
+function rpHdTaskTvmazeSearchTitle(value as string) as string
+    title = value.trim()
+    key = lcase(title)
+    if key = "hora de aventura" then return "Adventure Time"
+    if key = "merlina" or key = "merlina (2022)" then return "Wednesday"
+    if key = "juego de tronos" or key = "juego de tronos (2011)" then return "Game of Thrones"
+    if key = "bojack horseman (2014)" then return "BoJack Horseman"
+    if key = "el juego del calamar" then return "Squid Game"
+    if key = "el juego de la muerte" or key = "el juego de la muerte (2023)" then return "Death's Game"
+    if key = "el juego de gracie darling" then return "Playing Gracie Darling"
+    if key = "phony: la otra madre" then return "Phony"
+    if key = "chicago en llamas" then return "Chicago Fire"
+    if key = "estamos muertos" or key = "estamos muertos (2022)" then return "All of Us Are Dead"
+    if key = "reacher (2022)" then return "Reacher"
+    if key = "frasier (1993)" then return "Frasier"
+    if key = "el rey de queens" then return "The King of Queens"
+    if key = "asesinato para principiantes" or key = "asesinato para principiantes (2024)" then return "A Good Girl's Guide to Murder"
+    if key = "2 chicas quebradas" or key = "2 chicas quebradas (2011)" then return "2 Broke Girls"
+    if key = "el adn del delito" then return "DNA do Crime"
+    if key = "anatomía según grey" then return "Grey's Anatomy"
+    if key = "buscando a wanda" then return "Where's Wanda?"
+    if key = "coraje, el perro cobarde" or key = "coraje, el perro cobarde (1999)" then return "Courage the Cowardly Dog"
+    if key = "el intercambio" then return "Bytet"
+    if key = "breaking bad (2008)" then return "Breaking Bad"
+    if key = "the blacklist (2013)" then return "The Blacklist"
+    if key = "la lista terminal (2022)" then return "The Terminal List"
+    if key = "visionquest (2026)" then return "VisionQuest"
+    return title
+end function
 
 function rpHdTaskCinemetaTitleKey(value as dynamic) as string
     title = lcase(orbitText(value,200).trim())
@@ -2120,6 +2211,11 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     end if
     if role = "cinecalidad-page"
         return CreateObject("roRegex","^https://www\.cinecalidad\.vg/(page/[0-9]+/|pelicula/[a-z0-9-]+/)?(\?s=[^#]*)?$","").isMatch(endpoint)
+    end if
+    if role = "tvmaze" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"tvmaze")
+        redirectAllowed = false
+        answer.message = "TVmaze redirigió a un dominio no permitido."
+        print "[RokuPlus tvmaze] redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
     end if
     if role = "embed"
         if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","").isMatch(endpoint) then return true
