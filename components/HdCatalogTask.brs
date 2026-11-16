@@ -1712,7 +1712,13 @@ function rpHdTaskCinemetaGlobalSearch(request as object, answer as object, fetch
                                     for each genre in meta.genres
                                         if GetInterface(genre,"ifString") <> invalid
                                             genreName = lcase(genre.trim())
-                                            if genreName <> "" and not genres.DoesExist(genreName) then genres.push(genreName)
+                                            if genreName <> ""
+                                                genreFound = false
+                                                for each savedGenre in genres
+                                                    if savedGenre = genreName then genreFound = true
+                                                end for
+                                                if not genreFound then genres.push(genreName)
+                                            end if
                                         end if
                                     end for
                                 end if
@@ -1795,8 +1801,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     sourceAnswer.operation = "find-source"
                     sourceAnswer.requestId = answer.requestId
                     sourceAnswer.sourceProvider = source
-                    sourceAnswer.item = candidate
-                    if kind = "series" and type(sourceAnswer.item) <> "roAssociativeArray" then sourceAnswer.item = candidate
+                    if kind = "movie" or type(sourceAnswer.item) <> "roAssociativeArray" then sourceAnswer.item = candidate
                     print "[RokuPlus source-search] provider="; source; " result=matched kind="; kind
                     return sourceAnswer
                 end if
