@@ -33,7 +33,9 @@
 ## 3. Catálogos, tareas y rendimiento
 
 - [ ] Auditar las consultas de catálogo de películas y series: caché, paginación, concurrencia y carga progresiva.
-- [ ] Comprobar que las tareas anteriores se cancelan cuando el usuario cambia de pantalla o inicia otra consulta.
+- [x] Revisar ciclo de vida de tareas: las consultas generales usan una sola tarea activa (`m.job`); `fetch()` cancela la anterior antes de crear otra. Home mantiene un máximo habitual de dos tareas iniciales y pagina películas de una en una. Las tareas cooperan con `cancelRequested` y los bucles de descarga revisan cancelación y límites de tiempo/tamaño. No se cambió el código.
+- [ ] Comprobar cancelación de tareas al ocultar/salir de Roku Plus: no se encontró un manejador `visible = false` en `PlusScene.brs`; confirmar el ciclo de vida desde el componente padre antes de afirmar que las tareas se cancelan al ocultar la experiencia.
+- [x] Revisar caché Home: conserva películas y series por modo/proveedor durante cinco minutos, y solo reutiliza el conjunto cuando ambas filas están marcadas como disponibles. No se modificó.
 - [ ] Evitar solicitudes repetidas de la misma página/datos cuando ya están disponibles en caché.
 - [ ] Revisar tiempos de carga y uso de memoria en dispositivos Roku reales antes y después de optimizar.
 - [ ] Revisar modularización de los archivos grandes sin alterar contratos ni comportamiento:
@@ -100,3 +102,14 @@
 
 
 - Revisión de detalle/episodios (2026-11-15): `detailScreen()` dibuja una pantalla fija con hasta tres acciones; `episodeScreen()` dibuja hasta seis pestañas de temporada y cuatro tarjetas de episodio. `onKeyEvent()` vuelve a llamar `drawScreen()` al mover la selección en detalle y episodios. No se identificó una reconstrucción repetitiva causada por temporizadores; el costo está ligado a cada pulsación. Por seguridad se conserva el comportamiento actual y se documenta como oportunidad, sin modificar código.
+
+
+### Revisión del ciclo de vida de tareas (2026-11-15)
+
+- `fetch()` llama primero a `cancelRequest()`, retira observadores de la tarea anterior, activa `cancelRequested` y limpia el estado de la solicitud antes de iniciar otra. El timeout general detiene su timer y cancela de forma cooperativa la tarea.
+- `CatalogTask.brs` comprueba `cancelRequested` durante las descargas y limita cada petición a 20 segundos y 2 MiB. `HdCatalogTask.brs` comprueba cancelación durante sus peticiones HTTP; la agregación de fuentes mantiene un presupuesto total de 40 segundos y una ventana por proveedor de hasta 9 segundos.
+- Home inicia película y serie en paralelo; las páginas adicionales de películas se solicitan secuencialmente hasta `skip <= 40`. La cancelación de Home elimina observadores, marca cada tarea y vacía `m.homeJobs`.
+- `homeStopped()` retira tareas que terminan sin resultado; si ya hay un resultado asociativo, espera a `homeFetched()`, que realiza la limpieza normal.
+- Hallazgo defensivo: `homeFetched()` tiene retornos tempranos si el modo/proveedor de una tarea ya no coincide; esos retornos no retiran la entrada de `m.homeJobs`. Los flujos actuales de cambio de modo y proveedor llaman a `cancelHomeRequests()` antes del cambio, por lo que no se demostró una fuga reproducible. No se parchea sin una prueba que reproduzca el estado.
+- `rpHdTaskCombinedCatalog()` consulta fuentes secuencialmente, con deadline y resultados parciales. No conviene paralelizar: el reparto de tiempo, cancelación y deduplicación están ligados a ese orden; el costo de deduplicación observado es pequeño frente a las esperas de red.
+- Resultado: no se encontró un cuello de botella confirmado que justifique modificar el ciclo de tareas. Mantener el comportamiento actual hasta medir en Roku.
