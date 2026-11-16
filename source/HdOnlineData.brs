@@ -1372,7 +1372,6 @@ function rpHdOnlineTsAdtsSequenceProfile(data as dynamic, audioPid as integer) a
 end function
 
 
-' Optional TVmaze enrichment for series only. Provider IDs and playback fields are never changed.
 ' Cinemeta is the primary metadata source for HD movie/series details.
 ' Provider IDs and stream resolution fields are intentionally left untouched.
 function rpHdCinemetaEnrichAnswer(answer as object, request as object, fetcher as dynamic) as object
@@ -1537,6 +1536,7 @@ function rpHdCinemetaEnrichSeason(season as object, videos as object) as object
     return season
 end function
 
+' TVmaze remains a series-only fallback when Cinemeta cannot safely identify the title.
 function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as dynamic) as object
     if not answer.ok then return answer
     answer = rpHdCinemetaEnrichAnswer(answer,request,fetcher)
