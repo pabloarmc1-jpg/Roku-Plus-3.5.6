@@ -1522,6 +1522,25 @@ function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as
                         if existing.poster = "" and item.poster <> "" then existing.poster = item.poster
                         if existing.background = "" and item.background <> "" then existing.background = item.background
                         if existing.description = "" and item.description <> "" then existing.description = item.description
+                        ' The aggregate catalog can deduplicate the same title across providers.
+                        ' Preserve genre metadata from every matching source, not only the first card.
+                        if type(existing.genres) <> "roArray" then existing.genres = []
+                        if type(item.genres) = "roArray"
+                            for each incomingGenre in item.genres
+                                if GetInterface(incomingGenre,"ifString") <> invalid
+                                    genreName = lcase(incomingGenre.trim())
+                                    if genreName <> ""
+                                        genreExists = false
+                                        for each savedGenre in existing.genres
+                                            if GetInterface(savedGenre,"ifString") <> invalid
+                                                if lcase(savedGenre.trim()) = genreName then genreExists = true
+                                            end if
+                                        end for
+                                        if not genreExists then existing.genres.push(genreName)
+                                    end if
+                                end if
+                            end for
+                        end if
                         if existing.providerTmdbId = "" and item.providerTmdbId <> "" then existing.providerTmdbId = item.providerTmdbId
                         if existing.imdbId = "" and item.imdbId <> "" then existing.imdbId = item.imdbId
                     end if
