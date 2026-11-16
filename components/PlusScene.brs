@@ -3634,7 +3634,48 @@ if m.view = "profiles"
             if key = "OK" and m.homeSeries.count() > 0 then openDetails(m.homeSeries[m.seriesCover],"home"): return true
         end if
     else if m.view = "browse"
+        if m.zone = "categories"
+            if key = "left" and m.categoryCursor > 0 then m.categoryCursor--
+            if key = "right" and m.categoryCursor < 8 then m.categoryCursor++
+            if key = "down" then m.zone = "grid"
+            if key = "up"
+                m.zone = "nav"
+                m.nav = 1
+                if m.kind = "series" then m.nav = 2
+            end if
+            if key = "OK"
+                selectedCategory = ["Más populares","Más recientes","Acción","Comedia","Drama","Terror","Ciencia ficción","Animación","Todos"][m.categoryCursor]
+                if selectedCategory = "Más recientes"
+                    m.catalogSort = "recent"
+                    m.genreFilter = "Todos"
+                else if selectedCategory = "Más populares"
+                    m.catalogSort = "popular"
+                    m.genreFilter = "Todos"
+                else
+                    m.catalogSort = "popular"
+                    m.genreFilter = selectedCategory
+                end if
+                applyGenreFilter()
+                m.note = ""
+                m.zone = "grid"
+            end if
+            drawScreen()
+            return true
+        end if
         previousCursor = m.cursor
+        if key = "up" and m.cursor < 5
+            m.zone = "categories"
+            m.categoryCursor = 0
+            categoryNames = ["Más populares","Más recientes","Acción","Comedia","Drama","Terror","Ciencia ficción","Animación","Todos"]
+            if m.catalogSort = "recent" then m.categoryCursor = 1
+            if m.catalogSort <> "recent" and m.catalogSort <> "popular" and m.genreFilter <> "Todos"
+                for categoryIndex = 0 to categoryNames.count()-1
+                    if categoryNames[categoryIndex] = m.genreFilter then m.categoryCursor = categoryIndex
+                end for
+            end if
+            drawScreen()
+            return true
+        end if
         if key = "left"
             if m.cursor > 0
                 m.cursor--
