@@ -479,7 +479,8 @@ sub fetched(event as object)
         end if
     else if context.operation = "find-source" and type(answer.item) = "roAssociativeArray" and answer.item.kind = "series"
         m.detail = answer.item
-        m.detailOrigin = "search"
+        m.detailOrigin = orbitText(context.origin,24)
+        if m.detailOrigin = "" then m.detailOrigin = "browse"
         m.series = answer.item
         m.seriesOrigin = m.detailOrigin
         m.season = 0
@@ -2957,7 +2958,7 @@ sub playDetail()
         m.view = "source-resolving"
         m.note = ""
         drawScreen()
-        fetch({operation:"find-source",item:m.detail,returnView:"detail"})
+        fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
     end if
     if usesOnlineHd() or rpIsOnlineHdItem(m.detail)
@@ -2987,7 +2988,7 @@ sub enterEpisodes()
         m.view = "source-resolving"
         m.note = ""
         drawScreen()
-        fetch({operation:"find-source",item:m.detail,returnView:"detail"})
+        fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
     end if
     if m.detail.seasons.count() = 0
