@@ -75,7 +75,8 @@
 |---|---|---|---|
 | 2026-11-15 | `PlusScene.brs` | Eliminada una asignación consecutiva duplicada de `m.invidiousQuery`; commit `3e03e9d49255310ceab585f79c809190a313e550`. | Cambio estático confirmado en GitHub; pendiente compilar y probar en Roku. |
 | 2026-11-15 | Home / destacado | Reutilización de nodos para rotación automática y selección manual; commits `35eb15c`, `81dfa54` y `49d68d7`. | **Usuario confirmó que funciona.** |
-| 2026-11-15 | Home / catálogo | Las páginas posteriores de películas actualizan el contador del destacado sin reconstruir toda la pantalla; commit `847623a`. | Cambio en GitHub; pendiente compilar y probar en Roku.
+| 2026-11-15 | Home / catálogo | Las páginas posteriores de películas actualizan el contador del destacado sin reconstruir toda la pantalla; commit `847623a`. | Cambio en GitHub; pendiente compilar y probar en Roku. |
+| 2026-11-15 | Búsqueda y navegación | Búsqueda insensible a mayúsculas y acceso directo desde sugerencias (commit `619fc0e`); navegación del teclado con `paintFocus()` (commit `acf9145`). | **Usuario confirmó que ambas funciones funcionan en Roku.**
 
 ## Notas de auditoría
 
@@ -198,7 +199,7 @@
 - Se cambió únicamente ese redibujado de navegación por `paintFocus()`, que actualiza la visibilidad de los bordes sobre los objetivos existentes.
 - La escritura de caracteres, actualización de sugerencias, borrado, selección de resultados y acciones siguen usando sus rutas de actualización originales; no se cambió la búsqueda ni sus datos.
 - Cambio guardado en `components/PlusScene.brs`, commit `acf9145`.
-- Estado: **pendiente compilar y probar en Roku**. Verificar flechas entre teclas, transición a sugerencias y acciones, escribir y borrar texto, seleccionar una sugerencia y cancelar. Si el foco desaparece o queda desfasado, revertir esta optimización. No tocar el reproductor.
+- Estado: **validada por el usuario en Roku**. El usuario confirmó que la navegación del teclado funciona; se conserva la actualización de foco mediante `paintFocus()` sin reconstruir la pantalla. No tocar el reproductor.
 
 
 ### Búsqueda insensible a mayúsculas y acceso directo desde sugerencias (2026-11-15)
@@ -209,4 +210,4 @@
 - Se añadió el origen `search` en `returnOneStep()`: al volver desde la ficha, se restaura el teclado de búsqueda con la sugerencia seleccionada. El botón BUSCAR conserva su flujo normal de resultados.
 - No se alteran los extractores, proveedores, metadatos ni el reproductor.
 - Cambio guardado en `components/PlusScene.brs`, commit `619fc0e`.
-- Estado: **pendiente compilar y probar en Roku**. Probar búsquedas con mezcla de mayúsculas/minúsculas en catálogo normal y HD online; seleccionar una sugerencia de película y otra de serie; comprobar que abre la ficha y que Atrás vuelve a las sugerencias; confirmar que BUSCAR sigue mostrando resultados. No marcar validado hasta recibir confirmación.
+- Estado: **validada por el usuario en Roku**. El usuario confirmó que la búsqueda funciona: la consulta no distingue mayúsculas/minúsculas y las sugerencias abren directamente la ficha, conservando el retorno al teclado de búsqueda. No se modificó el reproductor.
