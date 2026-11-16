@@ -377,3 +377,12 @@
 - Se conserva el filtrado y ordenamiento existentes sobre los títulos cargados; no se cambió el motor de reproducción.
 - Estado: implementado en `feature/rokuplus-resume-work`; pendiente de compilación y validación en Roku por el usuario.
 - Commits de código: `6caf72f`, `a13f418`, `f652210`.
+
+
+## 8. Filtros de categorías — corrección en curso
+
+- [x] Al seleccionar una categoría, iniciar una sesión de catálogo desde el primer offset y vaciar los títulos de la categoría anterior; evita filtrar accidentalmente solo los elementos que quedaron cargados en “Todos”.
+- [x] Si una categoría obtiene menos de diez coincidencias, continuar automáticamente por páginas del catálogo general (hasta tres páginas iniciales), también cuando la primera página procede de caché. La navegación del grid puede seguir solicitando páginas posteriores.
+- [ ] Probar en Roku las categorías Acción, Comedia, Drama, Terror, Ciencia ficción y Animación con cada proveedor y con “Todas”; confirmar cantidad, paginación, cambio entre categorías y regreso a “Todos”.
+- [ ] Aún no es una consulta de género nativa del servidor: las rutas de catálogo revisadas de LaMovie y AllCalidad exponen orden/paginación, y CineHax/SeriesMetro usan adaptadores propios sin parámetro de género documentado en el código. Por eso esta corrección amplía la búsqueda por páginas y depende de que los metadatos de género estén disponibles; no garantiza un catálogo global completo ni que cada proveedor devuelva todos sus títulos por género.
+- Commits: `9b2cde5` y `f4f6b1e` en `feature/rokuplus-resume-work`. **Aplicado en código; pendiente compilar y validar en Roku.**
