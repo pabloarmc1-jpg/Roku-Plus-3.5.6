@@ -2595,6 +2595,23 @@ sub pageTransitionTick(event as object)
     m.canvas.opacity = 0.70 + m.pageTransitionStep*0.05
 end sub
 
+sub settleDiscoveryForFocus()
+    if not m.discoveryAnimating then return
+    if m.discoveryRotation <> invalid then m.discoveryRotation.control = "stop"
+    if type(m.discoveryPosters) = "roArray"
+        for each poster in m.discoveryPosters
+            if poster <> invalid then poster.translation = [0,0]
+        end for
+    end if
+    m.discoverySlideStep = 0
+    m.discoveryAnimating = false
+    if m.discoveryRotation <> invalid
+        m.discoveryRotation.duration = 3.5
+        m.discoveryRotation.control = "start"
+        m.discoveryRotationActive = true
+    end if
+end sub
+
 sub discoveryRotationTick(event as object)
     if m.view <> "home" then return
     if type(m.features) <> "roArray" or m.features.count() <= 6 then return
@@ -3335,7 +3352,12 @@ if m.view = "profiles"
             if key = "right" and m.features.count() > 0 then m.hero = 1
             if key = "up" then m.zone = "nav": drawScreen(): return true
             if key = "down"
-                if m.continueItems.count() > 0 then m.zone = "continue" else m.zone = "covers"
+                if m.continueItems.count() > 0 then
+                    m.zone = "continue"
+                else
+                    settleDiscoveryForFocus()
+                    m.zone = "covers"
+                end if
                 m.cover = 0
             end if
             if key = "OK"
@@ -3406,7 +3428,10 @@ if m.view = "profiles"
             end if
             if key = "right" and m.cover < m.continueItems.count()-1 and m.cover < 5 then m.cover++
             if key = "up" then m.zone = "hero"
-            if key = "down" then m.zone = "covers"
+            if key = "down"
+                settleDiscoveryForFocus()
+                m.zone = "covers"
+            end if
             if key = "OK" and m.cover < m.continueItems.count()
                 saved = m.continueItems[m.cover]
                 if type(saved) <> "roAssociativeArray" then return true
