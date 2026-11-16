@@ -1494,6 +1494,13 @@ function rpHdCinemetaEnrichAnswer(answer as object, request as object, fetcher a
         print "[RokuPlus cinemeta-match] result=meta_title_mismatch title="; left(title,100); " returned="; left(orbitText(meta.name,100),100); " imdb="; imdbId
         return answer
     end if
+    wantedYear = rpHdTaskCinemetaYear(item.year)
+    metaYear = rpHdTaskCinemetaYear(meta.releaseInfo)
+    if metaYear = "" then metaYear = rpHdTaskCinemetaYear(meta.year)
+    if wantedYear <> "" and metaYear <> "" and wantedYear <> metaYear
+        print "[RokuPlus cinemeta-match] result=meta_year_mismatch title="; left(title,100); " expected="; wantedYear; " returned="; metaYear; " imdb="; imdbId
+        return answer
+    end if
 
     item.imdbId = imdbId
     value = orbitHttpsUrl(meta.poster)
