@@ -20,8 +20,9 @@
 
 ## 2. Interfaz y navegación (sin tocar el reproductor)
 
-- [ ] Analizar `drawScreen()` y `eraseScreen()` en `components/PlusScene.brs`: cuantificar cuántos nodos se destruyen y recrean al navegar.
-- [ ] Evaluar reutilizar nodos SceneGraph y actualizar solo los elementos que cambian, empezando por Home, catálogo y detalle.
+- [x] Analizar `drawScreen()` y `eraseScreen()` en `components/PlusSceneViews.brs`: `drawScreen()` ejecuta `eraseScreen()` y reconstruye la vista; hay alrededor de 115 llamadas a `drawScreen()` desde `PlusScene.brs`. La limpieza total sigue pendiente de optimización por pantalla.
+- [x] Home: la rotación y selección manual del destacado ahora actualizan el poster, título, datos y puntos existentes sin reconstruir toda la pantalla. Commits `35eb15c`, `81dfa54` y `49d68d7`. **Pendiente compilar y validar en Roku.**
+- [ ] Extender la reutilización de nodos a catálogo y detalle después de medir y diseñar cambios específicos; no se modificaron todavía.
 - [ ] Revisar transiciones y animaciones para evitar trabajo cuando no son visibles.
 - [ ] Revisar el manejo del foco y la creación/destrucción de elementos para reducir trabajo de CPU y recolección de basura.
 - [ ] Probar navegación rápida entre Home, películas, series, detalle y búsqueda después de cada cambio de interfaz.
@@ -84,3 +85,6 @@
 
 - Optimización de rotación Home implementada: `syncHomeRotationTimers()` gobierna los timers de hero (solo con más de un destacado) y discovery (solo con más de seis elementos). Se invoca al dibujar vistas, al activar la experiencia y al entrar en los reproductores; los timers no permanecen activos fuera de Home.
 - Los cambios están en GitHub, pero aún no hay evidencia de compilación ni prueba en dispositivo. Mantener el estado como pendiente de validación hasta recibir el log.
+
+- Optimización incremental de Home: `heroRotationTick` y `changeHero` ya no llaman a `drawScreen()` cuando los nodos del destacado están disponibles. Se actualizan los nodos existentes; si falta el poster requerido o no están inicializados, se conserva el fallback de redibujado completo. Esto evita recrear las filas de continuar viendo, descubrimiento, lista y barra superior cada vez que cambia el destacado.
+- El redibujado general sigue intacto para navegación y cambios de vista. No se hizo una refactorización masiva ni se tocó el reproductor.
