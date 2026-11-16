@@ -2625,10 +2625,10 @@ sub discoveryRotationTick(event as object)
     end if
 
     m.discoverySlideStep++
-    shift = m.discoverySlideStep * 49
+    shift = m.discoverySlideStep * 45
     for i = 0 to 6
         poster = m.discoveryPosters[i]
-        poster.translation = [84+i*294-shift,m.discoveryRowY]
+        poster.translation = [-shift,0]
     end for
 
     if m.discoverySlideStep >= 6
@@ -2644,7 +2644,7 @@ sub discoveryRotationTick(event as object)
         nextUri = nextItem.background
         if nextUri = "" then nextUri = nextItem.poster
         recycled.uri = themeAsset(nextUri)
-        recycled.translation = [84+6*294,m.discoveryRowY]
+        recycled.translation = [1620,0]
         nextPosters.push(recycled)
         m.discoveryPosters = nextPosters
         m.discoverySlideStep = 0
