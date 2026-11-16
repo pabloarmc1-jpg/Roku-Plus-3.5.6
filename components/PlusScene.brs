@@ -3453,7 +3453,11 @@ if m.view = "profiles"
             end if
         end if
         if key = "OK" and m.titles.count() > 0 then openDetails(m.titles[m.cursor],"browse"): return true
-        if previousCursor <> m.cursor then drawScreen(): return true
+        if previousCursor <> m.cursor
+            if (previousCursor \ 10) = (m.cursor \ 10) and updateBrowseSelection() then return true
+            drawScreen()
+            return true
+        end if
     else if m.view = "detail"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up"
