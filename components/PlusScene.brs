@@ -2878,6 +2878,11 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
                 m.offset = offset
                 m.nextOffset = m.catalogPageCache.nextOffset
                 m.more = m.catalogPageCache.hasMore
+                if m.genreFilter <> "Todos" and m.titles.count() < 10 and m.more and offset < 40
+                    print "[RokuPlus genres] scan_cached_next=1 filter="; m.genreFilter; " source_offset="; m.nextOffset; " matches="; m.titles.count()
+                    loadBrowsePage(m.nextOffset)
+                    return
+                end if
                 m.cursor = 0
                 if offset > 0 and m.titles.count() > previousVisibleCount
                     m.cursor = previousVisibleCount
