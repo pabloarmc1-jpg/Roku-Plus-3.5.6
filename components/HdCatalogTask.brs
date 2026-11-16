@@ -8,7 +8,7 @@ sub runHdCatalogRequest()
     m.hdElapsed = CreateObject("roTimespan")
     m.hdElapsed.mark()
     m.hdTotalBudgetMs = 40000
-    if m.top.operation = "resolve" or m.top.operation = "find-source" then m.hdTotalBudgetMs = 60000
+    if m.top.operation = "resolve" or m.top.operation = "find-source" then m.hdTotalBudgetMs = 70000
     request = {
         operation:m.top.operation, kind:m.top.kind, provider:m.top.provider
         query:m.top.query, skip:m.top.skip, item:m.top.item, season:m.top.season
@@ -1817,6 +1817,16 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     if searchQueries.count() = 0
         answer.message = "No hay un título válido para buscar en las fuentes."
         return answer
+    end if
+    ' Episode fallback must reach every provider. Searching several title variants
+    ' against one provider first can exhaust the shared deadline before the
+    ' remaining providers are checked. Use the canonical series title once per
+    ' provider; the strict title/year and episode-number checks remain unchanged.
+    if isEpisode
+        episodeQueries = []
+        rpHdTaskAppendUniqueSearchQuery(episodeQueries,cinemetaTitle)
+        if episodeQueries.count() = 0 then rpHdTaskAppendUniqueSearchQuery(episodeQueries,originalQuery)
+        searchQueries = episodeQueries
     end if
     failures = 0
     print "[RokuPlus source-search] start kind="; kind; " episode="; isEpisode; " title="; cinemetaTitle; " year="; discoveryYear; " providers="; providers.count(); " queries="; searchQueries.count()
