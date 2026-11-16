@@ -2,6 +2,8 @@
 <component name="IntroDbTask" extends="Task">
  <interface>
   <field id="imdbId" type="string" value="" />
+  <field id="title" type="string" value="" />
+  <field id="year" type="string" value="" />
   <field id="season" type="integer" value="0" />
   <field id="episode" type="integer" value="0" />
   <field id="isMovie" type="boolean" value="false" />
