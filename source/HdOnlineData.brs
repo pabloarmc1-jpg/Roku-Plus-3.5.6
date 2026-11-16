@@ -1419,59 +1419,94 @@ function rpHdCinemetaEnrichAnswer(answer as object, request as object, fetcher a
     searchTitle = rpHdCinemetaSearchTitle(item,variants)
     imdbId = orbitImdb(item.imdbId)
     if imdbId = ""
-        transfer = CreateObject("roUrlTransfer")
-        searchUrl = "https://v3-cinemeta.strem.io/catalog/"+mediaKind+"/top/search="+transfer.Escape(searchTitle)+".json"
-        if m.top.operation <> "catalog" then rpHdTaskBeginSlice(3)
-        searchResponse = fetcher(searchUrl,"cinemeta","")
-        if searchResponse.cancelled then return rpHdTaskFailure(answer,searchResponse)
-        if not searchResponse.ok
-            print "[RokuPlus cinemeta-match] result=search_failed kind="; mediaKind; " title="; left(title,100); " status="; orbitInteger(searchResponse.httpStatus,9999)
-            return answer
-        end if
-        searchData = ParseJson(searchResponse.body)
-        if type(searchData) <> "roAssociativeArray" or type(searchData.metas) <> "roArray"
-            print "[RokuPlus cinemeta-match] result=invalid_search_json kind="; mediaKind; " title="; left(title,100)
-            return answer
-        end if
-
-        wantedYear = rpHdTaskCinemetaYear(item.year)
+        ' Try the display title first, then a small number of provider-supplied alternate titles.
+        ' A query is accepted only when it yields one distinct IMDb identity for the requested year.
         selectedId = ""
-        exactCount = 0
-        titleMatches = 0
-        yearRejected = 0
-        invalidIds = 0
-        for each candidate in searchData.metas
-            if type(candidate) = "roAssociativeArray"
-                candidateId = orbitImdb(candidate.id)
-                candidateYear = rpHdTaskCinemetaYear(candidate.releaseInfo)
-                if candidateYear = "" then candidateYear = rpHdTaskCinemetaYear(candidate.year)
-                if rpHdCinemetaNameMatches(candidate,variants)
-                    titleMatches++
-                    yearMatches = wantedYear = "" or candidateYear = "" or candidateYear = wantedYear
-                    if yearMatches
-                        if candidateId <> ""
-                            selectedId = candidateId
-                            exactCount++
-                        else
-                            invalidIds++
-                        end if
+        bestReason = "title_not_found"
+        bestTitleMatches = 0
+        bestYearRejected = 0
+        bestInvalidIds = 0
+        searchFailures = 0
+        queryLimit = variants.count()
+        if queryLimit > 4 then queryLimit = 4
+        for queryIndex = 0 to queryLimit-1
+            queryTitle = orbitText(variants[queryIndex],200).trim()
+            if queryTitle = "" then
+                ' Ignore empty aliases.
+            else
+                transfer = CreateObject("roUrlTransfer")
+                searchUrl = "https://v3-cinemeta.strem.io/catalog/"+mediaKind+"/top/search="+transfer.Escape(queryTitle)+".json"
+                if m.top.operation <> "catalog" then rpHdTaskBeginSlice(3)
+                searchResponse = fetcher(searchUrl,"cinemeta","")
+                if searchResponse.cancelled then return rpHdTaskFailure(answer,searchResponse)
+                if not searchResponse.ok
+                    searchFailures++
+                    print "[RokuPlus cinemeta-match] result=search_failed kind="; mediaKind; " title="; left(title,100); " query="; left(queryTitle,100); " status="; orbitInteger(searchResponse.httpStatus,9999)
+                else
+                    searchData = ParseJson(searchResponse.body)
+                    if type(searchData) <> "roAssociativeArray" or type(searchData.metas) <> "roArray"
+                        searchFailures++
+                        print "[RokuPlus cinemeta-match] result=invalid_search_json kind="; mediaKind; " title="; left(title,100); " query="; left(queryTitle,100)
                     else
-                        yearRejected++
+                        wantedYear = rpHdTaskCinemetaYear(item.year)
+                        querySelectedId = ""
+                        queryExactCount = 0
+                        titleMatches = 0
+                        yearRejected = 0
+                        invalidIds = 0
+                        matchedIds = {}
+                        for each candidate in searchData.metas
+                            if type(candidate) = "roAssociativeArray"
+                                candidateId = orbitImdb(candidate.id)
+                                candidateYear = rpHdTaskCinemetaYear(candidate.releaseInfo)
+                                if candidateYear = "" then candidateYear = rpHdTaskCinemetaYear(candidate.year)
+                                if rpHdCinemetaNameMatches(candidate,variants)
+                                    titleMatches++
+                                    yearMatches = wantedYear = "" or candidateYear = "" or candidateYear = wantedYear
+                                    if yearMatches
+                                        if candidateId <> ""
+                                            if not matchedIds.doesExist(candidateId)
+                                                matchedIds[candidateId] = true
+                                                querySelectedId = candidateId
+                                                queryExactCount++
+                                            end if
+                                        else
+                                            invalidIds++
+                                        end if
+                                    else
+                                        yearRejected++
+                                    end if
+                                end if
+                            end if
+                        end for
+                        if titleMatches > bestTitleMatches
+                            bestTitleMatches = titleMatches
+                            bestYearRejected = yearRejected
+                            bestInvalidIds = invalidIds
+                        end if
+                        if queryExactCount = 1
+                            selectedId = querySelectedId
+                            searchTitle = queryTitle
+                            exit for
+                        else if queryExactCount > 1
+                            bestReason = "ambiguous_match"
+                        else if titleMatches > 0 and yearRejected > 0
+                            bestReason = "year_mismatch"
+                        else if titleMatches > 0 and invalidIds > 0
+                            bestReason = "missing_imdb_id"
+                        end if
                     end if
                 end if
             end if
+            if rpHdTaskSliceExpired() then exit for
         end for
-        if exactCount <> 1
-            reason = "title_not_found"
-            if titleMatches > 0 and yearRejected > 0 then reason = "year_mismatch"
-            if titleMatches > 0 and invalidIds > 0 and exactCount = 0 then reason = "missing_imdb_id"
-            if exactCount > 1 then reason = "ambiguous_match"
-            print "[RokuPlus cinemeta-match] result="; reason; " kind="; mediaKind; " title="; left(title,100); " query="; left(searchTitle,100); " results="; searchData.metas.count(); " title_matches="; titleMatches; " year_rejected="; yearRejected; " invalid_ids="; invalidIds
+        if selectedId = ""
+            if searchFailures = queryLimit and queryLimit > 0 then bestReason = "search_failed"
+            print "[RokuPlus cinemeta-match] result="; bestReason; " kind="; mediaKind; " title="; left(title,100); " query="; left(searchTitle,100); " queries="; queryLimit; " title_matches="; bestTitleMatches; " year_rejected="; bestYearRejected; " invalid_ids="; bestInvalidIds
             return answer
         end if
         imdbId = selectedId
     end if
-
     if m.top.operation <> "catalog" then rpHdTaskBeginSlice(2)
     metaResponse = fetcher("https://v3-cinemeta.strem.io/meta/"+mediaKind+"/"+imdbId+".json","cinemeta","")
     if metaResponse.cancelled then return rpHdTaskFailure(answer,metaResponse)
@@ -1616,7 +1651,7 @@ end function
 function rpHdCinemetaSearchTitle(item as object, variants as object) as string
     canonical = rpHdCinemetaCanonicalTitle(orbitText(item.title,200))
     if canonical <> "" then return canonical
-    if variants.count() > 1 then return orbitText(variants[1],200)
+    if variants.count() > 0 then return orbitText(variants[0],200)
     return orbitText(item.title,200)
 end function
 
