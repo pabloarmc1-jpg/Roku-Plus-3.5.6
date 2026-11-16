@@ -363,7 +363,7 @@
 - El filtro de género y el orden se aplican sobre la lista acumulada, sin cambiar la paginación continua.
 - **Mejor valoradas queda pendiente:** los modelos de catálogo actuales no conservan una puntuación/rating fiable de las fuentes; no se inventa una clasificación.
 - En el catálogo combinado, Cinemeta se consulta por título para los elementos que aún no tienen géneros. El log de Roku confirmó que los resultados de `/catalog` son objetos de vista previa sin `genres`; por ello, ahora se obtiene el objeto completo mediante `/meta/{kind}/{id}.json`.
-- La búsqueda elimina el año entre paréntesis del texto consultado, acepta título exacto o una única coincidencia por año para resolver títulos localizados, valida IDs IMDb (`tt...`) y mantiene un máximo de ocho búsquedas por operación. La solicitud de detalle usa el mismo presupuesto temporal y solo copia géneros devueltos por Cinemeta.
+- La búsqueda elimina el año entre paréntesis del texto consultado, acepta título exacto o una única coincidencia por año para resolver títulos localizados, valida IDs IMDb (`tt...`) y amplía a un máximo de dieciséis títulos por página del catálogo, con reparto del presupuesto temporal restante y comprobación del vencimiento antes de solicitar el detalle. La solicitud de detalle solo copia géneros devueltos por Cinemeta. El límite evita intentar enriquecer todo el catálogo en una sola operación; los títulos de páginas posteriores se enriquecen al cargarse.
 - Código: commits `c8f6fc2`, `bfc7ee1` y `f50d40b` en `components/HdCatalogTask.brs`.
 - Estado: cambio revisado estáticamente; pendiente compilar y probar en Roku. No se ha validado todavía la respuesta de detalle ni el enriquecimiento en dispositivo.
 
