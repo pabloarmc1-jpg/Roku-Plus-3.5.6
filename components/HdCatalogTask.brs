@@ -2015,6 +2015,7 @@ function rpHdTaskLocalizedTitleAliasKey(title as dynamic) as string
     if normalized = "avatarthelastairbender" or normalized = "avatarlaleyendadeaang" or normalized = "avatar the last airbender" or normalized = "avatar la leyenda de aang" then return "avatar-the-last-airbender"
     if normalized = "spidermanbrandnewday" or normalized = "spidermanunnuevodia" then return "spider-man-brand-new-day"
     if normalized = "residentevil" or normalized = "residentevilnochecero" then return "resident-evil-2026"
+    if normalized = "thelordoftheringsthefellowshipofthering" or normalized = "thefellowshipofthering" or normalized = "elsenordelosanilloslacomunidaddelanillo" then return "lord-of-the-rings-fellowship-2001"
     return ""
 end function
 
