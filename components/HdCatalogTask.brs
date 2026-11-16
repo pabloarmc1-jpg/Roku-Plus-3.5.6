@@ -41,7 +41,9 @@ sub rpHdTaskEnrichCatalogMetadata(items as object, kind as string, fetcher as dy
         print "[RokuPlus cinemeta-catalog] kind="; kind; " candidates=0 reason=already_complete"
         return
     end if
-    maxQueries = 12
+    ' Raise catalog coverage modestly while preserving the shared task deadline.
+    ' The remaining-time slice is recalculated for every candidate below.
+    maxQueries = 14
     if candidates.count() < maxQueries then maxQueries = candidates.count()
     cinemetaEnriched = 0
     tvmazeFallbacks = 0
