@@ -843,6 +843,11 @@ sub detailScreen()
         if facts <> "" then facts += "   ·   "
         facts += timeText(detailRuntime)
     end if
+    rating = orbitText(item.rating,16)
+    if rating <> ""
+        if facts <> "" then facts += "   ·   "
+        facts += "IMDb "+rating+"/10"
+    end if
     if facts <> "" then words(facts,542,405,1045,38,24,"0xE0E3E8FF")
 
     genre = ""
@@ -858,6 +863,25 @@ sub detailScreen()
     end if
     if genre <> "" then words(genre,542,445,1110,36,22,"0xC5CBD4FF")
 
+    creditsText = ""
+    directors = item.directors
+    if type(directors) = "roArray" and directors.count() > 0
+        creditsText = "Dir. "+orbitText(directors[0],100)
+    end if
+    cast = item.cast
+    if type(cast) = "roArray" and cast.count() > 0
+        castText = ""
+        castLimit = cast.count()
+        if castLimit > 3 then castLimit = 3
+        for castIndex = 0 to castLimit-1
+            if castText <> "" then castText += ", "
+            castText += orbitText(cast[castIndex],100)
+        end for
+        if creditsText <> "" then creditsText += "   ·   "
+        creditsText += "Reparto: "+castText
+    end if
+    if creditsText <> "" then words(left(creditsText,150),542,478,1110,32,18,"0xB8C0CCFF")
+
     saved = rpWatchGet(m.watchState,item.id)
     statusText = ""
     if saved <> invalid
@@ -871,11 +895,12 @@ sub detailScreen()
             statusText += "Continuar desde "+timeText(saved.position)
         end if
     end if
-    statusY = 485
-    if genre = "" then statusY = 455
+    statusY = 518
+    if creditsText = "" then statusY = 485
+    if genre = "" and creditsText = "" then statusY = 455
     if statusText <> "" then words(statusText,542,statusY,1100,32,19,"0xFFFFFFFF")
 
-    summaryY = statusY+48
+    summaryY = statusY+42
     ' Provider descriptions are optional and may arrive as Invalid or another type.
     summary = orbitText(item.description,701)
     if summary = "" then summary = "Consulta la disponibilidad de este título."
