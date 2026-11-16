@@ -23,7 +23,8 @@
 - [x] Analizar `drawScreen()` y `eraseScreen()` en `components/PlusSceneViews.brs`: `drawScreen()` ejecuta `eraseScreen()` y reconstruye la vista; hay alrededor de 115 llamadas a `drawScreen()` desde `PlusScene.brs`. La limpieza total sigue pendiente de optimización por pantalla.
 - [x] Home: la rotación y selección manual del destacado actualizan el poster, título, datos y puntos existentes sin reconstruir toda la pantalla. Commits `35eb15c`, `81dfa54` y `49d68d7`. **Validado por el usuario: funciona en su Roku.**
 - [x] Home: al recibir páginas posteriores de películas, actualizar el contador del destacado y conservar los nodos existentes en vez de reconstruir toda la pantalla. Commit `847623a`. **Pendiente compilar y validar en Roku.**
-- [ ] Extender la reutilización de nodos a catálogo y detalle después de medir y diseñar cambios específicos; no se modificaron todavía.
+- [x] Catálogo: al mover el foco entre tarjetas, actualizar solo el poster de fondo y el contorno de selección; evitar reconstruir las diez tarjetas y volver a asignar sus imágenes. Commits `20e91dc` (`PlusSceneViews.brs`) y `9c2e4e7` (`PlusScene.brs`). **Pendiente compilar y validar en Roku.**
+- [ ] Extender la reutilización de nodos a detalle después de medir y diseñar cambios específicos; no se modificó todavía.
 - [ ] Revisar transiciones y animaciones para evitar trabajo cuando no son visibles.
 - [ ] Revisar el manejo del foco y la creación/destrucción de elementos para reducir trabajo de CPU y recolección de basura.
 - [ ] Probar navegación rápida entre Home, películas, series, detalle y búsqueda después de cada cambio de interfaz.
@@ -91,3 +92,6 @@
 
 - Optimización incremental de Home: `heroRotationTick` y `changeHero` ya no llaman a `drawScreen()` cuando los nodos del destacado están disponibles. Se actualizan los nodos existentes; si falta el poster requerido o no están inicializados, se conserva el fallback de redibujado completo. Esto evita recrear las filas de continuar viendo, descubrimiento, lista y barra superior cada vez que cambia el destacado. El usuario confirmó que funciona.
 - El redibujado general sigue intacto para navegación y cambios de vista. No se hizo una refactorización masiva ni se tocó el reproductor.
+
+
+- Optimización incremental del catálogo en navegación: `browseScreen()` conserva el poster de fondo en `m.browseBackdropPoster`. Al mover el cursor, `updateBrowseSelection()` cambia su URI y ejecuta `paintFocus()` sin borrar y reconstruir el resto de la cuadrícula. Si el nodo de fondo no existe y el nuevo título necesita artwork, se mantiene el fallback seguro a `drawScreen()`. Cambios remotos en GitHub; pendiente compilación y prueba en Roku.
