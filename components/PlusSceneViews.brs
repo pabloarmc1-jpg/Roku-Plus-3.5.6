@@ -679,7 +679,7 @@ sub browseScreen()
                 if uri = "" then uri = orbitText(item.background,2048)
                 if uri <> ""
                     if m.catalogFadePending
-                        poster = art(uri,x,cardY,posterW,posterH)
+                        poster = art(uri,x,cardY,posterW,posterH,"scaleToFill",256,219)
                         poster.opacity = 0.0
                         poster.translation = [28,0]
                         poster.observeField("loadStatus","catalogPosterLoadStatusChanged")
@@ -691,7 +691,7 @@ sub browseScreen()
                             m.catalogFadeTimer.control = "start"
                         end if
                     else
-                        art(uri,x,cardY,posterW,posterH)
+                        art(uri,x,cardY,posterW,posterH,"scaleToFill",256,219)
                     end if
                 else
                     panel(x,cardY,posterW,posterH,"0x25252BFF")
