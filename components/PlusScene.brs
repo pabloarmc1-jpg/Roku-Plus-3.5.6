@@ -132,6 +132,7 @@ sub init()
     m.liveQuery = ""
     m.liveSearchCursor = 0
     m.cursor = 0
+    m.categoryInitialScan = false
     m.liveCursor = 0
     m.season = 0
     m.episode = 0
@@ -552,14 +553,20 @@ sub fetched(event as object)
                 loadBrowsePage(answer.nextSkip)
                 return
             end if
-            m.cursor = 0
-            if context.offset > 0 and m.titles.count() > previousVisibleCount
-                m.cursor = previousVisibleCount
-            else if context.offset > 0 and m.titles.count() > 0
-                m.cursor = m.titles.count()-1
+            if m.categoryInitialScan
+                ' Keep the first poster selected while the initial genre scan appends pages.
+                m.cursor = 0
+                m.categoryInitialScan = false
+            else
+                m.cursor = 0
+                if context.offset > 0 and m.titles.count() > previousVisibleCount
+                    m.cursor = previousVisibleCount
+                else if context.offset > 0 and m.titles.count() > 0
+                    m.cursor = m.titles.count()-1
+                end if
+                if context.doesExist("last") and context.last then m.cursor = m.titles.count()-1
+                if m.cursor < 0 then m.cursor = 0
             end if
-            if context.doesExist("last") and context.last then m.cursor = m.titles.count()-1
-            if m.cursor < 0 then m.cursor = 0
             ' New pages join the existing grid without a page-transition fade.
             m.catalogFadePending = false
         end if
@@ -2927,14 +2934,20 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
                     loadBrowsePage(m.nextOffset)
                     return
                 end if
-                m.cursor = 0
-                if offset > 0 and m.titles.count() > previousVisibleCount
-                    m.cursor = previousVisibleCount
-                else if offset > 0 and m.titles.count() > 0
-                    m.cursor = m.titles.count()-1
+                if m.categoryInitialScan
+                    ' Cached pages must preserve the same initial focus as network pages.
+                    m.cursor = 0
+                    m.categoryInitialScan = false
+                else
+                    m.cursor = 0
+                    if offset > 0 and m.titles.count() > previousVisibleCount
+                        m.cursor = previousVisibleCount
+                    else if offset > 0 and m.titles.count() > 0
+                        m.cursor = m.titles.count()-1
+                    end if
+                    if last then m.cursor = m.titles.count()-1
+                    if m.cursor < 0 then m.cursor = 0
                 end if
-                if last then m.cursor = m.titles.count()-1
-                if m.cursor < 0 then m.cursor = 0
                 m.catalogFadePending = false
                 if m.zone <> "categories" then m.zone = "grid"
                 m.note = ""
@@ -3774,6 +3787,7 @@ if m.view = "profiles"
                 m.nextOffset = 0
                 m.more = false
                 m.cursor = 0
+                m.categoryInitialScan = true
                 m.note = ""
                 ' Selecting another category must not move focus to the poster grid.
                 m.zone = "categories"
