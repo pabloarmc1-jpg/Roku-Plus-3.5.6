@@ -1745,6 +1745,17 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     if cinemetaTitle <> "" and rpHdTaskCinemetaTitleKey(cinemetaTitle) <> rpHdTaskCinemetaTitleKey(originalQuery)
         searchQueries.push(cinemetaTitle)
     end if
+    ' Some provider search indexes tokenize the release year separately.
+    ' Try that spelling only after the plain title, without relaxing identity checks.
+    discoveryYear = rpHdTaskCinemetaYear(item.year)
+    if cinemetaTitle <> "" and discoveryYear <> ""
+        yearQuery = cinemetaTitle+" "+discoveryYear
+        yearQueryExists = false
+        for each savedQuery in searchQueries
+            if rpHdTaskCinemetaTitleKey(savedQuery) = rpHdTaskCinemetaTitleKey(yearQuery) then yearQueryExists = true
+        end for
+        if not yearQueryExists then searchQueries.push(yearQuery)
+    end if
     if searchQueries.count() = 0
         answer.message = "No hay un título válido para buscar en las fuentes."
         return answer
@@ -1787,7 +1798,15 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 else if matches.count() > 1
                     print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=ambiguous matches="; matches.count()
                 else
-                    print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=no-match"
+                    print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=no-match candidates="; catalog.items.count()
+                    diagnosticCount = 0
+                    for each diagnosticCandidate in catalog.items
+                        if diagnosticCount >= 3 then exit for
+                        if type(diagnosticCandidate) = "roAssociativeArray"
+                            print "[RokuPlus source-search-candidate] provider="; source; " title="; orbitText(diagnosticCandidate.title,100); " year="; orbitText(diagnosticCandidate.year,12); " imdb="; orbitText(diagnosticCandidate.imdbId,24)
+                            diagnosticCount++
+                        end if
+                    end for
                 end if
             end if
         end for
@@ -1805,15 +1824,20 @@ function rpHdTaskSameDiscoveryItem(discovery as dynamic, candidate as dynamic, s
     candidateImdb = lcase(orbitText(candidate.imdbId,40))
     wantedYear = rpHdTaskCinemetaYear(discovery.year)
     candidateYear = rpHdTaskCinemetaYear(candidate.year)
-    if wantedImdb <> "" and candidateImdb <> ""
-        if wantedImdb <> candidateImdb then return false
-        if wantedYear <> "" and candidateYear <> "" and wantedYear <> candidateYear then return false
-        return true
-    end if
     candidateTitle = rpHdTaskCinemetaTitleKey(candidate.title)
     discoveryTitle = rpHdTaskCinemetaTitleKey(discovery.title)
     queryTitle = rpHdTaskCinemetaTitleKey(searchQuery)
     if candidateTitle = "" then return false
+    if wantedImdb <> "" and candidateImdb <> ""
+        if wantedImdb = candidateImdb
+            if wantedYear <> "" and candidateYear <> "" and wantedYear <> candidateYear then return false
+            return true
+        end if
+        ' Provider metadata can carry a different external ID for the same
+        ' edition. Accept that conflict only with exact title AND matching year.
+        if candidateTitle <> discoveryTitle or wantedYear = "" or candidateYear = "" or wantedYear <> candidateYear then return false
+        return true
+    end if
     if candidateTitle <> discoveryTitle and (queryTitle = "" or candidateTitle <> queryTitle) then return false
     ' If both years exist they must agree. If one source omits the year,
     ' exact title identity is still required and ambiguity is rejected above.
