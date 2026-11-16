@@ -244,3 +244,12 @@
 - No se alteran los extractores, proveedores, metadatos ni el reproductor.
 - Cambio guardado en `components/PlusScene.brs`, commit `619fc0e`.
 - Estado: **validada por el usuario en Roku**. El usuario confirmó que la búsqueda funciona: la consulta no distingue mayúsculas/minúsculas y las sugerencias abren directamente la ficha, conservando el retorno al teclado de búsqueda. No se modificó el reproductor.
+
+
+### Fondo de previsualización de búsqueda (2026-11-15)
+
+- La pantalla de búsqueda muestra el fondo de la sugerencia seleccionada a 1920×1080, cubierto por una capa oscura semitransparente. Se mantiene el tamaño visual del fondo, pero su Poster ahora se decodifica a 960×540 mediante los parámetros opcionales de `art()`.
+- Las cinco portadas de sugerencias conservan sus dimensiones de visualización y carga (166×194); no se cambió su nitidez ni el flujo de sugerencias.
+- No se modificaron el teclado, el foco, la búsqueda, el acceso directo a fichas, la navegación ni el reproductor.
+- Cambio en `components/PlusSceneViews.brs`, commit `cb607e7`.
+- Estado: **pendiente compilar y probar en Roku**. Comprobar que el fondo de búsqueda sigue viéndose bien al cambiar entre sugerencias y que las portadas y el foco permanecen correctos.
