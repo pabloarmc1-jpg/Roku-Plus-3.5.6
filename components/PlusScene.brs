@@ -142,6 +142,7 @@ sub init()
     m.series = invalid
     m.detailOrigin = "home"
     m.autoplay = false
+    m.sourceLaunchPending = false
     m.busy = false
     m.job = invalid
     m.request = ""
@@ -374,7 +375,7 @@ sub catalogTimedOut()
     cancelRequest()
     m.autoplay = false
     m.note = "La consulta tardó demasiado. Pulsa OK para intentar de nuevo o Atrás para volver."
-    if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" then m.view = "detail"
+    if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" and not m.sourceLaunchPending then m.view = "detail"
     if m.view = "player"
         if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
             showPlayerNextEpisodeError(m.note)
@@ -395,7 +396,7 @@ sub catalogState(event as object)
     cancelRequest()
     m.autoplay = false
     m.note = "No se pudo completar la consulta. Vuelve a intentar."
-    if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" then m.view = "detail"
+    if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" and not m.sourceLaunchPending then m.view = "detail"
     if m.view = "player"
         if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
             showPlayerNextEpisodeError(m.note)
@@ -424,8 +425,10 @@ sub fetched(event as object)
             return
         end if
         if context.operation = "find-source"
-            m.view = orbitText(context.returnView,24)
-            if m.view = "" then m.view = "detail"
+            if not m.sourceLaunchPending
+                m.view = orbitText(context.returnView,24)
+                if m.view = "" then m.view = "detail"
+            end if
             m.autoplay = false
             m.note = answer.message
             drawScreen()
@@ -465,6 +468,7 @@ sub fetched(event as object)
         end if
         m.autoplay = false
         m.note = answer.message
+        if m.sourceLaunchPending then m.view = "source-resolving"
         if context.operation = "compatible" then m.note = "La reproducción con PC no está disponible. Puedes elegir Reproducir para usar la conexión directa."
         if m.view = "player"
             if context.operation = "episodes"
@@ -760,6 +764,7 @@ sub invidiousPlayerClosed(event as object)
 end sub
 
 sub launchVideo(item as object, url as string, format as string)
+    m.sourceLaunchPending = false
     targetPlayer = m.standardPlayer
     targetEngine = "standard"
     if type(item) = "roAssociativeArray" and item.doesExist("playbackEngine")
@@ -3012,10 +3017,11 @@ sub playDetail()
         return
     end if
     m.playbackMode = "direct"
+    m.sourceLaunchPending = true
+    m.view = "source-resolving"
+    m.note = ""
+    drawScreen()
     if orbitText(m.detail.discoverySource,32) = "cinemeta"
-        m.view = "source-resolving"
-        m.note = ""
-        drawScreen()
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
     end if
@@ -3254,6 +3260,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.view = "player" or m.view = "invidious-player" then return false
+    if m.view = "source-resolving" and not m.busy and key = "OK"
+        m.sourceLaunchPending = false
+        playDetail()
+        return true
+    end if
     if key = "down" and m.ignoreBrowseDownUntilRelease then return true
     if m.dialogBox <> invalid
         ' Let StandardKeyboardDialog own Back. Manually closing it here races
@@ -3331,7 +3342,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
             pendingContext = m.pending
             cancelRequest()
             m.autoplay = false
-            if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" then m.view = "detail"
+            if m.sourceLaunchPending
+                m.sourceLaunchPending = false
+                m.view = "detail"
+            else if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source"
+                m.view = "detail"
+            end if
             drawScreen()
         else if m.view = "live" and (m.zone = "live" or m.zone = "live-actions" or m.zone = "live-search")
             m.zone = "live-filters"
