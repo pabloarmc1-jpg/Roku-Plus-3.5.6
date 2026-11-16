@@ -362,10 +362,10 @@
 - Se amplió el diálogo de opciones del catálogo con "Más populares" (conserva el orden de relevancia que entrega la fuente), "Más recientes" (ordena por año descendente) y los géneros disponibles en los títulos cargados.
 - El filtro de género y el orden se aplican sobre la lista acumulada, sin cambiar la paginación continua.
 - **Mejor valoradas queda pendiente:** los modelos de catálogo actuales no conservan una puntuación/rating fiable de las fuentes; no se inventa una clasificación.
-- En el catálogo combinado, Cinemeta ahora se consulta por título para los elementos que aún no tienen géneros, en vez de comparar únicamente contra su catálogo popular.
-- Se limita el enriquecimiento a un máximo de ocho búsquedas por operación y se reparte el presupuesto de tiempo restante; se exige coincidencia exacta de título normalizado y año cuando está disponible. Si el año falta, solo se acepta una coincidencia única. No se inventan géneros ni se cambia la identidad del proveedor.
-- Código: commits `c8f6fc2` y `bfc7ee1` en `components/HdCatalogTask.brs`.
-- Estado: implementado y revisado estáticamente; pendiente compilar y probar en Roku. El límite de ocho consultas implica que algunos títulos pueden necesitar otra página/carga para recibir metadatos.
+- En el catálogo combinado, Cinemeta se consulta por título para los elementos que aún no tienen géneros. El log de Roku confirmó que los resultados de `/catalog` son objetos de vista previa sin `genres`; por ello, ahora se obtiene el objeto completo mediante `/meta/{kind}/{id}.json`.
+- La búsqueda elimina el año entre paréntesis del texto consultado, acepta título exacto o una única coincidencia por año para resolver títulos localizados, valida IDs IMDb (`tt...`) y mantiene un máximo de ocho búsquedas por operación. La solicitud de detalle usa el mismo presupuesto temporal y solo copia géneros devueltos por Cinemeta.
+- Código: commits `c8f6fc2`, `bfc7ee1` y `f50d40b` en `components/HdCatalogTask.brs`.
+- Estado: cambio revisado estáticamente; pendiente compilar y probar en Roku. No se ha validado todavía la respuesta de detalle ni el enriquecimiento en dispositivo.
 
 
 ## Categorías visibles en la parte superior del catálogo
