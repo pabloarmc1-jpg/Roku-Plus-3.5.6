@@ -202,6 +202,14 @@
 - Estado: **validada por el usuario en Roku**. El usuario confirmó que la navegación del teclado funciona; se conserva la actualización de foco mediante `paintFocus()` sin reconstruir la pantalla. No tocar el reproductor.
 
 
+### Caché breve de búsquedas repetidas (2026-11-15)
+
+- Se añadió una caché de una sola consulta en memoria para la búsqueda remota: al repetir exactamente la misma consulta normalizada, con el mismo modo de catálogo y proveedor, se reutilizan los resultados durante dos minutos.
+- La caché solo se llena cuando la respuesta trae resultados y no está marcada como parcial; así no se conserva una respuesta incompleta como si fuera definitiva.
+- Cambiar la consulta, el modo o el proveedor evita reutilizar el resultado anterior. La caché es volátil y no altera preferencias ni datos guardados.
+- Cambio en `components/PlusScene.brs`, commit `78d3ca2`.
+- Estado: **pendiente compilar y probar en Roku**. Repetir la misma búsqueda dos veces dentro de dos minutos y comprobar que la segunda abre los mismos resultados; luego cambiar una letra y verificar que hace una búsqueda nueva. Repetir después de cambiar el proveedor/modo para confirmar que no reutiliza datos ajenos. No se modificó el reproductor.
+
 ### Búsqueda insensible a mayúsculas y acceso directo desde sugerencias (2026-11-15)
 
 - `submitGlobalSearch()` conserva el texto original en `m.query` para presentación y pasa una copia en minúsculas al proceso de búsqueda remota. El catálogo HD local ya compara consulta y título/descripción con `lcase()`; se conserva ese comportamiento.
