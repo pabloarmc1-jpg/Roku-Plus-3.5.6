@@ -457,3 +457,11 @@
 - Alcance de «Más recientes»: es un orden por año dentro del catálogo top de Cinemeta, no un feed exhaustivo de estrenos.
 - No se modifican la búsqueda de fuentes al reproducir, el reproductor, controles, pausa, seek, reanudación, audio ni subtítulos.
 - Estado: cambio guardado en GitHub; pendiente instalar/compilar y validar las categorías en Roku.
+
+
+## Categorías Cinemeta por género (15-11-2026)
+- Las categorías de género ahora construyen la solicitud del catálogo `top` con el extra `genre` propio de Cinemeta (Action, Comedy, Drama, Horror, Sci-Fi, Animation), en lugar de descargar `top` sin filtro y filtrar todo localmente.
+- `Todos` conserva el catálogo general. La categoría Más recientes conserva el orden local por año cuando está seleccionada.
+- La carga progresiva automática puede recorrer hasta 400 elementos y busca reunir al menos 30 coincidencias, acumulando páginas y respetando la paginación existente.
+- Se añaden registros de género y offset por solicitud para verificar el endpoint real en Roku.
+- Revisión estática únicamente; pendiente confirmar respuestas HTTP y cantidad real en el dispositivo Roku.
