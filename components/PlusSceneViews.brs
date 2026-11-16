@@ -530,7 +530,7 @@ sub homeScreen()
                 x = 250+i*270
                 uri = item.background
                 if uri = "" then uri = item.poster
-                if uri <> "" then art(uri,x+8,continueY+40,238,146)
+                if uri <> "" then art(uri,x+8,continueY+40,238,146,"scaleToFill",224,138)
                 homeProgressOverlay(item,x+8,continueY+40,238,146)
                 if m.zone = "continue" and m.cover = i then panel(x+4,continueY+36,246,154,"0xFFFFFF20")
                 focusTarget("continue",i,x,continueY+32,254,162,"landscape")
@@ -555,7 +555,7 @@ sub homeScreen()
             uri = item.background
             if uri = "" then uri = item.poster
             if uri <> ""
-                banner = art(uri,x+8,m.discoveryRowY,238,146)
+                banner = art(uri,x+8,m.discoveryRowY,238,146,"scaleToFill",224,138)
                 homeProgressOverlay(item,x+8,m.discoveryRowY,238,146)
                 m.discoveryPosters.push(banner)
             end if
@@ -575,7 +575,7 @@ sub homeScreen()
                 x = 250+i*270
                 uri = item.background
                 if uri = "" then uri = item.poster
-                if uri <> "" then art(uri,x+8,savedY+40,260,126)
+                if uri <> "" then art(uri,x+8,savedY+40,260,126,"scaleToFill",240,116)
                 homeProgressOverlay(item,x+8,savedY+40,260,126)
                 if m.zone = "home-list" and m.listCover = i then panel(x+4,savedY+36,268,134,"0xFFFFFF20")
                 focusTarget("home-list",i,x,savedY+32,276,142,"landscape")
