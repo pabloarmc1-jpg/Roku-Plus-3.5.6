@@ -22,6 +22,7 @@
 
 - [x] Analizar `drawScreen()` y `eraseScreen()` en `components/PlusSceneViews.brs`: `drawScreen()` ejecuta `eraseScreen()` y reconstruye la vista; hay alrededor de 115 llamadas a `drawScreen()` desde `PlusScene.brs`. La limpieza total sigue pendiente de optimización por pantalla.
 - [x] Home: la rotación y selección manual del destacado actualizan el poster, título, datos y puntos existentes sin reconstruir toda la pantalla. Commits `35eb15c`, `81dfa54` y `49d68d7`. **Validado por el usuario: funciona en su Roku.**
+- [x] Home: al recibir páginas posteriores de películas, actualizar el contador del destacado y conservar los nodos existentes en vez de reconstruir toda la pantalla. Commit `847623a`. **Pendiente compilar y validar en Roku.**
 - [ ] Extender la reutilización de nodos a catálogo y detalle después de medir y diseñar cambios específicos; no se modificaron todavía.
 - [ ] Revisar transiciones y animaciones para evitar trabajo cuando no son visibles.
 - [ ] Revisar el manejo del foco y la creación/destrucción de elementos para reducir trabajo de CPU y recolección de basura.
@@ -69,7 +70,8 @@
 | Fecha | Elemento | Cambio / commit | Prueba y resultado |
 |---|---|---|---|
 | 2026-11-15 | `PlusScene.brs` | Eliminada una asignación consecutiva duplicada de `m.invidiousQuery`; commit `3e03e9d49255310ceab585f79c809190a313e550`. | Cambio estático confirmado en GitHub; pendiente compilar y probar en Roku. |
-| 2026-11-15 | Home / destacado | Reutilización de nodos para rotación automática y selección manual; commits `35eb15c`, `81dfa54` y `49d68d7`. | **Usuario confirmó que funciona.**
+| 2026-11-15 | Home / destacado | Reutilización de nodos para rotación automática y selección manual; commits `35eb15c`, `81dfa54` y `49d68d7`. | **Usuario confirmó que funciona.** |
+| 2026-11-15 | Home / catálogo | Las páginas posteriores de películas actualizan el contador del destacado sin reconstruir toda la pantalla; commit `847623a`. | Cambio en GitHub; pendiente compilar y probar en Roku.
 
 ## Notas de auditoría
 
