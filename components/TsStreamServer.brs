@@ -148,16 +148,44 @@ sub rpTsRelayServe(connection as object, server as object)
         end if
         filePath = "tmp:/rp_ts_relay_segment.ts"
         DeleteFile(filePath)
-        fetchTimer = CreateObject("roTimespan")
-        fetchTimer.Mark()
-        print "[RokuPlus ts-relay] upstream_fetch_begin segment="; segmentIndex
-        code = xfer.GetToFile(filePath)
-        fetchMs = fetchTimer.TotalMilliseconds()
-        print "[RokuPlus ts-relay] upstream_fetch_end segment="; segmentIndex; " status="; code; " elapsedMs="; fetchMs
-        if code < 200 or code >= 300
-            print "[RokuPlus ts-relay] upstream_failed index="; sentSegments+1; " status="; code
-            DeleteFile(filePath)
-            exit for
+        prefetched = false
+        prefetchTask = server.prefetchTask
+        if prefetchTask <> invalid
+            prefetchTimer = CreateObject("roTimespan")
+            prefetchTimer.Mark()
+            prefetchPath = ""
+            prefetchKey = segmentIndex.toStr()
+            while prefetchTimer.TotalMilliseconds() < 180000 and not server.stopRequested
+                readyMap = prefetchTask.readyFiles
+                if type(readyMap) = "roAssociativeArray" and readyMap.doesExist(prefetchKey)
+                    candidatePath = readyMap[prefetchKey]
+                    if GetInterface(candidatePath, "ifString") <> invalid and candidatePath <> "FAILED"
+                        prefetchPath = candidatePath
+                    end if
+                    exit while
+                end if
+                wait(200, connectionPort)
+            end while
+            if prefetchPath <> ""
+                filePath = prefetchPath
+                prefetched = true
+                print "[RokuPlus ts-relay] prefetch_hit segment="; segmentIndex; " waitMs="; prefetchTimer.TotalMilliseconds()
+            else
+                print "[RokuPlus ts-relay] prefetch_miss segment="; segmentIndex; " waitMs="; prefetchTimer.TotalMilliseconds()
+            end if
+        end if
+        if not prefetched
+            fetchTimer = CreateObject("roTimespan")
+            fetchTimer.Mark()
+            print "[RokuPlus ts-relay] upstream_fetch_begin segment="; segmentIndex
+            code = xfer.GetToFile(filePath)
+            fetchMs = fetchTimer.TotalMilliseconds()
+            print "[RokuPlus ts-relay] upstream_fetch_end segment="; segmentIndex; " status="; code; " elapsedMs="; fetchMs
+            if code < 200 or code >= 300
+                print "[RokuPlus ts-relay] upstream_failed index="; sentSegments+1; " status="; code
+                DeleteFile(filePath)
+                exit for
+            end if
         end if
         payload = CreateObject("roByteArray")
         if not payload.ReadFile(filePath)
@@ -215,6 +243,14 @@ sub rpTsRelayServe(connection as object, server as object)
         sentBytes += payloadSize
         server.nextSegmentIndex = segmentIndex + 1
         server.segmentsSent = server.nextSegmentIndex
+        if prefetchTask <> invalid
+            readyMap = prefetchTask.readyFiles
+            if type(readyMap) = "roAssociativeArray" and readyMap.doesExist(segmentIndex.toStr())
+                readyMap.delete(segmentIndex.toStr())
+                prefetchTask.readyFiles = readyMap
+            end if
+            prefetchTask.requestIndex = segmentIndex + 2
+        end if
         server.bytesSent = server.bytesSent + payloadSize
         if sentSegments = 1 or sentSegments mod 25 = 0
             print "[RokuPlus ts-relay] forwarded segments="; sentSegments; " bytes="; sentBytes
