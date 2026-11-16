@@ -81,8 +81,14 @@ function rpHdCinehaxTask(request as object, answer as object, fetcher as dynamic
     m.hdProviderDeadline = 0
     if not response.ok then return rpHdTaskFailure(answer,response)
     playerBody = lcase(orbitText(response.body,2097153))
-    print "[RokuPlus cinehax-player-debug] bytes="; len(playerBody); " iframe="; instr(1,playerBody,"<iframe") > 0; " vimeos="; instr(1,playerBody,"vimeos.net") > 0; " embed="; instr(1,playerBody,"embed-") > 0; " title="; instr(1,playerBody,"<title") > 0
+    finalUrl = orbitText(response.httpFinalUrl,4096)
+    print "[RokuPlus cinehax-player-debug] bytes="; len(playerBody); " iframe="; instr(1,playerBody,"<iframe") > 0; " vimeos="; instr(1,playerBody,"vimeos.net") > 0; " embed="; instr(1,playerBody,"embed-") > 0; " final_host="; rpHdTaskSafeHost(finalUrl)
     iframe = rpHdCinehaxIframe(response.body)
+    ' FacilitoPlay can redirect the player request directly to the Vimeos embed.
+    ' Accept only the known Vimeos embed URL shape; never persist or synthesize its ID.
+    if iframe = "" and CreateObject("roRegex","^https://vimeos\\.net/embed-[a-zA-Z0-9_-]+(\\.html)?(\\?[^#]*)?$","").isMatch(finalUrl)
+        iframe = finalUrl
+    end if
     if iframe = ""
         answer.message = "CineHax no tiene un servidor compatible disponible. Prueba otra opción de esta película."
         return answer
