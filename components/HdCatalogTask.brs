@@ -246,6 +246,14 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
     if operation = "cinemeta-catalog"
         return rpHdTaskCinemetaBrowseCatalog(request,answer,fetcher)
     end if
+    if operation = "meta" and type(request.item) = "roAssociativeArray"
+        if orbitText(request.item.discoverySource,32) = "cinemeta"
+            answer.item = request.item
+            answer.ok = true
+            answer.message = ""
+            return rpHdCinemetaEnrichAnswer(answer,request,fetcher)
+        end if
+    end if
     if operation = "catalog"
         if kind <> "movie" and kind <> "series" then return answer
         if provider = "all" then return rpHdTaskCombinedCatalog(request,answer,fetcher,catalogSources)
