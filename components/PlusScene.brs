@@ -1564,11 +1564,15 @@ sub chooseSearchSuggestion(index as integer)
     if index < 0 or index >= m.searchSuggestions.count() then return
     item = m.searchSuggestions[index]
     m.searchText = orbitText(item.title,120)
-    submitGlobalSearch()
+    m.searchCursor = index
+    m.zone = "search-suggestion"
+    ' A suggestion is a selected catalog item, not a request to run a second text search.
+    openDetails(item,"search",false)
 end sub
 
 sub submitGlobalSearch()
     query = left(m.searchText.trim(),120)
+    searchQuery = lcase(query)
     m.query = query
     m.genreFilter = "Todos"
     m.pageTitles = []
@@ -1587,7 +1591,7 @@ sub submitGlobalSearch()
         loadBrowsePage(0)
     else
         m.kind = "movie"
-        fetch({operation:"search",kind:"all",query:query,offset:0})
+        fetch({operation:"search",kind:"all",query:searchQuery,offset:0})
     end if
     drawScreen()
     m.top.setFocus(true)
@@ -1771,6 +1775,9 @@ sub returnOneStep()
         else if m.detailOrigin = "browse"
             m.view = "browse"
             m.zone = "grid"
+        else if m.detailOrigin = "search"
+            m.view = "search-keyboard"
+            m.zone = "search-suggestion"
         else
             goHome()
             return
