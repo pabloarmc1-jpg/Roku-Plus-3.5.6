@@ -289,17 +289,17 @@ sub fetch(context as object)
     end if
     if online and type(m.tvmazeCache) = "roAssociativeArray" then task.tvmazeCache = m.tvmazeCache
     if online and (context.operation = "resolve" or context.operation = "resume-episode") then task.attempt = orbitInteger(context.item.hdAttempt,99)
-    if online and context.operation = "cinemeta-catalog"
-        task.query = m.genreFilter
-        task.attempt = 0
-        if m.catalogSort = "recent" then task.attempt = 1
-    end if
     task.operation = context.operation
     task.kind = m.kind
     if context.doesExist("kind") then task.kind = context.kind
     if context.operation = "country" then task.countryCode = m.countryCode
     task.requestId = m.request
     task.query = m.query
+    if online and context.operation = "cinemeta-catalog"
+        task.query = m.genreFilter
+        task.attempt = 0
+        if m.catalogSort = "recent" then task.attempt = 1
+    end if
     if context.operation = "catalog" or context.operation = "cinemeta-catalog" then task.skip = context.offset
     if context.doesExist("item")
         if online then task.item = context.item else task.imdbId = context.item.imdbId
