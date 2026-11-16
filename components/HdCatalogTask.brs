@@ -1774,6 +1774,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     end if
     failures = 0
     print "[RokuPlus source-search] start kind="; kind; " title="; cinemetaTitle; " year="; discoveryYear; " providers="; providers.count(); " queries="; searchQueries.count()
+    print "[RokuPlus source-search-debug] itemType="; type(item); " titleKey="; rpHdTaskCinemetaTitleKey(item.title); " kind="; orbitText(item.kind,16); " year="; rpHdTaskCinemetaYear(item.year); " searchQuery="; orbitText(item.searchQuery,160)
     for providerIndex = 0 to providers.count()-1
         if m.top.cancelRequested then exit for
         ' Start a fresh fair-share deadline for every provider. A previous
@@ -1799,6 +1800,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             else
                 matches = []
                 for each candidate in catalog.items
+                    print "[RokuPlus source-search-debug-candidate] provider="; source; " query="; orbitText(searchQuery,100); " titleKey="; rpHdTaskCinemetaTitleKey(item.title); " candidateType="; type(candidate); " candidateTitle="; orbitText(candidate.title,100); " candidateYear="; rpHdTaskCinemetaYear(candidate.year)
                     if rpHdTaskCinemetaTitleKey(item.title) = "avatarthelastairbender"
                         print "[RokuPlus avatar-match-trace] provider="; source; " query="; searchQuery; " discoveryTitle="; orbitText(item.title,100); " discoveryKind="; orbitText(item.kind,16); " discoveryYear="; rpHdTaskCinemetaYear(item.year); " candidateTitle="; orbitText(candidate.title,100); " candidateKind="; orbitText(candidate.kind,16); " candidateYear="; rpHdTaskCinemetaYear(candidate.year); " exactTitleKey="; rpHdTaskCinemetaTitleKey(candidate.title); " queryKey="; rpHdTaskCinemetaTitleKey(searchQuery)
                     end if
