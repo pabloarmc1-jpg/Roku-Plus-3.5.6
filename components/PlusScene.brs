@@ -737,7 +737,7 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
         ' the slug required by the metadata endpoint. Resolve playback directly
         ' by numeric ID instead of showing a false source-connection error.
         if orbitText(item.discoverySource,32) = "cinemeta"
-            drawScreen()
+            fetch({operation:"meta",item:item})
             return
         end if
         resumeProvider = lcase(orbitText(item.provider,32))
