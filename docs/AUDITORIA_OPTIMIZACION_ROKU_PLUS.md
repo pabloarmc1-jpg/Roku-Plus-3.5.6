@@ -169,3 +169,14 @@
 - No se cambia el orden de títulos, los índices de `focusItems`, la paginación, la carga de catálogo ni la lógica del reproductor.
 - Cambios guardados en GitHub: `PlusSceneViews.brs` commit `4fab2e2`; `PlusScene.brs` commit `0290024`.
 - Estado: **validada por el usuario en Roku**. El usuario confirmó que funciona después de probar la navegación de la cuadrícula. Se mantiene el comportamiento de actualización parcial dentro de la misma página y redibujado completo al cruzar de página o cuando no se puede actualizar el fondo. No se modifica el motor de reproducción.
+
+
+### Optimización incremental de navegación de episodios (2026-11-15)
+
+- En `onKeyEvent()`, la navegación por episodios ahora conserva los nodos existentes cuando el usuario cambia la selección dentro del mismo bloque de cuatro tarjetas: solo ejecuta `paintFocus()`.
+- Cambiar entre el selector de temporadas y la fila de episodios también actualiza el foco sin reconstruir la vista, porque ambos grupos de objetivos ya están presentes en la pantalla.
+- Al cambiar de bloque de cuatro episodios o de temporada, se mantiene el redibujado para sincronizar tarjetas, títulos y selector de temporada.
+- Al entrar o salir de la barra lateral de navegación, se fuerza el redibujado para crear/eliminar correctamente sus objetivos de foco y actualizar el ancho de la barra. Se conserva también el redibujado explícito al pulsar Arriba desde temporadas.
+- La carga de temporadas/episodios, las consultas de red, los datos y el reproductor no se modifican.
+- Commits de código: `85514b8` (optimización) y `d54d247` (protección del foco de la barra lateral).
+- Estado: revisión estática del flujo y de los objetivos de foco realizada; **pendiente compilar y probar en Roku**. Comprobar cambio de episodio dentro del mismo grupo, cruce del grupo de cuatro, cambio de temporada, transición entre temporadas/episodios y navegación a la barra lateral. No considerar validado hasta recibir confirmación de la prueba.
