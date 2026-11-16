@@ -1765,11 +1765,38 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         return answer
     end if
     if type(sources) <> "roArray" then sources = rpHdOnlineProviderIds()
+    triedProviders = []
+    if isEpisode and type(item.hdFallbackProviders) = "roArray"
+        for each triedValue in item.hdFallbackProviders
+            triedProvider = rpHdOnlineProvider(triedValue)
+            if triedProvider <> "" and triedProvider <> "all"
+                alreadyTried = false
+                for each savedProvider in triedProviders
+                    if savedProvider = triedProvider then alreadyTried = true
+                end for
+                if not alreadyTried then triedProviders.push(triedProvider)
+            end if
+        end for
+    end if
+    currentProvider = rpHdOnlineProvider(item.provider)
+    if isEpisode and currentProvider <> ""
+        alreadyTried = false
+        for each savedProvider in triedProviders
+            if savedProvider = currentProvider then alreadyTried = true
+        end for
+        if not alreadyTried then triedProviders.push(currentProvider)
+    end if
     providers = []
     for each value in sources
         source = rpHdOnlineProvider(value)
         if source <> "" and source <> "all"
-            if source <> "cinecalidad" or kind <> "series" then providers.push(source)
+            skipProvider = false
+            if isEpisode
+                for each triedProvider in triedProviders
+                    if triedProvider = source then skipProvider = true
+                end for
+            end if
+            if not skipProvider and (source <> "cinecalidad" or kind <> "series") then providers.push(source)
         end if
     end for
     if providers.count() = 0
@@ -1838,6 +1865,13 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                         sourceAnswer.operation = "find-source"
                         sourceAnswer.requestId = answer.requestId
                         sourceAnswer.sourceProvider = source
+                        if isEpisode and type(sourceAnswer.item) = "roAssociativeArray"
+                            sourceAnswer.item.hdFallbackProviders = []
+                            for each triedProvider in triedProviders
+                                sourceAnswer.item.hdFallbackProviders.push(triedProvider)
+                            end for
+                            sourceAnswer.item.hdFallbackProviders.push(source)
+                        end if
                         if not isEpisode and (kind = "movie" or type(sourceAnswer.item) <> "roAssociativeArray") then sourceAnswer.item = candidate
                         print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=matched kind="; kind; " episode="; isEpisode
                         print "[RokuPlus source-search] finish result=matched provider="; source
