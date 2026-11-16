@@ -268,7 +268,7 @@
 - Las imágenes de «Mi lista» conservan su tamaño visual de 260×126 y se decodifican a 240×116 (aproximadamente 15% menos píxeles por imagen).
 - Se mantienen el modo `scaleToFill`, las posiciones, los overlays de progreso, los objetivos de foco y la cantidad de tarjetas. No se altera la reutilización/rotación de los siete Posters de descubrimiento, ni el reproductor.
 - Cambio en `components/PlusSceneViews.brs`, commit `131fbbf`.
-- Estado: **pendiente compilar y probar en Roku**. Revisar las tres filas, la nitidez, los indicadores de progreso y el foco al desplazarse. Comprobar también la rotación automática de «Selección para ti».
+- Estado: **validada por el usuario en Roku**. El usuario confirmó que las tres filas se ven bien; se conservan nitidez, indicadores de progreso, foco y rotación automática.
 
 ### Corrección de foco al desplazar «Películas para explorar» (2026-11-15)
 
@@ -305,10 +305,37 @@
   - Si se entra a la fila durante una animación, los siete posters se recolocan en las posiciones exactas [258+i*270, discoveryRowY] correspondientes al orden actual, sin cambiar `discoveryOffset`.
   - Se aplica la estabilización también al subir desde «Mi lista» y desde «Series para descubrir» cuando no existe la fila «Mi lista».
 - No se cambia la selección de elementos ni el reproductor.
-- Estado: commits guardados; pendiente compilar y probar en Roku, especialmente bajando/subiendo durante la animación automática.
+- Estado: **validada por el usuario en Roku**. El usuario confirmó que el foco ya no queda entre dos imágenes al entrar mientras la fila se desplaza automáticamente.
 
 
 ### Validación de la corrección de foco en «Películas para explorar» (2026-11-15)
 - El usuario confirmó que la corrección resuelve el problema: al bajar el foco mientras la fila se desplaza automáticamente, el foco ya no queda entre dos imágenes.
 - Se considera validada por el usuario en Roku.
 - Se conserva la sincronización del carrusel y la pausa de rotación durante la navegación; no se modifica el reproductor.
+
+
+## Resumen actual del progreso (2026-11-15)
+
+### Validado por el usuario en Roku
+- [x] Home: rotación y selección manual del destacado sin redibujar toda la pantalla.
+- [x] Catálogo: navegación parcial dentro de una página de diez tarjetas, con redibujado al cambiar de página.
+- [x] Detalle: movimiento del foco entre acciones sin reconstruir toda la ficha.
+- [x] Episodios: selección automática del último episodio visto y navegación optimizada dentro del bloque visible.
+- [x] Búsqueda: ignora mayúsculas/minúsculas; las sugerencias abren directamente sus fichas.
+- [x] Caché temporal de búsquedas repetidas (dos minutos para la misma consulta, modo y proveedor).
+- [x] Imágenes: fondo de búsqueda, fondo del destacado, portadas del catálogo y filas de Inicio con resolución de decodificación reducida.
+- [x] Home: foco sincronizado con «Películas para explorar» al entrar durante la rotación automática.
+
+### Implementado, pero aún pendiente de validación específica
+- [ ] Ciclo de vida de los temporizadores Hero/Discovery fuera de Home.
+- [ ] Actualización del contador Hero al llegar páginas adicionales del catálogo.
+- [ ] Optimización de navegación de episodios tras los cambios de grupo/temporada, si se desea una prueba específica adicional.
+
+### Pendiente de investigar o mejorar
+- [ ] Optimizar navegación de categorías y resultados sin perder sincronización de foco/paginación.
+- [ ] Completar rastreo de código realmente huérfano antes de eliminar funciones, componentes o recursos.
+- [ ] Revisar cancelación de tareas al ocultar/salir de Roku Plus y solicitudes repetidas de catálogo.
+- [ ] Medir tiempos y memoria en Roku real; no hay mediciones instrumentales registradas.
+- [ ] Pruebas de regresión globales de reproducción, pausa, seek, reanudación, audio y subtítulos después de las optimizaciones (el motor no se ha modificado en esta auditoría).
+
+**Alcance protegido:** no se ha modificado el motor de reproducción ni sus controles como parte de estas optimizaciones.
