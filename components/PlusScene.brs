@@ -937,6 +937,9 @@ sub launchVideo(item as object, url as string, format as string)
         m.stallWatchTimer.control = "stop"
     end if
     imdbId = orbitText(descriptor.imdbId,24)
+    lookupTitle = orbitText(item.title,200)
+    if item.kind = "episode" then lookupTitle = orbitText(item.seriesTitle,200)
+    lookupYear = orbitText(item.year,4)
     cacheKey = ""
     if imdbId <> ""
         if item.kind = "movie"
@@ -948,11 +951,13 @@ sub launchVideo(item as object, url as string, format as string)
     if cacheKey <> "" and m.introDbCache.doesExist(cacheKey)
         cachedSegments = m.introDbCache[cacheKey]
         m.introDbSegments = cachedSegments
-        m.player.introDbData = {ok:true,requestId:descriptor.requestId,outro:cachedSegments.outro,post_credits:cachedSegments.post_credits,no_outro:cachedSegments.no_outro}
+        m.player.introDbData = {ok:true,requestId:descriptor.requestId,intro:cachedSegments.intro,recap:cachedSegments.recap,outro:cachedSegments.outro,post_credits:cachedSegments.post_credits,no_intro:cachedSegments.no_intro,no_recap:cachedSegments.no_recap,no_outro:cachedSegments.no_outro}
         print "[RokuPlus introdb] cache_hit imdb="; imdbId
-    else if cacheKey <> ""
+    else if imdbId <> "" or lookupTitle <> ""
         task = CreateObject("roSGNode","IntroDbTask")
         task.imdbId = imdbId
+        task.title = lookupTitle
+        task.year = lookupYear
         task.isMovie = item.kind = "movie"
         if item.kind = "episode"
             task.season = orbitInteger(descriptor.season,999)
@@ -963,9 +968,9 @@ sub launchVideo(item as object, url as string, format as string)
         task.observeField("result","introDbResult")
         m.introDbTask = task
         task.control = "RUN"
-        print "[RokuPlus introdb] lookup_started imdb="; imdbId; " cacheKey="; cacheKey
+        print "[RokuPlus introdb] lookup_started imdb="; imdbId; " cinemetaTitle="; lookupTitle; " cacheKey="; cacheKey
     else
-        print "[RokuPlus introdb] skipped reason=missing_imdb_or_episode_identity item="; orbitText(item.id,100)
+        print "[RokuPlus introdb] skipped reason=missing_title_identity item="; orbitText(item.id,100)
     end if
     if m.activeJobId <> "" then m.lease.control = "start"
 end sub
@@ -993,11 +998,12 @@ sub introDbResult(event as object)
     if answer.requestId <> m.activePlaybackRequestId then return
     if answer.ok
         cacheKey = orbitText(answer.cacheKey,100)
-        hasSegmentData = type(answer.outro) = "roAssociativeArray" or type(answer.post_credits) = "roAssociativeArray" or answer.no_outro = true
-        if cacheKey <> "" and hasSegmentData then m.introDbCache[cacheKey] = {outro:answer.outro,post_credits:answer.post_credits,no_outro:answer.no_outro}
+        if cacheKey <> ""
+            m.introDbCache[cacheKey] = {intro:answer.intro,recap:answer.recap,outro:answer.outro,post_credits:answer.post_credits,no_intro:answer.no_intro,no_recap:answer.no_recap,no_outro:answer.no_outro}
+        end if
         m.introDbSegments = answer
         m.player.introDbData = answer
-        print "[RokuPlus introdb] lookup_ok outro="; type(answer.outro); " postCredits="; type(answer.post_credits)
+        print "[RokuPlus introdb] lookup_ok intro="; type(answer.intro); " recap="; type(answer.recap); " outro="; type(answer.outro); " postCredits="; type(answer.post_credits)
     else
         print "[RokuPlus introdb] lookup_unavailable reason="; orbitText(answer.message,160)
     end if
