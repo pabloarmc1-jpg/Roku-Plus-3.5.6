@@ -795,9 +795,19 @@ sub sourceResolvingScreen()
     titleText = "Tu contenido"
     if type(item) = "roAssociativeArray" then titleText = orbitText(item.title,180)
     words(titleText,100,420,1720,110,48,"0xFFFFFFFF").wrap = true
-    words("Buscando una fuente compatible en las bibliotecas disponibles…",100,570,1720,72,27,"0xD4D9E2FF").wrap = true
-    words("La reproducción comenzará cuando se encuentre y valide el enlace.",100,650,1720,52,21,"0xAEB7C4FF").wrap = true
-    words("ATRÁS  ·  Cancelar búsqueda",100,930,1720,42,21,"0xAEB7C4FF")
+    statusText = "Buscando una fuente compatible en las bibliotecas disponibles…"
+    if not m.busy and m.note <> ""
+        statusText = m.note
+    else if not m.busy
+        statusText = "No se pudo preparar la reproducción."
+    end if
+    words(statusText,100,570,1720,112,27,"0xD4D9E2FF").wrap = true
+    if m.busy
+        words("La reproducción comenzará aquí cuando se encuentre y valide el enlace.",100,710,1720,52,21,"0xAEB7C4FF").wrap = true
+        words("ATRÁS  ·  Cancelar búsqueda",100,930,1720,42,21,"0xAEB7C4FF")
+    else
+        words("OK  ·  Intentar de nuevo       ATRÁS  ·  Volver a detalles",100,930,1720,42,21,"0xAEB7C4FF")
+    end if
 end sub
 
 sub detailScreen()
