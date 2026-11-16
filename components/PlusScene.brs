@@ -3652,6 +3652,9 @@ if m.view = "profiles"
                 else if selectedCategory = "Más populares"
                     m.catalogSort = "popular"
                     m.genreFilter = "Todos"
+                else if selectedCategory = "Todos"
+                    m.catalogSort = "all"
+                    m.genreFilter = "Todos"
                 else
                     m.catalogSort = "popular"
                     m.genreFilter = selectedCategory
@@ -3669,7 +3672,8 @@ if m.view = "profiles"
             m.categoryCursor = 0
             categoryNames = ["Más populares","Más recientes","Acción","Comedia","Drama","Terror","Ciencia ficción","Animación","Todos"]
             if m.catalogSort = "recent" then m.categoryCursor = 1
-            if m.catalogSort <> "recent" and m.catalogSort <> "popular" and m.genreFilter <> "Todos"
+            if m.catalogSort = "all" then m.categoryCursor = 8
+            if m.genreFilter <> "Todos"
                 for categoryIndex = 0 to categoryNames.count()-1
                     if categoryNames[categoryIndex] = m.genreFilter then m.categoryCursor = categoryIndex
                 end for
