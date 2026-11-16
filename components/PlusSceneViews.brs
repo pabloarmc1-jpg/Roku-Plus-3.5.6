@@ -667,7 +667,7 @@ sub browseScreen()
     categoryW = 174
     for i = 0 to categories.count()-1
         x = categoryX+i*180
-        active = (m.catalogSort = "popular" and categories[i] = "Más populares") or (m.catalogSort = "recent" and categories[i] = "Más recientes") or (m.catalogSort <> "recent" and m.catalogSort <> "popular" and m.genreFilter = categories[i])
+        active = (m.catalogSort = "popular" and categories[i] = "Más populares") or (m.catalogSort = "recent" and categories[i] = "Más recientes") or (m.genreFilter = categories[i] and categories[i] <> "Todos")
         surface = "0x25252BEE"
         ink = "0xD8D8DFFF"
         if active
@@ -1355,6 +1355,7 @@ sub paintFocus()
             if m.zone = "library" then chosen = entry.index = m.libraryCursor
             if m.zone = "profiles" then chosen = entry.index = m.profileCursor
             if m.zone = "grid" then chosen = entry.index = m.cursor
+            if m.zone = "categories" then chosen = entry.index = m.categoryCursor
             if m.zone = "action" then chosen = entry.index = m.action
             if m.zone = "episodes" then chosen = entry.index = m.episode
             if m.zone = "seasons" then chosen = entry.index = m.season
