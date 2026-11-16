@@ -11,7 +11,8 @@
 
 - [x] Retirar la inicialización duplicada de `m.invidiousQuery = ""` en `components/PlusScene.brs` (tras confirmar que no hay una razón de orden/flujo).
 - [ ] Rastrear los dos observadores `progress` de `m.player` y los dos de `m.hostPlayer`; identificar el propósito de cada uno antes de cambiar nada.
-- [ ] Revisar temporizadores de hero, discovery, transiciones, fundidos y previews; detenerlos cuando la pantalla o función ya no esté activa.
+- [x] Revisar temporizadores de hero y discovery; ahora se detienen fuera de Home y se reactivan al volver cuando hay contenido suficiente. Commit `67264f5` (`PlusScene.brs`) y `c273166` (`PlusSceneViews.brs`). **Pendiente compilar y validar en Roku.**
+- [ ] Revisar por separado temporizadores de transiciones, fundidos y previews; no se modificaron.
 - [ ] Rastrear referencias globales de componentes, funciones, tareas, assets y recursos antes de declarar archivos eliminables.
 - [ ] Revisar el valor predeterminado `http://192.168.1.17:8099` de `components/CompatTask.xml`; comprobar el flujo de `m.compatBase` y eliminar/cambiar el fallback solo si se demuestra obsoleto.
 - [ ] Revisar funciones antiguas de búsqueda/API de subtítulos en `components/PlusPlayer.brs` y `components/SubtitleSearchTask.brs`; retirar únicamente código sin llamadas ni rutas de configuración activas.
@@ -80,3 +81,6 @@
 - Los dos observadores `progress` por instancia están conectados a callbacks diferentes: `playerProgress` y `livePreviewProgress`. Se conservan; no son duplicados que deban borrarse.
 - `heroRotation` y `discoveryRotation` son temporizadores repetitivos. Sus callbacks salen temprano cuando `m.view <> "home"`, pero el temporizador puede seguir despertando periódicamente fuera de Home. Candidato de optimización: detenerlos al salir de Home y reactivarlos al volver, después de mapear todas las transiciones de vista y probarlas.
 - `catalogFade` y `pageTransition` ya tienen condiciones explícitas de parada; no se cambiarán sin evidencia adicional.
+
+- Optimización de rotación Home implementada: `syncHomeRotationTimers()` gobierna los timers de hero (solo con más de un destacado) y discovery (solo con más de seis elementos). Se invoca al dibujar vistas, al activar la experiencia y al entrar en los reproductores; los timers no permanecen activos fuera de Home.
+- Los cambios están en GitHub, pero aún no hay evidencia de compilación ni prueba en dispositivo. Mantener el estado como pendiente de validación hasta recibir el log.
