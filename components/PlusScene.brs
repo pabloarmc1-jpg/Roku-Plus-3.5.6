@@ -544,10 +544,9 @@ sub fetched(event as object)
             m.offset = context.offset
             m.nextOffset = answer.nextSkip
             m.more = answer.hasMore
-            ' Genre catalogs scan independent source pages instead of stopping
-            ' at the first general-catalog page. Fetch at most three pages
-            ' automatically; directional navigation continues pagination.
-            if (context.operation = "catalog" or context.operation = "cinemeta-catalog") and m.genreFilter <> "Todos" and m.titles.count() < 10 and answer.hasMore and context.offset < 80
+            ' Genre catalogs are fetched by Cinemeta genre and may scan up to 400
+            ' source items automatically to collect at least 30 visible matches.
+            if (context.operation = "catalog" or context.operation = "cinemeta-catalog") and m.genreFilter <> "Todos" and m.titles.count() < 30 and answer.hasMore and context.offset < 400
                 print "[RokuPlus genres] scan_next=1 filter="; m.genreFilter; " source_offset="; answer.nextSkip; " matches="; m.titles.count()
                 loadBrowsePage(answer.nextSkip)
                 return
@@ -2920,7 +2919,7 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
                 m.offset = offset
                 m.nextOffset = m.catalogPageCache.nextOffset
                 m.more = m.catalogPageCache.hasMore
-                if (browseOperation = "catalog" or browseOperation = "cinemeta-catalog") and m.genreFilter <> "Todos" and m.titles.count() < 10 and m.more and offset < 80
+                if (browseOperation = "catalog" or browseOperation = "cinemeta-catalog") and m.genreFilter <> "Todos" and m.titles.count() < 30 and m.more and offset < 400
                     print "[RokuPlus genres] scan_cached_next=1 filter="; m.genreFilter; " source_offset="; m.nextOffset; " matches="; m.titles.count()
                     loadBrowsePage(m.nextOffset)
                     return
