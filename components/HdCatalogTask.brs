@@ -194,6 +194,7 @@ end function
 function rpHdTaskTvmazeSearchTitle(value as string) as string
     title = value.trim()
     key = lcase(title)
+    title = CreateObject("roRegex","\\s*\\((19|20)[0-9]{2}\\)\\s*$","").replace(title,"").trim()
     if key = "hora de aventura" then return "Adventure Time"
     if key = "merlina" or key = "merlina (2022)" then return "Wednesday"
     if key = "juego de tronos" or key = "juego de tronos (2011)" then return "Game of Thrones"
@@ -2212,11 +2213,6 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if role = "cinecalidad-page"
         return CreateObject("roRegex","^https://www\.cinecalidad\.vg/(page/[0-9]+/|pelicula/[a-z0-9-]+/)?(\?s=[^#]*)?$","").isMatch(endpoint)
     end if
-    if role = "tvmaze" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"tvmaze")
-        redirectAllowed = false
-        answer.message = "TVmaze redirigió a un dominio no permitido."
-        print "[RokuPlus tvmaze] redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
-    end if
     if role = "embed"
         if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","").isMatch(endpoint) then return true
         if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","").isMatch(endpoint) then return true
@@ -2350,6 +2346,11 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         redirectAllowed = false
         answer.message = "Cinemeta redirigió a un dominio no permitido."
         print "[RokuPlus cinemeta] redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
+    end if
+    if role = "tvmaze" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"tvmaze")
+        redirectAllowed = false
+        answer.message = "TVmaze redirigió a un dominio no permitido."
+        print "[RokuPlus tvmaze] redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
     end if
     if role = "embed" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"embed")
         redirectAllowed = false
