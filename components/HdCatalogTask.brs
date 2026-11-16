@@ -1801,7 +1801,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 matches = []
                 for each candidate in catalog.items
                     print "[RokuPlus source-search-debug-candidate] provider="; source; " query="; orbitText(searchQuery,100); " titleKey="; rpHdTaskCinemetaTitleKey(item.title); " candidateType="; type(candidate); " candidateTitle="; orbitText(candidate.title,100); " candidateYear="; rpHdTaskCinemetaYear(candidate.year)
-                    if rpHdTaskCinemetaTitleKey(item.title) = "avatarthelastairbender"
+                    if rpHdTaskCinemetaTitleKey(item.title) = "avatarthelastairbender" or rpHdTaskCinemetaTitleKey(item.title) = "avatar the last airbender"
                         print "[RokuPlus avatar-match-trace] provider="; source; " query="; searchQuery; " discoveryTitle="; orbitText(item.title,100); " discoveryKind="; orbitText(item.kind,16); " discoveryYear="; rpHdTaskCinemetaYear(item.year); " candidateTitle="; orbitText(candidate.title,100); " candidateKind="; orbitText(candidate.kind,16); " candidateYear="; rpHdTaskCinemetaYear(candidate.year); " exactTitleKey="; rpHdTaskCinemetaTitleKey(candidate.title); " queryKey="; rpHdTaskCinemetaTitleKey(searchQuery)
                     end if
                     exactDiscoveryMatch = rpHdTaskSameDiscoveryItem(item,candidate,searchQuery)
@@ -1873,9 +1873,12 @@ function rpHdTaskLocalizedTitleAliasKey(title as dynamic) as string
     normalized = rpHdTaskCinemetaTitleKey(title)
     ' CinemetaTitleKey removes spaces and punctuation, so compare compact keys.
     if normalized = "rickandmorty" or normalized = "rickymorty" then return "rick-and-morty"
+    if normalized = "rick and morty" or normalized = "ricky morty" then return "rick-and-morty"
     if normalized = "thesimpsons" or normalized = "lossimpson" then return "the-simpsons"
+    if normalized = "the simpsons" or normalized = "los simpson" then return "the-simpsons"
     if normalized = "familyguy" or normalized = "padredefamilia" then return "family-guy"
-    if normalized = "avatarthelastairbender" or normalized = "avatarlaleyendadeaang" then return "avatar-the-last-airbender"
+    if normalized = "family guy" or normalized = "padre de familia" then return "family-guy"
+    if normalized = "avatarthelastairbender" or normalized = "avatarlaleyendadeaang" or normalized = "avatar the last airbender" or normalized = "avatar la leyenda de aang" then return "avatar-the-last-airbender"
     return ""
 end function
 
@@ -1884,7 +1887,7 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
     if candidates.count() = 0 then return false
     if searchQuery.trim() = "" then return false
     discoveryKey = rpHdTaskCinemetaTitleKey(discovery.title)
-    if discoveryKey = "avatarthelastairbender"
+    if discoveryKey = "avatarthelastairbender" or discoveryKey = "avatar the last airbender"
         candidateKey = rpHdTaskCinemetaTitleKey(candidate.title)
         print "[RokuPlus source-match-debug] candidate="; orbitText(candidate.title,100); " kind="; orbitText(candidate.kind,16); " wantedKind="; orbitText(discovery.kind,16); " year="; rpHdTaskCinemetaYear(candidate.year); " wantedYear="; rpHdTaskCinemetaYear(discovery.year); " imdb="; orbitText(candidate.imdbId,24); " wantedImdb="; orbitText(discovery.imdbId,24); " queryKey="; rpHdTaskCinemetaTitleKey(searchQuery); " titleKey="; candidateKey; " alias="; rpHdTaskLocalizedTitleAliasKey(candidateKey)
     end if
@@ -1923,7 +1926,7 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
             end if
         end if
     end for
-    if discoveryTitle = "avatarthelastairbender"
+    if discoveryTitle = "avatarthelastairbender" or discoveryTitle = "avatar the last airbender"
         print "[RokuPlus source-match-debug] aliasKey="; aliasKey; " candidateAlias="; candidateAliasKey; " knownAlias="; isKnownLocalizedAlias; " prefixMatches="; prefixMatches
     end if
     return prefixMatches = 1
