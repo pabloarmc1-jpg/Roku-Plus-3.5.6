@@ -353,15 +353,28 @@ function rpHdOnlineEmbeds(raw as dynamic) as object
             voeEmbed = CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(url)
             voeRedirectEmbed = CreateObject("roRegex","^https://arianathankspecial\.com/e/[a-z0-9]{8,20}/?$","i").isMatch(url)
             vimeosEmbed = CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?$","").isMatch(url)
-            if vimeosEmbed or voeEmbed or voeRedirectEmbed
-                result.push({url:url,language:language,quality:orbitText(embed.quality,40),score:score})
+            fastreamEmbed = CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","i").isMatch(url)
+            hostPriority = 99
+            if vimeosEmbed
+                hostPriority = 0
+            else if voeEmbed or voeRedirectEmbed
+                hostPriority = 1
+            else if fastreamEmbed
+                hostPriority = 2
+            end if
+            if hostPriority < 99
+                result.push({url:url,language:language,quality:orbitText(embed.quality,40),score:score,hostPriority:hostPriority})
             end if
         end if
     end for
     ordered = []
-    for each priority in [100,60,0]
-        for each row in result
-            if row.score = priority then ordered.push(row)
+    ' Host reliability is the primary order: Vimeos, VOE, then Fastream.
+    ' Language remains the tie-breaker within each host family.
+    for each hostPriority in [0,1,2]
+        for each priority in [100,60,0]
+            for each row in result
+                if row.hostPriority = hostPriority and row.score = priority then ordered.push(row)
+            end for
         end for
     end for
     return ordered
