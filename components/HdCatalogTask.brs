@@ -1714,8 +1714,6 @@ function rpHdTaskCinemetaGlobalSearch(request as object, answer as object, fetch
 end function
 
 ' Resolve a Cinemeta discovery record against installed catalogs only when the
-' user chooses Play (or opens a series episode list). Require an exact identity.
-' Resolve a Cinemeta discovery record against installed catalogs only when the
 ' user chooses Play (or opens a series episode list). Search the original
 ' localized query first, then the Cinemeta title as a fallback.
 function rpHdTaskFindSource(request as object, answer as object, fetcher as dynamic, decoderAccept as dynamic, sources as dynamic) as object
