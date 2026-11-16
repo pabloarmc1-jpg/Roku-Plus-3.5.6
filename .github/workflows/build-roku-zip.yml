@@ -97,3 +97,4 @@ jobs:
 # Package the native HLS reference-stream isolation test.
 
 # Rebuild package for localized title matching fix.
+# Rebuild package for CineHax player response diagnostics.
