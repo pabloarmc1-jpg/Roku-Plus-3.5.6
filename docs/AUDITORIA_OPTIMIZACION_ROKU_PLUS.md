@@ -294,3 +294,15 @@
 - Se revirtió el ajuste anterior no relacionado del ancho del foco de «Mi lista»; se conserva su geometría original.
 - No se cambió el movimiento izquierda/derecha, la selección lógica ni el reproductor.
 - Estado: commits guardados en GitHub; pendiente compilar y validar en Roku.
+
+
+### Corrección adicional del desplazamiento automático de «Películas para explorar» (2026-11-15)
+- Tras la primera corrección, el usuario informó que el foco seguía quedando entre dos imágenes.
+- Revisión más profunda del ciclo de animación: `Poster.translation` es una posición del nodo, no un desplazamiento relativo a la posición inicial. El código anterior sobrescribía esa posición con valores calculados como si fueran offsets, y el helper de estabilización también restablecía los posters a [0,0] en vez de a sus posiciones reales.
+- Corrección en `components/PlusScene.brs`:
+  - Cada tick mueve cada poster 45 px desde su posición actual, conservando la coordenada vertical de la fila.
+  - Al terminar el ciclo, el poster reciclado se coloca en la séptima posición real [1878, discoveryRowY].
+  - Si se entra a la fila durante una animación, los siete posters se recolocan en las posiciones exactas [258+i*270, discoveryRowY] correspondientes al orden actual, sin cambiar `discoveryOffset`.
+  - Se aplica la estabilización también al subir desde «Mi lista» y desde «Series para descubrir» cuando no existe la fila «Mi lista».
+- No se cambia la selección de elementos ni el reproductor.
+- Estado: commits guardados; pendiente compilar y probar en Roku, especialmente bajando/subiendo durante la animación automática.
