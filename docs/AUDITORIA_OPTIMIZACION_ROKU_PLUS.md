@@ -260,4 +260,4 @@
 - Su Poster ahora se decodifica a 1600×900 mediante los parámetros opcionales de `art()`, reduciendo aproximadamente un 30.6% los píxeles decodificados frente a 1920×1080, sin cambiar la composición ni la rotación del destacado.
 - No se modifican el sombreado, los textos, los botones, los indicadores, la selección de destacados ni la navegación. Tampoco se toca el reproductor.
 - Cambio en `components/PlusSceneViews.brs`, commit `d68cf88`.
-- Estado: **pendiente compilar y probar en Roku**. Comprobar el aspecto del fondo en Inicio y al rotar entre destacados, tanto automáticamente como con los controles manuales. Verificar que el resto de la pantalla permanece igual.
+- Estado: **validada por el usuario en Roku**. El usuario confirmó que el fondo de Inicio se ve correctamente y que la rotación de destacados funciona. Se conserva el tamaño visual y los controles; no se modificó el reproductor.
