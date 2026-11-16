@@ -252,4 +252,4 @@
 - Las cinco portadas de sugerencias conservan sus dimensiones de visualización y carga (166×194); no se cambió su nitidez ni el flujo de sugerencias.
 - No se modificaron el teclado, el foco, la búsqueda, el acceso directo a fichas, la navegación ni el reproductor.
 - Cambio en `components/PlusSceneViews.brs`, commit `cb607e7`.
-- Estado: **pendiente compilar y probar en Roku**. Comprobar que el fondo de búsqueda sigue viéndose bien al cambiar entre sugerencias y que las portadas y el foco permanecen correctos.
+- Estado: **validada por el usuario en Roku**. El usuario confirmó que funciona al cambiar entre sugerencias; se conserva el aspecto del fondo, las portadas y el foco.
