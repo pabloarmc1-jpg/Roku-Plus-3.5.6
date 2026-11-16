@@ -148,7 +148,12 @@ sub rpTsRelayServe(connection as object, server as object)
         end if
         filePath = "tmp:/rp_ts_relay_segment.ts"
         DeleteFile(filePath)
+        fetchTimer = CreateObject("roTimespan")
+        fetchTimer.Mark()
+        print "[RokuPlus ts-relay] upstream_fetch_begin segment="; segmentIndex
         code = xfer.GetToFile(filePath)
+        fetchMs = fetchTimer.TotalMilliseconds()
+        print "[RokuPlus ts-relay] upstream_fetch_end segment="; segmentIndex; " status="; code; " elapsedMs="; fetchMs
         if code < 200 or code >= 300
             print "[RokuPlus ts-relay] upstream_failed index="; sentSegments+1; " status="; code
             DeleteFile(filePath)
@@ -167,7 +172,7 @@ sub rpTsRelayServe(connection as object, server as object)
         end if
         ' Deep packet inspection is diagnostic, not part of forwarding. Sample it
         ' periodically; always inspect a segment with an invalid TS packet length.
-        auditDue = sentSegments < 3 or (sentSegments mod 25) = 0 or (payloadSize mod 188) <> 0
+        auditDue = (sentSegments > 0 and (sentSegments mod 25) = 0) or (payloadSize mod 188) <> 0
         if auditDue
             tsAudit = rpTsRelayAuditPayload(payload)
             if not tsAudit.aligned or tsAudit.syncErrors > 0 or tsAudit.patPackets = 0 or tsAudit.continuityErrors > 0 or tsAudit.pmtPackets > 0
