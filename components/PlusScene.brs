@@ -3191,6 +3191,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         print "[RokuPlus input] key="; key; " view="; m.view; " zone="; m.zone; " sceneFocus="; m.top.hasFocus(); " plusVisible="; m.plusExperience.visible
     end if
     if not press
+        if key = "down" then m.ignoreBrowseDownUntilRelease = false
         if m.view = "search-keyboard" and key = "OK" and m.searchDeleteHeld
             m.searchDeleteTimer.control = "stop"
             if not m.searchDeleteCleared and len(m.searchText) > 0
@@ -3205,6 +3206,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.view = "player" or m.view = "invidious-player" then return false
+    if key = "down" and m.ignoreBrowseDownUntilRelease then return true
     if m.dialogBox <> invalid
         ' Let StandardKeyboardDialog own Back. Manually closing it here races
         ' the platform dialog dismissal and can leave the scene needing a second Back.
@@ -3737,7 +3739,11 @@ if m.view = "profiles"
         if m.zone = "categories"
             if key = "left" and m.categoryCursor > 0 then m.categoryCursor--
             if key = "right" and m.categoryCursor < 8 then m.categoryCursor++
-            if key = "down" then m.zone = "grid"
+            if key = "down"
+                m.zone = "grid"
+                ' Consume repeats from the same press; only a fresh press may move in the grid.
+                m.ignoreBrowseDownUntilRelease = true
+            end if
             if key = "up"
                 m.zone = "nav"
                 m.nav = 1
@@ -3784,6 +3790,7 @@ if m.view = "profiles"
         if key = "up" and m.cursor < 5
             m.zone = "categories"
             m.categoryCursor = 0
+    m.ignoreBrowseDownUntilRelease = false
             categoryNames = ["Más populares","Más recientes","Acción","Comedia","Drama","Terror","Ciencia ficción","Animación","Todos"]
             if m.catalogSort = "recent" then m.categoryCursor = 1
             if m.catalogSort = "all" then m.categoryCursor = 8
