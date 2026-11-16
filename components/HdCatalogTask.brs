@@ -1772,14 +1772,14 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         answer.message = "No hay un título válido para buscar en las fuentes."
         return answer
     end if
-    if searchQueries.count() = 0
-        answer.message = "No hay un título válido para buscar en las fuentes."
-        return answer
-    end if
     failures = 0
-    print "[RokuPlus source-search] start kind="; kind; " providers="; providers.count(); " queries="; searchQueries.count()
+    print "[RokuPlus source-search] start kind="; kind; " title="; cinemetaTitle; " year="; discoveryYear; " providers="; providers.count(); " queries="; searchQueries.count()
     for providerIndex = 0 to providers.count()-1
-        if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
+        if m.top.cancelRequested then exit for
+        ' Start a fresh fair-share deadline for every provider. A previous
+        ' provider timing out must not prevent the next provider from running.
+        rpHdTaskBeginSlice(providers.count()-providerIndex)
+        if rpHdTaskSliceExpired() then exit for
         source = providers[providerIndex]
         providerFailed = false
         providerQueries = 0
@@ -1789,7 +1789,6 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         providerUnavailable = 0
         for each searchQuery in searchQueries
             if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
-            rpHdTaskBeginSlice(providers.count()-providerIndex)
             providerQueries++
             catalog = rpHdTaskCatalogPage(source,kind,1,searchQuery,fetcher)
             if catalog.cancelled and m.top.cancelRequested then return rpHdTaskFailure(answer,catalog)
@@ -1839,7 +1838,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     for each diagnosticCandidate in catalog.items
                         if diagnosticCount >= 3 then exit for
                         if type(diagnosticCandidate) = "roAssociativeArray"
-                            print "[RokuPlus source-search-candidate] provider="; source; " title="; orbitText(diagnosticCandidate.title,100); " year="; orbitText(diagnosticCandidate.year,12); " imdb="; orbitText(diagnosticCandidate.imdbId,24)
+                            print "[RokuPlus source-search-candidate] provider="; source; " title="; orbitText(diagnosticCandidate.title,100); " kind="; orbitText(diagnosticCandidate.kind,16); " year="; orbitText(diagnosticCandidate.year,12); " imdb="; orbitText(diagnosticCandidate.imdbId,24)
                             diagnosticCount++
                         end if
                     end for
