@@ -648,6 +648,7 @@ sub fetched(event as object)
         m.detail.hdAttempt = orbitInteger(answer.attemptUsed,99)
         m.pendingSubtitleTracks = answer.subtitleTracks
         m.pendingSelectedSubtitleGroup = orbitText(answer.selectedSubtitleGroup,100)
+        m.pendingSourceHost = orbitText(answer.sourceHost,24)
         m.pendingSegmentUrls = answer.segmentUrls
         m.pendingSegmentDurations = answer.segmentDurations
         m.pendingFallbackSegmentUrls = answer.fallbackSegmentUrls
@@ -863,6 +864,10 @@ sub launchVideo(item as object, url as string, format as string)
     if GetInterface(m.pendingSelectedSubtitleGroup,"ifString") <> invalid
         descriptor.selectedSubtitleGroup = m.pendingSelectedSubtitleGroup
         m.pendingSelectedSubtitleGroup = invalid
+    end if
+    if GetInterface(m.pendingSourceHost,"ifString") <> invalid
+        descriptor.sourceHost = m.pendingSourceHost
+        m.pendingSourceHost = invalid
     end if
     if descriptor.provider = "lamovie"
         print "[RokuPlus identity] launch id="; descriptor.itemId; " providerId="; orbitText(item.providerId,40); " slugPresent="; item.doesExist("providerSlug"); " slug="; orbitText(item.providerSlug,200)
