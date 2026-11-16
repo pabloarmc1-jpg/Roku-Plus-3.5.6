@@ -364,3 +364,13 @@
 - **Mejor valoradas queda pendiente:** los modelos de catálogo actuales no conservan una puntuación/rating fiable de las fuentes; no se inventa una clasificación.
 - Código: commit `a1177a1` en `components/PlusScene.brs`.
 - Estado: implementado y revisado estáticamente; pendiente compilar y probar en Roku.
+
+
+## Categorías visibles en la parte superior del catálogo
+
+- Se reemplazó el acceso oculto por REPLAY por una fila visible de categorías encima de las portadas.
+- Se puede subir desde la primera fila del catálogo, recorrer las pestañas con izquierda/derecha y confirmar con OK; abajo regresa a las películas.
+- Pestañas: Más populares, Más recientes, Acción, Comedia, Drama, Terror, Ciencia ficción, Animación y Todos.
+- Se conserva el filtrado y ordenamiento existentes sobre los títulos cargados; no se cambió el motor de reproducción.
+- Estado: implementado en `feature/rokuplus-resume-work`; pendiente de compilación y validación en Roku por el usuario.
+- Commits de código: `6caf72f`, `a13f418`, `f652210`.
