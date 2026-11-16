@@ -1824,6 +1824,13 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     return answer
 end function
 
+function rpHdTaskHasTitleSuffixBoundary(baseTitle as string, fullTitle as string) as boolean
+    if baseTitle = "" or Len(fullTitle) <= Len(baseTitle) then return false
+    if left(fullTitle, Len(baseTitle)) <> baseTitle then return false
+    separator = mid(fullTitle, Len(baseTitle)+1, 1)
+    return separator = " " or separator = ":"
+end function
+
 function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dynamic, candidates as dynamic, searchQuery as string) as boolean
     if type(discovery) <> "roAssociativeArray" or type(candidate) <> "roAssociativeArray" or type(candidates) <> "roArray" then return false
     if candidates.count() = 0 then return false
@@ -1843,7 +1850,7 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
     queryTitle = rpHdTaskCinemetaTitleKey(searchQuery)
     if discoveryTitle = "" or candidateTitle = "" or queryTitle <> discoveryTitle then return false
     if candidateTitle = discoveryTitle then return false
-    if left(candidateTitle, Len(discoveryTitle)+1) <> discoveryTitle + " " then return false
+    if not rpHdTaskHasTitleSuffixBoundary(discoveryTitle, candidateTitle) then return false
 
     prefixMatches = 0
     for each possible in candidates
@@ -1854,7 +1861,7 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
                 possibleImdb = lcase(orbitText(possible.imdbId,40))
                 imdbCompatible = wantedImdb = "" or possibleImdb = "" or wantedImdb = possibleImdb
                 if possibleYear = wantedYear and imdbCompatible and possibleTitle <> ""
-                    if left(possibleTitle, Len(discoveryTitle)+1) = discoveryTitle + " " then prefixMatches++
+                    if rpHdTaskHasTitleSuffixBoundary(discoveryTitle, possibleTitle) then prefixMatches++
                 end if
             end if
         end if
