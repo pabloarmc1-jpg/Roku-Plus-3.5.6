@@ -75,7 +75,15 @@ jobs:
             }
           ' manifest)"
           PACKAGE_NAME="Roku-Plus-${VERSION}"
-          git ls-files | grep -vE '^(\.github/|.*\.zip$)' | zip -q "/tmp/${PACKAGE_NAME}.zip" -@
+          python3 - <<'PY'
+          import subprocess, zipfile
+          paths = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\\0")
+          with zipfile.ZipFile("/tmp/${PACKAGE_NAME}.zip", "w", zipfile.ZIP_DEFLATED) as archive:
+              for path in paths:
+                  if not path or path.startswith(".github/") or path.lower().endswith(".zip"):
+                      continue
+                  archive.write(path, arcname=path)
+          PY
           mv "/tmp/${PACKAGE_NAME}.zip" .
           echo "PACKAGE_NAME=${PACKAGE_NAME}" >> "$GITHUB_ENV"
           echo "PACKAGE_PATH=${PACKAGE_NAME}.zip" >> "$GITHUB_ENV"
