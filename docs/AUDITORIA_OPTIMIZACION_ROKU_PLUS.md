@@ -9,7 +9,7 @@
 
 ## 1. Limpieza segura y verificación
 
-- [ ] Retirar la inicialización duplicada de `m.invidiousQuery = ""` en `components/PlusScene.brs` (tras confirmar que no hay una razón de orden/flujo).
+- [x] Retirar la inicialización duplicada de `m.invidiousQuery = ""` en `components/PlusScene.brs` (tras confirmar que no hay una razón de orden/flujo).
 - [ ] Rastrear los dos observadores `progress` de `m.player` y los dos de `m.hostPlayer`; identificar el propósito de cada uno antes de cambiar nada.
 - [ ] Revisar temporizadores de hero, discovery, transiciones, fundidos y previews; detenerlos cuando la pantalla o función ya no esté activa.
 - [ ] Rastrear referencias globales de componentes, funciones, tareas, assets y recursos antes de declarar archivos eliminables.
@@ -66,7 +66,7 @@
 
 | Fecha | Elemento | Cambio / commit | Prueba y resultado |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-11-15 | `PlusScene.brs` | Eliminada una asignación consecutiva duplicada de `m.invidiousQuery`; commit `3e03e9d49255310ceab585f79c809190a313e550`. | Cambio estático confirmado en GitHub; pendiente compilar y probar en Roku. |
 
 ## Notas de auditoría
 
