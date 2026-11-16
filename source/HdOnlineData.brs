@@ -1391,6 +1391,7 @@ function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as 
     cacheKey = lcase(title.trim())
     searchTitle = title
     ' Translate known provider-localized titles to their canonical TVmaze names.
+    if cacheKey = "avatar: la leyenda de aang" or cacheKey = "avatar: la leyenda de aang (2005)" then searchTitle = "Avatar: The Last Airbender"
     if cacheKey = "rick y morty" or cacheKey = "rick y morty (2013)" then searchTitle = "Rick and Morty"
     ' These aliases affect lookup only; provider titles and playback IDs stay untouched.
     if cacheKey = "hora de aventura" then searchTitle = "Adventure Time"
