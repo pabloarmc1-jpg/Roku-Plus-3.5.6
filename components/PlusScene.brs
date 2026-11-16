@@ -3478,6 +3478,9 @@ if m.view = "profiles"
             return true
         end if
     else if m.view = "episodes"
+        previousSeason = m.season
+        previousEpisode = m.episode
+        previousZone = m.zone
         if m.zone = "seasons"
             if key = "up"
                 m.zone = "nav"
@@ -3516,7 +3519,19 @@ if m.view = "profiles"
                 end if
             end if
         end if
-        drawScreen()
+        if m.season <> previousSeason
+            drawScreen()
+        else if m.zone <> previousZone
+            paintFocus()
+        else if m.zone = "episodes" and previousEpisode <> m.episode
+            if (previousEpisode \\ 4) = (m.episode \\ 4)
+                paintFocus()
+            else
+                drawScreen()
+            end if
+        else
+            paintFocus()
+        end if
         return true
     else if m.view = "live"
         if m.zone = "live-search"
