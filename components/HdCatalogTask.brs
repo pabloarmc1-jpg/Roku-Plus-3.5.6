@@ -1877,6 +1877,11 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
     if type(discovery) <> "roAssociativeArray" or type(candidate) <> "roAssociativeArray" or type(candidates) <> "roArray" then return false
     if candidates.count() = 0 then return false
     if searchQuery.trim() = "" then return false
+    discoveryKey = rpHdTaskCinemetaTitleKey(discovery.title)
+    if discoveryKey = "avatarthelastairbender"
+        candidateKey = rpHdTaskCinemetaTitleKey(candidate.title)
+        print "[RokuPlus source-match-debug] candidate="; orbitText(candidate.title,100); " kind="; orbitText(candidate.kind,16); " wantedKind="; orbitText(discovery.kind,16); " year="; rpHdTaskCinemetaYear(candidate.year); " wantedYear="; rpHdTaskCinemetaYear(discovery.year); " imdb="; orbitText(candidate.imdbId,24); " wantedImdb="; orbitText(discovery.imdbId,24); " queryKey="; rpHdTaskCinemetaTitleKey(searchQuery); " titleKey="; candidateKey; " alias="; rpHdTaskLocalizedTitleAliasKey(candidateKey)
+    end if
     if orbitText(discovery.kind,16) <> orbitText(candidate.kind,16) then return false
     wantedYear = rpHdTaskCinemetaYear(discovery.year)
     candidateYear = rpHdTaskCinemetaYear(candidate.year)
@@ -1912,6 +1917,9 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
             end if
         end if
     end for
+    if discoveryTitle = "avatarthelastairbender"
+        print "[RokuPlus source-match-debug] aliasKey="; aliasKey; " candidateAlias="; candidateAliasKey; " knownAlias="; isKnownLocalizedAlias; " prefixMatches="; prefixMatches
+    end if
     return prefixMatches = 1
 end function
 
