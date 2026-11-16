@@ -555,12 +555,7 @@ sub drawPlaybackEndScreen()
             if m.endEpisodeMeta <> invalid
                 m.endEpisodeMeta.text = "Temporada " + seasonNumber.toStr() + "  ·  Episodio " + episodeNumber.toStr()
             end if
-            if not m.playbackFinished and not m.endCountdownActive
-                m.endCountdownRemaining = 10
-                m.endCountdownLastAt = m.monotonic.totalMilliseconds()
-                m.endCountdownActive = true
-                m.pulse.control = "start"
-            end if
+            if not m.endCountdownActive then startPlaybackEndCountdownIfReady()
             updateEndCountdownVisual()
         else
             m.endCountdownActive = false
@@ -640,6 +635,37 @@ sub updateEndCountdownVisual()
         dot = m.endCountdownDots[i]
         if dot <> invalid then dot.visible = i < dotsToShow
     end for
+end sub
+
+sub startPlaybackEndCountdownIfReady()
+    if not m.endScreenOpen or m.endCountdownActive then return
+    if type(m.endScreenItems) <> "roArray" or m.endScreenItems.count() = 0 then return
+
+    ready = m.playbackFinished
+    if not ready and type(m.introDbData) = "roAssociativeArray"
+        position = playerPosition()
+        endAt = -1.0
+        outro = m.introDbData.outro
+        if type(outro) = "roAssociativeArray"
+            if GetInterface(outro.end_sec,"ifFloat") <> invalid or GetInterface(outro.end_sec,"ifDouble") <> invalid or GetInterface(outro.end_sec,"ifInt") <> invalid or GetInterface(outro.end_sec,"ifLongInt") <> invalid then endAt = outro.end_sec
+            if endAt < 0 and outro.end_ms <> invalid then endAt = outro.end_ms / 1000.0
+        end if
+        post = m.introDbData.post_credits
+        if type(post) = "roAssociativeArray"
+            postEnd = -1.0
+            if GetInterface(post.end_sec,"ifFloat") <> invalid or GetInterface(post.end_sec,"ifDouble") <> invalid or GetInterface(post.end_sec,"ifInt") <> invalid or GetInterface(post.end_sec,"ifLongInt") <> invalid then postEnd = post.end_sec
+            if postEnd < 0 and post.end_ms <> invalid then postEnd = post.end_ms / 1000.0
+            if postEnd > endAt then endAt = postEnd
+        end if
+        if position <> invalid and endAt >= 0 and position >= endAt then ready = true
+    end if
+    if not ready then return
+
+    m.endCountdownRemaining = 10
+    m.endCountdownLastAt = m.monotonic.totalMilliseconds()
+    m.endCountdownActive = true
+    m.pulse.control = "start"
+    updateEndCountdownVisual()
 end sub
 
 sub movePlaybackEndSelection(direction as integer)
@@ -2767,8 +2793,8 @@ sub onStartupTypePulse()
 end sub
 
 sub onPulse()
-    if not m.mediaOpen then return
     if m.endScreenOpen
+        if not m.endCountdownActive then startPlaybackEndCountdownIfReady()
         if m.endCountdownActive
             nowEnd = m.monotonic.totalMilliseconds()
             elapsedSeconds = int((nowEnd - m.endCountdownLastAt) / 1000)
@@ -2785,6 +2811,7 @@ sub onPulse()
             end if
         end if
     end if
+    if not m.mediaOpen then return
     if m.tsRelayPending
         relayStatus = m.tsStreamServer.status
         nowRelay = m.monotonic.totalMilliseconds()
