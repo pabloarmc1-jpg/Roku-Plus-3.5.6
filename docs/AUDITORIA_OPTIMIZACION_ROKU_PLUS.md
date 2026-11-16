@@ -472,3 +472,13 @@
 - Se ajustó la allowlist de URLs de Cinemeta para aceptar la nueva forma de parámetros sin ampliar dominios ni recursos permitidos.
 - No se modificaron el reproductor, los controles, la resolución de fuentes ni los subtítulos.
 - Estado: cambio de código realizado; requiere validación con registro HTTP del dispositivo Roku.
+
+
+### Corrección del foco al cambiar entre géneros (2026-11-15)
+- Al seleccionar una pestaña de género, la escena conserva `m.zone = "categories"` en vez de cambiar inmediatamente a `"grid"`.
+- La respuesta asíncrona del catálogo y la recuperación desde caché ya no fuerzan el foco hacia la cuadrícula si el usuario sigue en la fila de categorías.
+- Si el usuario pulsa Abajo durante la carga, el foco pasa a la cuadrícula y la respuesta posterior respeta ese movimiento.
+- La carga progresiva de páginas mantiene la misma regla; no cambia filtros, paginación ni datos de reproducción.
+- No se modifican el reproductor, los controles, el motor, audio, subtítulos ni reanudación.
+- Código: commit `30d7a3e` en `components/PlusScene.brs`.
+- Estado: cambio guardado y revisado estáticamente; pendiente instalar/compilar y validar el cambio de géneros en Roku.
