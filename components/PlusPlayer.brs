@@ -5,6 +5,7 @@ sub init()
     m.decoder = m.top.findNode("decoder")
     m.videoViewport = m.top.findNode("videoViewport")
     m.tsStreamServer = m.top.findNode("tsStreamServer")
+    m.tsPrefetchTask = m.top.findNode("tsPrefetchTask")
     if m.decoder.hasField("enableDecoderStats")
         m.decoder.enableDecoderStats = true
         print "[RokuPlus decoder] enableDecoderStats="; m.decoder.enableDecoderStats
@@ -644,6 +645,7 @@ sub openRequest()
     if len(supplied.url) = 0 then return
     ' Stop the preceding decoder without emitting a close for the new request.
     m.mediaOpen = false
+    if m.tsPrefetchTask <> invalid then m.tsPrefetchTask.stopRequested = true
     m.endScreenOpen = false
     m.endScreenItems = []
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
@@ -925,6 +927,19 @@ sub openRequest()
     if m.tsRelayMode
         m.tsStreamServer.segments = m.tsRelaySegments
         m.tsStreamServer.mediaHeaders = supplied.mediaHeaders
+        m.tsStreamServer.prefetchTask = invalid
+        if m.tsFastreamPrefetchEligible and m.tsPrefetchTask <> invalid
+            m.tsPrefetchTask.segments = m.tsRelaySegments
+            m.tsPrefetchTask.mediaHeaders = supplied.mediaHeaders
+            m.tsPrefetchTask.requestIndex = 0
+            m.tsPrefetchTask.generation = m.tsPrefetchTask.generation + 1
+            m.tsPrefetchTask.readyFiles = {}
+            m.tsPrefetchTask.stopRequested = false
+            m.tsPrefetchTask.status = "starting"
+            if m.tsPrefetchTask.state <> "running" then m.tsPrefetchTask.control = "RUN"
+            m.tsStreamServer.prefetchTask = m.tsPrefetchTask
+            print "[RokuPlus ts-prefetch] provider=fastream worker=started window=2"
+        end if
         m.tsRelayAccessKey = CreateObject("roDeviceInfo").getRandomUUID()
         m.tsStreamServer.accessKey = m.tsRelayAccessKey
         m.tsStreamServer.stopRequested = false
@@ -1024,6 +1039,7 @@ sub closePlayback()
         if GetInterface(m.current.requestId,"ifString") <> invalid then closedRequest.requestId = m.current.requestId
     end if
     m.closing = true
+    if m.tsPrefetchTask <> invalid then m.tsPrefetchTask.stopRequested = true
     emitDiagnostic("close")
     m.mediaOpen = false
     cancelStreamXArtworkTask()
@@ -3000,6 +3016,12 @@ sub beginTsRelaySeek(segmentIndex as integer, target as dynamic)
     m.tsRelayRestartStage = 1
     m.tsRelayRestartAt = m.monotonic.totalMilliseconds() + 450
     m.tsStreamServer.nextSegmentIndex = startSegmentIndex
+    if m.tsFastreamPrefetchEligible and m.tsPrefetchTask <> invalid
+        m.tsPrefetchTask.requestIndex = startSegmentIndex
+        m.tsPrefetchTask.generation = m.tsPrefetchTask.generation + 1
+        m.tsPrefetchTask.readyFiles = {}
+        print "[RokuPlus ts-prefetch] seek_reset segment="; startSegmentIndex
+    end if
     print "[RokuPlus ts-relay] seek_restart_requested target="; target; " targetSegment="; segmentIndex; " startSegment="; startSegmentIndex
     emitDiagnostic("ts_relay_seek_restart_requested")
     ' Stop the old HTTP response first. The relay task accepts the replacement
