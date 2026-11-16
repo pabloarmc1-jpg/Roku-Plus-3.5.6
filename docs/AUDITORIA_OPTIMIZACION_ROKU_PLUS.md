@@ -365,7 +365,7 @@
 - En el catálogo combinado, las vistas previas de los proveedores no siempre incluyen `genres`. Para series, ahora se consulta primero TVmaze (`https://api.tvmaze.com/search/shows?q=...`), una API pública que no requiere API key; solo se aceptan coincidencias de título exactas y únicas, y se copian los géneros que devuelve la ficha. Se incluyen alias conocidos para algunos títulos localizados. No se alteran los IDs ni los datos de reproducción de los proveedores.
 - Si TVmaze no encuentra una coincidencia segura o no devuelve géneros, se conserva Cinemeta como respaldo: búsqueda por título, resolución de un ID IMDb válido (`tt...`) y consulta del detalle mediante `/meta/{kind}/{id}.json`. Para películas se mantiene Cinemeta como fuente de enriquecimiento.
 - El enriquecimiento se limita a un máximo de dieciséis títulos sin géneros por página y comparte el presupuesto temporal de 40 segundos de la tarea. Las páginas posteriores se enriquecen al cargarse. La normalización de géneros en la interfaz convierte los nombres ingleses de TVmaze/Cinemeta a las etiquetas españolas de las categorías.
-- Código TVmaze: commit `8ffab35` en `components/HdCatalogTask.brs`; correcciones de validación/normalización: `75937a9`, `9964eaa`. Cinemeta previo: `c8f6fc2`, `bfc7ee1` y `f50d40b`.
+- Código TVmaze: commits `8ffab35`, `75937a9`, `9964eaa`, `5e41bfd` y `3b4f7b5` en `components/HdCatalogTask.brs`. Cinemeta previo: `c8f6fc2`, `bfc7ee1` y `f50d40b`.
 - Estado: implementado y revisado estáticamente en GitHub; pendiente compilar y probar en Roku. No se ha validado todavía la cobertura real de TVmaze en el catálogo del usuario. No se modificó el reproductor ni los subtítulos.
 
 
