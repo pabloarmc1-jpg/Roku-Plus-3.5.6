@@ -2841,7 +2841,11 @@ sub applyPendingResumeEpisode()
     if m.season < 0 or m.season >= m.series.seasons.count() then return
     season = m.series.seasons[m.season]
     if season.number <> m.pendingResumeEpisode.season then return
-    if season.loaded <> true then return
+    if season.doesExist("loaded")
+        if season.loaded <> true then return
+    else
+        if season.episodes.count() = 0 then return
+    end if
     for i = 0 to season.episodes.count()-1
         if orbitInteger(season.episodes[i].episode,9999,-1) = m.pendingResumeEpisode.episode
             m.episode = i
