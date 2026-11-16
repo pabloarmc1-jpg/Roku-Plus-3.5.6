@@ -1632,8 +1632,7 @@ end function
 ' JSON providers request twenty records; SSR pages may contain more cards.
 ' Round-robin output keeps source order while merging the same series across providers.
 function rpHdTaskGlobalSearch(request as object, answer as object, fetcher as dynamic, sources as dynamic) as object
-    if answer.provider = "all" then return rpHdTaskCinemetaGlobalSearch(request,answer,fetcher)
-    query = rpHdOnlineSearchQuery(request.query)
+    return rpHdTaskCinemetaGlobalSearch(request,answer,fetcher)
     if query = "" then return answer
     merged = []
     failures = 0
