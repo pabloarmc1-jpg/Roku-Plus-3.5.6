@@ -10,6 +10,7 @@
     <field id="nextSegmentIndex" type="integer" value="0" />
     <field id="bytesSent" type="integer" value="0" />
     <field id="sendOk" type="boolean" value="true" />
+    <field id="prefetchTask" type="node" />
   </interface>
   <script type="text/brightscript" uri="TsStreamServer.brs" />
 </component>
