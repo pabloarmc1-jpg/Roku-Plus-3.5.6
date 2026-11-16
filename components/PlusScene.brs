@@ -947,6 +947,12 @@ sub launchVideo(item as object, url as string, format as string)
         else if item.kind = "episode"
             cacheKey = imdbId + "|s" + orbitInteger(descriptor.season,999).toStr() + "e" + orbitInteger(descriptor.episode,9999).toStr()
         end if
+    else if lookupTitle <> ""
+        if item.kind = "movie"
+            cacheKey = "cinemeta|" + lcase(lookupTitle) + "|" + lookupYear + "|movie"
+        else if item.kind = "episode"
+            cacheKey = "cinemeta|" + lcase(lookupTitle) + "|" + lookupYear + "|s" + orbitInteger(descriptor.season,999).toStr() + "e" + orbitInteger(descriptor.episode,9999).toStr()
+        end if
     end if
     if cacheKey <> "" and m.introDbCache.doesExist(cacheKey)
         cachedSegments = m.introDbCache[cacheKey]
@@ -998,9 +1004,10 @@ sub introDbResult(event as object)
     if answer.requestId <> m.activePlaybackRequestId then return
     if answer.ok
         cacheKey = orbitText(answer.cacheKey,100)
-        if cacheKey <> ""
-            m.introDbCache[cacheKey] = {intro:answer.intro,recap:answer.recap,outro:answer.outro,post_credits:answer.post_credits,no_intro:answer.no_intro,no_recap:answer.no_recap,no_outro:answer.no_outro}
-        end if
+        cachedData = {intro:answer.intro,recap:answer.recap,outro:answer.outro,post_credits:answer.post_credits,no_intro:answer.no_intro,no_recap:answer.no_recap,no_outro:answer.no_outro}
+        if cacheKey <> "" then m.introDbCache[cacheKey] = cachedData
+        resolvedCacheKey = orbitText(answer.cacheKey,100)
+        if resolvedCacheKey <> "" then m.introDbCache[resolvedCacheKey] = cachedData
         m.introDbSegments = answer
         m.player.introDbData = answer
         print "[RokuPlus introdb] lookup_ok intro="; type(answer.intro); " recap="; type(answer.recap); " outro="; type(answer.outro); " postCredits="; type(answer.post_credits)
