@@ -1683,7 +1683,7 @@ function rpHdTaskCinemetaGlobalSearch(request as object, answer as object, fetch
                                 item = {
                                     id:"cinemeta-"+metaId, imdbId:metaId, kind:searchKind
                                     provider:"all", discoverySource:"cinemeta", library:"hd-online"
-                                    title:title, year:year, description:orbitText(meta.description,4000)
+                                    title:title, searchQuery:query, year:year, description:orbitText(meta.description,4000)
                                     poster:orbitText(meta.poster,2048), background:orbitText(meta.background,2048)
                                     genres:genres, runtime:0, language:"", seasons:[]
                                     source:"Cinemeta"
@@ -1715,6 +1715,9 @@ end function
 
 ' Resolve a Cinemeta discovery record against installed catalogs only when the
 ' user chooses Play (or opens a series episode list). Require an exact identity.
+' Resolve a Cinemeta discovery record against installed catalogs only when the
+' user chooses Play (or opens a series episode list). Search the original
+' localized query first, then the Cinemeta title as a fallback.
 function rpHdTaskFindSource(request as object, answer as object, fetcher as dynamic, decoderAccept as dynamic, sources as dynamic) as object
     item = request.item
     if type(item) <> "roAssociativeArray"
@@ -1734,51 +1737,67 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             if source <> "cinecalidad" or kind <> "series" then providers.push(source)
         end if
     end for
+    searchQueries = []
+    originalQuery = orbitText(item.searchQuery,200).trim()
+    cinemetaTitle = orbitText(item.title,200).trim()
+    if originalQuery <> "" then searchQueries.push(originalQuery)
+    if cinemetaTitle <> "" and rpHdTaskCinemetaTitleKey(cinemetaTitle) <> rpHdTaskCinemetaTitleKey(originalQuery)
+        searchQueries.push(cinemetaTitle)
+    end if
+    if searchQueries.count() = 0
+        answer.message = "No hay un título válido para buscar en las fuentes."
+        return answer
+    end if
     failures = 0
     for providerIndex = 0 to providers.count()-1
         if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
         source = providers[providerIndex]
-        rpHdTaskBeginSlice(providers.count()-providerIndex)
-        catalog = rpHdTaskCatalogPage(source,kind,1,item.title,fetcher)
-        if catalog.cancelled and m.top.cancelRequested then return rpHdTaskFailure(answer,catalog)
-        if not catalog.ok
-            failures++
-            print "[RokuPlus source-search] provider="; source; " result=error"
-        else
-            matches = []
-            for each candidate in catalog.items
-                if rpHdTaskSameDiscoveryItem(item,candidate) then matches.push(candidate)
-            end for
-            if matches.count() = 1
-                candidate = matches[0]
-                operation = "resolve"
-                if kind = "series" then operation = "meta"
-                sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99)}
-                sourceAnswer = rpHdTaskExecute(sourceRequest,fetcher,decoderAccept,sources)
-                if sourceAnswer.ok
-                    sourceAnswer.operation = "find-source"
-                    sourceAnswer.requestId = answer.requestId
-                    sourceAnswer.sourceProvider = source
-                    if kind = "movie" or type(sourceAnswer.item) <> "roAssociativeArray" then sourceAnswer.item = candidate
-                    print "[RokuPlus source-search] provider="; source; " result=matched kind="; kind
-                    return sourceAnswer
-                end if
-                if sourceAnswer.cancelled and m.top.cancelRequested then return sourceAnswer
-                failures++
-                print "[RokuPlus source-search] provider="; source; " result=unavailable"
-            else if matches.count() > 1
-                print "[RokuPlus source-search] provider="; source; " result=ambiguous matches="; matches.count()
+        providerFailed = false
+        for each searchQuery in searchQueries
+            if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
+            rpHdTaskBeginSlice(providers.count()-providerIndex)
+            catalog = rpHdTaskCatalogPage(source,kind,1,searchQuery,fetcher)
+            if catalog.cancelled and m.top.cancelRequested then return rpHdTaskFailure(answer,catalog)
+            if not catalog.ok
+                providerFailed = true
+                print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=error"
             else
-                print "[RokuPlus source-search] provider="; source; " result=no-match"
+                matches = []
+                for each candidate in catalog.items
+                    if rpHdTaskSameDiscoveryItem(item,candidate,searchQuery) then matches.push(candidate)
+                end for
+                if matches.count() = 1
+                    candidate = matches[0]
+                    operation = "resolve"
+                    if kind = "series" then operation = "meta"
+                    sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99)}
+                    sourceAnswer = rpHdTaskExecute(sourceRequest,fetcher,decoderAccept,sources)
+                    if sourceAnswer.ok
+                        sourceAnswer.operation = "find-source"
+                        sourceAnswer.requestId = answer.requestId
+                        sourceAnswer.sourceProvider = source
+                        if kind = "movie" or type(sourceAnswer.item) <> "roAssociativeArray" then sourceAnswer.item = candidate
+                        print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=matched kind="; kind
+                        return sourceAnswer
+                    end if
+                    if sourceAnswer.cancelled and m.top.cancelRequested then return sourceAnswer
+                    providerFailed = true
+                    print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=unavailable"
+                else if matches.count() > 1
+                    print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=ambiguous matches="; matches.count()
+                else
+                    print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=no-match"
+                end if
             end if
-        end if
+        end for
+        if providerFailed then failures++
     end for
     answer.message = "No se encontró una fuente compatible para este título. Prueba otro título o inténtalo más tarde."
     if failures = providers.count() then answer.message = "Las fuentes no respondieron. Inténtalo de nuevo más tarde."
     return answer
 end function
 
-function rpHdTaskSameDiscoveryItem(discovery as dynamic, candidate as dynamic) as boolean
+function rpHdTaskSameDiscoveryItem(discovery as dynamic, candidate as dynamic, searchQuery as string) as boolean
     if type(discovery) <> "roAssociativeArray" or type(candidate) <> "roAssociativeArray" then return false
     if orbitText(discovery.kind,16) <> orbitText(candidate.kind,16) then return false
     wantedImdb = lcase(orbitText(discovery.imdbId,40))
@@ -1790,11 +1809,15 @@ function rpHdTaskSameDiscoveryItem(discovery as dynamic, candidate as dynamic) a
         if wantedYear <> "" and candidateYear <> "" and wantedYear <> candidateYear then return false
         return true
     end if
-    wantedTitle = rpHdTaskCinemetaTitleKey(discovery.title)
     candidateTitle = rpHdTaskCinemetaTitleKey(candidate.title)
-    if wantedTitle = "" or wantedTitle <> candidateTitle then return false
-    if wantedYear = "" or candidateYear = "" then return false
-    return wantedYear = candidateYear
+    discoveryTitle = rpHdTaskCinemetaTitleKey(discovery.title)
+    queryTitle = rpHdTaskCinemetaTitleKey(searchQuery)
+    if candidateTitle = "" then return false
+    if candidateTitle <> discoveryTitle and (queryTitle = "" or candidateTitle <> queryTitle) then return false
+    ' If both years exist they must agree. If one source omits the year,
+    ' exact title identity is still required and ambiguity is rejected above.
+    if wantedYear <> "" and candidateYear <> "" and wantedYear <> candidateYear then return false
+    return true
 end function
 
 function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as dynamic, sources = invalid as dynamic) as object
