@@ -177,8 +177,21 @@ end function
 function rpHdTaskCinemetaTitleKey(value as dynamic) as string
     title = lcase(orbitText(value,240).trim())
     ' Repair common UTF-8-as-Windows-1252 mojibake before comparing titles.
-    title = title.replace("ãƒâ¡","a").replace("ãƒâ©","e").replace("ãƒâ­","i").replace("ãƒâ³","o").replace("ãƒâº","u").replace("ãƒâ±","n")
-    title = title.replace("ã¡","a").replace("ã©","e").replace("ã­","i").replace("ã³","o").replace("ãº","u").replace("ã±","n").replace("ã¼","u")
+    title = title
+    title = title.replace("ãƒâ¡","a")
+    title = title.replace("ãƒâ©","e")
+    title = title.replace("ãƒâ­","i")
+    title = title.replace("ãƒâ³","o")
+    title = title.replace("ãƒâº","u")
+    title = title.replace("ãƒâ±","n")
+    title = title
+    title = title.replace("ã¡","a")
+    title = title.replace("ã©","e")
+    title = title.replace("ã­","i")
+    title = title.replace("ã³","o")
+    title = title.replace("ãº","u")
+    title = title.replace("ã±","n")
+    title = title.replace("ã¼","u")
     ' Fold accents so localized spellings compare consistently without fuzzy matching.
     title = title.replace("á","a").replace("à","a").replace("ä","a").replace("â","a")
     title = title.replace("é","e").replace("è","e").replace("ë","e").replace("ê","e")
