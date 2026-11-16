@@ -285,3 +285,12 @@
 - Ajuste en `components/PlusSceneViews.brs`: marco de «Mi lista» cambiado a x+4 y ancho 268 px; se conserva la altura y la posición vertical. Esto alinea el marco con la tarjeta y evita el solapamiento horizontal.
 - No se modificaron los índices de navegación, el movimiento del cursor, la carga de imágenes ni el reproductor.
 - Estado: cambio guardado en GitHub; pendiente de compilar y confirmar visualmente en Roku.
+
+
+### Corrección del foco al entrar mientras se anima «Películas para explorar» (2026-11-15)
+- Aclaración del reporte del usuario: el problema no era el marco de la fila «Mi lista». Ocurre cuando el carrusel «Películas para explorar» se desplaza automáticamente y el usuario baja el foco mientras la animación está en curso.
+- Causa: la rotación automática podía continuar durante la transición del foco a `covers`; los posters se trasladaban visualmente mientras el marco de foco y los índices permanecían fijos.
+- Solución en `components/PlusScene.brs`: nuevo helper `settleDiscoveryForFocus()`. Al entrar a `covers` desde Hero o Continuar viendo, si el carrusel está animándose, detiene el timer, devuelve los siete posters a su posición estable, limpia el estado de animación y reinicia el timer con el intervalo normal. Ya dentro de `covers`, el callback existente mantiene la rotación pausada.
+- Se revirtió el ajuste anterior no relacionado del ancho del foco de «Mi lista»; se conserva su geometría original.
+- No se cambió el movimiento izquierda/derecha, la selección lógica ni el reproductor.
+- Estado: commits guardados en GitHub; pendiente compilar y validar en Roku.
