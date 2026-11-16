@@ -553,3 +553,16 @@
 - Commits: TVmaze `52e3b268a1967786bfac24ddd8507e93cd51223a`; diagnóstico de catálogo local `61f53cce5d06394f1a26a5345437cf683d8dbdb4`.
 - No se modificaron `PlusPlayer`, motor de reproducción, controles, audio, subtítulos ni reanudación.
 - Estado: cambios guardados en `feature/rokuplus-resume-work`; pendientes de instalar y validar en Roku.
+
+
+## Validación Roku — TVmaze Rick y Morty y diagnóstico del paquete, 2026-11-16
+
+- BrightScript Log actualizado (Dropbox, modificado 2026-11-16T07:59:59Z) confirma el alias: TVmaze recibió la búsqueda canónica `Rick and Morty`, seleccionó exactamente `Rick and Morty` (show_id 216) y descargó 91 episodios. La búsqueda de fuente CineHax terminó en `result=matched kind=series`.
+- La reproducción de `hdo-cinehax-19792-s1-e1` llegó a `state=playing`, `phase=playing`, `failed=false`, `errorCode=0`. El video y audio renderizados avanzaron juntos desde ~815 s hasta ~827 s. Los registros watch guardaron posiciones de ~826–828 s, confirmando el registro de progreso/reanudación.
+- La auditoría HLS muestra 132 segmentos de video y 132 de audio español, misma secuencia, diferencia total de duración 0 ms y cero errores de continuidad en el segmento final inspeccionado. Se detectan pistas de audio español e inglés y variantes de video 480p/720p.
+- LaMovie volvió a devolver HTTP 200 con cuerpo de 32 bytes que no representa un catálogo válido; el buscador lo marca como error. No bloqueó la reproducción porque CineHax proporcionó la fuente.
+- AllCalidad devolvió candidatos ajenos (Ben 10 y Star Trek); el comparador los rechazó, evitando una asociación incorrecta.
+- El nuevo diagnóstico registra `pkg:/data/hd-library.json exists=false`. El archivo sí existe en la rama GitHub en `data/hd-library.json` (blob `a574c19711c274ce49437827cb37dac74180d0d7`, 22,493 bytes). Por tanto, el problema está en el contenido del directorio/paquete que se instaló en el Roku, no en la ausencia del archivo en esta rama. Revisar que el proyecto local y el ZIP/paquete incluyan la carpeta `data` en la raíz. Roku documenta que `pkg:` solo da acceso a los archivos incluidos en el paquete.
+- Las líneas TVmaze `season_result` muestran 11 episodios locales de la temporada 1 y 0 en las temporadas restantes en esta respuesta de metadatos; esto no demuestra pérdida de episodios: el flujo carga temporadas/episodios por separado y el registro no contiene aquí una consulta posterior para todas las temporadas.
+- No se modificó el motor de reproducción, controles, audio, subtítulos ni reanudación en esta validación.
+- Estado: alias TVmaze validado en Roku; reproducción y progreso confirmados; inclusión de `data/hd-library.json` pendiente de corregir en el proyecto local/paquete.
