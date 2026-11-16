@@ -80,6 +80,8 @@ function rpHdCinehaxTask(request as object, answer as object, fetcher as dynamic
     response = fetcher(player,"player","https://cinehax.org/")
     m.hdProviderDeadline = 0
     if not response.ok then return rpHdTaskFailure(answer,response)
+    playerBody = lcase(orbitText(response.body,2097153))
+    print "[RokuPlus cinehax-player-debug] bytes="; len(playerBody); " iframe="; instr(1,playerBody,"<iframe") > 0; " vimeos="; instr(1,playerBody,"vimeos.net") > 0; " embed="; instr(1,playerBody,"embed-") > 0; " title="; instr(1,playerBody,"<title") > 0
     iframe = rpHdCinehaxIframe(response.body)
     if iframe = ""
         answer.message = "CineHax no tiene un servidor compatible disponible. Prueba otra opción de esta película."
