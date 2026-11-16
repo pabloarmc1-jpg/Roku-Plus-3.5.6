@@ -166,6 +166,30 @@ function rpHdOnlineGenres(raw as dynamic, kind = "movie" as string) as object
     return values
 end function
 
+function rpHdOnlineMetadataAliases(raw as object) as object
+    values = []
+    for each key in ["original_title","originalTitle","original_name","originalName","aka","aliases","alternative_titles"]
+        if raw.doesExist(key)
+            value = raw[key]
+            if GetInterface(value,"ifString") <> invalid
+                candidate = value.trim()
+                if candidate <> "" then values.push(candidate)
+            else if type(value) = "roArray"
+                for each entry in value
+                    candidate = orbitText(entry,200).trim()
+                    if candidate <> "" then values.push(candidate)
+                end for
+            else if type(value) = "roAssociativeArray"
+                for each entryKey in value
+                    candidate = orbitText(value[entryKey],200).trim()
+                    if candidate <> "" then values.push(candidate)
+                end for
+            end if
+        end if
+    end for
+    return values
+end function
+
 function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as dynamic
     provider = rpHdOnlineProvider(provider)
     if provider = "" or provider = "all" or provider = "cinehax" or provider = "seriesmetro" or provider = "cinecalidad" or type(raw) <> "roAssociativeArray" then return invalid
@@ -186,7 +210,7 @@ function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as d
         library: "hd-online", title: title, description: orbitText(raw.overview)
         poster: rpHdOnlineArt(images.poster,provider), background: rpHdOnlineArt(images.backdrop,provider)
         year: left(orbitText(raw.release_date,32),4), runtime: int(runtime*60)
-        genres: rpHdOnlineGenres(raw,kind), language: "", seasons: []
+        genres: rpHdOnlineGenres(raw,kind), metadataAliases:rpHdOnlineMetadataAliases(raw), language: "", seasons: []
     }
 end function
 
@@ -1391,90 +1415,129 @@ function rpHdCinemetaEnrichAnswer(answer as object, request as object, fetcher a
     title = orbitText(item.title,200).trim()
     if title = "" then return answer
 
+    variants = rpHdCinemetaTitleVariants(item)
+    searchTitle = rpHdCinemetaSearchTitle(item,variants)
     imdbId = orbitImdb(item.imdbId)
     if imdbId = ""
-        searchTitle = CreateObject("roRegex","\s*[\(\[]((19|20)[0-9]{2})[\)\]]\s*$","").replace(title,"").trim()
-        if searchTitle = "" then searchTitle = title
         transfer = CreateObject("roUrlTransfer")
         searchUrl = "https://v3-cinemeta.strem.io/catalog/"+mediaKind+"/top/search="+transfer.Escape(searchTitle)+".json"
         if m.top.operation <> "catalog" then rpHdTaskBeginSlice(3)
         searchResponse = fetcher(searchUrl,"cinemeta","")
         if searchResponse.cancelled then return rpHdTaskFailure(answer,searchResponse)
-        if not searchResponse.ok then return answer
+        if not searchResponse.ok
+            print "[RokuPlus cinemeta-match] result=search_failed kind="; mediaKind; " title="; left(title,100); " status="; orbitInteger(searchResponse.httpStatus,9999)
+            return answer
+        end if
         searchData = ParseJson(searchResponse.body)
-        if type(searchData) <> "roAssociativeArray" or type(searchData.metas) <> "roArray" then return answer
+        if type(searchData) <> "roAssociativeArray" or type(searchData.metas) <> "roArray"
+            print "[RokuPlus cinemeta-match] result=invalid_search_json kind="; mediaKind; " title="; left(title,100)
+            return answer
+        end if
 
-        titleKey = rpHdCinemetaTitleKey(title)
         wantedYear = rpHdTaskCinemetaYear(item.year)
         selectedId = ""
         exactCount = 0
+        titleMatches = 0
+        yearRejected = 0
+        invalidIds = 0
         for each candidate in searchData.metas
             if type(candidate) = "roAssociativeArray"
                 candidateId = orbitImdb(candidate.id)
-                candidateKey = rpHdCinemetaTitleKey(candidate.name)
                 candidateYear = rpHdTaskCinemetaYear(candidate.releaseInfo)
                 if candidateYear = "" then candidateYear = rpHdTaskCinemetaYear(candidate.year)
-                yearMatches = wantedYear = "" or candidateYear = "" or candidateYear = wantedYear
-                if candidateId <> "" and candidateKey = titleKey and yearMatches
-                    selectedId = candidateId
-                    exactCount++
+                if rpHdCinemetaNameMatches(candidate,variants)
+                    titleMatches++
+                    yearMatches = wantedYear = "" or candidateYear = "" or candidateYear = wantedYear
+                    if yearMatches
+                        if candidateId <> ""
+                            selectedId = candidateId
+                            exactCount++
+                        else
+                            invalidIds++
+                        end if
+                    else
+                        yearRejected++
+                    end if
                 end if
             end if
         end for
-        if exactCount <> 1 then return answer
+        if exactCount <> 1
+            reason = "title_not_found"
+            if titleMatches > 0 and yearRejected > 0 then reason = "year_mismatch"
+            if titleMatches > 0 and invalidIds > 0 and exactCount = 0 then reason = "missing_imdb_id"
+            if exactCount > 1 then reason = "ambiguous_match"
+            print "[RokuPlus cinemeta-match] result="; reason; " kind="; mediaKind; " title="; left(title,100); " query="; left(searchTitle,100); " results="; searchData.metas.count(); " title_matches="; titleMatches; " year_rejected="; yearRejected; " invalid_ids="; invalidIds
+            return answer
+        end if
         imdbId = selectedId
     end if
 
     if m.top.operation <> "catalog" then rpHdTaskBeginSlice(2)
     metaResponse = fetcher("https://v3-cinemeta.strem.io/meta/"+mediaKind+"/"+imdbId+".json","cinemeta","")
     if metaResponse.cancelled then return rpHdTaskFailure(answer,metaResponse)
-    if not metaResponse.ok then return answer
+    if not metaResponse.ok
+        print "[RokuPlus cinemeta-match] result=meta_http_failed kind="; mediaKind; " title="; left(title,100); " imdb="; imdbId; " status="; orbitInteger(metaResponse.httpStatus,9999)
+        return answer
+    end if
     metaData = ParseJson(metaResponse.body)
-    if type(metaData) <> "roAssociativeArray" then return answer
+    if type(metaData) <> "roAssociativeArray" or type(metaData.meta) <> "roAssociativeArray"
+        print "[RokuPlus cinemeta-match] result=invalid_meta_json kind="; mediaKind; " title="; left(title,100); " imdb="; imdbId
+        return answer
+    end if
     meta = metaData.meta
-    if type(meta) <> "roAssociativeArray" then return answer
     returnedId = orbitImdb(meta.id)
-    if returnedId <> "" and returnedId <> imdbId then return answer
-    if rpHdCinemetaTitleKey(meta.name) <> rpHdCinemetaTitleKey(title) then return answer
+    if returnedId <> "" and returnedId <> imdbId
+        print "[RokuPlus cinemeta-match] result=imdb_mismatch title="; left(title,100); " requested="; imdbId; " returned="; returnedId
+        return answer
+    end if
+    if not rpHdCinemetaNameMatches(meta,variants)
+        print "[RokuPlus cinemeta-match] result=meta_title_mismatch title="; left(title,100); " returned="; left(orbitText(meta.name,100),100); " imdb="; imdbId
+        return answer
+    end if
 
     item.imdbId = imdbId
     value = orbitHttpsUrl(meta.poster)
-    if value <> "" then item.poster = value
+    if orbitText(item.poster,2048) = "" and value <> "" then item.poster = value
     value = orbitHttpsUrl(meta.background)
-    if value <> "" then item.background = value
+    if orbitText(item.background,2048) = "" and value <> "" then item.background = value
     value = orbitText(meta.description,12000)
     if value = "" then value = orbitText(meta.overview,12000)
-    if value <> "" then item.description = value
+    if orbitText(item.description,12000) = "" and value <> "" then item.description = value
     value = rpHdTaskCinemetaYear(meta.releaseInfo)
     if value = "" then value = rpHdTaskCinemetaYear(meta.year)
-    if value <> "" then item.year = value
+    if orbitText(item.year,16) = "" and value <> "" then item.year = value
     runtime = orbitRuntime(meta.runtime)
-    if runtime > 0 then item.runtime = runtime
+    if orbitInteger(item.runtime,86400) <= 0 and runtime > 0 then item.runtime = runtime
     if type(meta.genres) = "roArray" and meta.genres.count() > 0
-        genres = []
+        if type(item.genres) <> "roArray" then item.genres = []
         for each genre in meta.genres
             if GetInterface(genre,"ifString") <> invalid
                 genreName = lcase(left(genre.trim(),60))
-                if genreName <> "" then genres.push(genreName)
+                if genreName <> ""
+                    exists = false
+                    for each savedGenre in item.genres
+                        if GetInterface(savedGenre,"ifString") <> invalid and lcase(savedGenre.trim()) = genreName then exists = true
+                    end for
+                    if not exists then item.genres.push(genreName)
+                end if
             end if
         end for
-        if genres.count() > 0 then item.genres = genres
     end if
     rating = orbitText(meta.imdbRating,16)
-    if rating <> "" then item.rating = rating
+    if orbitText(item.rating,16) = "" and rating <> "" then item.rating = rating
     directors = orbitNameList(meta.directors,5)
     if directors.count() = 0 then directors = orbitNameList(meta.director,5)
-    if directors.count() > 0 then item.directors = directors
+    if (type(item.directors) <> "roArray" or item.directors.count() = 0) and directors.count() > 0 then item.directors = directors
     cast = orbitNameList(meta.cast,8)
-    if cast.count() > 0 then item.cast = cast
+    if (type(item.cast) <> "roArray" or item.cast.count() = 0) and cast.count() > 0 then item.cast = cast
     value = orbitText(meta.released,40)
-    if value <> "" then item.released = value
+    if orbitText(item.released,40) = "" and value <> "" then item.released = value
     value = orbitText(meta.status,40)
-    if value <> "" then item.status = value
+    if orbitText(item.status,40) = "" and value <> "" then item.status = value
     value = orbitText(meta.country,80)
-    if value <> "" then item.country = value
+    if orbitText(item.country,80) = "" and value <> "" then item.country = value
     value = orbitText(meta.posterShape,20)
-    if value <> "" then item.posterShape = value
+    if orbitText(item.posterShape,20) = "" and value <> "" then item.posterShape = value
 
     if type(meta.videos) = "roArray"
         if operation = "meta" and mediaKind = "series" and type(item.seasons) = "roArray"
@@ -1488,9 +1551,95 @@ function rpHdCinemetaEnrichAnswer(answer as object, request as object, fetcher a
         end if
     end if
     answer.metadataSource = "Cinemeta"
-    print "[RokuPlus cinemeta-meta] matched kind="; mediaKind; " imdb="; imdbId; " operation="; operation
+    print "[RokuPlus cinemeta-match] result=matched kind="; mediaKind; " imdb="; imdbId; " operation="; operation; " query="; left(searchTitle,100)
     return answer
 end function
+
+function rpHdCinemetaTitleVariants(item as object) as object
+    values = []
+    title = orbitText(item.title,200).trim()
+    if title <> "" then values.push(title)
+    aliases = item.metadataAliases
+    if type(aliases) = "roArray"
+        for each alias in aliases
+            aliasText = orbitText(alias,200).trim()
+            if aliasText <> "" and not rpHdCinemetaVariantExists(values,aliasText) then values.push(aliasText)
+        end for
+    end if
+    canonical = rpHdCinemetaCanonicalTitle(title)
+    if canonical <> "" and not rpHdCinemetaVariantExists(values,canonical) then values.push(canonical)
+    return values
+end function
+
+function rpHdCinemetaVariantExists(values as object, value as string) as boolean
+    key = rpHdCinemetaTitleKey(value)
+    if key = "" then return true
+    for each saved in values
+        if rpHdCinemetaTitleKey(saved) = key then return true
+    end for
+    return false
+end function
+
+function rpHdCinemetaCanonicalTitle(value as string) as string
+    key = lcase(value.trim())
+    key = CreateObject("roRegex","\s*[\(\[]((19|20)[0-9]{2})[\)\]]\s*$","").replace(key,"").trim()
+    if key = "avatar: la leyenda de aang" then return "Avatar: The Last Airbender"
+    if key = "rick y morty" then return "Rick and Morty"
+    if key = "hora de aventura" then return "Adventure Time"
+    if key = "merlina" then return "Wednesday"
+    if key = "juego de tronos" then return "Game of Thrones"
+    if key = "el juego del calamar" then return "Squid Game"
+    if key = "el juego de la muerte" then return "Death's Game"
+    if key = "el juego de gracie darling" then return "Playing Gracie Darling"
+    if key = "phony: la otra madre" then return "Phony"
+    if key = "chicago en llamas" then return "Chicago Fire"
+    if key = "estamos muertos" then return "All of Us Are Dead"
+    if key = "el rey de queens" then return "The King of Queens"
+    if key = "asesinato para principiantes" then return "A Good Girl's Guide to Murder"
+    if key = "2 chicas quebradas" then return "2 Broke Girls"
+    if key = "el adn del delito" then return "DNA do Crime"
+    if key = "anatomía según grey" then return "Grey's Anatomy"
+    if key = "buscando a wanda" then return "Where's Wanda?"
+    if key = "coraje, el perro cobarde" then return "Courage the Cowardly Dog"
+    if key = "la lista terminal" then return "The Terminal List"
+    if key = "visionquest" then return "VisionQuest"
+    return ""
+end function
+
+function rpHdCinemetaSearchTitle(item as object, variants as object) as string
+    canonical = rpHdCinemetaCanonicalTitle(orbitText(item.title,200))
+    if canonical <> "" then return canonical
+    if variants.count() > 1 then return orbitText(variants[1],200)
+    return orbitText(item.title,200)
+end function
+
+function rpHdCinemetaNameMatches(candidate as object, variants as object) as boolean
+    candidateNames = []
+    name = orbitText(candidate.name,240).trim()
+    if name <> "" then candidateNames.push(name)
+    for each key in ["aliases","alias","originalTitle","original_title","originalName","original_name"]
+        if candidate.doesExist(key)
+            value = candidate[key]
+            if GetInterface(value,"ifString") <> invalid
+                if value.trim() <> "" then candidateNames.push(value.trim())
+            else if type(value) = "roArray"
+                for each entry in value
+                    entryText = orbitText(entry,240).trim()
+                    if entryText <> "" then candidateNames.push(entryText)
+                end for
+            end if
+        end if
+    end for
+    for each candidateName in candidateNames
+        candidateKey = rpHdCinemetaTitleKey(candidateName)
+        for each variant in variants
+            if candidateKey <> "" and candidateKey = rpHdCinemetaTitleKey(variant) then return true
+        end for
+    end for
+    return false
+end function
+
+
 
 function rpHdCinemetaTitleKey(value as dynamic) as string
     title = orbitText(value,240).trim()
