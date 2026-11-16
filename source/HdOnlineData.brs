@@ -1373,8 +1373,174 @@ end function
 
 
 ' Optional TVmaze enrichment for series only. Provider IDs and playback fields are never changed.
+' Cinemeta is the primary metadata source for HD movie/series details.
+' Provider IDs and stream resolution fields are intentionally left untouched.
+function rpHdCinemetaEnrichAnswer(answer as object, request as object, fetcher as dynamic) as object
+    if not answer.ok then return answer
+    operation = orbitText(request.operation,20)
+    item = invalid
+    if operation = "meta" and type(answer.item) = "roAssociativeArray"
+        item = answer.item
+    else if operation = "episodes" and type(request.item) = "roAssociativeArray"
+        item = request.item
+    else
+        return answer
+    end if
+    if type(item) <> "roAssociativeArray" then return answer
+    mediaKind = orbitText(item.kind,16)
+    if mediaKind <> "movie" and mediaKind <> "series" then return answer
+    title = orbitText(item.title,200).trim()
+    if title = "" then return answer
+
+    imdbId = orbitImdb(item.imdbId)
+    if imdbId = ""
+        searchTitle = CreateObject("roRegex","\s*[\(\[]((19|20)[0-9]{2})[\)\]]\s*$","").replace(title,"").trim()
+        if searchTitle = "" then searchTitle = title
+        transfer = CreateObject("roUrlTransfer")
+        searchUrl = "https://v3-cinemeta.strem.io/catalog/"+mediaKind+"/top/search="+transfer.Escape(searchTitle)+".json"
+        rpHdTaskBeginSlice(3)
+        searchResponse = fetcher(searchUrl,"cinemeta","")
+        if searchResponse.cancelled then return rpHdTaskFailure(answer,searchResponse)
+        if not searchResponse.ok then return answer
+        searchData = ParseJson(searchResponse.body)
+        if type(searchData) <> "roAssociativeArray" or type(searchData.metas) <> "roArray" then return answer
+
+        titleKey = rpHdCinemetaTitleKey(title)
+        wantedYear = rpHdTaskCinemetaYear(item.year)
+        selectedId = ""
+        exactCount = 0
+        for each candidate in searchData.metas
+            if type(candidate) = "roAssociativeArray"
+                candidateId = orbitImdb(candidate.id)
+                candidateKey = rpHdCinemetaTitleKey(candidate.name)
+                candidateYear = rpHdTaskCinemetaYear(candidate.releaseInfo)
+                if candidateYear = "" then candidateYear = rpHdTaskCinemetaYear(candidate.year)
+                yearMatches = wantedYear = "" or candidateYear = "" or candidateYear = wantedYear
+                if candidateId <> "" and candidateKey = titleKey and yearMatches
+                    selectedId = candidateId
+                    exactCount++
+                end if
+            end if
+        end for
+        if exactCount <> 1 then return answer
+        imdbId = selectedId
+    end if
+
+    rpHdTaskBeginSlice(2)
+    metaResponse = fetcher("https://v3-cinemeta.strem.io/meta/"+mediaKind+"/"+imdbId+".json","cinemeta","")
+    if metaResponse.cancelled then return rpHdTaskFailure(answer,metaResponse)
+    if not metaResponse.ok then return answer
+    metaData = ParseJson(metaResponse.body)
+    if type(metaData) <> "roAssociativeArray" then return answer
+    meta = metaData.meta
+    if type(meta) <> "roAssociativeArray" then return answer
+    returnedId = orbitImdb(meta.id)
+    if returnedId <> "" and returnedId <> imdbId then return answer
+    if rpHdCinemetaTitleKey(meta.name) <> rpHdCinemetaTitleKey(title) then return answer
+
+    item.imdbId = imdbId
+    value = orbitHttpsUrl(meta.poster)
+    if value <> "" then item.poster = value
+    value = orbitHttpsUrl(meta.background)
+    if value <> "" then item.background = value
+    value = orbitText(meta.description,12000)
+    if value = "" then value = orbitText(meta.overview,12000)
+    if value <> "" then item.description = value
+    value = rpHdTaskCinemetaYear(meta.releaseInfo)
+    if value = "" then value = rpHdTaskCinemetaYear(meta.year)
+    if value <> "" then item.year = value
+    runtime = orbitRuntime(meta.runtime)
+    if runtime > 0 then item.runtime = runtime
+    if type(meta.genres) = "roArray" and meta.genres.count() > 0
+        genres = []
+        for each genre in meta.genres
+            if GetInterface(genre,"ifString") <> invalid
+                genreName = lcase(left(genre.trim(),60))
+                if genreName <> "" then genres.push(genreName)
+            end if
+        end for
+        if genres.count() > 0 then item.genres = genres
+    end if
+    rating = orbitText(meta.imdbRating,16)
+    if rating <> "" then item.rating = rating
+    directors = orbitNameList(meta.directors,5)
+    if directors.count() = 0 then directors = orbitNameList(meta.director,5)
+    if directors.count() > 0 then item.directors = directors
+    cast = orbitNameList(meta.cast,8)
+    if cast.count() > 0 then item.cast = cast
+    value = orbitText(meta.released,40)
+    if value <> "" then item.released = value
+    value = orbitText(meta.status,40)
+    if value <> "" then item.status = value
+    value = orbitText(meta.country,80)
+    if value <> "" then item.country = value
+    value = orbitText(meta.posterShape,20)
+    if value <> "" then item.posterShape = value
+
+    if type(meta.videos) = "roArray"
+        if operation = "meta" and mediaKind = "series" and type(item.seasons) = "roArray"
+            for i = 0 to item.seasons.count()-1
+                item.seasons[i] = rpHdCinemetaEnrichSeason(item.seasons[i],meta.videos)
+            end for
+        else if operation = "episodes" and mediaKind = "series" and type(answer.seasons) = "roArray"
+            for i = 0 to answer.seasons.count()-1
+                answer.seasons[i] = rpHdCinemetaEnrichSeason(answer.seasons[i],meta.videos)
+            end for
+        end if
+    end if
+    answer.metadataSource = "Cinemeta"
+    print "[RokuPlus cinemeta-meta] matched kind="; mediaKind; " imdb="; imdbId; " operation="; operation
+    return answer
+end function
+
+function rpHdCinemetaTitleKey(value as dynamic) as string
+    title = orbitText(value,240).trim()
+    title = CreateObject("roRegex","\s*[\(\[]((19|20)[0-9]{2})[\)\]]\s*$","").replace(title,"").trim()
+    return rpHdTaskCinemetaTitleKey(title)
+end function
+
+function rpHdCinemetaEnrichSeason(season as object, videos as object) as object
+    if type(season) <> "roAssociativeArray" or type(season.episodes) <> "roArray" then return season
+    seasonNumber = orbitInteger(season.number,999,-1)
+    if seasonNumber < 0 then return season
+    matched = 0
+    for each localEpisode in season.episodes
+        if type(localEpisode) = "roAssociativeArray"
+            episodeNumber = orbitInteger(localEpisode.episode,9999)
+            if episodeNumber > 0
+                for each video in videos
+                    if type(video) = "roAssociativeArray"
+                        if orbitInteger(video.season,999,-1) = seasonNumber and orbitInteger(video.episode,9999) = episodeNumber
+                            episodeTitle = orbitText(video.title,200)
+                            if episodeTitle = "" then episodeTitle = orbitText(video.name,200)
+                            if episodeTitle <> "" and not CreateObject("roRegex","^(episodio|episode|cap[ií]tulo|chapter)[ ]*[0-9]+$","i").isMatch(episodeTitle.trim())
+                                localEpisode.title = episodeTitle
+                            end if
+                            description = orbitText(video.overview,12000)
+                            if description = "" then description = orbitText(video.description,12000)
+                            if description <> "" then localEpisode.description = description
+                            poster = orbitHttpsUrl(video.thumbnail)
+                            if poster <> "" then localEpisode.poster = poster
+                            released = orbitText(video.released,40)
+                            if released <> "" then localEpisode.released = released
+                            runtime = orbitRuntime(video.runtime)
+                            if runtime > 0 then localEpisode.runtime = runtime
+                            matched++
+                            exit for
+                        end if
+                    end if
+                end for
+            end if
+        end if
+    end for
+    if matched > 0 then print "[RokuPlus cinemeta-meta] episode_matches S"; seasonNumber; " count="; matched
+    return season
+end function
+
 function rpHdTvmazeEnrichAnswer(answer as object, request as object, fetcher as dynamic) as object
     if not answer.ok then return answer
+    answer = rpHdCinemetaEnrichAnswer(answer,request,fetcher)
+    if orbitText(answer.metadataSource,32) = "Cinemeta" then return answer
     operation = orbitText(request.operation,20)
     item = invalid
     if operation = "meta" and type(answer.item) = "roAssociativeArray"
