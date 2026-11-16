@@ -22,13 +22,17 @@ function words(text as string, x as float, y as float, w as float, h as float, s
     return node
 end function
 
-function art(uri as string, x as float, y as float, w as float, h as float, mode = "scaleToFill" as string) as object
+function art(uri as string, x as float, y as float, w as float, h as float, mode = "scaleToFill" as string, loadW = 0 as integer, loadH = 0 as integer) as object
     poster = m.canvas.createChild("Poster")
     poster.translation = [x,y]
     poster.width = w
     poster.height = h
-    poster.loadWidth = int(w)
-    poster.loadHeight = int(h)
+    targetWidth = loadW
+    targetHeight = loadH
+    if targetWidth <= 0 then targetWidth = int(w)
+    if targetHeight <= 0 then targetHeight = int(h)
+    poster.loadWidth = targetWidth
+    poster.loadHeight = targetHeight
     poster.loadDisplayMode = mode
     poster.uri = themeAsset(uri)
     m.images.push(poster)
@@ -637,7 +641,7 @@ sub browseScreen()
         if browseBackdrop = "" then browseBackdrop = orbitText(selectedBackdrop.poster,2048)
     end if
     m.browseBackdropPoster = invalid
-    if browseBackdrop <> "" then m.browseBackdropPoster = art(browseBackdrop,0,0,1920,1080)
+    if browseBackdrop <> "" then m.browseBackdropPoster = art(browseBackdrop,0,0,1920,1080,"scaleToFill",960,540)
     panel(0,0,1920,1080,"0x080808E8")
     topBar()
 
