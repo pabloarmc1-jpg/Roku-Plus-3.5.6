@@ -199,3 +199,14 @@
 - La escritura de caracteres, actualización de sugerencias, borrado, selección de resultados y acciones siguen usando sus rutas de actualización originales; no se cambió la búsqueda ni sus datos.
 - Cambio guardado en `components/PlusScene.brs`, commit `acf9145`.
 - Estado: **pendiente compilar y probar en Roku**. Verificar flechas entre teclas, transición a sugerencias y acciones, escribir y borrar texto, seleccionar una sugerencia y cancelar. Si el foco desaparece o queda desfasado, revertir esta optimización. No tocar el reproductor.
+
+
+### Búsqueda insensible a mayúsculas y acceso directo desde sugerencias (2026-11-15)
+
+- `submitGlobalSearch()` conserva el texto original en `m.query` para presentación y pasa una copia en minúsculas al proceso de búsqueda remota. El catálogo HD local ya compara consulta y título/descripción con `lcase()`; se conserva ese comportamiento.
+- La comparación de sugerencias locales ya convertía a minúsculas tanto la consulta como el título. Se conserva y ahora también se normaliza la consulta enviada a los catálogos remotos.
+- Al seleccionar una sugerencia, `chooseSearchSuggestion()` abre directamente su ficha mediante `openDetails()`, en lugar de lanzar otra búsqueda por texto.
+- Se añadió el origen `search` en `returnOneStep()`: al volver desde la ficha, se restaura el teclado de búsqueda con la sugerencia seleccionada. El botón BUSCAR conserva su flujo normal de resultados.
+- No se alteran los extractores, proveedores, metadatos ni el reproductor.
+- Cambio guardado en `components/PlusScene.brs`, commit `619fc0e`.
+- Estado: **pendiente compilar y probar en Roku**. Probar búsquedas con mezcla de mayúsculas/minúsculas en catálogo normal y HD online; seleccionar una sugerencia de película y otra de serie; comprobar que abre la ficha y que Atrás vuelve a las sugerencias; confirmar que BUSCAR sigue mostrando resultados. No marcar validado hasta recibir confirmación.
