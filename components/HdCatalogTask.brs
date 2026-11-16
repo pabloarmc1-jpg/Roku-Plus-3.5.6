@@ -1124,6 +1124,11 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     for i = 0 to count-1
         embedIndex = (i+embedOffset) mod count
         embed = embeds[embedIndex]
+        embedUrl = orbitText(embed.url,2048)
+        answer.sourceHost = "other"
+        if CreateObject("roRegex","^https://fastream\\.to/(embed-)?[a-zA-Z0-9_-]+(\\.html)?$","i").isMatch(embedUrl)
+            answer.sourceHost = "fastream"
+        end if
         ' Only VOE is routed to the dedicated host-player instance for now.
         ' Keep Fastream, Vimeos and every existing provider on the standard
         ' player until a separate host adapter is explicitly validated.
