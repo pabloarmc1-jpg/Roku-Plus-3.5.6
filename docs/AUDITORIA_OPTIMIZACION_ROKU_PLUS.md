@@ -517,3 +517,11 @@
 - Cambio limitado a components/HdCatalogTask.brs. No se modificaron reproductor, controles, audio, subtítulos ni reanudación.
 - Commit de código: 9e3856c9a581319e6d8441fc7254f5459280a812. Pendiente de prueba en Roku.
 - Primetime continúa sin candidato en los proveedores; LaMovie responde HTTP 200 con un cuerpo de 32 bytes que el buscador clasifica como error. Este cambio no resuelve ese caso.
+
+
+## Validación Roku — Resident Evil: Noche cero (2026), 2026-11-16
+
+- El BrightScript Log actualizado registra que Cinemeta/LaMovie resolvió Resident Evil mediante localized-year-match hacia Resident Evil: Noche cero (2026), seguido de result=matched kind=movie.
+- El reproductor abrió el item hdo-lamovie-98730 con provider=lamovie y avanzó en estado playing; los eventos native_stream_details muestran duration=5629, failed=false y errorCode=0, con posiciones progresivas al menos hasta ~90 segundos.
+- Esto valida en Roku la corrección de coincidencia de título con separador de dos puntos (commit de código 9e3856c9a581319e6d8441fc7254f5459280a812).
+- No se modificó el motor de reproducción ni controles/audio/subtítulos/reanudación en esta corrección.
