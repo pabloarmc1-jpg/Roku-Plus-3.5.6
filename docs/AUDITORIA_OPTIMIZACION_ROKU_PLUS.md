@@ -339,3 +339,11 @@
 - [ ] Pruebas de regresión globales de reproducción, pausa, seek, reanudación, audio y subtítulos después de las optimizaciones (el motor no se ha modificado en esta auditoría).
 
 **Alcance protegido:** no se ha modificado el motor de reproducción ni sus controles como parte de estas optimizaciones.
+
+
+### Caché temporal de páginas del catálogo (2026-11-15)
+- Se añadió una caché acotada a la última página online de catálogo consultada, identificada por modo, proveedor, tipo, consulta y offset.
+- Las respuestas parciales no se guardan. Una página completa se conserva durante 90 segundos; al reutilizarla se reconstruyen los títulos, el filtro de género, la paginación y el cursor, sin cambiar la lógica de navegación/foco.
+- Si no hay coincidencia vigente, se conserva la solicitud de red original. El catálogo HD local no cambia.
+- Código: commit `cae1665` en `components/PlusScene.brs`.
+- Estado: implementado y verificado estáticamente en GitHub; pendiente compilar y probar en Roku. No se modificó el reproductor.
