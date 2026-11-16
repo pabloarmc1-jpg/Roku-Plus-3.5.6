@@ -1633,47 +1633,6 @@ end function
 ' Round-robin output keeps source order while merging the same series across providers.
 function rpHdTaskGlobalSearch(request as object, answer as object, fetcher as dynamic, sources as dynamic) as object
     return rpHdTaskCinemetaGlobalSearch(request,answer,fetcher)
-    if query = "" then return answer
-    merged = []
-    failures = 0
-    successes = 0
-    for each searchKind in ["movie","series"]
-        partRequest = {
-            operation:"catalog", kind:searchKind, provider:request.provider
-            query:query, skip:0, requestId:request.requestId
-        }
-        partAnswer = {
-            ok:false, cancelled:false, requestId:answer.requestId
-            operation:"catalog", kind:searchKind, provider:answer.provider
-            items:[], message:""
-        }
-        if answer.provider = "all"
-            partAnswer = rpHdTaskCombinedCatalog(partRequest,partAnswer,fetcher,sources)
-        else
-            response = rpHdTaskCatalogPage(answer.provider,searchKind,1,query,fetcher)
-            partAnswer.ok = response.ok
-            partAnswer.cancelled = response.cancelled
-            partAnswer.message = response.message
-            if response.ok then partAnswer.items = response.items
-        end if
-        if partAnswer.cancelled then return rpHdTaskFailure(answer,partAnswer)
-        if partAnswer.ok
-            successes++
-            for each resultItem in partAnswer.items
-                merged.push(resultItem)
-            end for
-        else
-            failures++
-        end if
-    end for
-    answer.items = orbitUniqueCatalogItems(merged)
-    answer.ok = successes > 0
-    answer.partial = failures > 0
-    answer.hasMore = false
-    answer.nextSkip = 0
-    answer.message = ""
-    if not answer.ok then answer.message = "Ninguna fuente respondió a la búsqueda. Vuelve a intentar."
-    return answer
 end function
 
 ' Global discovery is independent from the playback providers. Cinemeta supplies
