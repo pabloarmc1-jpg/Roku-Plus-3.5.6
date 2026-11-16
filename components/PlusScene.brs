@@ -362,6 +362,7 @@ sub catalogTimedOut()
     cancelRequest()
     m.autoplay = false
     m.note = "La consulta tardó demasiado. Pulsa OK para intentar de nuevo o Atrás para volver."
+    if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" then m.view = "detail"
     if m.view = "player"
         if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
             showPlayerNextEpisodeError(m.note)
@@ -382,6 +383,7 @@ sub catalogState(event as object)
     cancelRequest()
     m.autoplay = false
     m.note = "No se pudo completar la consulta. Vuelve a intentar."
+    if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" then m.view = "detail"
     if m.view = "player"
         if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
             showPlayerNextEpisodeError(m.note)
