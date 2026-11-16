@@ -269,3 +269,11 @@
 - Se mantienen el modo `scaleToFill`, las posiciones, los overlays de progreso, los objetivos de foco y la cantidad de tarjetas. No se altera la reutilización/rotación de los siete Posters de descubrimiento, ni el reproductor.
 - Cambio en `components/PlusSceneViews.brs`, commit `131fbbf`.
 - Estado: **pendiente compilar y probar en Roku**. Revisar las tres filas, la nitidez, los indicadores de progreso y el foco al desplazarse. Comprobar también la rotación automática de «Selección para ti».
+
+### Corrección de foco al desplazar «Películas para explorar» (2026-11-15)
+
+- Se detectó que al alcanzar el sexto elemento visible y desplazar la ventana de la fila, `discoveryOffset` cambiaba pero la vista no se redibujaba. El foco conservaba su índice, mientras las tarjetas visibles seguían mostrando la ventana anterior; por eso la tarjeta resaltada podía no coincidir con la que se abría.
+- Ahora, al desplazar la ventana hacia la derecha o izquierda, se ejecuta `drawScreen()` y se reconstruyen conjuntamente los Posters y los objetivos de foco para el nuevo bloque. Los movimientos dentro de las seis tarjetas visibles siguen usando `paintFocus()` sin reconstrucción completa.
+- No se cambia la selección de elementos, el contenido del catálogo, la rotación fuera de la interacción ni el reproductor.
+- Corrección en `components/PlusScene.brs`, commit `5a3a933`.
+- Estado: **pendiente compilar y probar en Roku**. Verificar el foco al recorrer la fila hasta el extremo derecho, seguir avanzando, retroceder al extremo izquierdo y abrir una tarjeta después de desplazar la ventana.
