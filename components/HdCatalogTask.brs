@@ -1831,6 +1831,14 @@ function rpHdTaskHasTitleSuffixBoundary(baseTitle as string, fullTitle as string
     return separator = " " or separator = ":"
 end function
 
+' A small explicit alias map handles provider titles translated into Spanish.
+' It is intentionally exact; it is not a general fuzzy-title matcher.
+function rpHdTaskLocalizedTitleAliasKey(title as dynamic) as string
+    normalized = rpHdTaskCinemetaTitleKey(title)
+    if normalized = "rick and morty" or normalized = "rick y morty" then return "rick-and-morty"
+    return ""
+end function
+
 function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dynamic, candidates as dynamic, searchQuery as string) as boolean
     if type(discovery) <> "roAssociativeArray" or type(candidate) <> "roAssociativeArray" or type(candidates) <> "roArray" then return false
     if candidates.count() = 0 then return false
@@ -1850,7 +1858,10 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
     queryTitle = rpHdTaskCinemetaTitleKey(searchQuery)
     if discoveryTitle = "" or candidateTitle = "" or queryTitle <> discoveryTitle then return false
     if candidateTitle = discoveryTitle then return false
-    if not rpHdTaskHasTitleSuffixBoundary(discoveryTitle, candidateTitle) then return false
+    aliasKey = rpHdTaskLocalizedTitleAliasKey(discoveryTitle)
+    candidateAliasKey = rpHdTaskLocalizedTitleAliasKey(candidateTitle)
+    isKnownLocalizedAlias = aliasKey <> "" and candidateAliasKey = aliasKey
+    if not isKnownLocalizedAlias and not rpHdTaskHasTitleSuffixBoundary(discoveryTitle, candidateTitle) then return false
 
     prefixMatches = 0
     for each possible in candidates
@@ -1861,7 +1872,8 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
                 possibleImdb = lcase(orbitText(possible.imdbId,40))
                 imdbCompatible = wantedImdb = "" or possibleImdb = "" or wantedImdb = possibleImdb
                 if possibleYear = wantedYear and imdbCompatible and possibleTitle <> ""
-                    if rpHdTaskHasTitleSuffixBoundary(discoveryTitle, possibleTitle) then prefixMatches++
+                    possibleAliasKey = rpHdTaskLocalizedTitleAliasKey(possibleTitle)
+                    if rpHdTaskHasTitleSuffixBoundary(discoveryTitle, possibleTitle) or (aliasKey <> "" and possibleAliasKey = aliasKey) then prefixMatches++
                 end if
             end if
         end if
