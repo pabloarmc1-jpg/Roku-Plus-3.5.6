@@ -413,3 +413,13 @@
 - Se añade un registro acotado `[RokuPlus lamovie-diagnostic]` que muestra únicamente el tamaño y hasta 120 caracteres de la respuesta cuando el JSON de LaMovie es inválido.
 - No se cambia el endpoint, los parámetros de búsqueda, la lógica de coincidencia ni ningún componente del reproductor.
 - Pendiente: revisar el nuevo mensaje del servidor en un registro Roku para determinar si es un error de API, parámetro o respuesta del servidor. No se considera corregido hasta tener esa evidencia.
+
+
+### Categorías online directamente desde Cinemeta (2026-11-16)
+
+- Las páginas de Explorar en modo HD online ahora usan la operación `cinemeta-catalog`; ya no pasan por `rpHdTaskCombinedCatalog` ni consultan LaMovie, AllCalidad, CineHax, SeriesMetro o CineCalidad para llenar las categorías.
+- Acción, Comedia, Drama, Terror, Ciencia ficción y Animación se solicitan a Cinemeta mediante su filtro nativo `genre`; «Más populares» usa el catálogo `top` y «Más recientes» usa el catálogo `year` del año actual. Se mantiene la paginación de 20 elementos por página.
+- Los resultados conservan el ID IMDb y los metadatos Cinemeta, con `discoverySource="cinemeta"`. La búsqueda de una fuente compatible se difiere hasta Play (películas) o hasta entrar en episodios (series), reutilizando el flujo global ya existente.
+- El catálogo de Inicio y la búsqueda de fuentes para reproducción no se modifican. Tampoco se modifican adaptadores, motor, controles, pausa, seek, reanudación, audio ni subtítulos.
+- La clave de caché de páginas ahora incluye género, orden y operación para evitar reutilizar una página de otra categoría. Se desactiva el escaneo adicional de páginas de proveedores para esta ruta, porque Cinemeta ya entrega el género filtrado.
+- **Estado:** cambios guardados y revisados estáticamente en GitHub. Pendiente compilar y validar en Roku; no se afirma que esté probado en el dispositivo.
