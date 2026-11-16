@@ -386,3 +386,13 @@
 - [ ] Probar en Roku las categorías Acción, Comedia, Drama, Terror, Ciencia ficción y Animación con cada proveedor y con “Todas”; confirmar cantidad, paginación, cambio entre categorías y regreso a “Todos”.
 - [ ] Aún no es una consulta de género nativa del servidor: las rutas de catálogo revisadas de LaMovie y AllCalidad exponen orden/paginación, y CineHax/SeriesMetro usan adaptadores propios sin parámetro de género documentado en el código. Por eso esta corrección amplía la búsqueda por páginas y depende de que los metadatos de género estén disponibles; no garantiza un catálogo global completo ni que cada proveedor devuelva todos sus títulos por género.
 - Commits: `9b2cde5` y `f4f6b1e` en `feature/rokuplus-resume-work`. **Aplicado en código; pendiente compilar y validar en Roku.**
+
+### Búsqueda global independiente y resolución diferida de fuentes (2026-11-16)
+
+- La búsqueda global por texto del catálogo HD ahora consulta Cinemeta para películas y series. El descubrimiento no ejecuta consultas de búsqueda contra LaMovie, AllCalidad, CineHax, SeriesMetro ni CineCalidad.
+- Los resultados de Cinemeta incluyen título, año, IMDb ID, descripción, géneros, póster y fondo. La ficha se puede abrir con esos metadatos sin una segunda consulta al proveedor.
+- Al pulsar **Reproducir** en una película, la escena muestra una pantalla completa de preparación y una tarea busca coincidencias en los catálogos de reproducción instalados. Para series, esa búsqueda ocurre al entrar en temporadas/episodios; después se conserva la identidad del proveedor seleccionado para los episodios.
+- La coincidencia exige tipo de contenido correcto y, cuando hay IMDb ID en ambos registros, el mismo ID; en su defecto exige título normalizado exacto y año coincidente. Si una fuente falla o no tiene una coincidencia única, se prueba la siguiente. No se usa coincidencia difusa.
+- Cuando una película tiene un enlace validado, se entrega al flujo de reproducción existente. El reproductor, sus controles, pausa, seek, reanudación, audio, subtítulos y motor de reproducción no se modificaron.
+- Código en components/HdCatalogTask.brs, components/PlusScene.brs y components/PlusSceneViews.brs. Commits principales: 8220772, 2871b09, 7d5daa8, 4452a43, c55890c, 1e4cbaa, 09b5e88, ee26097 y c05bc8d.
+- **Estado:** implementado en la rama de trabajo y revisado estáticamente; todavía no compilado ni probado en Roku. Deben verificarse resultados de búsqueda, ficha, coincidencias de fuente, series/temporadas, cancelación con Atrás, reproducción, continuidad, audio y subtítulos antes de considerarlo validado.
