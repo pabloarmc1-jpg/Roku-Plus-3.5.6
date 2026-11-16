@@ -260,7 +260,7 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
         if remaining < sendLength then sendLength = remaining
         count = connection.send(value,offset,sendLength)
         if count > 0
-            offset += count
+            offset = offset + count
             if offset = count
                 print "[RokuPlus ts-relay] payload_first_write accepted="; count; " total="; total; " elapsedMs="; timer.TotalMilliseconds()
             end if
