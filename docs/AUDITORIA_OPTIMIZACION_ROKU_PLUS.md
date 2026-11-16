@@ -261,3 +261,11 @@
 - No se modifican el sombreado, los textos, los botones, los indicadores, la selección de destacados ni la navegación. Tampoco se toca el reproductor.
 - Cambio en `components/PlusSceneViews.brs`, commit `d68cf88`.
 - Estado: **validada por el usuario en Roku**. El usuario confirmó que el fondo de Inicio se ve correctamente y que la rotación de destacados funciona. Se conserva el tamaño visual y los controles; no se modificó el reproductor.
+
+### Resolución de imágenes de las filas de Inicio (2026-11-15)
+
+- Las imágenes de las filas «Continuar viendo» y «Selección para ti» conservan su tamaño visual de 238×146, pero ahora se decodifican a 224×138 (aproximadamente 11% menos píxeles por imagen).
+- Las imágenes de «Mi lista» conservan su tamaño visual de 260×126 y se decodifican a 240×116 (aproximadamente 15% menos píxeles por imagen).
+- Se mantienen el modo `scaleToFill`, las posiciones, los overlays de progreso, los objetivos de foco y la cantidad de tarjetas. No se altera la reutilización/rotación de los siete Posters de descubrimiento, ni el reproductor.
+- Cambio en `components/PlusSceneViews.brs`, commit `131fbbf`.
+- Estado: **pendiente compilar y probar en Roku**. Revisar las tres filas, la nitidez, los indicadores de progreso y el foco al desplazarse. Comprobar también la rotación automática de «Selección para ti».
