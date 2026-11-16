@@ -112,6 +112,7 @@ sub init()
     m.genreFilter = "Todos"
     m.catalogSort = "popular"
     m.genreChoices = []
+    m.ignoreBrowseDownUntilRelease = false
     m.channels = []
     m.countryChannels = []
     m.liveLoadedCountry = ""
