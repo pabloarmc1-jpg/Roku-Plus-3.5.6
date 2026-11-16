@@ -347,3 +347,11 @@
 - Si no hay coincidencia vigente, se conserva la solicitud de red original. El catálogo HD local no cambia.
 - Código: commit `cae1665` en `components/PlusScene.brs`.
 - Estado: implementado y verificado estáticamente en GitHub; pendiente compilar y probar en Roku. No se modificó el reproductor.
+
+
+### Catálogo continuo al avanzar páginas (2026-11-15)
+- Al cargar una página online posterior, sus elementos se agregan a los títulos ya cargados y se deduplican; no se reemplaza la lista anterior.
+- El cursor pasa al primer elemento nuevo cuando hay resultados nuevos. La cuadrícula conserva su distribución de diez tarjetas y el cambio de página no usa el fundido de entrada.
+- La recuperación desde caché aplica la misma unión; una respuesta final vacía conserva los títulos existentes.
+- Código: commit `635083f` en `components/PlusScene.brs`.
+- Estado: implementado y revisado estáticamente; pendiente compilar y probar en Roku. No se modificó el motor de reproducción.
