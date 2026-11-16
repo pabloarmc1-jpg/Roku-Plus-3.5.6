@@ -500,6 +500,7 @@ sub fetched(event as object)
             m.note = answer.message
         end if
     else if context.operation = "find-source" and type(answer.item) = "roAssociativeArray" and answer.item.kind = "series"
+        m.sourceLaunchPending = false
         m.detail = answer.item
         m.detailOrigin = orbitText(context.origin,24)
         if m.detailOrigin = "" then m.detailOrigin = "browse"
@@ -1961,6 +1962,13 @@ end sub
 
 sub returnOneStep()
     m.note = ""
+    if m.view = "source-resolving"
+        m.sourceLaunchPending = false
+        m.view = "detail"
+        m.zone = "action"
+        drawScreen()
+        return
+    end if
     if m.view = "credits" or m.view = "hd-source" or m.view = "appearance" or m.view = "profiles"
         openSettings()
         return
