@@ -18,7 +18,7 @@ sub runHdCatalogRequest()
     if not m.top.cancelRequested then m.top.result = answer
 end sub
 
-' Search Cinemeta by each missing title instead of comparing against its small popular catalog.
+' Enrich missing catalog genres with keyless TVmaze first for series, then Cinemeta as fallback.
 ' Enrich up to sixteen cards per catalog page while sharing the remaining 40-second task budget.
 sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dynamic)
     if type(items) <> "roArray" or items.count() = 0 then return
