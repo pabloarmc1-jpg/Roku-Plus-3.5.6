@@ -92,6 +92,11 @@ sub eraseScreen()
     end for
     m.images = []
     m.focusItems = []
+    m.heroBackgroundPoster = invalid
+    m.heroTitleNode = invalid
+    m.heroFactsNode = invalid
+    m.heroIndexNode = invalid
+    m.heroDots = []
     m.canvas.removeChildrenIndex(m.canvas.getChildCount(),0)
     m.canvas.visible = true
     panel(0,0,1920,1080,"0x080808FF")
@@ -418,8 +423,44 @@ sub searchKeyboardScreen()
     words("Flechas: navegar     También puedes escribir directamente desde la app móvil Roku",78,1002,1760,28,17,"0xC0C0C0FF")
 end sub
 
+sub updateHomeHero() as boolean
+    if m.view <> "home" then return false
+    if type(m.features) <> "roArray" or m.features.count() = 0 then return false
+    if m.heroTitleNode = invalid or m.heroIndexNode = invalid then return false
+    heroIndex = m.heroFeature
+    if heroIndex < 0 or heroIndex >= m.features.count() then heroIndex = 0
+    item = m.features[heroIndex]
+    heroUri = orbitText(item.background,2048)
+    if heroUri = "" then heroUri = orbitText(item.poster,2048)
+    if m.heroBackgroundPoster <> invalid
+        nextUri = ""
+        if heroUri <> "" then nextUri = themeAsset(heroUri)
+        if m.heroBackgroundPoster.uri <> nextUri then m.heroBackgroundPoster.uri = nextUri
+    end if
+    m.heroTitleNode.text = orbitText(item.title,180)
+    facts = orbitText(item.year,4)
+    if m.catalogMode = "hd"
+        if usesOnlineHd() then facts += " · "+hdProviderName(item.provider) else facts += " · Corto"
+    end if
+    if item.kind = "series" then facts += " · Serie"
+    m.heroFactsNode.text = facts
+    m.heroFactsNode.visible = facts <> ""
+    m.heroIndexNode.text = "ROKU PLUS ORIGINAL  ·  DESTACADO  "+(heroIndex+1).toStr()+" / "+m.features.count().toStr()
+    for i = 0 to m.heroDots.count()-1
+        dotColor = "0x777777FF"
+        if i = heroIndex then dotColor = "0xFFFFFFFF"
+        m.heroDots[i].color = dotColor
+    end for
+    return true
+end sub
+
 sub homeScreen()
     ' Home hierarchy: featured title, continue watching, discovery and saved titles.
+    m.heroBackgroundPoster = invalid
+    m.heroTitleNode = invalid
+    m.heroFactsNode = invalid
+    m.heroIndexNode = invalid
+    m.heroDots = []
     panel(0,0,1920,1080,"0x070709FF")
     if m.features.count() > 0
         heroIndex = m.heroFeature
@@ -427,19 +468,21 @@ sub homeScreen()
         item = m.features[heroIndex]
         heroUri = item.background
         if heroUri = "" then heroUri = item.poster
-        if heroUri <> "" then art(heroUri,0,0,1920,1080)
+        if heroUri <> "" then m.heroBackgroundPoster = art(heroUri,0,0,1920,1080)
         art("pkg:/images/ui/hero-shade.png",0,0,1920,1080)
         panel(0,112,1920,8,"0xFFFFFF12")
         featureCount = m.features.count()
         featureLabel = "ROKU PLUS ORIGINAL  ·  DESTACADO  "+(heroIndex+1).toStr()+" / "+featureCount.toStr()
-        words(featureLabel,258,160,1100,34,19,"0xFFFFFFFF")
-        words(item.title,252,205,1120,112,62,"0xFFFFFFFF").wrap = true
+        m.heroIndexNode = words(featureLabel,258,160,1100,34,19,"0xFFFFFFFF")
+        m.heroTitleNode = words(item.title,252,205,1120,112,62,"0xFFFFFFFF")
+        m.heroTitleNode.wrap = true
         facts = item.year
         if m.catalogMode = "hd"
             if usesOnlineHd() then facts += " · "+hdProviderName(item.provider) else facts += " · Corto"
         end if
         if item.kind = "series" then facts += " · Serie"
-        if facts <> "" then words(facts,260,326,900,34,22,"0xE2E2E2FF")
+        m.heroFactsNode = words(facts,260,326,900,34,22,"0xE2E2E2FF")
+        m.heroFactsNode.visible = facts <> ""
         words("Descubre historias para disfrutar en Roku Plus.",260,365,1000,38,21,"0xC9C9CFFF")
         selectable("hero",0,"REPRODUCIR",256,425,270,62,true,"action-play.png")
         selectable("hero",1,"MÁS INFORMACIÓN",545,425,320,62,false,"action-info.png")
@@ -449,7 +492,7 @@ sub homeScreen()
                 if dot < featureCount
                     dotColor = "0x777777FF"
                     if dot = heroIndex then dotColor = "0xFFFFFFFF"
-                    panel(78+dot*22,500,14,5,dotColor)
+                    m.heroDots.push(panel(78+dot*22,500,14,5,dotColor))
                 end if
             end for
         end if
