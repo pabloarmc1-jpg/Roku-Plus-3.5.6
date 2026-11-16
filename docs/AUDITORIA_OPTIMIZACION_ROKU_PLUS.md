@@ -465,3 +465,10 @@
 - La carga progresiva automática puede recorrer hasta 400 elementos y busca reunir al menos 30 coincidencias, acumulando páginas y respetando la paginación existente.
 - Se añaden registros de género y offset por solicitud para verificar el endpoint real en Roku.
 - Revisión estática únicamente; pendiente confirmar respuestas HTTP y cantidad real en el dispositivo Roku.
+
+## Corrección de parámetros extra de Cinemeta (pendiente de prueba en Roku)
+- Se corrigió la ruta de categorías para enviar `genre` y `skip` juntos en un único segmento de ruta, separados por `&`, conforme al protocolo oficial de Stremio.
+- La categoría mantiene su consulta de género propia; “Todos” continúa usando el catálogo general sin filtro de género.
+- Se ajustó la allowlist de URLs de Cinemeta para aceptar la nueva forma de parámetros sin ampliar dominios ni recursos permitidos.
+- No se modificaron el reproductor, los controles, la resolución de fuentes ni los subtítulos.
+- Estado: cambio de código realizado; requiere validación con registro HTTP del dispositivo Roku.
