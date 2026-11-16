@@ -18,60 +18,82 @@ sub runHdCatalogRequest()
     if not m.top.cancelRequested then m.top.result = answer
 end sub
 
-' Enrich only exact title + year matches from Cinemeta's public catalog.
-' One bounded request per combined catalog; unavailable metadata never blocks source results.
+' Search Cinemeta by each missing title instead of comparing against its small popular catalog.
+' Keep the enrichment bounded so provider results remain available even if metadata is slow.
 sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dynamic)
     if type(items) <> "roArray" or items.count() = 0 then return
     if kind <> "movie" and kind <> "series" then return
-    if rpHdTaskSliceExpired() then return
-    rpHdTaskBeginSlice(1)
-    endpoint = "https://v3-cinemeta.strem.io/catalog/"+kind+"/top.json"
-    response = fetcher(endpoint,"cinemeta","")
-    m.hdProviderDeadline = 0
-    if not response.ok
-        print "[RokuPlus cinemeta] catalog_enrichment=unavailable"
-        return
-    end if
-    data = ParseJson(response.body)
-    if type(data) <> "roAssociativeArray" or not data.doesExist("metas") or type(data.metas) <> "roArray"
-        print "[RokuPlus cinemeta] catalog_enrichment=invalid_response"
-        return
-    end if
-    enriched = 0
+    candidates = []
     for each item in items
         if type(item) = "roAssociativeArray"
-            itemKey = rpHdTaskCinemetaTitleKey(item.title)
-            itemYear = rpHdTaskCinemetaYear(item.year)
-            if itemKey <> "" and itemYear <> ""
+            hasGenres = type(item.genres) = "roArray" and item.genres.count() > 0
+            title = orbitText(item.title,200).trim()
+            if not hasGenres and title <> ""
+                candidates.push(item)
+            end if
+        end if
+    end for
+    if candidates.count() = 0 then return
+    maxQueries = 8
+    if candidates.count() < maxQueries then maxQueries = candidates.count()
+    enriched = 0
+    attempted = 0
+    for i = 0 to maxQueries-1
+        if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
+        remaining = maxQueries-i
+        rpHdTaskBeginSlice(remaining)
+        item = candidates[i]
+        title = orbitText(item.title,200).trim()
+        transfer = CreateObject("roUrlTransfer")
+        escapedTitle = transfer.escape(title)
+        endpoint = "https://v3-cinemeta.strem.io/catalog/"+kind+"/top/search="+escapedTitle+".json"
+        response = fetcher(endpoint,"cinemeta","")
+        attempted++
+        if response.cancelled then exit for
+        if response.ok
+            data = ParseJson(response.body)
+            if type(data) = "roAssociativeArray" and type(data.metas) = "roArray"
+                match = invalid
+                matchCount = 0
+                itemKey = rpHdTaskCinemetaTitleKey(title)
+                itemYear = rpHdTaskCinemetaYear(item.year)
                 for each meta in data.metas
                     if type(meta) = "roAssociativeArray"
                         metaKey = rpHdTaskCinemetaTitleKey(meta.name)
                         metaYear = rpHdTaskCinemetaYear(meta.year)
                         if metaYear = "" then metaYear = rpHdTaskCinemetaYear(meta.releaseInfo)
-                        if metaKey = itemKey and metaYear = itemYear and type(meta.genres) = "roArray"
-                            if type(item.genres) <> "roArray" then item.genres = []
-                            beforeCount = item.genres.count()
-                            for each genre in meta.genres
-                                if GetInterface(genre,"ifString") <> invalid
-                                    genreName = lcase(genre.trim())
-                                    if genreName <> ""
-                                        found = false
-                                        for each savedGenre in item.genres
-                                            if GetInterface(savedGenre,"ifString") <> invalid and lcase(savedGenre.trim()) = genreName then found = true
-                                        end for
-                                        if not found then item.genres.push(genreName)
-                                    end if
-                                end if
-                            end for
-                            if item.genres.count() > beforeCount then enriched++
-                            exit for
+                        if metaKey = itemKey and type(meta.genres) = "roArray" and meta.genres.count() > 0
+                            yearMatches = itemYear = "" or metaYear = itemYear
+                            if yearMatches
+                                match = meta
+                                matchCount++
+                            end if
                         end if
                     end if
                 end for
+                ' Without a year, only accept an unambiguous exact-title result.
+                if matchCount = 1
+                    if type(item.genres) <> "roArray" then item.genres = []
+                    beforeCount = item.genres.count()
+                    for each genre in match.genres
+                        if GetInterface(genre,"ifString") <> invalid
+                            genreName = lcase(genre.trim())
+                            if genreName <> ""
+                                found = false
+                                for each savedGenre in item.genres
+                                    if GetInterface(savedGenre,"ifString") <> invalid and lcase(savedGenre.trim()) = genreName then found = true
+                                end for
+                                if not found then item.genres.push(genreName)
+                            end if
+                        end if
+                    end for
+                    if item.genres.count() > beforeCount then enriched++
+                end if
             end if
         end if
     end for
-    print "[RokuPlus cinemeta] kind="; kind; " matched_items="; enriched; " catalog_items="; data.metas.count()
+    m.hdProviderDeadline = 0
+    print "[RokuPlus cinemeta] kind="; kind; " searched="; attempted; " enriched="; enriched; " candidates="; candidates.count()
 end sub
 
 function rpHdTaskCinemetaTitleKey(value as dynamic) as string
@@ -2055,7 +2077,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if len(endpoint) > 4096 then return false
     if CreateObject("roRegex","[\x00-\x20\x7F\\]","").isMatch(endpoint) then return false
     if role = "api" then return CreateObject("roRegex","^https://(lamovie\.org/wp-api/v1/|allcalidad\.re/api/rest/|cinehax\.org/api/rest/v1/)[^#]*$","").isMatch(endpoint)
-    if role = "cinemeta" then return CreateObject("roRegex","^https://v3-cinemeta\.strem\.io/catalog/(movie|series)/top\.json$","").isMatch(endpoint)
+    if role = "cinemeta" then return CreateObject("roRegex","^https://v3-cinemeta\.strem\.io/catalog/(movie|series)/top(/search=[A-Za-z0-9%._~-]+)?\.json$","").isMatch(endpoint)
     if role = "tvmaze" then return CreateObject("roRegex","^https://api\.tvmaze\.com/(search/shows\?q=[^#]+|shows/[0-9]+/episodes)$","").isMatch(endpoint)
     if role = "player" then return CreateObject("roRegex","^https://videoapp\.mov/e/(movie/[0-9]+|tv/[0-9]+/[0-9]+/[0-9]+)$","").isMatch(endpoint)
     if role = "seriesmetro-season" then return rpHdTaskSeasonPost(endpoint) <> invalid
