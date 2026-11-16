@@ -76,6 +76,7 @@ sub init()
     m.skipPromptVisible = false
     m.skipPromptDismissed = false
     m.skipPromptTarget = invalid
+    m.skipPromptDismissedTarget = invalid
     m.endScreenItems = []
     m.endCountdownActive = false
     m.endCountdownRemaining = 0
@@ -383,7 +384,7 @@ sub onIntroDbDataChanged(event as object)
 end sub
 
 sub updateSkipSegmentPrompt()
-    if m.skipPromptDismissed or type(m.introDbData) <> "roAssociativeArray" or m.introDbData.ok <> true
+    if type(m.introDbData) <> "roAssociativeArray" or m.introDbData.ok <> true
         m.skipPromptVisible = false
         m.skipPromptTarget = invalid
         if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
@@ -394,43 +395,71 @@ sub updateSkipSegmentPrompt()
         if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
         return
     end if
-    outro = m.introDbData.outro
-    if type(outro) <> "roAssociativeArray"
-        m.skipPromptVisible = false
-        if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
-        return
-    end if
-    confidence = outro.confidence
-    if GetInterface(confidence,"ifFloat") <> invalid or GetInterface(confidence,"ifDouble") <> invalid
-        if confidence < 0.55
+
+    position = playerPosition()
+    if position = invalid then return
+    if m.skipPromptDismissed
+        if m.skipPromptDismissedTarget = invalid or position < m.skipPromptDismissedTarget - 1
             m.skipPromptVisible = false
             if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
             return
         end if
+        m.skipPromptDismissed = false
+        m.skipPromptDismissedTarget = invalid
     end if
+
+    segments = [
+        {key:"intro",label:"OK - SALTAR INTRO"},
+        {key:"recap",label:"OK - SALTAR RESUMEN"},
+        {key:"outro",label:"OK - SALTAR CRÉDITOS"}
+    ]
+    activeSegment = invalid
     startAt = -1.0
     endAt = -1.0
-    if GetInterface(outro.start_sec,"ifFloat") <> invalid or GetInterface(outro.start_sec,"ifDouble") <> invalid or GetInterface(outro.start_sec,"ifInt") <> invalid or GetInterface(outro.start_sec,"ifLongInt") <> invalid then startAt = outro.start_sec
-    if GetInterface(outro.end_sec,"ifFloat") <> invalid or GetInterface(outro.end_sec,"ifDouble") <> invalid or GetInterface(outro.end_sec,"ifInt") <> invalid or GetInterface(outro.end_sec,"ifLongInt") <> invalid then endAt = outro.end_sec
-    if startAt < 0 and outro.start_ms <> invalid then startAt = outro.start_ms / 1000.0
-    if endAt < 0 and outro.end_ms <> invalid then endAt = outro.end_ms / 1000.0
-    position = playerPosition()
-    if startAt < 0 or endAt <= startAt or position = invalid or position < startAt or position >= endAt
+    label = ""
+    for each segmentInfo in segments
+        segment = invalid
+        if m.introDbData.doesExist(segmentInfo.key) then segment = m.introDbData[segmentInfo.key]
+        if type(segment) = "roAssociativeArray"
+            confidence = segment.confidence
+            confidenceOk = true
+            if GetInterface(confidence,"ifFloat") <> invalid or GetInterface(confidence,"ifDouble") <> invalid or GetInterface(confidence,"ifInt") <> invalid or GetInterface(confidence,"ifLongInt") <> invalid
+                if confidence < 0.55 then confidenceOk = false
+            end if
+            segmentStart = -1.0
+            segmentEnd = -1.0
+            if GetInterface(segment.start_sec,"ifFloat") <> invalid or GetInterface(segment.start_sec,"ifDouble") <> invalid or GetInterface(segment.start_sec,"ifInt") <> invalid or GetInterface(segment.start_sec,"ifLongInt") <> invalid then segmentStart = segment.start_sec
+            if GetInterface(segment.end_sec,"ifFloat") <> invalid or GetInterface(segment.end_sec,"ifDouble") <> invalid or GetInterface(segment.end_sec,"ifInt") <> invalid or GetInterface(segment.end_sec,"ifLongInt") <> invalid then segmentEnd = segment.end_sec
+            if segmentStart < 0 and segment.start_ms <> invalid then segmentStart = segment.start_ms / 1000.0
+            if segmentEnd < 0 and segment.end_ms <> invalid then segmentEnd = segment.end_ms / 1000.0
+            if confidenceOk and segmentStart >= 0 and segmentEnd > segmentStart and position >= segmentStart and position < segmentEnd
+                activeSegment = segmentInfo.key
+                startAt = segmentStart
+                endAt = segmentEnd
+                label = segmentInfo.label
+                exit for
+            end if
+        end if
+    end for
+
+    if activeSegment = invalid
         m.skipPromptVisible = false
         m.skipPromptTarget = invalid
         if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
         return
     end if
+
     target = endAt
-    label = "OK - SALTAR CRÉDITOS"
-    post = m.introDbData.post_credits
-    if type(post) = "roAssociativeArray"
-        postStart = -1.0
-        if GetInterface(post.start_sec,"ifFloat") <> invalid or GetInterface(post.start_sec,"ifDouble") <> invalid or GetInterface(post.start_sec,"ifInt") <> invalid or GetInterface(post.start_sec,"ifLongInt") <> invalid then postStart = post.start_sec
-        if postStart < 0 and post.start_ms <> invalid then postStart = post.start_ms / 1000.0
-        if postStart > position + 1
-            target = postStart
-            label = "OK - SALTAR A ESCENA POSTCRÉDITOS"
+    if activeSegment = "outro"
+        post = m.introDbData.post_credits
+        if type(post) = "roAssociativeArray"
+            postStart = -1.0
+            if GetInterface(post.start_sec,"ifFloat") <> invalid or GetInterface(post.start_sec,"ifDouble") <> invalid or GetInterface(post.start_sec,"ifInt") <> invalid or GetInterface(post.start_sec,"ifLongInt") <> invalid then postStart = post.start_sec
+            if postStart < 0 and post.start_ms <> invalid then postStart = post.start_ms / 1000.0
+            if postStart > position + 1
+                target = postStart
+                label = "OK - IR A ESCENA POSTCRÉDITOS"
+            end if
         end if
     end if
     if target <= position + 1
@@ -454,6 +483,7 @@ sub skipToDetectedSegment()
     cancelPendingResumeForUserSeek()
     m.pendingSeek = {target:target,dueAt:m.monotonic.totalMilliseconds()+180}
     m.skipPromptDismissed = true
+    m.skipPromptDismissedTarget = target
     m.skipPromptVisible = false
     m.skipPromptTarget = invalid
     if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
@@ -675,6 +705,7 @@ sub openRequest()
     m.skipPromptVisible = false
     m.skipPromptDismissed = false
     m.skipPromptTarget = invalid
+    m.skipPromptDismissedTarget = invalid
     if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
     m.mediaNode = invalid
     m.hlsRetryCount = 0
@@ -3443,6 +3474,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if m.endScreenOpen
         if m.skipPromptVisible and (key = "left" or key = "right")
             m.skipPromptDismissed = true
+            m.skipPromptDismissedTarget = m.skipPromptTarget
             m.skipPromptVisible = false
             if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
         end if
