@@ -41,16 +41,23 @@ sub rpHdTaskEnrichCatalogMetadata(items as object, kind as string, fetcher as dy
         print "[RokuPlus cinemeta-catalog] kind="; kind; " candidates=0 reason=already_complete"
         return
     end if
-    ' Raise catalog coverage modestly while preserving the shared task deadline.
-    ' The remaining-time slice is recalculated for every candidate below.
-    maxQueries = 14
-    if candidates.count() < maxQueries then maxQueries = candidates.count()
+    ' Process the full page candidate list until cancellation or the shared task deadline.
+    ' Each candidate receives a fair slice of the remaining time; there is no fixed 14-card cap.
+    candidateCount = candidates.count()
     cinemetaEnriched = 0
     tvmazeFallbacks = 0
     attempted = 0
-    for i = 0 to maxQueries-1
-        if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
-        remaining = maxQueries-i
+    stopReason = "complete"
+    for i = 0 to candidateCount-1
+        if m.top.cancelRequested
+            stopReason = "cancelled"
+            exit for
+        end if
+        if rpHdTaskSliceExpired()
+            stopReason = "deadline"
+            exit for
+        end if
+        remaining = candidateCount-i
         rpHdTaskBeginSlice(remaining)
         item = candidates[i]
         attempted++
@@ -66,8 +73,10 @@ sub rpHdTaskEnrichCatalogMetadata(items as object, kind as string, fetcher as dy
             print "[RokuPlus cinemeta-catalog] candidate_failed kind="; kind; " title="; left(orbitText(item.title,200),100); " fallback=none"
         end if
     end for
-    skipped = candidates.count()-attempted
-    print "[RokuPlus cinemeta-catalog] kind="; kind; " candidates="; candidates.count(); " attempted="; attempted; " enriched="; cinemetaEnriched; " tvmaze_fallback="; tvmazeFallbacks; " skipped_budget="; skipped
+    if m.top.cancelRequested then stopReason = "cancelled"
+    if stopReason = "complete" and rpHdTaskSliceExpired() then stopReason = "deadline"
+    skipped = candidateCount-attempted
+    print "[RokuPlus cinemeta-catalog] kind="; kind; " candidates="; candidateCount; " attempted="; attempted; " enriched="; cinemetaEnriched; " tvmaze_fallback="; tvmazeFallbacks; " skipped_unattempted="; skipped; " stopped="; stopReason
 end sub
 
 function rpHdTaskEnrichItemFromTvmaze(item as object, fetcher as dynamic) as boolean
@@ -166,8 +175,18 @@ function rpHdTaskTvmazeSearchTitle(value as string) as string
 end function
 
 function rpHdTaskCinemetaTitleKey(value as dynamic) as string
-    title = lcase(orbitText(value,200).trim())
-    title = CreateObject("roRegex","[^a-z0-9áéíóúüñ]","").replaceAll(title,"")
+    title = lcase(orbitText(value,240).trim())
+    ' Repair common UTF-8-as-Windows-1252 mojibake before comparing titles.
+    title = title.replace("ãƒâ¡","a").replace("ãƒâ©","e").replace("ãƒâ­","i").replace("ãƒâ³","o").replace("ãƒâº","u").replace("ãƒâ±","n")
+    title = title.replace("ã¡","a").replace("ã©","e").replace("ã­","i").replace("ã³","o").replace("ãº","u").replace("ã±","n").replace("ã¼","u")
+    ' Fold accents so localized spellings compare consistently without fuzzy matching.
+    title = title.replace("á","a").replace("à","a").replace("ä","a").replace("â","a")
+    title = title.replace("é","e").replace("è","e").replace("ë","e").replace("ê","e")
+    title = title.replace("í","i").replace("ì","i").replace("ï","i").replace("î","i")
+    title = title.replace("ó","o").replace("ò","o").replace("ö","o").replace("ô","o")
+    title = title.replace("ú","u").replace("ù","u").replace("ü","u").replace("û","u")
+    title = title.replace("ñ","n").replace("ç","c")
+    title = CreateObject("roRegex","[^a-z0-9]","").replaceAll(title,"")
     return title
 end function
 
