@@ -1826,7 +1826,7 @@ end function
 
 function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dynamic, candidates as dynamic, searchQuery as string) as boolean
     if type(discovery) <> "roAssociativeArray" or type(candidate) <> "roAssociativeArray" or type(candidates) <> "roArray" then return false
-    if candidates.count() <> 1 then return false
+    if candidates.count() = 0 then return false
     if searchQuery.trim() = "" then return false
     if orbitText(discovery.kind,16) <> orbitText(candidate.kind,16) then return false
     wantedYear = rpHdTaskCinemetaYear(discovery.year)
@@ -1835,8 +1835,31 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
     wantedImdb = lcase(orbitText(discovery.imdbId,40))
     candidateImdb = lcase(orbitText(candidate.imdbId,40))
     if wantedImdb <> "" and candidateImdb <> "" and wantedImdb <> candidateImdb then return false
-    if rpHdTaskCinemetaTitleKey(candidate.title) = "" then return false
-    return true
+
+    ' Permit a provider subtitle/localized suffix only when the searched title
+    ' is the exact Cinemeta title and one same-kind, same-year prefix candidate exists.
+    discoveryTitle = rpHdTaskCinemetaTitleKey(discovery.title)
+    candidateTitle = rpHdTaskCinemetaTitleKey(candidate.title)
+    queryTitle = rpHdTaskCinemetaTitleKey(searchQuery)
+    if discoveryTitle = "" or candidateTitle = "" or queryTitle <> discoveryTitle then return false
+    if candidateTitle = discoveryTitle then return false
+    if left(candidateTitle, discoveryTitle.len()+1) <> discoveryTitle + " " then return false
+
+    prefixMatches = 0
+    for each possible in candidates
+        if type(possible) = "roAssociativeArray"
+            if orbitText(possible.kind,16) = orbitText(discovery.kind,16)
+                possibleYear = rpHdTaskCinemetaYear(possible.year)
+                possibleTitle = rpHdTaskCinemetaTitleKey(possible.title)
+                possibleImdb = lcase(orbitText(possible.imdbId,40))
+                imdbCompatible = wantedImdb = "" or possibleImdb = "" or wantedImdb = possibleImdb
+                if possibleYear = wantedYear and imdbCompatible and possibleTitle <> ""
+                    if left(possibleTitle, discoveryTitle.len()+1) = discoveryTitle + " " then prefixMatches++
+                end if
+            end if
+        end if
+    end for
+    return prefixMatches = 1
 end function
 
 function rpHdTaskSameDiscoveryItem(discovery as dynamic, candidate as dynamic, searchQuery as string) as boolean
