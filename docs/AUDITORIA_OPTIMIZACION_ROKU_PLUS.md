@@ -415,6 +415,13 @@
 - Pendiente: revisar el nuevo mensaje del servidor en un registro Roku para determinar si es un error de API, parámetro o respuesta del servidor. No se considera corregido hasta tener esa evidencia.
 
 
+### Coincidencias con títulos localizados en proveedores (2026-11-16)
+- El nuevo registro confirmó que CineHax devolvía un único candidato para «Rick and Morty»: «Rick y Morty» (2013). Para Spider-Man: Brand New Day, CineHax y SeriesMetro devolvían «Spider-Man: Un nuevo día» (2026).
+- La comparación anterior rechazaba esos candidatos por no tener el mismo título literal, aunque la búsqueda del proveedor devolvía un solo resultado.
+- Se agrega una alternativa limitada: aceptar el candidato si la búsqueda devolvió exactamente un elemento, el tipo coincide, el año está presente en ambos registros y coincide, y no hay IDs IMDb contradictorios. No se aceptan resultados múltiples ni candidatos sin año verificable.
+- Se registra explícitamente el resultado «localized-year-match» cuando se usa esta alternativa.
+- No se cambian los adaptadores ni el flujo del reproductor, controles, pausa, seek, reanudación, audio o subtítulos.
+- **Estado:** implementado y guardado en GitHub; pendiente compilar y validar en Roku. No se considera confirmado hasta que el proveedor complete la operación de metadatos/resolución y el usuario confirme reproducción.
 ### Corrección de asociación de fuentes desde fichas Cinemeta (2026-11-16)
 - El registro Roku mostró que, al pulsar Reproducir desde una ficha Cinemeta, la búsqueda se ejecutaba, pero varios proveedores devolvían cero coincidencias para el título consultado.
 - La búsqueda ahora prueba, en este orden, la consulta original, el título canónico y el título canónico acompañado del año cuando está disponible.
