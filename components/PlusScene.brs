@@ -2421,7 +2421,7 @@ sub heroRotationTick(event as object)
     if m.view <> "home" then return
     if type(m.features) <> "roArray" or m.features.count() < 2 then return
     m.heroFeature = (m.heroFeature + 1) mod m.features.count()
-    drawScreen()
+    if not updateHomeHero() then drawScreen()
 end sub
 
 sub changeHero(direction as integer)
@@ -2430,7 +2430,7 @@ sub changeHero(direction as integer)
     if m.heroFeature < 0 then m.heroFeature = m.features.count()-1
     if m.heroFeature >= m.features.count() then m.heroFeature = 0
     if m.heroRotation <> invalid then m.heroRotation.control = "stop": m.heroRotation.control = "start"
-    drawScreen()
+    if not updateHomeHero() then drawScreen()
 end sub
 
 sub cancelHomeRequests()
