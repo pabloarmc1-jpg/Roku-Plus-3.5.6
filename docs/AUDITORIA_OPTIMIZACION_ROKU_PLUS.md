@@ -159,3 +159,13 @@
 - En la vista en vivo, algunos cambios de estado del preview llaman a `drawScreen()`. Esto puede recrear los posters visibles, pero ocurre ante cambios de estado y no hay evidencia de descargas repetidas ni de impacto medido. No se altera.
 - No se encontró un gestor de caché de imágenes propio ni una descarga manual común para los posters del catálogo; los URI se asignan directamente a nodos SceneGraph. No se debe afirmar que cada redibujado vuelve a descargar bytes: la caché interna de SceneGraph no se ha medido desde el repositorio.
 - Resultado: se confirmó limpieza correcta de nodos y reutilización parcial en Home. El principal candidato es la cuadrícula browse, pero se deja sin cambios por la regresión de foco ya reproducida. No se modificó código ni el reproductor en esta etapa.
+
+
+### Optimización incremental de navegación del catálogo (2026-11-15)
+
+- Se añadió `m.browseBackdropPoster` para conservar una referencia al Poster de fondo de la vista browse; se invalida en `eraseScreen()` para no retener nodos de una vista anterior.
+- Se añadió `updateBrowseSelection()` en `PlusSceneViews.brs`: actualiza el URI del fondo y ejecuta `paintFocus()` sobre los objetivos de foco ya existentes, sin recrear las diez tarjetas.
+- En `onKeyEvent()`, si el cursor cambia pero permanece dentro del mismo bloque de diez títulos, se intenta la actualización parcial. Si cruza a otro bloque, o la actualización parcial no puede aplicarse (por ejemplo, no hay imagen de fondo/poster), se conserva el redibujado completo.
+- No se cambia el orden de títulos, los índices de `focusItems`, la paginación, la carga de catálogo ni la lógica del reproductor.
+- Cambios guardados en GitHub: `PlusSceneViews.brs` commit `4fab2e2`; `PlusScene.brs` commit `0290024`.
+- Estado: revisión estática de referencias y script de SceneGraph confirmada; pendiente compilar e inspeccionar en Roku. La mejora no se considera validada hasta probar movimiento horizontal/vertical, cruce de página, foco, backdrop y navegación atrás.
