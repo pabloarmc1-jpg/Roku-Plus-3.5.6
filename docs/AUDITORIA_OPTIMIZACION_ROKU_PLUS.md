@@ -168,4 +168,4 @@
 - En `onKeyEvent()`, si el cursor cambia pero permanece dentro del mismo bloque de diez títulos, se intenta la actualización parcial. Si cruza a otro bloque, o la actualización parcial no puede aplicarse (por ejemplo, no hay imagen de fondo/poster), se conserva el redibujado completo.
 - No se cambia el orden de títulos, los índices de `focusItems`, la paginación, la carga de catálogo ni la lógica del reproductor.
 - Cambios guardados en GitHub: `PlusSceneViews.brs` commit `4fab2e2`; `PlusScene.brs` commit `0290024`.
-- Estado: revisión estática de referencias y script de SceneGraph confirmada; pendiente compilar e inspeccionar en Roku. La mejora no se considera validada hasta probar movimiento horizontal/vertical, cruce de página, foco, backdrop y navegación atrás.
+- Estado: **validada por el usuario en Roku**. El usuario confirmó que funciona después de probar la navegación de la cuadrícula. Se mantiene el comportamiento de actualización parcial dentro de la misma página y redibujado completo al cruzar de página o cuando no se puede actualizar el fondo. No se modifica el motor de reproducción.
