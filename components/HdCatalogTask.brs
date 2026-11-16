@@ -18,9 +18,9 @@ sub runHdCatalogRequest()
     if not m.top.cancelRequested then m.top.result = answer
 end sub
 
-' Enrich missing catalog genres with keyless TVmaze first for series, then Cinemeta as fallback.
-' Enrich up to sixteen cards per catalog page while sharing the remaining 40-second task budget.
-sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dynamic)
+' Fill missing catalog artwork and descriptive fields from Cinemeta, with TVmaze as a series fallback.
+' Enrich up to twelve cards per page while sharing the remaining 40-second task budget.
+sub rpHdTaskEnrichCatalogMetadata(items as object, kind as string, fetcher as dynamic)
     if type(items) <> "roArray" or items.count() = 0 then return
     if kind <> "movie" and kind <> "series" then return
     candidates = []
@@ -187,7 +187,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         catalog = rpHdTaskCatalogPage(provider,kind,page,query,fetcher)
         if not catalog.ok then return rpHdTaskFailure(answer,catalog)
         answer.items = catalog.items
-        rpHdTaskEnrichCatalogGenres(answer.items,kind,fetcher)
+        rpHdTaskEnrichCatalogMetadata(answer.items,kind,fetcher)
         answer.hasMore = catalog.hasMore
         answer.nextSkip = catalog.nextSkip
         answer.total = catalog.total
@@ -2206,7 +2206,7 @@ function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as
     end for
     answer.items = deduped
     ' Optional one-request enrichment, limited to the remaining catalog time budget.
-    rpHdTaskEnrichCatalogGenres(answer.items,answer.kind,fetcher)
+    rpHdTaskEnrichCatalogMetadata(answer.items,answer.kind,fetcher)
     answer.sourceFailures = failures
     answer.sourcesSearched = successes
     answer.partial = failures.count() > 0
