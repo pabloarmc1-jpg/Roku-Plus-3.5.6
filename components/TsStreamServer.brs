@@ -132,8 +132,17 @@ sub rpTsRelayServe(connection as object, server as object)
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
     if requestedIndex >= 0 then startIndex = requestedIndex
     print "[RokuPlus ts-relay] stream_start segment="; startIndex
+    prefetchTask = server.prefetchTask
+    prefetchGeneration = -1
+    if prefetchTask <> invalid then prefetchGeneration = prefetchTask.generation
     for segmentIndex = startIndex to segments.count() - 1
         if server.stopRequested then exit for
+        if prefetchTask <> invalid
+            if prefetchTask.stopRequested or prefetchTask.generation <> prefetchGeneration
+                print "[RokuPlus ts-relay] prefetch_generation_changed segment="; segmentIndex
+                exit for
+            end if
+        end if
         segmentUrl = segments[segmentIndex]
         if GetInterface(segmentUrl,"ifString") = invalid then exit for
         if left(segmentUrl,8) <> "https://" then exit for
@@ -149,13 +158,17 @@ sub rpTsRelayServe(connection as object, server as object)
         filePath = "tmp:/rp_ts_relay_segment.ts"
         DeleteFile(filePath)
         prefetched = false
-        prefetchTask = server.prefetchTask
         if prefetchTask <> invalid
             prefetchTimer = CreateObject("roTimespan")
             prefetchTimer.Mark()
             prefetchPath = ""
             prefetchKey = segmentIndex.toStr()
+            generationChanged = false
             while prefetchTimer.TotalMilliseconds() < 180000 and not server.stopRequested
+                if prefetchTask.stopRequested or prefetchTask.generation <> prefetchGeneration
+                    generationChanged = true
+                    exit while
+                end if
                 readyMap = prefetchTask.readyFiles
                 if type(readyMap) = "roAssociativeArray" and readyMap.doesExist(prefetchKey)
                     candidatePath = readyMap[prefetchKey]
@@ -166,6 +179,10 @@ sub rpTsRelayServe(connection as object, server as object)
                 end if
                 wait(200, connectionPort)
             end while
+            if generationChanged
+                print "[RokuPlus ts-relay] prefetch_generation_changed_wait segment="; segmentIndex
+                exit for
+            end if
             if prefetchPath <> ""
                 filePath = prefetchPath
                 prefetched = true
@@ -249,7 +266,7 @@ sub rpTsRelayServe(connection as object, server as object)
                 readyMap.delete(segmentIndex.toStr())
                 prefetchTask.readyFiles = readyMap
             end if
-            prefetchTask.requestIndex = segmentIndex + 2
+            prefetchTask.requestIndex = segmentIndex + 1
         end if
         server.bytesSent = server.bytesSent + payloadSize
         if sentSegments = 1 or sentSegments mod 25 = 0
