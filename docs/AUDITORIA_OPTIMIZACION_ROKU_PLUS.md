@@ -202,6 +202,15 @@
 - Estado: **validada por el usuario en Roku**. El usuario confirmó que la navegación del teclado funciona; se conserva la actualización de foco mediante `paintFocus()` sin reconstruir la pantalla. No tocar el reproductor.
 
 
+### Memoria de imágenes al cambiar de pantalla (2026-11-15)
+
+- Auditoría de `art()` y `eraseScreen()` en `components/PlusSceneViews.brs`: cada Poster creado por `art()` se registra en `m.images`.
+- `eraseScreen()` detiene el temporizador de fundido del catálogo, desregistra observadores de carga, vacía las URI de los Posters, limpia listas de referencias y elimina los hijos del canvas. También reinicia referencias específicas de Home y catálogo.
+- Antes de abrir el reproductor estándar, `launchVideo()` llama a `eraseScreen()` antes de ocultar el canvas. El reproductor Invidious también ejecuta limpieza antes de mostrar su componente. El cierre vuelve a dibujar la pantalla y crea los nodos necesarios.
+- `drawScreen()` limpia la pantalla anterior antes de reconstruirla; su retorno temprano para la vista player es seguro porque las rutas de entrada al reproductor ya limpian explícitamente.
+- Conclusión: no se encontró una retención adicional de Posters que justifique cambiar código. No se añadió una segunda limpieza ni se modificó el reproductor, para evitar trabajo redundante y regresiones.
+- Estado: **auditoría estática completada; no se requiere cambio de código ni prueba adicional**. No se midió la memoria real del dispositivo Roku.
+
 ### Resolución de carga de portadas del catálogo (2026-11-15)
 
 - Las diez tarjetas visibles mantienen sus dimensiones visuales de 292×250.
