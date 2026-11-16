@@ -2605,6 +2605,9 @@ end sub
 sub homeFetched(event as object)
     answer = event.getData()
     if type(answer) <> "roAssociativeArray" then return
+    ' Later movie pages only extend the Home carousel pool. Patch the existing
+    ' hero counter instead of rebuilding every Home node for each page.
+    patchHomeHero = false
     for i = 0 to m.homeJobs.count()-1
         entry = m.homeJobs[i]
         if entry.node.isSameNode(event.getRoSGNode()) and answer.requestId = entry.request
@@ -2653,6 +2656,7 @@ sub homeFetched(event as object)
                 else
                     m.homeCache[cacheKey] = cached
                 end if
+                patchHomeHero = entry.kind = "movie" and entry.skip > 0
             else
                 m.note = "No se pudo actualizar una de las filas. Puedes explorar desde el menú o volver a intentar."
             end if
@@ -2663,7 +2667,13 @@ sub homeFetched(event as object)
         end if
     end for
     m.homeLoading = m.homeJobs.count() > 0
-    if m.view = "home" then drawScreen()
+    if m.view = "home"
+        if patchHomeHero and updateHomeHero()
+            syncHomeRotationTimers()
+        else
+            drawScreen()
+        end if
+    end if
 end sub
 
 sub homeStopped(event as object)
