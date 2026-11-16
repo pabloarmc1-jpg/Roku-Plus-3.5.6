@@ -18,6 +18,75 @@ sub runHdCatalogRequest()
     if not m.top.cancelRequested then m.top.result = answer
 end sub
 
+' Enrich only exact title + year matches from Cinemeta's public catalog.
+' One bounded request per combined catalog; unavailable metadata never blocks source results.
+sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dynamic)
+    if type(items) <> "roArray" or items.count() = 0 then return
+    if kind <> "movie" and kind <> "series" then return
+    if rpHdTaskSliceExpired() then return
+    rpHdTaskBeginSlice(1)
+    endpoint = "https://v3-cinemeta.strem.io/catalog/"+kind+"/top.json"
+    response = fetcher(endpoint,"cinemeta","")
+    m.hdProviderDeadline = 0
+    if not response.ok
+        print "[RokuPlus cinemeta] catalog_enrichment=unavailable"
+        return
+    end if
+    data = ParseJson(response.body)
+    if type(data) <> "roAssociativeArray" or type(data.metas) <> "roArray"
+        print "[RokuPlus cinemeta] catalog_enrichment=invalid_response"
+        return
+    end if
+    enriched = 0
+    for each item in items
+        if type(item) = "roAssociativeArray"
+            itemKey = rpHdTaskCinemetaTitleKey(item.title)
+            itemYear = rpHdTaskCinemetaYear(item.year)
+            if itemKey <> "" and itemYear <> ""
+                for each meta in data.metas
+                    if type(meta) = "roAssociativeArray"
+                        metaKey = rpHdTaskCinemetaTitleKey(meta.name)
+                        metaYear = rpHdTaskCinemetaYear(meta.year)
+                        if metaYear = "" then metaYear = rpHdTaskCinemetaYear(meta.releaseInfo)
+                        if metaKey = itemKey and metaYear = itemYear and type(meta.genres) = "roArray"
+                            if type(item.genres) <> "roArray" then item.genres = []
+                            beforeCount = item.genres.count()
+                            for each genre in meta.genres
+                                if GetInterface(genre,"ifString") <> invalid
+                                    genreName = lcase(genre.trim())
+                                    if genreName <> ""
+                                        found = false
+                                        for each savedGenre in item.genres
+                                            if GetInterface(savedGenre,"ifString") <> invalid and lcase(savedGenre.trim()) = genreName then found = true
+                                        end for
+                                        if not found then item.genres.push(genreName)
+                                    end if
+                                end if
+                            end for
+                            if item.genres.count() > beforeCount then enriched++
+                            exit for
+                        end if
+                    end if
+                end for
+            end if
+        end if
+    end for
+    print "[RokuPlus cinemeta] kind="; kind; " matched_items="; enriched; " catalog_items="; data.metas.count()
+end sub
+
+function rpHdTaskCinemetaTitleKey(value as dynamic) as string
+    title = lcase(orbitText(value,200).trim())
+    title = CreateObject("roRegex","[^a-z0-9áéíóúüñ]","").replace(title,"")
+    return title
+end function
+
+function rpHdTaskCinemetaYear(value as dynamic) as string
+    yearText = orbitText(value,32)
+    match = CreateObject("roRegex","(19|20)[0-9]{2}","").match(yearText)
+    if match.count() < 1 then return ""
+    return match[0]
+end function
+
 ' Fetch/decoder/source injection exercises this exact orchestration offline.
 function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decoderAccept = invalid as dynamic, catalogSources = invalid as dynamic) as object
     if fetcher = invalid then fetcher = rpHdTaskDownloadText
@@ -1551,6 +1620,8 @@ function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as
         end for
     end for
     answer.items = deduped
+    ' Optional one-request enrichment, limited to the remaining catalog time budget.
+    rpHdTaskEnrichCatalogGenres(answer.items,answer.kind,fetcher)
     answer.sourceFailures = failures
     answer.sourcesSearched = successes
     answer.partial = failures.count() > 0
@@ -1984,6 +2055,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if len(endpoint) > 4096 then return false
     if CreateObject("roRegex","[\x00-\x20\x7F\\]","").isMatch(endpoint) then return false
     if role = "api" then return CreateObject("roRegex","^https://(lamovie\.org/wp-api/v1/|allcalidad\.re/api/rest/|cinehax\.org/api/rest/v1/)[^#]*$","").isMatch(endpoint)
+    if role = "cinemeta" then return CreateObject("roRegex","^https://v3-cinemeta\\.strem\\.io/catalog/(movie|series)/top\\.json$","").isMatch(endpoint)
     if role = "tvmaze" then return CreateObject("roRegex","^https://api\.tvmaze\.com/(search/shows\?q=[^#]+|shows/[0-9]+/episodes)$","").isMatch(endpoint)
     if role = "player" then return CreateObject("roRegex","^https://videoapp\.mov/e/(movie/[0-9]+|tv/[0-9]+/[0-9]+/[0-9]+)$","").isMatch(endpoint)
     if role = "seriesmetro-season" then return rpHdTaskSeasonPost(endpoint) <> invalid
@@ -2033,7 +2105,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     transfer.enablePeerVerification(true)
     transfer.enableHostVerification(true)
     transfer.addHeader("User-Agent",rpHdTaskUserAgent())
-    if role = "api" or role = "tvmaze"
+    if role = "api" or role = "tvmaze" or role = "cinemeta"
         transfer.addHeader("Accept","application/json")
         if referer = "" and instr(1,endpoint,"https://cinehax.org/api/rest/v1/") = 1 then referer = "https://cinehax.org/"
     end if
@@ -2122,6 +2194,11 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     answer.httpFinalUrl = orbitText(transfer.getUrl(),4096)
     if answer.httpFinalUrl = "" then answer.httpFinalUrl = endpoint
     redirectAllowed = true
+    if role = "cinemeta" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"cinemeta")
+        redirectAllowed = false
+        answer.message = "Cinemeta redirigió a un dominio no permitido."
+        print "[RokuPlus cinemeta] redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
+    end if
     if role = "embed" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"embed")
         redirectAllowed = false
         answer.message = "La fuente redirigió a un dominio no permitido."
