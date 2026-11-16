@@ -405,3 +405,11 @@
 - No se cambió el reproductor, el motor de reproducción ni sus controles.
 - Código: commit `6e765cf` en `components/HdCatalogTask.brs`.
 - Estado: cambio guardado y revisado estáticamente; pendiente compilar y probar en Roku. La respuesta HTTP 200 de LaMovie con cuerpo de 32 bytes sigue pendiente de diagnóstico independiente; no se alteró su adaptador.
+
+
+### Diagnóstico pendiente de respuesta breve de LaMovie (2026-11-16)
+
+- El registro más reciente muestra búsquedas LaMovie con HTTP 200 pero una respuesta de 32 bytes que no se puede interpretar como JSON; el error ocurre antes de normalizar o comparar resultados.
+- Se añade un registro acotado `[RokuPlus lamovie-diagnostic]` que muestra únicamente el tamaño y hasta 120 caracteres de la respuesta cuando el JSON de LaMovie es inválido.
+- No se cambia el endpoint, los parámetros de búsqueda, la lógica de coincidencia ni ningún componente del reproductor.
+- Pendiente: revisar el nuevo mensaje del servidor en un registro Roku para determinar si es un error de API, parámetro o respuesta del servidor. No se considera corregido hasta tener esa evidencia.
