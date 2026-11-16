@@ -433,3 +433,13 @@
 - No se cambia la URL generada, la respuesta de Cinemeta, la selección de fuentes ni ningún archivo del reproductor.
 - Commit de corrección: `67565da` en `components/HdCatalogTask.brs`.
 - **Estado:** corrección guardada y verificada en GitHub; pendiente instalar/compilar y validar las categorías en Roku.
+
+
+### Ajuste de categorías Cinemeta tras HTTP 404 (2026-11-16)
+
+- El registro Roku mostró que el catálogo Cinemeta sin filtros (top) responde HTTP 200, pero las variantes de URL con genre y year devuelven HTTP 404.
+- Se cambia la operación cinemeta-catalog para solicitar únicamente páginas top que ya se observaron responder correctamente. Acción, Comedia, Drama, Terror, Ciencia ficción y Animación se filtran localmente con los géneros que Cinemeta incluye en cada ficha; «Más recientes» ordena por año descendente los títulos obtenidos, sin usar el endpoint year que fallaba.
+- Para los géneros, la escena continúa solicitando páginas adicionales de Cinemeta hasta reunir diez coincidencias o alcanzar el límite de cinco páginas iniciales. La caché aplica la misma regla. No se consultan los cinco proveedores para llenar estas categorías.
+- Alcance de «Más recientes»: es un orden por año dentro del catálogo top de Cinemeta, no un feed exhaustivo de estrenos.
+- No se modifican la búsqueda de fuentes al reproducir, el reproductor, controles, pausa, seek, reanudación, audio ni subtítulos.
+- Estado: cambio guardado en GitHub; pendiente instalar/compilar y validar las categorías en Roku.
