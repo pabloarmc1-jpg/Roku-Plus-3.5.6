@@ -662,14 +662,29 @@ sub browseScreen()
     if m.query <> "" then hint = "Resultados combinados · ◀ ▶ recorrer · ↑ ↓ cambiar fila"
     if m.genreFilter <> "Todos" then hint += " · Género: "+m.genreFilter
     words(hint,256,177,1480,34,20,"0xB3B3B3FF").wrap = true
-    words("REPLAY: filtrar por género",256,214,720,26,17,"0x888888FF")
+    categories = ["Más populares","Más recientes","Acción","Comedia","Drama","Terror","Ciencia ficción","Animación","Todos"]
+    categoryX = 252
+    categoryW = 174
+    for i = 0 to categories.count()-1
+        x = categoryX+i*180
+        active = (m.catalogSort = "popular" and categories[i] = "Más populares") or (m.catalogSort = "recent" and categories[i] = "Más recientes") or (m.catalogSort <> "recent" and m.catalogSort <> "popular" and m.genreFilter = categories[i])
+        surface = "0x25252BEE"
+        ink = "0xD8D8DFFF"
+        if active
+            surface = "0xE50914FF"
+            ink = "0xFFFFFFFF"
+        end if
+        panel(x,214,categoryW,42,surface)
+        words(categories[i],x+5,222,categoryW-10,27,17,ink).horizAlign = "center"
+        focusTarget("categories",i,x-3,211,categoryW+6,48,"wide")
+    end for
 
     first = (m.cursor \ 10)*10
     cardX = 252
     posterW = 292
     posterH = 250
     for row = 0 to 1
-        cardY = 258+row*365
+        cardY = 270+row*365
         for col = 0 to 4
             n = first+row*5+col
             if n < m.titles.count()
