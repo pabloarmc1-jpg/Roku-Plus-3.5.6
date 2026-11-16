@@ -2790,6 +2790,11 @@ sub startHomeCatalogTask(kind as string, skip as integer)
     if usesOnlineHd() then task.provider = m.hdProvider
     request = CreateObject("roDeviceInfo").getRandomUUID()
     task.operation = "catalog"
+    if usesOnlineHd()
+        task.operation = "cinemeta-catalog"
+        task.attempt = 0
+        if m.catalogSort = "recent" then task.attempt = 1
+    end if
     task.kind = kind
     task.skip = skip
     task.requestId = request
