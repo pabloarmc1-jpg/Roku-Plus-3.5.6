@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="TsPrefetchTask" extends="Task">
+  <interface>
+    <field id="segments" type="array" />
+    <field id="mediaHeaders" type="assocarray" />
+    <field id="requestIndex" type="integer" value="0" />
+    <field id="generation" type="integer" value="0" />
+    <field id="readyFiles" type="assocarray" />
+    <field id="stopRequested" type="boolean" value="false" />
+    <field id="status" type="string" value="idle" />
+  </interface>
+  <script type="text/brightscript" uri="TsPrefetchTask.brs" />
+</component>
