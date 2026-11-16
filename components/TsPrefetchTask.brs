@@ -52,14 +52,44 @@ sub runTsPrefetch()
                         end if
                         timer = CreateObject("roTimespan")
                         timer.Mark()
+                        xfer.SetMessagePort(port)
                         print "[RokuPlus ts-prefetch] fetch_begin segment="; index
-                        code = xfer.GetToFile(filePath)
+                        started = xfer.AsyncGetToFile(filePath)
+                        code = -1
+                        transferDone = false
+                        cancelled = false
+                        if started
+                            while not transferDone
+                                event = wait(200, port)
+                                if type(event) = "roUrlEvent" and event.GetSourceIdentity() = xfer.GetIdentity()
+                                    if event.GetInt() = 1
+                                        code = event.GetResponseCode()
+                                        transferDone = true
+                                    end if
+                                end if
+                                if m.top.stopRequested or m.top.generation <> activeGeneration
+                                    cancelled = true
+                                    xfer.AsyncCancel()
+                                    cancelTimer = CreateObject("roTimespan")
+                                    cancelTimer.Mark()
+                                    while not transferDone and cancelTimer.TotalMilliseconds() < 2500
+                                        cancelEvent = wait(100, port)
+                                        if type(cancelEvent) = "roUrlEvent" and cancelEvent.GetSourceIdentity() = xfer.GetIdentity() and cancelEvent.GetInt() = 1
+                                            code = cancelEvent.GetResponseCode()
+                                            transferDone = true
+                                        end if
+                                    end while
+                                    exit while
+                                end if
+                            end while
+                        end if
                         elapsed = timer.TotalMilliseconds()
-                        if m.top.generation <> activeGeneration or m.top.stopRequested
+                        if cancelled or m.top.generation <> activeGeneration or m.top.stopRequested
                             DeleteFile(filePath)
+                            print "[RokuPlus ts-prefetch] fetch_cancelled segment="; index; " elapsedMs="; elapsed
                             exit for
                         end if
-                        if code >= 200 and code < 300
+                        if transferDone and code >= 200 and code < 300
                             ready[key] = filePath
                             m.top.readyFiles = ready
                             print "[RokuPlus ts-prefetch] fetch_ready segment="; index; " elapsedMs="; elapsed
