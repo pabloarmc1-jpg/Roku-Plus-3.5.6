@@ -19,7 +19,7 @@ sub runHdCatalogRequest()
 end sub
 
 ' Fill missing catalog artwork and descriptive fields from Cinemeta, with TVmaze as a series fallback.
-' Enrich up to twelve cards per page while sharing the remaining 40-second task budget.
+' Process every candidate until the shared 40-second task deadline or cancellation.
 sub rpHdTaskEnrichCatalogMetadata(items as object, kind as string, fetcher as dynamic)
     if type(items) <> "roArray" or items.count() = 0 then return
     if kind <> "movie" and kind <> "series" then return
@@ -177,14 +177,12 @@ end function
 function rpHdTaskCinemetaTitleKey(value as dynamic) as string
     title = lcase(orbitText(value,240).trim())
     ' Repair common UTF-8-as-Windows-1252 mojibake before comparing titles.
-    title = title
     title = title.replace("ãƒâ¡","a")
     title = title.replace("ãƒâ©","e")
     title = title.replace("ãƒâ­","i")
     title = title.replace("ãƒâ³","o")
     title = title.replace("ãƒâº","u")
     title = title.replace("ãƒâ±","n")
-    title = title
     title = title.replace("ã¡","a")
     title = title.replace("ã©","e")
     title = title.replace("ã­","i")
@@ -193,12 +191,28 @@ function rpHdTaskCinemetaTitleKey(value as dynamic) as string
     title = title.replace("ã±","n")
     title = title.replace("ã¼","u")
     ' Fold accents so localized spellings compare consistently without fuzzy matching.
-    title = title.replace("á","a").replace("à","a").replace("ä","a").replace("â","a")
-    title = title.replace("é","e").replace("è","e").replace("ë","e").replace("ê","e")
-    title = title.replace("í","i").replace("ì","i").replace("ï","i").replace("î","i")
-    title = title.replace("ó","o").replace("ò","o").replace("ö","o").replace("ô","o")
-    title = title.replace("ú","u").replace("ù","u").replace("ü","u").replace("û","u")
-    title = title.replace("ñ","n").replace("ç","c")
+    title = title.replace("á","a")
+    title = title.replace("à","a")
+    title = title.replace("ä","a")
+    title = title.replace("â","a")
+    title = title.replace("é","e")
+    title = title.replace("è","e")
+    title = title.replace("ë","e")
+    title = title.replace("ê","e")
+    title = title.replace("í","i")
+    title = title.replace("ì","i")
+    title = title.replace("ï","i")
+    title = title.replace("î","i")
+    title = title.replace("ó","o")
+    title = title.replace("ò","o")
+    title = title.replace("ö","o")
+    title = title.replace("ô","o")
+    title = title.replace("ú","u")
+    title = title.replace("ù","u")
+    title = title.replace("ü","u")
+    title = title.replace("û","u")
+    title = title.replace("ñ","n")
+    title = title.replace("ç","c")
     title = CreateObject("roRegex","[^a-z0-9]","").replaceAll(title,"")
     return title
 end function
