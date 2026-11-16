@@ -362,11 +362,10 @@
 - Se amplió el diálogo de opciones del catálogo con "Más populares" (conserva el orden de relevancia que entrega la fuente), "Más recientes" (ordena por año descendente) y los géneros disponibles en los títulos cargados.
 - El filtro de género y el orden se aplican sobre la lista acumulada, sin cambiar la paginación continua.
 - **Mejor valoradas queda pendiente:** los modelos de catálogo actuales no conservan una puntuación/rating fiable de las fuentes; no se inventa una clasificación.
-- En el catálogo combinado se añadió un enriquecimiento opcional de géneros con Cinemeta: una sola petición al catálogo público por carga, comparación estricta por título normalizado y año, y fusión de géneros sin sustituir la identidad del proveedor. La petición usa solo el presupuesto restante (máximo de una por operación); si falla o se agota el tiempo, se conservan intactos los resultados HD.
-- Alcance actual: el catálogo `top` de Cinemeta; títulos fuera de ese catálogo o sin año comparable pueden quedar sin género. No se inventan géneros ni se hacen búsquedas individuales por cada título.
-- Código: commit `a9cc170` y corrección de validación de URL `227537e` en `components/HdCatalogTask.brs`.
-- Código: commit `a1177a1` en `components/PlusScene.brs`.
-- Estado: implementado y revisado estáticamente; pendiente compilar y probar en Roku.
+- En el catálogo combinado, Cinemeta ahora se consulta por título para los elementos que aún no tienen géneros, en vez de comparar únicamente contra su catálogo popular.
+- Se limita el enriquecimiento a un máximo de ocho búsquedas por operación y se reparte el presupuesto de tiempo restante; se exige coincidencia exacta de título normalizado y año cuando está disponible. Si el año falta, solo se acepta una coincidencia única. No se inventan géneros ni se cambia la identidad del proveedor.
+- Código: commits `c8f6fc2` y `bfc7ee1` en `components/HdCatalogTask.brs`.
+- Estado: implementado y revisado estáticamente; pendiente compilar y probar en Roku. El límite de ocho consultas implica que algunos títulos pueden necesitar otra página/carga para recibir metadatos.
 
 
 ## Categorías visibles en la parte superior del catálogo
