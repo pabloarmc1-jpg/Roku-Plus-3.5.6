@@ -208,7 +208,7 @@
 - La caché solo se llena cuando la respuesta trae resultados y no está marcada como parcial; así no se conserva una respuesta incompleta como si fuera definitiva.
 - Cambiar la consulta, el modo o el proveedor evita reutilizar el resultado anterior. La caché es volátil y no altera preferencias ni datos guardados.
 - Cambio en `components/PlusScene.brs`, commit `78d3ca2`.
-- Estado: **pendiente compilar y probar en Roku**. Repetir la misma búsqueda dos veces dentro de dos minutos y comprobar que la segunda abre los mismos resultados; luego cambiar una letra y verificar que hace una búsqueda nueva. Repetir después de cambiar el proveedor/modo para confirmar que no reutiliza datos ajenos. No se modificó el reproductor.
+- Estado: **validada por el usuario en Roku**. El usuario confirmó que la caché de búsquedas repetidas funciona. Se conserva la reutilización durante dos minutos, limitada a la misma consulta normalizada, modo y proveedor; las respuestas parciales no se guardan. No se modificó el reproductor.
 
 ### Búsqueda insensible a mayúsculas y acceso directo desde sugerencias (2026-11-15)
 
