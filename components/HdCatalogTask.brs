@@ -194,7 +194,7 @@ end function
 function rpHdTaskTvmazeSearchTitle(value as string) as string
     title = value.trim()
     key = lcase(title)
-    title = CreateObject("roRegex","\\s*\\((19|20)[0-9]{2}\\)\\s*$","").replace(title,"").trim()
+    title = CreateObject("roRegex","\s*\((19|20)[0-9]{2}\)\s*$","").replace(title,"").trim()
     if key = "hora de aventura" then return "Adventure Time"
     if key = "merlina" or key = "merlina (2022)" then return "Wednesday"
     if key = "juego de tronos" or key = "juego de tronos (2011)" then return "Game of Thrones"
