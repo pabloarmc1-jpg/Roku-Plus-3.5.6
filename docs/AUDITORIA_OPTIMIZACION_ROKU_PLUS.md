@@ -306,3 +306,9 @@
   - Se aplica la estabilización también al subir desde «Mi lista» y desde «Series para descubrir» cuando no existe la fila «Mi lista».
 - No se cambia la selección de elementos ni el reproductor.
 - Estado: commits guardados; pendiente compilar y probar en Roku, especialmente bajando/subiendo durante la animación automática.
+
+
+### Validación de la corrección de foco en «Películas para explorar» (2026-11-15)
+- El usuario confirmó que la corrección resuelve el problema: al bajar el foco mientras la fila se desplaza automáticamente, el foco ya no queda entre dos imágenes.
+- Se considera validada por el usuario en Roku.
+- Se conserva la sincronización del carrusel y la pausa de rotación durante la navegación; no se modifica el reproductor.
