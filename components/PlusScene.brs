@@ -100,6 +100,7 @@ sub init()
     m.searchCursor = 0
     m.searchSuggestions = []
     m.searchCache = {key:"",items:[],clock:invalid}
+    m.catalogPageCache = {key:"",items:[],nextOffset:0,hasMore:false,clock:invalid}
     m.searchDeleteHeld = false
     m.searchDeleteCleared = false
     m.searchOriginView = "home"
@@ -488,6 +489,11 @@ sub fetched(event as object)
             m.more = false
             m.note = "Llegaste al final de los resultados."
         else
+            if answer.partial <> true
+                pageKey = m.catalogMode + "|" + m.hdProvider + "|" + m.kind + "|" + orbitText(m.query,120) + "|" + context.offset.toStr()
+                m.catalogPageCache = {key:pageKey,items:answer.items,nextOffset:answer.nextSkip,hasMore:answer.hasMore,clock:CreateObject("roTimespan")}
+                m.catalogPageCache.clock.mark()
+            end if
             m.pageTitles = orbitUniqueCatalogItems(answer.items)
             applyGenreFilter()
             m.offset = context.offset
@@ -2769,6 +2775,25 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
         m.zone = "grid"
         drawScreen()
     else
+        pageKey = m.catalogMode + "|" + m.hdProvider + "|" + m.kind + "|" + orbitText(m.query,120) + "|" + offset.toStr()
+        if type(m.catalogPageCache) = "roAssociativeArray" and m.catalogPageCache.key = pageKey and m.catalogPageCache.clock <> invalid
+            pageAge = m.catalogPageCache.clock.totalMilliseconds()
+            if pageAge >= 0 and pageAge < 90000
+                m.pageTitles = orbitUniqueCatalogItems(m.catalogPageCache.items)
+                applyGenreFilter()
+                m.offset = offset
+                m.nextOffset = m.catalogPageCache.nextOffset
+                m.more = m.catalogPageCache.hasMore
+                m.cursor = 0
+                if last then m.cursor = m.titles.count()-1
+                if m.cursor < 0 then m.cursor = 0
+                m.catalogFadePending = false
+                m.zone = "grid"
+                m.note = ""
+                drawScreen()
+                return
+            end if
+        end if
         fetch({operation:"catalog",offset:offset,last:last})
     end if
 end sub
