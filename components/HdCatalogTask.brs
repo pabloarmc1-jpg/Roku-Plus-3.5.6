@@ -262,6 +262,9 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
     if operation = "find-source"
         return rpHdTaskFindSource(request,answer,fetcher,decoderAccept,catalogSources)
     end if
+    if operation = "cinemeta-catalog"
+        return rpHdTaskCinemetaBrowseCatalog(request,answer,fetcher)
+    end if
     if operation = "catalog"
         if kind <> "movie" and kind <> "series" then return answer
         if provider = "all" then return rpHdTaskCombinedCatalog(request,answer,fetcher,catalogSources)
@@ -1816,6 +1819,118 @@ function rpHdTaskSameDiscoveryItem(discovery as dynamic, candidate as dynamic, s
     ' exact title identity is still required and ambiguity is rejected above.
     if wantedYear <> "" and candidateYear <> "" and wantedYear <> candidateYear then return false
     return true
+end function
+
+' Browse catalogs use Cinemeta directly. Providers are resolved only when the user presses Play.
+function rpHdTaskCinemetaBrowseCatalog(request as object, answer as object, fetcher as dynamic) as object
+    kind = orbitText(request.kind,10)
+    if kind <> "movie" and kind <> "series" and kind <> "all"
+        answer.message = "El tipo de catálogo no es válido."
+        return answer
+    end if
+    skip = orbitInteger(request.skip,200000)
+    if skip < 0 then skip = 0
+    skip = (skip \ 20) * 20
+    sort = "popular"
+    catalogId = "top"
+    genre = rpHdOnlineSearchQuery(request.query)
+    if genre = "Todos" then genre = ""
+    if orbitInteger(request.attempt,1) = 1
+        sort = "recent"
+        catalogId = "year"
+        now = CreateObject("roDateTime")
+        genre = now.GetYear().toStr()
+    else
+        genre = rpHdTaskCinemetaGenre(genre)
+    end if
+    catalogKinds = [kind]
+    if kind = "all" then catalogKinds = ["movie","series"]
+    transfer = CreateObject("roUrlTransfer")
+    answer.items = []
+    successes = 0
+    failures = 0
+    hasMore = false
+    for each catalogKind in catalogKinds
+        if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
+        endpoint = "https://v3-cinemeta.strem.io/catalog/"+catalogKind+"/"+catalogId
+        if genre <> "" then endpoint = endpoint+"/genre="+transfer.escape(genre)
+        endpoint = endpoint+"/skip="+skip.toStr()+".json"
+        response = fetcher(endpoint,"cinemeta","")
+        if response.cancelled then return rpHdTaskFailure(answer,response)
+        if not response.ok
+            failures++
+            print "[RokuPlus cinemeta-catalog] kind="; catalogKind; " sort="; sort; " result=error"
+        else
+            data = ParseJson(response.body)
+            if type(data) <> "roAssociativeArray" or type(data.metas) <> "roArray"
+                failures++
+                print "[RokuPlus cinemeta-catalog] kind="; catalogKind; " sort="; sort; " result=invalid-json"
+            else
+                successes++
+                if data.metas.count() >= 20 then hasMore = true
+                added = 0
+                for each meta in data.metas
+                    if added >= 20 then exit for
+                    if type(meta) = "roAssociativeArray"
+                        metaId = orbitText(meta.id,80)
+                        title = orbitText(meta.name,200).trim()
+                        metaType = orbitText(meta.type,16)
+                        if title <> "" and CreateObject("roRegex","^tt[0-9]{6,12}$","").isMatch(metaId) and (metaType = "" or metaType = catalogKind)
+                            year = rpHdTaskCinemetaYear(meta.year)
+                            if year = "" then year = rpHdTaskCinemetaYear(meta.releaseInfo)
+                            genres = []
+                            if type(meta.genres) = "roArray"
+                                for each sourceGenre in meta.genres
+                                    if GetInterface(sourceGenre,"ifString") <> invalid
+                                        genreName = lcase(sourceGenre.trim())
+                                        if genreName <> ""
+                                            genreExists = false
+                                            for each savedGenre in genres
+                                                if savedGenre = genreName then genreExists = true
+                                            end for
+                                            if not genreExists then genres.push(genreName)
+                                        end if
+                                    end if
+                                end for
+                            end if
+                            item = {
+                                id:"cinemeta-"+metaId, imdbId:metaId, kind:catalogKind
+                                provider:"all", discoverySource:"cinemeta", library:"hd-online"
+                                title:title, searchQuery:"", year:year
+                                description:orbitText(meta.description,4000)
+                                poster:orbitText(meta.poster,2048), background:orbitText(meta.background,2048)
+                                genres:genres, runtime:0, language:"", seasons:[]
+                                source:"Cinemeta"
+                            }
+                            answer.items.push(item)
+                            added++
+                        end if
+                    end if
+                end for
+            end if
+        end if
+    end for
+    answer.ok = successes > 0
+    answer.partial = failures > 0
+    answer.hasMore = hasMore
+    answer.nextSkip = skip + 20
+    answer.totalKnown = false
+    answer.total = 0
+    answer.message = ""
+    if not answer.ok then answer.message = "Cinemeta no pudo cargar esta categoría. Vuelve a intentarlo."
+    print "[RokuPlus cinemeta-catalog] kind="; kind; " sort="; sort; " genre="; genre; " skip="; skip; " results="; answer.items.count(); " failures="; failures
+    return answer
+end function
+
+function rpHdTaskCinemetaGenre(value as string) as string
+    key = lcase(value.trim())
+    if key = "acción" or key = "accion" then return "Action"
+    if key = "comedia" then return "Comedy"
+    if key = "drama" then return "Drama"
+    if key = "terror" then return "Horror"
+    if key = "ciencia ficción" or key = "ciencia ficcion" then return "Sci-Fi"
+    if key = "animación" or key = "animacion" then return "Animation"
+    return ""
 end function
 
 function rpHdTaskCombinedCatalog(request as object, answer as object, fetcher as dynamic, sources = invalid as dynamic) as object
