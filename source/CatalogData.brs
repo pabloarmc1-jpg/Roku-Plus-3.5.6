@@ -114,6 +114,10 @@ function orbitTitle(raw as dynamic, kind as string) as dynamic
     year = orbitText(raw.releaseInfo, 32)
     if year = "" then year = orbitText(raw.year, 32)
     description = orbitText(raw.description)
+    if description = "" then description = orbitText(raw.overview)
+    directors = orbitNameList(raw.directors,5)
+    if directors.count() = 0 then directors = orbitNameList(raw.director,5)
+    cast = orbitNameList(raw.cast,8)
     genres = []
     rawGenres = raw.genre
     if type(rawGenres) <> "roArray" then rawGenres = raw.genres
@@ -132,8 +136,28 @@ function orbitTitle(raw as dynamic, kind as string) as dynamic
         id: id, imdbId: id, title: title, kind: kind
         poster: orbitHttpsUrl(raw.poster), background: orbitHttpsUrl(raw.background)
         description: description, year: year, runtime: orbitRuntime(raw.runtime)
-        genres: genres, language: "", seasons: []
+        genres: genres, rating: orbitText(raw.imdbRating,16)
+        directors: directors, cast: cast, released: orbitText(raw.released,40)
+        status: orbitText(raw.status,40), country: orbitText(raw.country,80)
+        posterShape: orbitText(raw.posterShape,20), language: "", seasons: []
     }
+end function
+
+function orbitNameList(value as dynamic, maximum = 8 as integer) as object
+    names = []
+    if maximum < 1 then return names
+    if type(value) = "roArray"
+        for each entry in value
+            if GetInterface(entry,"ifString") <> invalid
+                name = left(entry.trim(),100)
+                if name <> "" and names.count() < maximum then names.push(name)
+            end if
+        end for
+    else if GetInterface(value,"ifString") <> invalid
+        name = left(value.trim(),100)
+        if name <> "" then names.push(name)
+    end if
+    return names
 end function
 
 function orbitCatalog(raw as dynamic, kind as string, skip as integer) as object
@@ -188,7 +212,9 @@ function orbitMetadata(raw as dynamic, kind as string, expectedId as string) as 
                         id: episodeId, imdbId: item.id, title: title, kind: "episode"
                         seriesTitle: item.title, season: seasonNumber, episode: episodeNumber
                         poster: poster, background: item.background, description: description
-                        year: item.year, runtime: orbitRuntime(video.runtime), language: "", seasons: []
+                        year: item.year, released: orbitText(video.released,40)
+                        runtime: orbitRuntime(video.runtime), rating: orbitText(video.imdbRating,16)
+                        language: "", seasons: []
                     }
                     key = seasonNumber.toStr()
                     if not seasonMap.doesExist(key) then seasonMap[key] = {number: seasonNumber, episodes: []}
