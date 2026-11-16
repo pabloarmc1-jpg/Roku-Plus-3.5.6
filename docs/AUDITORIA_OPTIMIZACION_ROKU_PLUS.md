@@ -180,3 +180,12 @@
 - La carga de temporadas/episodios, las consultas de red, los datos y el reproductor no se modifican.
 - Commits de código: `85514b8` (optimización) y `d54d247` (protección del foco de la barra lateral).
 - Estado: revisión estática del flujo y de los objetivos de foco realizada; **pendiente compilar y probar en Roku**. Comprobar cambio de episodio dentro del mismo grupo, cruce del grupo de cuatro, cambio de temporada, transición entre temporadas/episodios y navegación a la barra lateral. No considerar validado hasta recibir confirmación de la prueba.
+
+
+### Navegación de detalle y selección del último episodio visto (2026-11-15)
+
+- La navegación de temporadas/episodios se optimizó para reutilizar los nodos y actualizar el foco dentro del mismo bloque de cuatro episodios. El usuario confirmó que la navegación funciona tras la corrección de sintaxis BrightScript; al cambiar de bloque o temporada se conserva el redibujado necesario.
+- Se añadió la selección automática del último episodio guardado para la serie al entrar desde el detalle o al recibir metadatos HD. La búsqueda usa la identidad de serie disponible (ID de serie, IMDb o título más proveedor), selecciona la temporada y espera la carga asíncrona de episodios cuando corresponde. No inicia la reproducción.
+- Commits de selección: `8ec5b6c`, `1306d19` y `4969d2a`. El usuario confirmó que funciona en Roku.
+- Siguiente optimización incremental: al cambiar entre acciones de la pantalla de detalle, conservar los nodos ya dibujados y ejecutar solo `paintFocus()`. El redibujado completo se mantiene al entrar/salir de la barra lateral. Commit `13e3726`.
+- Estado de esta última optimización: **pendiente compilar y probar en Roku**. Verificar con película (Reproducir / Reproducción con PC / Volver), serie (Ver episodios / Volver), y movimiento arriba/abajo y transición a la barra lateral. No tocar el reproductor.
