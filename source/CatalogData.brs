@@ -202,7 +202,8 @@ function orbitMetadata(raw as dynamic, kind as string, expectedId as string) as 
             if seasonNumber >= 0 and episodeNumber > 0
                 episodeId = item.id + ":" + seasonNumber.toStr() + ":" + episodeNumber.toStr()
                 if not seen.doesExist(episodeId)
-                    title = orbitText(video.name, 200).trim()
+                    title = orbitText(video.title, 200).trim()
+                    if title = "" then title = orbitText(video.name, 200).trim()
                     if title = "" then title = "Episodio " + episodeNumber.toStr()
                     description = orbitText(video.description)
                     if description = "" then description = orbitText(video.overview)
