@@ -110,6 +110,7 @@ sub init()
     m.titles = []
     m.pageTitles = []
     m.genreFilter = "Todos"
+    m.catalogSort = "popular"
     m.genreChoices = []
     m.channels = []
     m.countryChannels = []
@@ -1400,11 +1401,31 @@ sub applyGenreFilter()
         end if
         if include then m.titles.push(item)
     end for
+    ' The provider's default catalog order is its popularity ranking.
+    ' Newest sorts by the year metadata supplied by the catalog.
+    if m.catalogSort = "recent" and m.titles.count() > 1
+        for i = 0 to m.titles.count()-2
+            newest = i
+            newestYear = orbitText(m.titles[i].year,4)
+            for j = i+1 to m.titles.count()-1
+                candidateYear = orbitText(m.titles[j].year,4)
+                if candidateYear > newestYear
+                    newest = j
+                    newestYear = candidateYear
+                end if
+            end for
+            if newest <> i
+                swapItem = m.titles[i]
+                m.titles[i] = m.titles[newest]
+                m.titles[newest] = swapItem
+            end if
+        end for
+    end if
     m.cursor = 0
 end sub
 
 sub openGenreFilter()
-    choices = ["Todos"]
+    choices = ["Más populares","Más recientes","Todos"]
     known = ["Acción","Aventura","Animación","Comedia","Crimen","Documental","Drama","Fantasía","Historia","Misterio","Romance","Ciencia ficción","Suspenso","Terror"]
     available = []
     for each item in m.pageTitles
@@ -1424,7 +1445,7 @@ sub openGenreFilter()
             if present = genre then choices.push(genre)
         end for
     end for
-    if choices.count() = 1
+    if choices.count() = 3
         m.note = "Esta página no contiene géneros disponibles para filtrar."
         drawScreen()
         return
@@ -1432,8 +1453,8 @@ sub openGenreFilter()
     choices.push("Cancelar")
     m.genreChoices = choices
     dialog = CreateObject("roSGNode","StandardMessageDialog")
-    dialog.title = "Filtrar por género · Página actual"
-    dialog.message = "El filtro se aplica a los títulos cargados en esta página."
+    dialog.title = "Categorías y orden"
+    dialog.message = "Elige un género o cambia el orden de las películas cargadas."
     dialog.buttons = choices
     dialog.observeField("buttonSelected","genreFilterChosen")
     dialog.observeField("wasClosed","genreFilterDismissed")
@@ -1450,7 +1471,15 @@ sub genreFilterChosen(event as object)
     m.genreChoices = []
     releaseDialog()
     if selected <> "Cancelar"
-        m.genreFilter = selected
+        if selected = "Más recientes"
+            m.catalogSort = "recent"
+            m.genreFilter = "Todos"
+        else if selected = "Más populares"
+            m.catalogSort = "popular"
+            m.genreFilter = "Todos"
+        else
+            m.genreFilter = selected
+        end if
         applyGenreFilter()
         m.note = ""
     end if
