@@ -1893,8 +1893,13 @@ function rpHdTaskCinemetaBrowseCatalog(request as object, answer as object, fetc
     for each catalogKind in catalogKinds
         if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
         endpoint = "https://v3-cinemeta.strem.io/catalog/"+catalogKind+"/"+catalogId
-        if genre <> "" then endpoint += "/genre="+genre
-        endpoint += "/skip="+skip.toStr()+".json"
+        if genre <> ""
+            ' Stremio encodes extra arguments in one path segment, joined with ampersands.
+            endpoint += "/genre="+genre+"&skip="+skip.toStr()
+        else
+            endpoint += "/skip="+skip.toStr()
+        end if
+        endpoint += ".json"
         print "[RokuPlus cinemeta-catalog] request kind="; catalogKind; " genre="; genre; " skip="; skip
         response = fetcher(endpoint,"cinemeta","")
         if response.cancelled then return rpHdTaskFailure(answer,response)
@@ -2517,7 +2522,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if len(endpoint) > 4096 then return false
     if CreateObject("roRegex","[\x00-\x20\x7F\\]","").isMatch(endpoint) then return false
     if role = "api" then return CreateObject("roRegex","^https://(lamovie\.org/wp-api/v1/|allcalidad\.re/api/rest/|cinehax\.org/api/rest/v1/)[^#]*$","").isMatch(endpoint)
-    if role = "cinemeta" then return CreateObject("roRegex","^https://v3-cinemeta\.strem\.io/(catalog/(movie|series)/(top(/search=[A-Za-z0-9%._~!*'()+-]+|(/genre=[A-Za-z0-9%._~!*'()+-]+)?(/skip=[0-9]+)?)?|year/genre=[0-9]{4}(/skip=[0-9]+)?)|meta/(movie|series)/tt[0-9]{6,12})\.json$","").isMatch(endpoint)
+    if role = "cinemeta" then return CreateObject("roRegex","^https://v3-cinemeta\.strem\.io/(catalog/(movie|series)/(top(/search=[A-Za-z0-9%._~!*'()+-]+|/genre=[A-Za-z0-9%._~!*'()+-]+(&skip=[0-9]+)?|/skip=[0-9]+)?|year/genre=[0-9]{4}(/skip=[0-9]+)?)|meta/(movie|series)/tt[0-9]{6,12})\.json$","").isMatch(endpoint)
     if role = "tvmaze" then return CreateObject("roRegex","^https://api\.tvmaze\.com/(search/shows\?q=[^#]+|shows/[0-9]+/episodes)$","").isMatch(endpoint)
     if role = "player" then return CreateObject("roRegex","^https://videoapp\.mov/e/(movie/[0-9]+|tv/[0-9]+/[0-9]+/[0-9]+)$","").isMatch(endpoint)
     if role = "seriesmetro-season" then return rpHdTaskSeasonPost(endpoint) <> invalid
