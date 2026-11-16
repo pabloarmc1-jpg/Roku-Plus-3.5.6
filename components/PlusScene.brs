@@ -1389,7 +1389,23 @@ function browseItemGenres(item as object) as string
             end if
         end for
     end if
-    return lcase(result)
+    result = lcase(result)
+    ' Catalog providers may return genre names in English while the Roku UI
+    ' displays Spanish category labels. Add equivalent labels for matching.
+    genreAliases = [
+        ["action","acción"], ["adventure","aventura"], ["animation","animación"],
+        ["comedy","comedia"], ["crime","crimen"], ["documentary","documental"],
+        ["drama","drama"], ["fantasy","fantasía"], ["history","historia"],
+        ["mystery","misterio"], ["romance","romance"], ["science fiction","ciencia ficción"],
+        ["sci-fi","ciencia ficción"], ["thriller","suspenso"], ["suspense","suspenso"],
+        ["horror","terror"], ["war","bélica"], ["western","western"]
+    ]
+    for each alias in genreAliases
+        if instr(1,result,alias[0]) > 0 and instr(1,result,alias[1]) = 0
+            result += " " + alias[1]
+        end if
+    end for
+    return result
 end function
 
 sub applyGenreFilter()
