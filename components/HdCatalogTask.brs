@@ -1843,7 +1843,7 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
     queryTitle = rpHdTaskCinemetaTitleKey(searchQuery)
     if discoveryTitle = "" or candidateTitle = "" or queryTitle <> discoveryTitle then return false
     if candidateTitle = discoveryTitle then return false
-    if left(candidateTitle, discoveryTitle.len()+1) <> discoveryTitle + " " then return false
+    if left(candidateTitle, Len(discoveryTitle)+1) <> discoveryTitle + " " then return false
 
     prefixMatches = 0
     for each possible in candidates
@@ -1854,7 +1854,7 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
                 possibleImdb = lcase(orbitText(possible.imdbId,40))
                 imdbCompatible = wantedImdb = "" or possibleImdb = "" or wantedImdb = possibleImdb
                 if possibleYear = wantedYear and imdbCompatible and possibleTitle <> ""
-                    if left(possibleTitle, discoveryTitle.len()+1) = discoveryTitle + " " then prefixMatches++
+                    if left(possibleTitle, Len(discoveryTitle)+1) = discoveryTitle + " " then prefixMatches++
                 end if
             end if
         end if
