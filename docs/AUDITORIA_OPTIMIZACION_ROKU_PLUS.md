@@ -566,3 +566,11 @@
 - Las líneas TVmaze `season_result` muestran 11 episodios locales de la temporada 1 y 0 en las temporadas restantes en esta respuesta de metadatos; esto no demuestra pérdida de episodios: el flujo carga temporadas/episodios por separado y el registro no contiene aquí una consulta posterior para todas las temporadas.
 - No se modificó el motor de reproducción, controles, audio, subtítulos ni reanudación en esta validación.
 - Estado: alias TVmaze validado en Roku; reproducción y progreso confirmados; inclusión de `data/hd-library.json` pendiente de corregir en el proyecto local/paquete.
+
+### Alias exactos para series localizadas en español (2026-11-16)
+
+- El registro Roku mostró que Cinemeta descubre `The Simpsons` (1989), mientras CineHax devuelve `Los Simpson` (1989); también mostró `Family Guy` (1999) frente a `Padre de familia` (1999) en CineHax y SeriesMetro. La comparación literal rechazaba ambas parejas.
+- Se amplía el mapa explícito de alias para reconocer esos dos pares de títulos. La coincidencia sigue exigiendo el mismo tipo, año exacto, compatibilidad de IMDb cuando ambos IDs existen y un único candidato válido en los resultados del proveedor.
+- No se agrega comparación difusa ni se modifica la identidad de episodios, los adaptadores de reproducción o el reproductor.
+- Código: commit `43636b2c298e826a5fc8073acf7d5b4f29e3215f` en `components/HdCatalogTask.brs`.
+- **Estado:** guardado y verificado en GitHub; pendiente compilar y probar en Roku con The Simpsons y Family Guy. El log actual no contiene una sesión de reproducción de esos títulos que permita confirmar el resultado.
