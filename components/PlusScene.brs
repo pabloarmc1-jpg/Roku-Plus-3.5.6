@@ -403,6 +403,14 @@ sub fetched(event as object)
     if type(answer.tvmazeCache) = "roAssociativeArray" then m.tvmazeCache = answer.tvmazeCache
     cancelRequest()
     if not answer.ok
+        if context.operation = "find-source"
+            m.view = orbitText(context.returnView,24)
+            if m.view = "" then m.view = "detail"
+            m.autoplay = false
+            m.note = answer.message
+            drawScreen()
+            return
+        end if
         voeBlocked = false
         if answer.doesExist("voeBlocked") and answer.voeBlocked = true then voeBlocked = true
         if voeBlocked
@@ -467,6 +475,23 @@ sub fetched(event as object)
         else
             m.note = answer.message
         end if
+    else if context.operation = "find-source" and type(answer.item) = "roAssociativeArray" and answer.item.kind = "series"
+        m.detail = answer.item
+        m.detailOrigin = "search"
+        m.series = answer.item
+        m.seriesOrigin = m.detailOrigin
+        m.season = 0
+        if m.series.seasons.count() > 0 and m.series.seasons[0].number = 0 and m.series.seasons.count() > 1 then m.season = 1
+        m.episode = 0
+        m.episodeMode = "episodes"
+        m.view = "episodes"
+        m.zone = "seasons"
+        m.note = ""
+        selectLastWatchedEpisode()
+        drawScreen()
+        loadEpisodeSeason()
+        m.top.setFocus(true)
+        return
     else if context.operation = "catalog" or context.operation = "search"
         if context.operation = "search"
             if answer.partial <> true and answer.items.count() > 0
@@ -569,10 +594,11 @@ sub fetched(event as object)
             m.zone = "seasons"
             selectLastWatchedEpisode()
         end if
-    else if context.operation = "resolve" or context.operation = "resume-episode"
-        if context.operation = "resume-episode" and type(answer.item) = "roAssociativeArray"
-            m.detail = answer.item
+    else if context.operation = "resolve" or context.operation = "resume-episode" or context.operation = "find-source"
+        if context.operation = "resume-episode" or context.operation = "find-source"
+            if type(answer.item) = "roAssociativeArray" then m.detail = answer.item
         end if
+        if context.operation = "find-source" then m.view = "detail"
         m.detail.hdAutoRetry = 0
         if type(answer.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = answer.mediaHeaders
         m.detail.playbackEngine = "standard"
@@ -667,6 +693,10 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
         ' Older LaMovie watch records can retain the numeric post ID but lack
         ' the slug required by the metadata endpoint. Resolve playback directly
         ' by numeric ID instead of showing a false source-connection error.
+        if orbitText(item.discoverySource,32) = "cinemeta"
+            drawScreen()
+            return
+        end if
         resumeProvider = lcase(orbitText(item.provider,32))
         resumeSlug = orbitText(item.providerSlug,200)
         resumeProviderId = orbitInteger(item.providerId,999999999)
@@ -2921,6 +2951,13 @@ sub playDetail()
         return
     end if
     m.playbackMode = "direct"
+    if orbitText(m.detail.discoverySource,32) = "cinemeta"
+        m.view = "source-resolving"
+        m.note = ""
+        drawScreen()
+        fetch({operation:"find-source",item:m.detail,returnView:"detail"})
+        return
+    end if
     if usesOnlineHd() or rpIsOnlineHdItem(m.detail)
         if lcase(orbitText(m.detail.provider,32)) = "seriesmetro" and m.detail.kind = "episode" and orbitText(m.detail.providerSlug,200) = "" and (orbitInteger(m.detail.seriesProviderId,999999999) > 0 or orbitInteger(m.detail.providerId,999999999) > 0)
             print "[RokuPlus series] resume-episode-recover id="; orbitText(m.detail.id,180); " parentId="; orbitInteger(m.detail.seriesProviderId,999999999); " providerId="; orbitInteger(m.detail.providerId,999999999); " season="; orbitInteger(m.detail.season,999); " episode="; orbitInteger(m.detail.episode,9999)
@@ -2944,6 +2981,13 @@ sub playDetail()
 end sub
 
 sub enterEpisodes()
+    if orbitText(m.detail.discoverySource,32) = "cinemeta"
+        m.view = "source-resolving"
+        m.note = ""
+        drawScreen()
+        fetch({operation:"find-source",item:m.detail,returnView:"detail"})
+        return
+    end if
     if m.detail.seasons.count() = 0
         if usesOnlineHd() or rpIsOnlineHdItem(m.detail)
             fetch({operation:"meta",item:m.detail})
@@ -3221,8 +3265,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
             return true
         end if
         if m.busy
+            pendingContext = m.pending
             cancelRequest()
             m.autoplay = false
+            if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" then m.view = "detail"
             drawScreen()
         else if m.view = "live" and (m.zone = "live" or m.zone = "live-actions" or m.zone = "live-search")
             m.zone = "live-filters"
