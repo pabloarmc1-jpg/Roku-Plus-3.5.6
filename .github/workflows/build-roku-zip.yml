@@ -75,7 +75,7 @@ jobs:
             }
           ' manifest)"
           PACKAGE_NAME="Roku-Plus-${VERSION}"
-          find . -type f ! -path './.git/*' ! -path './.github/*' ! -name '*.zip' -printf '%P\\0' | xargs -0 zip -q "/tmp/${PACKAGE_NAME}.zip"
+          find . -type f ! -path './.git/*' ! -path './.github/*' ! -name '*.zip' -printf '%P\\n' | zip -q "/tmp/${PACKAGE_NAME}.zip" -@
           mv "/tmp/${PACKAGE_NAME}.zip" .
           echo "PACKAGE_NAME=${PACKAGE_NAME}" >> "$GITHUB_ENV"
           echo "PACKAGE_PATH=${PACKAGE_NAME}.zip" >> "$GITHUB_ENV"
