@@ -507,3 +507,13 @@
 - Código: commits `7ea59f5` y `89e8f03` en `components/HdCatalogTask.brs`.
 - El log también muestra `Primetime` sin resultados en los proveedores disponibles; LaMovie devolvió un cuerpo de error aunque HTTP fue 200. No hay un candidato que pueda emparejarse con seguridad para ese título.
 - Estado: guardado y revisado estáticamente; pendiente probar en Roku.
+
+
+## 2026-11-15 — Coincidencia de títulos con subtítulo separado por dos puntos
+
+- El nuevo BrightScript Log volvió a mostrar Resident Evil (2026) sin fuente, aunque LaMovie, AllCalidad, CineHax, SeriesMetro y CineCalidad devolvieron el candidato Resident Evil: Noche cero (2026).
+- La regla anterior solo reconocía un sufijo separado por espacio; el título del proveedor usa dos puntos inmediatamente después de Resident Evil, por lo que quedaba descartado.
+- Se añadió rpHdTaskHasTitleSuffixBoundary() para admitir únicamente separadores de espacio o dos puntos, manteniendo la validación de tipo, año exacto, compatibilidad de IMDb cuando ambos IDs existen y unicidad del candidato.
+- Cambio limitado a components/HdCatalogTask.brs. No se modificaron reproductor, controles, audio, subtítulos ni reanudación.
+- Commit de código: 9e3856c9a581319e6d8441fc7254f5459280a812. Pendiente de prueba en Roku.
+- Primetime continúa sin candidato en los proveedores; LaMovie responde HTTP 200 con un cuerpo de 32 bytes que el buscador clasifica como error. Este cambio no resuelve ese caso.
