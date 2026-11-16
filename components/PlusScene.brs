@@ -2796,21 +2796,21 @@ function rpWatchLastEpisodeForSeries(series as object) as dynamic
     seriesProvider = lcase(orbitText(series.provider,32))
     for each saved in m.watchState
         if type(saved) = "roAssociativeArray" and orbitText(saved.kind,20) = "episode"
-            if not saved.doesExist("season") or not saved.doesExist("episode") then goto nextSavedEpisode
-            matches = false
-            savedSeriesId = orbitText(saved.seriesId,180)
-            savedImdbId = orbitText(saved.imdbId,180)
-            if seriesId <> "" and savedSeriesId = seriesId then matches = true
-            if seriesId <> "" and savedImdbId = seriesId then matches = true
-            if seriesImdbId <> "" and savedImdbId = seriesImdbId then matches = true
-            if not matches and seriesTitle <> ""
-                savedTitle = lcase(orbitText(saved.seriesTitle,180))
-                savedProvider = lcase(orbitText(saved.provider,32))
-                if savedTitle = seriesTitle and savedProvider = seriesProvider and seriesProvider <> "" then matches = true
+            if saved.doesExist("season") and saved.doesExist("episode")
+                matches = false
+                savedSeriesId = orbitText(saved.seriesId,180)
+                savedImdbId = orbitText(saved.imdbId,180)
+                if seriesId <> "" and savedSeriesId = seriesId then matches = true
+                if seriesId <> "" and savedImdbId = seriesId then matches = true
+                if seriesImdbId <> "" and savedImdbId = seriesImdbId then matches = true
+                if not matches and seriesTitle <> ""
+                    savedTitle = lcase(orbitText(saved.seriesTitle,180))
+                    savedProvider = lcase(orbitText(saved.provider,32))
+                    if savedTitle = seriesTitle and savedProvider = seriesProvider and seriesProvider <> "" then matches = true
+                end if
+                if matches then return saved
             end if
-            if matches then return saved
         end if
-        nextSavedEpisode:
     end for
     return invalid
 end function
