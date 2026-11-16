@@ -350,6 +350,7 @@
 
 
 ### Catálogo continuo al avanzar páginas (2026-11-15)
+- **Validación del usuario:** confirmado que funciona correctamente.
 - Al cargar una página online posterior, sus elementos se agregan a los títulos ya cargados y se deduplican; no se reemplaza la lista anterior.
 - El cursor pasa al primer elemento nuevo cuando hay resultados nuevos. La cuadrícula conserva su distribución de diez tarjetas y el cambio de página no usa el fundido de entrada.
 - La recuperación desde caché aplica la misma unión; una respuesta final vacía conserva los títulos existentes.
