@@ -926,7 +926,11 @@ sub launchVideo(item as object, url as string, format as string)
     m.stallEpisodeCounted = false
     m.stallEpisodeCount = 0
     m.stallWindowClock.mark()
-    m.stallWatchTimer.control = "start"
+    if item.kind = "episode" and rpHdOnlineProvider(item.provider) <> ""
+        m.stallWatchTimer.control = "start"
+    else
+        m.stallWatchTimer.control = "stop"
+    end if
     imdbId = orbitText(descriptor.imdbId,24)
     cacheKey = ""
     if imdbId <> ""
