@@ -124,3 +124,16 @@
 - Los archivos de imágenes de muestra/portadas en la raíz de `images/` requieren rastrear también los JSON y los datos de catálogo antes de concluir que no se usan. No se ha eliminado ni convertido ningún recurso.
 - No se midieron dimensiones ni consumo real de memoria en un Roku; el tamaño comprimido en Git no permite inferir el costo de decodificación. Para una optimización segura, primero hay que obtener dimensiones y verificar carga/uso en dispositivo.
 - Resultado: auditoría gráfica inicial completada sin cambios en la aplicación. No hay todavía una imagen que pueda borrarse con seguridad ni evidencia para recomprimir recursos sin alterar calidad o presentación.
+
+
+### Inventario ampliado de imágenes desde Git (2026-11-15)
+
+- Se verificó el árbol Git recursivo completo de la rama: 119 recursos, sin truncamiento. El tamaño total almacenado es 1,456,909 bytes (aprox. 1.39 MiB): 111 PNG (859,661 bytes) y 8 JPG (597,248 bytes).
+- Los tres grupos de blobs idénticos detectados por SHA son:
+  - `images/newplayer-classic-control-focus.png` y `images/newplayer-control-focus.png`.
+  - `images/ui/live.png` y `images/ui/nav-live.png`.
+  - `images/ui/series.png` y `images/ui/tv.png`.
+- El par `live.png` / `nav-live.png` y el par `series.png` / `tv.png` aparecen referenciados por la vista de interfaz. Aunque sus bytes sean idénticos, no se renombra ni elimina ninguno: los nombres pueden ser parte de rutas de carga y conservar ambos evita romper referencias.
+- Recursos de mayor tamaño en el repositorio: `encanto-hero.jpg` (258,828 bytes), `encanto.jpg` (91,570), `ui/app-background.png` (69,709), `ui/app-background-classic.png` (67,771), `walter-mitty.jpg` (54,702), `splash-fhd.jpg` (48,696), `amelie.jpg` (48,373) y `ui/appearance-glass-preview.png` (44,124).
+- La API de Git expone para estos blobs el tamaño y SHA, pero el conector de repositorio rechaza los blobs binarios porque no son UTF-8. Por tanto, desde este acceso no se pueden decodificar cabeceras PNG/JPEG para obtener dimensiones ni medir píxeles/alpha. No se inventan dimensiones ni se infiere el costo de memoria a partir del tamaño comprimido.
+- Resultado: inventario y duplicados exactos ampliados desde Git, sin cambios en recursos. Los tres pares duplicados son candidatos de consolidación solo después de confirmar todas las referencias estáticas/dinámicas y decidir si se desea conservar compatibilidad de nombres; por ahora se mantienen.
