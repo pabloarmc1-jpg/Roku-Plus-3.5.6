@@ -1695,8 +1695,10 @@ sub chooseSearchSuggestion(index as integer)
     m.searchText = orbitText(item.title,120)
     m.searchCursor = index
     m.zone = "search-suggestion"
-    ' A suggestion is a selected catalog item, not a request to run a second text search.
-    openDetails(item,"search",false)
+    ' Suggestions only complete the query. Global discovery must return Cinemeta
+    ' records before a detail is opened, so Play can search all playback sources.
+    print "[RokuPlus discovery] action=suggestion-submit title="; m.searchText
+    submitGlobalSearch()
 end sub
 
 sub submitGlobalSearch()
