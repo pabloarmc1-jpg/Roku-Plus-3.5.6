@@ -1716,6 +1716,12 @@ end function
 ' localized query first, then the Cinemeta title as a fallback.
 ' Keep query order stable while removing duplicates after the same normalization
 ' used by provider identity checks (including punctuation and accents).
+function rpHdTaskIsPlaceholderTitle(value as dynamic) as boolean
+    title = lcase(orbitText(value,200).trim())
+    if title = "" or title = "unknown" or title = "tba" or title = "to be announced" then return true
+    return CreateObject("roRegex","^untitled([ :]|$)","i").isMatch(title)
+end function
+
 function rpHdTaskAppendUniqueSearchQuery(queries as object, value as dynamic) as object
     query = orbitText(value,200).trim()
     queryKey = rpHdTaskCinemetaTitleKey(query)
@@ -1736,7 +1742,11 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     requestedKind = orbitText(item.kind,16)
     isEpisode = requestedKind = "episode"
     kind = requestedKind
-    discovery = item
+    discovery = {
+        kind:requestedKind,title:orbitText(item.title,200)
+        year:orbitText(item.year,32),imdbId:orbitText(item.imdbId,40)
+        searchQuery:orbitText(item.searchQuery,200)
+    }
     if isEpisode
         kind = "series"
         seriesTitle = orbitText(item.seriesTitle,200).trim()
@@ -1813,6 +1823,16 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     searchQueries = []
     originalQuery = orbitText(discovery.searchQuery,200).trim()
     cinemetaTitle = orbitText(discovery.title,200).trim()
+    if rpHdTaskIsPlaceholderTitle(cinemetaTitle)
+        if rpHdTaskIsPlaceholderTitle(originalQuery)
+            answer.message = "Cinemeta no confirmó un título válido para buscar fuentes."
+            print "[RokuPlus source-search] result=skipped reason=placeholder-title kind="; kind
+            return answer
+        end if
+        print "[RokuPlus source-search] identity-fallback=original-query reason=placeholder-title"
+        cinemetaTitle = originalQuery
+        discovery.title = originalQuery
+    end if
     searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,originalQuery)
     searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,cinemetaTitle)
     discoveryYear = rpHdTaskCinemetaYear(discovery.year)
@@ -1903,6 +1923,14 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 else
                     providerNoMatches++
                     print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=no-match candidates="; catalog.items.count()
+                    diagnosticCount = 0
+                    for each diagnosticCandidate in catalog.items
+                        if diagnosticCount >= 3 then exit for
+                        if type(diagnosticCandidate) = "roAssociativeArray"
+                            diagnosticCount++
+                            print "[RokuPlus source-search] candidate provider="; source; " title="; left(orbitText(diagnosticCandidate.title,100),100); " year="; rpHdTaskCinemetaYear(diagnosticCandidate.year); " imdb="; orbitText(diagnosticCandidate.imdbId,24)
+                        end if
+                    end for
                 end if
             end if
         end for
@@ -2051,7 +2079,11 @@ function rpHdTaskSameDiscoveryItem(discovery as dynamic, candidate as dynamic, s
     if candidateTitle = "" then return false
     if wantedImdb <> "" and candidateImdb <> ""
         if wantedImdb = candidateImdb
-            if wantedYear <> "" and candidateYear <> "" and wantedYear <> candidateYear then return false
+            ' The shared IMDb identity is stronger than a provider's possibly
+            ' stale or incorrectly parsed year. Keep the year diagnostic, not a veto.
+            if wantedYear <> "" and candidateYear <> "" and wantedYear <> candidateYear
+                print "[RokuPlus source-match] imdb-confirmed-year-diff title="; left(orbitText(candidate.title,100),100); " wanted="; wantedYear; " provider="; candidateYear
+            end if
             return true
         end if
         ' Provider metadata can carry a different external ID for the same
