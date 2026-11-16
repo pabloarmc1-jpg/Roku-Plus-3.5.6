@@ -137,3 +137,13 @@
 - Recursos de mayor tamaño en el repositorio: `encanto-hero.jpg` (258,828 bytes), `encanto.jpg` (91,570), `ui/app-background.png` (69,709), `ui/app-background-classic.png` (67,771), `walter-mitty.jpg` (54,702), `splash-fhd.jpg` (48,696), `amelie.jpg` (48,373) y `ui/appearance-glass-preview.png` (44,124).
 - La API de Git expone para estos blobs el tamaño y SHA, pero el conector de repositorio rechaza los blobs binarios porque no son UTF-8. Por tanto, desde este acceso no se pueden decodificar cabeceras PNG/JPEG para obtener dimensiones ni medir píxeles/alpha. No se inventan dimensiones ni se infiere el costo de memoria a partir del tamaño comprimido.
 - Resultado: inventario y duplicados exactos ampliados desde Git, sin cambios en recursos. Los tres pares duplicados son candidatos de consolidación solo después de confirmar todas las referencias estáticas/dinámicas y decidir si se desea conservar compatibilidad de nombres; por ahora se mantienen.
+
+
+### Rastreo de referencias de los duplicados (2026-11-15)
+
+- Se rastrearon las referencias directas en `components/PlusSceneViews.brs`, `components/PlusPlayer.xml`, `manifest`, `data/channel-logos.json`, `data/hd-library.json`, `source/RealityData.brs` y `source/LivePresentationData.brs`.
+- `images/ui/nav-live.png` se carga desde la lista de iconos de navegación de `PlusSceneViews.brs`; `images/ui/live.png` se carga directamente en la vista de previsualización en vivo. Aunque los archivos son idénticos, cumplen usos/rutas distintas. No consolidar ni borrar.
+- `images/ui/tv.png` se carga directamente en una tarjeta de categorías. El nombre `images/ui/series.png` no aparece como ruta literal en los archivos inspeccionados; aun así, no se elimina porque los recursos pueden construirse mediante nombres dinámicos y no se ha hecho una búsqueda exhaustiva en los 78 archivos de texto.
+- Los recursos duplicados `newplayer-control-focus.png` y `newplayer-classic-control-focus.png` pertenecen al conjunto del reproductor. `PlusPlayer.xml` carga explícitamente `newplayer-control.png` para superficies de controles, pero no carga los archivos duplicados de foco en las líneas inspeccionadas. Se mantienen fuera del alcance de optimización del reproductor.
+- La interfaz genera rutas dinámicas: `glassSurface(name, ...)` construye `pkg:/images/ui/` + nombre + `.png`; por eso la ausencia de un nombre literal en una búsqueda no demuestra que el archivo esté huérfano.
+- Resultado: los duplicados identificados no son candidatos seguros de eliminación en esta fase. No se realizaron cambios de código ni de imágenes.
