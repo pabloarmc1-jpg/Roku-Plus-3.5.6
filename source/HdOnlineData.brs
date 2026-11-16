@@ -204,8 +204,11 @@ function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as d
     if type(images) <> "roAssociativeArray" then images = {}
     runtime = orbitText(raw.runtime,16).toFloat()
     if runtime < 0 or runtime > 1440 then runtime = 0
+    imdbId = orbitImdb(raw.imdb_id)
+    if imdbId = "" then imdbId = orbitImdb(raw.imdbId)
+    if imdbId = "" then imdbId = orbitImdb(raw.imdb)
     return {
-        id: "hdo-"+provider+"-"+number.toStr(), imdbId: "", kind: kind
+        id: "hdo-"+provider+"-"+number.toStr(), imdbId: imdbId, kind: kind
         provider: provider, providerId: number, providerSlug: orbitText(raw.slug,200)
         library: "hd-online", title: title, description: orbitText(raw.overview)
         poster: rpHdOnlineArt(images.poster,provider), background: rpHdOnlineArt(images.backdrop,provider)
@@ -1647,8 +1650,6 @@ function rpHdCinemetaCanonicalTitle(value as string) as string
 end function
 
 function rpHdCinemetaSearchTitle(item as object, variants as object) as string
-    canonical = rpHdCinemetaCanonicalTitle(orbitText(item.title,200))
-    if canonical <> "" then return canonical
     if variants.count() > 0 then return orbitText(variants[0],200)
     return orbitText(item.title,200)
 end function
