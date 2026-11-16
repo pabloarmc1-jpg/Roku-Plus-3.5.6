@@ -499,3 +499,11 @@
 - No se modifica la disposición visual, los filtros, las fuentes de reproducción ni ningún componente del reproductor.
 - Código: commit `822dc4431d2d327bae925c6b41a2e0ba2775939a` en `components/PlusScene.brs`.
 - Estado: guardado y revisado estáticamente; pendiente instalar/compilar y validar en Roku.
+
+### Ajuste de coincidencia para títulos con subtítulo en proveedores (2026-11-15)
+- El log de Roku mostró que Cinemeta presenta `Resident Evil` (2026), mientras varios proveedores devuelven `Resident Evil: Noche cero` (2026). La búsqueda encontraba ese candidato, pero la regla anterior solo aceptaba títulos localizados cuando el resultado completo del proveedor tenía un único elemento; por eso descartaba el candidato correcto si también había otras entregas de la franquicia.
+- Se amplió la coincidencia conservadora: mismo tipo, mismo año exacto, sin contradicción de IMDb cuando ambos IDs existen, título del proveedor con el título Cinemeta como prefijo más subtítulo, y exactamente un candidato que cumpla esas condiciones en los resultados.
+- No se relaja la coincidencia para títulos sin año, años distintos, ni títulos que solo compartan palabras. El reproductor y la resolución HLS no se modifican.
+- Código: commits `7ea59f5` y `89e8f03` en `components/HdCatalogTask.brs`.
+- El log también muestra `Primetime` sin resultados en los proveedores disponibles; LaMovie devolvió un cuerpo de error aunque HTTP fue 200. No hay un candidato que pueda emparejarse con seguridad para ese título.
+- Estado: guardado y revisado estáticamente; pendiente probar en Roku.
