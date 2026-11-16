@@ -5,7 +5,16 @@
 function rpHdLibrary() as object
     path = "pkg:/data/hd-library.json"
     ' File access and ParseJson are Task-thread-only in SceneGraph applications.
+    files = CreateObject("roFileSystem")
+    exists = files.exists(path)
+    print "[RokuPlus hd-library] path="; path; " exists="; exists
+    if not exists then return {movies: [], series: []}
     body = ReadAsciiFile(path)
+    if GetInterface(body, "ifString") = invalid
+        print "[RokuPlus hd-library] read_failed=1"
+    else
+        print "[RokuPlus hd-library] read_bytes="; len(body)
+    end if
     return rpHdLibraryFromText(body)
 end function
 
