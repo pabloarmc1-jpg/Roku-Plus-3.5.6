@@ -17,6 +17,15 @@ sub init()
     m.deadline.observeField("fire","catalogTimedOut")
     m.lease = m.top.findNode("playbackLease")
     m.lease.observeField("fire","renewPlaybackLease")
+    m.stallWatchTimer = CreateObject("roSGNode","Timer")
+    m.stallWatchTimer.duration = 2
+    m.stallWatchTimer.repeat = true
+    m.stallWatchTimer.observeField("fire","playbackStallWatchTick")
+    m.stallEpisodeClock = CreateObject("roTimespan")
+    m.stallWindowClock = CreateObject("roTimespan")
+    m.stallEpisodeActive = false
+    m.stallEpisodeCounted = false
+    m.stallEpisodeCount = 0
     m.activeJobId = ""
     m.leaseTask = invalid
     m.player.observeField("closed","playerClosed")
@@ -913,6 +922,11 @@ sub launchVideo(item as object, url as string, format as string)
     m.player.endScreenData = invalid
     m.player.introDbData = invalid
     m.player.request = descriptor
+    m.stallEpisodeActive = false
+    m.stallEpisodeCounted = false
+    m.stallEpisodeCount = 0
+    m.stallWindowClock.mark()
+    m.stallWatchTimer.control = "start"
     imdbId = orbitText(descriptor.imdbId,24)
     cacheKey = ""
     if imdbId <> ""
@@ -977,6 +991,59 @@ sub introDbResult(event as object)
         print "[RokuPlus introdb] lookup_ok outro="; type(answer.outro); " postCredits="; type(answer.post_credits)
     else
         print "[RokuPlus introdb] lookup_unavailable reason="; orbitText(answer.message,160)
+    end if
+end sub
+
+sub playbackStallWatchTick()
+    if m.view <> "player" or type(m.detail) <> "roAssociativeArray" then return
+    if orbitText(m.detail.kind,16) <> "episode" then return
+    provider = rpHdOnlineProvider(m.detail.provider)
+    if provider = "" or m.detail.hdFallbackTried = true then return
+    if m.pendingEpisodeFallback <> invalid then return
+    decoder = m.player.findNode("decoder")
+    if decoder = invalid then return
+    state = orbitText(decoder.state,20)
+    if state = "paused"
+        m.stallEpisodeActive = false
+        m.stallEpisodeCounted = false
+        return
+    end if
+    buffer = decoder.bufferingStatus
+    underrun = false
+    if type(buffer) = "roAssociativeArray"
+        if buffer.isUnderrun = true then underrun = true
+    end if
+    if state = "buffering" and underrun
+        if not m.stallEpisodeActive
+            m.stallEpisodeActive = true
+            m.stallEpisodeCounted = false
+            m.stallEpisodeClock.mark()
+            print "[RokuPlus source-watchdog] stall_started provider="; provider
+        end if
+        elapsed = m.stallEpisodeClock.totalMilliseconds()
+        if elapsed >= 10000 and not m.stallEpisodeCounted
+            if m.stallEpisodeCount = 0 or m.stallWindowClock.totalMilliseconds() >= 120000
+                m.stallEpisodeCount = 0
+                m.stallWindowClock.mark()
+            end if
+            m.stallEpisodeCount = m.stallEpisodeCount + 1
+            m.stallEpisodeCounted = true
+            print "[RokuPlus source-watchdog] stall_count="; m.stallEpisodeCount; " elapsedMs="; elapsed; " provider="; provider
+        end if
+        if elapsed >= 30000 or m.stallEpisodeCount >= 3
+            print "[RokuPlus source-watchdog] action=try_next_source count="; m.stallEpisodeCount; " elapsedMs="; elapsed; " provider="; provider
+            m.detail.hdFallbackTried = true
+            m.pendingEpisodeFallback = {item:m.detail,origin:m.detailOrigin}
+            m.recovering = false
+            m.stallWatchTimer.control = "stop"
+            m.player.callFunc("closePlayback")
+            return
+        end if
+    else
+        if state = "playing" or not underrun
+            m.stallEpisodeActive = false
+            m.stallEpisodeCounted = false
+        end if
     end if
 end sub
 
@@ -1138,6 +1205,8 @@ sub playerClosed(event as object)
     if m.player.active = true then return
     if m.view = "live" then return
     if m.view <> "player" then return
+    if m.stallWatchTimer <> invalid then m.stallWatchTimer.control = "stop"
+    m.stallEpisodeActive = false
     ' A source switch requested from the end screen waits for the old decoder
     ' to finish stopping before opening the other independent player instance.
     if type(m.pendingEngineSwitch) = "roAssociativeArray"
