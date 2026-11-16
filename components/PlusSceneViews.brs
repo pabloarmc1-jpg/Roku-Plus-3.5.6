@@ -97,6 +97,7 @@ sub eraseScreen()
     m.heroFactsNode = invalid
     m.heroIndexNode = invalid
     m.heroDots = []
+    m.browseBackdropPoster = invalid
     m.canvas.removeChildrenIndex(m.canvas.getChildCount(),0)
     m.canvas.visible = true
     panel(0,0,1920,1080,"0x080808FF")
@@ -635,7 +636,8 @@ sub browseScreen()
         browseBackdrop = orbitText(selectedBackdrop.background,2048)
         if browseBackdrop = "" then browseBackdrop = orbitText(selectedBackdrop.poster,2048)
     end if
-    if browseBackdrop <> "" then art(browseBackdrop,0,0,1920,1080)
+    m.browseBackdropPoster = invalid
+    if browseBackdrop <> "" then m.browseBackdropPoster = art(browseBackdrop,0,0,1920,1080)
     panel(0,0,1920,1080,"0x080808E8")
     topBar()
 
@@ -1305,6 +1307,18 @@ sub creditsScreen()
     words(m.creditsPages[m.creditsPage],76,245,1760,710,24,"0xE5E5E5FF").wrap = true
     words("Página "+(m.creditsPage+1).toStr()+" / "+m.creditsPages.count().toStr()+" · ↑/↓: cambiar · Atrás: volver",76,1002,1500,40,20,"0x808080FF")
 end sub
+
+function updateBrowseSelection() as boolean
+    if m.view <> "browse" or m.browseBackdropPoster = invalid then return false
+    if m.cursor < 0 or m.cursor >= m.titles.count() then return false
+    selected = m.titles[m.cursor]
+    uri = orbitText(selected.background,2048)
+    if uri = "" then uri = orbitText(selected.poster,2048)
+    if uri = "" then return false
+    m.browseBackdropPoster.uri = themeAsset(uri)
+    paintFocus()
+    return true
+end function
 
 sub paintFocus()
     for each entry in m.focusItems
