@@ -534,3 +534,12 @@
 - Cambio limitado a components/HdCatalogTask.brs. No se modificaron reproductor, selección de proveedores, reanudación, audio, subtítulos ni controles.
 - Commit de código: 0d6d69192d1c02751e3198f3c57a519ffb9e99ef.
 - Estado: revisión estática y verificación del archivo en GitHub; pendiente instalar y probar Rick and Morty en Roku.
+
+
+## Corrección — alias Rick and Morty, 2026-11-16
+
+- La nueva prueba Roku todavía registró CineHax como no-match para el único candidato Rick y Morty (2013).
+- La causa estaba en la normalización: rpHdTaskCinemetaTitleKey elimina espacios y puntuación, por lo que las claves reales son rickandmorty y rickymorty. La primera implementación del alias comparaba cadenas con espacios y nunca podía coincidir.
+- Se corrigieron las claves compactas exactas. Se mantienen las comprobaciones de tipo, año, unicidad e IMDb cuando está disponible.
+- Commit de corrección: ad02034df8aa4bd4f0151eceba7ce6f749b7c317.
+- Estado: código verificado en GitHub; pendiente volver a instalar y probar en Roku.
