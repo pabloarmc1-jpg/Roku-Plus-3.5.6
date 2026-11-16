@@ -3348,6 +3348,8 @@ if m.view = "profiles"
                     m.cover--
                 else if m.discoveryOffset > 0
                     m.discoveryOffset--
+                    drawScreen()
+                    return true
                 else
                     m.zone = "nav"
                     drawScreen()
@@ -3359,6 +3361,8 @@ if m.view = "profiles"
                     m.cover++
                 else if m.cover = 5 and m.discoveryOffset+6 < m.features.count()
                     m.discoveryOffset++
+                    drawScreen()
+                    return true
                 end if
             end if
             if key = "up"
