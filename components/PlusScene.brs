@@ -2599,8 +2599,9 @@ sub settleDiscoveryForFocus()
     if not m.discoveryAnimating then return
     if m.discoveryRotation <> invalid then m.discoveryRotation.control = "stop"
     if type(m.discoveryPosters) = "roArray"
-        for each poster in m.discoveryPosters
-            if poster <> invalid then poster.translation = [0,0]
+        for i = 0 to m.discoveryPosters.count()-1
+            poster = m.discoveryPosters[i]
+            if poster <> invalid then poster.translation = [258+i*270,m.discoveryRowY]
         end for
     end if
     m.discoverySlideStep = 0
@@ -2625,10 +2626,9 @@ sub discoveryRotationTick(event as object)
     end if
 
     m.discoverySlideStep++
-    shift = m.discoverySlideStep * 45
     for i = 0 to 6
         poster = m.discoveryPosters[i]
-        poster.translation = [-shift,0]
+        poster.translation = [poster.translation[0]-45,m.discoveryRowY]
     end for
 
     if m.discoverySlideStep >= 6
@@ -2644,7 +2644,7 @@ sub discoveryRotationTick(event as object)
         nextUri = nextItem.background
         if nextUri = "" then nextUri = nextItem.poster
         recycled.uri = themeAsset(nextUri)
-        recycled.translation = [1620,0]
+        recycled.translation = [1878,m.discoveryRowY]
         nextPosters.push(recycled)
         m.discoveryPosters = nextPosters
         m.discoverySlideStep = 0
@@ -3409,7 +3409,10 @@ if m.view = "profiles"
                 if m.listCover > 0 then m.listCover-- else m.zone = "nav": drawScreen(): return true
             end if
             if key = "right" and m.listCover < m.homeListItems.count()-1 and m.listCover < 5 then m.listCover++
-            if key = "up" then m.zone = "covers"
+            if key = "up"
+                settleDiscoveryForFocus()
+                m.zone = "covers"
+            end if
             if key = "down"
                 if m.homeSeries.count() > 0
                     m.zone = "home-series"
@@ -3533,7 +3536,12 @@ if m.view = "profiles"
             end if
             if key = "right" and m.seriesCover < 2 and m.seriesCover+1 < m.homeSeries.count() then m.seriesCover++
             if key = "up"
-                if m.homeListItems.count() > 0 then m.zone = "home-list" else m.zone = "covers"
+                if m.homeListItems.count() > 0 then
+                    m.zone = "home-list"
+                else
+                    settleDiscoveryForFocus()
+                    m.zone = "covers"
+                end if
             end if
             if key = "OK" and m.homeSeries.count() > 0 then openDetails(m.homeSeries[m.seriesCover],"home"): return true
         end if
