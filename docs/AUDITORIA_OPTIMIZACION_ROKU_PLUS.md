@@ -74,3 +74,9 @@
 - Los archivos más grandes identificados fueron `PlusPlayer.brs`, `PlusScene.brs` y `HdCatalogTask.brs`.
 - Esta lista contiene candidatos y líneas de investigación, no una declaración de que esos archivos o funciones estén sin uso.
 - Estado inicial de esta checklist: todo pendiente; todavía no se han aplicado cambios de optimización de esta auditoría.
+
+### Hallazgos añadidos durante el inicio de la auditoría
+
+- Los dos observadores `progress` por instancia están conectados a callbacks diferentes: `playerProgress` y `livePreviewProgress`. Se conservan; no son duplicados que deban borrarse.
+- `heroRotation` y `discoveryRotation` son temporizadores repetitivos. Sus callbacks salen temprano cuando `m.view <> "home"`, pero el temporizador puede seguir despertando periódicamente fuera de Home. Candidato de optimización: detenerlos al salir de Home y reactivarlos al volver, después de mapear todas las transiciones de vista y probarlas.
+- `catalogFade` y `pageTransition` ya tienen condiciones explícitas de parada; no se cambiarán sin evidencia adicional.
