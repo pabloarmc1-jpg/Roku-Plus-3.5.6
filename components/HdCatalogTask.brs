@@ -199,6 +199,7 @@ function rpHdTaskTvmazeSearchTitle(value as string) as string
     title = value.trim()
     key = lcase(title)
     title = CreateObject("roRegex","\s*\((19|20)[0-9]{2}\)\s*$","").replace(title,"").trim()
+    if key = "avatar: la leyenda de aang" or key = "avatar: la leyenda de aang (2005)" or key = "avatar: the last airbender" or key = "avatar: the last airbender (2005)" then return "Avatar: The Last Airbender"
     if key = "hora de aventura" then return "Adventure Time"
     if key = "ben 10: fuerza alienígena" or key = "ben 10: fuerza alienígena (2008)" then return "Ben 10: Alien Force"
     if key = "ben 10: supremacía alienígena" or key = "ben 10: supremacía alienígena (2010)" then return "Ben 10: Ultimate Alien"
@@ -1980,6 +1981,8 @@ end function
 ' It is intentionally exact; it is not a general fuzzy-title matcher.
 function rpHdTaskLocalizedTitleAliasKey(title as dynamic) as string
     normalized = rpHdTaskCinemetaTitleKey(title)
+    ' Ignore a trailing release year for alias comparison; acceptance still requires an exact year match.
+    normalized = CreateObject("roRegex","(19|20)[0-9]{2}$","").replace(normalized,"")
     ' CinemetaTitleKey removes spaces and punctuation, so compare compact keys.
     if normalized = "rickandmorty" or normalized = "rickymorty" then return "rick-and-morty"
     if normalized = "rick and morty" or normalized = "ricky morty" then return "rick-and-morty"
@@ -1996,7 +1999,7 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
     if candidates.count() = 0 then return false
     if searchQuery.trim() = "" then return false
     discoveryKey = rpHdTaskCinemetaTitleKey(discovery.title)
-    if discoveryKey = "avatarthelastairbender" or discoveryKey = "avatar the last airbender"
+    if rpHdTaskLocalizedTitleAliasKey(discoveryKey) = "avatar-the-last-airbender"
         candidateKey = rpHdTaskCinemetaTitleKey(candidate.title)
         print "[RokuPlus source-match-debug] candidate="; orbitText(candidate.title,100); " kind="; orbitText(candidate.kind,16); " wantedKind="; orbitText(discovery.kind,16); " year="; rpHdTaskCinemetaYear(candidate.year); " wantedYear="; rpHdTaskCinemetaYear(discovery.year); " imdb="; orbitText(candidate.imdbId,24); " wantedImdb="; orbitText(discovery.imdbId,24); " queryKey="; rpHdTaskCinemetaTitleKey(searchQuery); " titleKey="; candidateKey; " alias="; rpHdTaskLocalizedTitleAliasKey(candidateKey)
     end if
@@ -2035,7 +2038,7 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
             end if
         end if
     end for
-    if discoveryTitle = "avatarthelastairbender" or discoveryTitle = "avatar the last airbender"
+    if aliasKey = "avatar-the-last-airbender"
         print "[RokuPlus source-match-debug] aliasKey="; aliasKey; " candidateAlias="; candidateAliasKey; " knownAlias="; isKnownLocalizedAlias; " prefixMatches="; prefixMatches
     end if
     return prefixMatches = 1
