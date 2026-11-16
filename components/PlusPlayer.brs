@@ -754,15 +754,17 @@ sub openRequest()
     m.resumeFailedPosition = invalid
     m.resumeFailedAt = 0
     resumeValue = plusClockValue(supplied.resumePosition)
+    resumeItemIdLog = ""
+    if GetInterface(supplied.itemId, "ifString") <> invalid then resumeItemIdLog = left(supplied.itemId, 180)
     if resumeValue <> invalid and resumeValue > 15 and resumeValue < 172800 and not m.live
         if not m.segmentMode or supplied.tsRelayEnabled = true
             m.resumePending = resumeValue
-            print "[RokuPlus resume] accepted itemId="; orbitText(supplied.itemId,180); " target="; resumeValue; " segmentMode="; m.segmentMode; " nativePlaylist="; m.nativePlaylistMode; " tsRelay="; m.tsRelayMode
+            print "[RokuPlus resume] accepted itemId="; resumeItemIdLog; " target="; resumeValue; " segmentMode="; m.segmentMode; " nativePlaylist="; m.nativePlaylistMode; " tsRelay="; m.tsRelayMode
         else
-            print "[RokuPlus resume] skipped itemId="; orbitText(supplied.itemId,180); " target="; resumeValue; " reason=segment_mode_without_ts_relay"
+            print "[RokuPlus resume] skipped itemId="; resumeItemIdLog; " target="; resumeValue; " reason=segment_mode_without_ts_relay"
         end if
     else
-        print "[RokuPlus resume] unavailable itemId="; orbitText(supplied.itemId,180); " value="; supplied.resumePosition; " live="; m.live
+        print "[RokuPlus resume] unavailable itemId="; resumeItemIdLog; " value="; supplied.resumePosition; " live="; m.live
     end if
     m.titleText.text = "Reproducción"
     if GetInterface(supplied.title, "ifString") <> invalid then m.titleText.text = left(supplied.title, 130)
