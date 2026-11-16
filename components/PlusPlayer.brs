@@ -936,7 +936,7 @@ sub openRequest()
             m.tsPrefetchTask.readyFiles = {}
             m.tsPrefetchTask.stopRequested = false
             m.tsPrefetchTask.status = "starting"
-            if m.tsPrefetchTask.state <> "running" then m.tsPrefetchTask.control = "RUN"
+            if m.tsPrefetchTask.status <> "running" then m.tsPrefetchTask.control = "RUN"
             m.tsStreamServer.prefetchTask = m.tsPrefetchTask
             print "[RokuPlus ts-prefetch] provider=fastream worker=started window=2"
         end if
