@@ -3534,6 +3534,7 @@ if m.view = "profiles"
             return true
         end if
     else if m.view = "detail"
+        previousAction = m.action
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up"
             if m.action > 0 then m.action-- else m.zone = "nav": drawScreen(): return true
@@ -3550,6 +3551,10 @@ if m.view = "profiles"
             else
                 prepareCompatible()
             end if
+            return true
+        end if
+        if previousAction <> m.action
+            paintFocus()
             return true
         end if
     else if m.view = "episodes"
