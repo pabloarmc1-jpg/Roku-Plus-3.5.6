@@ -202,6 +202,14 @@
 - Estado: **validada por el usuario en Roku**. El usuario confirmó que la navegación del teclado funciona; se conserva la actualización de foco mediante `paintFocus()` sin reconstruir la pantalla. No tocar el reproductor.
 
 
+### Resolución de carga de portadas del catálogo (2026-11-15)
+
+- Las diez tarjetas visibles mantienen sus dimensiones visuales de 292×250.
+- Las imágenes de esas tarjetas ahora se decodifican a 256×219 mediante las dimensiones opcionales de `art()`, tanto con la transición de entrada como sin ella. Esto reduce aproximadamente un 23% los píxeles decodificados por portada, sin cambiar el tamaño en pantalla ni el flujo de foco.
+- No se modificaron portadas de Home, fichas, fondos, búsqueda ni reproductor.
+- Cambio en `components/PlusSceneViews.brs`, commit `2d482c3`.
+- Estado: **pendiente compilar y probar en Roku**. Revisar nitidez de las portadas en ambas filas, carga inicial, cambio de páginas y foco. Si se ven borrosas en el televisor, volver a cargar a 292×250.
+
 ### Carga del fondo de la cuadrícula del catálogo (2026-11-15)
 
 - La función compartida `art()` ahora admite dimensiones de carga opcionales; todas las llamadas existentes mantienen su comportamiento porque los valores predeterminados siguen siendo las dimensiones visuales del Poster.
