@@ -105,7 +105,7 @@ function rpHdOnlineArt(raw as dynamic, provider as string) as string
     return ""
 end function
 
-function rpHdOnlineGenres(raw as dynamic) as object
+function rpHdOnlineGenres(raw as dynamic, kind = "movie" as string) as object
     values = []
     if type(raw) <> "roAssociativeArray" then return values
     source = raw.genres
@@ -115,7 +115,7 @@ function rpHdOnlineGenres(raw as dynamic) as object
             name = ""
             if GetInterface(entry,"ifString") <> invalid
                 name = lcase(left(entry.trim(),60))
-            else if type(entry) = "roAssociativeArray" and GetInterface(entry.name,"ifString") <> invalid
+            else if type(entry) = "roAssociativeArray" and entry.doesExist("name") and GetInterface(entry.name,"ifString") <> invalid
                 name = lcase(left(entry.name.trim(),60))
             end if
             if name <> ""
@@ -129,6 +129,39 @@ function rpHdOnlineGenres(raw as dynamic) as object
     else if GetInterface(source,"ifString") <> invalid
         name = lcase(left(source.trim(),120))
         if name <> "" then values.push(name)
+    end if
+
+    ' Some TMDB-backed provider responses expose genre_ids instead of names.
+    ' Translate only documented numeric IDs; never infer a genre from a title.
+    ids = raw.genre_ids
+    if type(ids) = "roArray"
+        movieGenres = [
+            [28,"action"],[12,"adventure"],[16,"animation"],[35,"comedy"],
+            [80,"crime"],[99,"documentary"],[18,"drama"],[10751,"family"],
+            [14,"fantasy"],[36,"history"],[27,"horror"],[10402,"music"],
+            [9648,"mystery"],[10749,"romance"],[878,"science fiction"],
+            [10770,"tv movie"],[53,"thriller"],[10752,"war"],[37,"western"]
+        ]
+        tvGenres = [
+            [10759,"action"],[16,"animation"],[35,"comedy"],[80,"crime"],
+            [99,"documentary"],[18,"drama"],[10751,"family"],[10762,"kids"],
+            [9648,"mystery"],[10763,"news"],[10764,"reality"],[10765,"science fiction"],
+            [10766,"soap"],[10767,"talk"],[10768,"war"],[37,"western"]
+        ]
+        genreMap = movieGenres
+        if kind = "series" then genreMap = tvGenres
+        for each rawId in ids
+            id = orbitInteger(rawId,999999)
+            for each genrePair in genreMap
+                if id = genrePair[0]
+                    exists = false
+                    for each current in values
+                        if current = genrePair[1] then exists = true
+                    end for
+                    if not exists then values.push(genrePair[1])
+                end if
+            end for
+        end for
     end if
     return values
 end function
@@ -153,7 +186,7 @@ function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as d
         library: "hd-online", title: title, description: orbitText(raw.overview)
         poster: rpHdOnlineArt(images.poster,provider), background: rpHdOnlineArt(images.backdrop,provider)
         year: left(orbitText(raw.release_date,32),4), runtime: int(runtime*60)
-        genres: rpHdOnlineGenres(raw), language: "", seasons: []
+        genres: rpHdOnlineGenres(raw,kind), language: "", seasons: []
     }
 end function
 
