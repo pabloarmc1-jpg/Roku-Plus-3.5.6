@@ -373,7 +373,7 @@ sub searchKeyboardScreen()
         previewBackground = ""
         if previewItem.doesExist("background") then previewBackground = orbitText(previewItem.background,2048)
         if previewBackground = "" and previewItem.doesExist("poster") then previewBackground = orbitText(previewItem.poster,2048)
-        if previewBackground <> "" then art(previewBackground,0,0,1920,1080)
+        if previewBackground <> "" then art(previewBackground,0,0,1920,1080,"scaleToFill",960,540)
         panel(0,0,1920,1080,"0x080808D8")
     else
         panel(0,0,1920,1080,"0x080808FF")
