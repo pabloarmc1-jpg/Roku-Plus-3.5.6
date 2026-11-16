@@ -563,7 +563,9 @@ sub fetched(event as object)
             m.catalogFadePending = false
         end if
         if context.operation = "search" then m.catalogFadePending = false
-        m.zone = "grid"
+        ' Keep the category strip focused after an asynchronous category refresh.
+        ' If the user moved down while loading, preserve the grid focus instead.
+        if m.zone <> "categories" then m.zone = "grid"
         if answer.partial = true then m.note = "Una fuente no respondió. Se muestran las opciones disponibles."
     else if context.operation = "meta"
         ' Keep the original catalog identity when a provider metadata adapter
@@ -2893,7 +2895,7 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
         m.nextOffset = 0
         m.more = false
         m.cursor = 0
-        m.zone = "grid"
+        if m.zone <> "categories" then m.zone = "grid"
         drawScreen()
     else
         browseOperation = "catalog"
@@ -2933,7 +2935,7 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
                 if last then m.cursor = m.titles.count()-1
                 if m.cursor < 0 then m.cursor = 0
                 m.catalogFadePending = false
-                m.zone = "grid"
+                if m.zone <> "categories" then m.zone = "grid"
                 m.note = ""
                 drawScreen()
                 return
@@ -3766,7 +3768,8 @@ if m.view = "profiles"
                 m.more = false
                 m.cursor = 0
                 m.note = ""
-                m.zone = "grid"
+                ' Selecting another category must not move focus to the poster grid.
+                m.zone = "categories"
                 if m.catalogMode = "hd" and not usesOnlineHd()
                     applyGenreFilter()
                     drawScreen()
