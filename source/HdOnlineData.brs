@@ -1431,9 +1431,7 @@ function rpHdCinemetaEnrichAnswer(answer as object, request as object, fetcher a
         if queryLimit > 4 then queryLimit = 4
         for queryIndex = 0 to queryLimit-1
             queryTitle = orbitText(variants[queryIndex],200).trim()
-            if queryTitle = "" then
-                ' Ignore empty aliases.
-            else
+            if queryTitle <> "" then
                 transfer = CreateObject("roUrlTransfer")
                 searchUrl = "https://v3-cinemeta.strem.io/catalog/"+mediaKind+"/top/search="+transfer.Escape(queryTitle)+".json"
                 if m.top.operation <> "catalog" then rpHdTaskBeginSlice(3)
