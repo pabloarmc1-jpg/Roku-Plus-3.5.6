@@ -131,6 +131,7 @@ sub init()
     m.liveCursor = 0
     m.season = 0
     m.episode = 0
+    m.pendingResumeEpisode = invalid
     m.episodeMode = "seasons"
     m.detail = invalid
     m.series = invalid
@@ -526,6 +527,7 @@ sub fetched(event as object)
             m.episodeMode = "episodes"
             m.view = "episodes"
             m.zone = "seasons"
+            selectLastWatchedEpisode()
         end if
     else if context.operation = "resolve" or context.operation = "resume-episode"
         if context.operation = "resume-episode" and type(answer.item) = "roAssociativeArray"
@@ -557,6 +559,7 @@ sub fetched(event as object)
             end for
         end for
         m.episode = 0
+        if m.view = "episodes" then applyPendingResumeEpisode()
         if m.view = "player" and m.endScreenNextEpisodePending
             for each seasonEntry in m.series.seasons
                 if seasonEntry.number = context.season then seasonEntry.loaded = true
@@ -2779,9 +2782,77 @@ sub enterEpisodes()
         m.episodeMode = "episodes"
         m.view = "episodes"
         m.zone = "seasons"
+        selectLastWatchedEpisode()
     end if
     drawScreen()
     if m.view = "episodes" then loadEpisodeSeason()
+end sub
+
+function rpWatchLastEpisodeForSeries(series as object) as dynamic
+    if type(series) <> "roAssociativeArray" or type(m.watchState) <> "roArray" then return invalid
+    seriesId = orbitText(series.id,180)
+    seriesImdbId = orbitText(series.imdbId,180)
+    seriesTitle = lcase(orbitText(series.title,180))
+    seriesProvider = lcase(orbitText(series.provider,32))
+    for each saved in m.watchState
+        if type(saved) = "roAssociativeArray" and orbitText(saved.kind,20) = "episode"
+            if not saved.doesExist("season") or not saved.doesExist("episode") then goto nextSavedEpisode
+            matches = false
+            savedSeriesId = orbitText(saved.seriesId,180)
+            savedImdbId = orbitText(saved.imdbId,180)
+            if seriesId <> "" and savedSeriesId = seriesId then matches = true
+            if seriesId <> "" and savedImdbId = seriesId then matches = true
+            if seriesImdbId <> "" and savedImdbId = seriesImdbId then matches = true
+            if not matches and seriesTitle <> ""
+                savedTitle = lcase(orbitText(saved.seriesTitle,180))
+                savedProvider = lcase(orbitText(saved.provider,32))
+                if savedTitle = seriesTitle and savedProvider = seriesProvider and seriesProvider <> "" then matches = true
+            end if
+            if matches then return saved
+        end if
+        nextSavedEpisode:
+    end for
+    return invalid
+end function
+
+sub selectLastWatchedEpisode()
+    if m.series = invalid then return
+    m.pendingResumeEpisode = invalid
+    saved = rpWatchLastEpisodeForSeries(m.series)
+    if type(saved) <> "roAssociativeArray" then return
+    targetSeason = orbitInteger(saved.season,999,-1)
+    targetEpisode = orbitInteger(saved.episode,9999,-1)
+    if targetSeason < 0 or targetEpisode < 0 then return
+    for i = 0 to m.series.seasons.count()-1
+        if m.series.seasons[i].number = targetSeason
+            m.season = i
+            m.episode = 0
+            m.pendingResumeEpisode = {season:targetSeason,episode:targetEpisode}
+            m.zone = "episodes"
+            applyPendingResumeEpisode()
+            print "[RokuPlus series] last-watched-selection season="; targetSeason; " episode="; targetEpisode; " loaded="; m.series.seasons[i].loaded
+            return
+        end if
+    end for
+end sub
+
+sub applyPendingResumeEpisode()
+    if type(m.pendingResumeEpisode) <> "roAssociativeArray" or m.series = invalid then return
+    if m.season < 0 or m.season >= m.series.seasons.count() then return
+    season = m.series.seasons[m.season]
+    if season.number <> m.pendingResumeEpisode.season then return
+    if season.loaded <> true then return
+    for i = 0 to season.episodes.count()-1
+        if orbitInteger(season.episodes[i].episode,9999,-1) = m.pendingResumeEpisode.episode
+            m.episode = i
+            m.zone = "episodes"
+            print "[RokuPlus series] last-watched-focused index="; i
+            m.pendingResumeEpisode = invalid
+            return
+        end if
+    end for
+    print "[RokuPlus series] last-watched-not-found season="; season.number; " episode="; m.pendingResumeEpisode.episode
+    m.pendingResumeEpisode = invalid
 end sub
 
 function rpIsOnlineHdItem(item as dynamic) as boolean
