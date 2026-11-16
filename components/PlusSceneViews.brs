@@ -223,7 +223,35 @@ sub topBar()
 end sub
 
 
+sub syncHomeRotationTimers()
+    isHome = m.view = "home" and m.plusExperience <> invalid and m.plusExperience.visible
+    wantsHero = isHome and type(m.features) = "roArray" and m.features.count() > 1
+    wantsDiscovery = isHome and type(m.features) = "roArray" and m.features.count() > 6
+
+    if wantsHero
+        if not m.heroRotationActive and m.heroRotation <> invalid
+            m.heroRotation.control = "start"
+            m.heroRotationActive = true
+        end if
+    else
+        if m.heroRotationActive and m.heroRotation <> invalid then m.heroRotation.control = "stop"
+        m.heroRotationActive = false
+    end if
+
+    if wantsDiscovery
+        if not m.discoveryRotationActive and m.discoveryRotation <> invalid
+            m.discoveryRotation.duration = 3.5
+            m.discoveryRotation.control = "start"
+            m.discoveryRotationActive = true
+        end if
+    else
+        if m.discoveryRotationActive and m.discoveryRotation <> invalid then m.discoveryRotation.control = "stop"
+        m.discoveryRotationActive = false
+    end if
+end sub
+
 sub drawScreen()
+    syncHomeRotationTimers()
     if m.view = "player" then return
     previousView = m.lastRenderedView
     pageChanged = previousView <> invalid and previousView <> m.view and previousView <> "player"
