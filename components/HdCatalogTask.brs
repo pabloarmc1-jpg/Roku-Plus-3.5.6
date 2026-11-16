@@ -1126,7 +1126,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         embed = embeds[embedIndex]
         embedUrl = orbitText(embed.url,2048)
         answer.sourceHost = "other"
-        if CreateObject("roRegex","^https://fastream\\.to/(embed-)?[a-zA-Z0-9_-]+(\\.html)?$","i").isMatch(embedUrl)
+        if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","i").isMatch(embedUrl)
             answer.sourceHost = "fastream"
         end if
         ' Only VOE is routed to the dedicated host-player instance for now.
