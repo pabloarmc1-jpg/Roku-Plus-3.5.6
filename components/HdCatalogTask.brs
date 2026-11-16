@@ -55,14 +55,23 @@ sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dyna
             if type(data) = "roAssociativeArray" and type(data.metas) = "roArray"
                 match = invalid
                 matchCount = 0
+                metaCount = data.metas.count()
                 itemKey = rpHdTaskCinemetaTitleKey(title)
                 itemYear = rpHdTaskCinemetaYear(item.year)
+                print "[RokuPlus cinemeta debug] query="; title; " key="; itemKey; " year="; itemYear; " metas="; metaCount
+                debugMetaCount = 0
                 for each meta in data.metas
                     if type(meta) = "roAssociativeArray"
                         metaKey = rpHdTaskCinemetaTitleKey(meta.name)
                         metaYear = rpHdTaskCinemetaYear(meta.year)
                         if metaYear = "" then metaYear = rpHdTaskCinemetaYear(meta.releaseInfo)
-                        if metaKey = itemKey and type(meta.genres) = "roArray" and meta.genres.count() > 0
+                        metaGenreCount = 0
+                        if type(meta.genres) = "roArray" then metaGenreCount = meta.genres.count()
+                        if debugMetaCount < 3
+                            print "[RokuPlus cinemeta debug] result="; orbitText(meta.name,100); " key="; metaKey; " year="; metaYear; " genres="; metaGenreCount
+                            debugMetaCount++
+                        end if
+                        if metaKey = itemKey and metaGenreCount > 0
                             yearMatches = itemYear = "" or metaYear = itemYear
                             if yearMatches
                                 match = meta
@@ -71,6 +80,7 @@ sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dyna
                         end if
                     end if
                 end for
+                print "[RokuPlus cinemeta debug] exact_matches="; matchCount; " query="; title
                 ' Without a year, only accept an unambiguous exact-title result.
                 if matchCount = 1
                     if type(item.genres) <> "roArray" then item.genres = []
