@@ -1776,7 +1776,14 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             else
                 matches = []
                 for each candidate in catalog.items
-                    if rpHdTaskSameDiscoveryItem(item,candidate,searchQuery) then matches.push(candidate)
+                    if rpHdTaskSameDiscoveryItem(item,candidate,searchQuery)
+                        matches.push(candidate)
+                    else if rpHdTaskSameDiscoveryYearUnique(item,candidate,catalog.items,searchQuery)
+                        ' A provider may return its localized title for an exact title search.
+                        ' Accept only a single search result with the same content type and exact year.
+                        matches.push(candidate)
+                        print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=localized-year-match title="; orbitText(candidate.title,100); " year="; orbitText(candidate.year,12)
+                    end if
                 end for
                 if matches.count() = 1
                     candidate = matches[0]
@@ -1815,6 +1822,21 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     answer.message = "No se encontró una fuente compatible para este título. Prueba otro título o inténtalo más tarde."
     if failures = providers.count() then answer.message = "Las fuentes no respondieron. Inténtalo de nuevo más tarde."
     return answer
+end function
+
+function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dynamic, candidates as dynamic, searchQuery as string) as boolean
+    if type(discovery) <> "roAssociativeArray" or type(candidate) <> "roAssociativeArray" or type(candidates) <> "roArray" then return false
+    if candidates.count() <> 1 then return false
+    if searchQuery.trim() = "" then return false
+    if orbitText(discovery.kind,16) <> orbitText(candidate.kind,16) then return false
+    wantedYear = rpHdTaskCinemetaYear(discovery.year)
+    candidateYear = rpHdTaskCinemetaYear(candidate.year)
+    if wantedYear = "" or candidateYear = "" or wantedYear <> candidateYear then return false
+    wantedImdb = lcase(orbitText(discovery.imdbId,40))
+    candidateImdb = lcase(orbitText(candidate.imdbId,40))
+    if wantedImdb <> "" and candidateImdb <> "" and wantedImdb <> candidateImdb then return false
+    if rpHdTaskCinemetaTitleKey(candidate.title) = "" then return false
+    return true
 end function
 
 function rpHdTaskSameDiscoveryItem(discovery as dynamic, candidate as dynamic, searchQuery as string) as boolean
