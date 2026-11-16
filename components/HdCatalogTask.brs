@@ -1738,9 +1738,30 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         answer.message = "El título no tiene metadatos válidos."
         return answer
     end if
-    kind = orbitText(item.kind,16)
+    requestedKind = orbitText(item.kind,16)
+    isEpisode = requestedKind = "episode"
+    kind = requestedKind
+    discovery = item
+    if isEpisode
+        kind = "series"
+        seriesTitle = orbitText(item.seriesTitle,200).trim()
+        if seriesTitle = ""
+            answer.message = "No se conserva el título de la serie para buscar otra fuente de este episodio."
+            return answer
+        end if
+        discovery = {
+            kind:"series",title:seriesTitle,year:orbitText(item.year,32)
+            imdbId:orbitText(item.seriesImdbId,40),searchQuery:orbitText(item.seriesSearchQuery,200)
+        }
+    end if
     if kind <> "movie" and kind <> "series"
         answer.message = "No se puede buscar una fuente para este contenido."
+        return answer
+    end if
+    seasonNumber = orbitInteger(item.season,999,-1)
+    episodeNumber = orbitInteger(item.episode,9999)
+    if isEpisode and (seasonNumber < 0 or episodeNumber < 1)
+        answer.message = "No se conserva la temporada y el número de episodio para buscar otra fuente."
         return answer
     end if
     if type(sources) <> "roArray" then sources = rpHdOnlineProviderIds()
@@ -1757,13 +1778,11 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         return answer
     end if
     searchQueries = []
-    originalQuery = orbitText(item.searchQuery,200).trim()
-    cinemetaTitle = orbitText(item.title,200).trim()
+    originalQuery = orbitText(discovery.searchQuery,200).trim()
+    cinemetaTitle = orbitText(discovery.title,200).trim()
     searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,originalQuery)
     searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,cinemetaTitle)
-    ' Some provider search indexes tokenize the release year separately.
-    ' Try that spelling only after the plain title, without relaxing identity checks.
-    discoveryYear = rpHdTaskCinemetaYear(item.year)
+    discoveryYear = rpHdTaskCinemetaYear(discovery.year)
     if cinemetaTitle <> "" and discoveryYear <> ""
         yearQuery = cinemetaTitle+" "+discoveryYear
         searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,yearQuery)
@@ -1773,12 +1792,9 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         return answer
     end if
     failures = 0
-    print "[RokuPlus source-search] start kind="; kind; " title="; cinemetaTitle; " year="; discoveryYear; " providers="; providers.count(); " queries="; searchQueries.count()
-    print "[RokuPlus source-search-debug] itemType="; type(item); " titleKey="; rpHdTaskCinemetaTitleKey(item.title); " kind="; orbitText(item.kind,16); " year="; rpHdTaskCinemetaYear(item.year); " searchQuery="; orbitText(item.searchQuery,160)
+    print "[RokuPlus source-search] start kind="; kind; " episode="; isEpisode; " title="; cinemetaTitle; " year="; discoveryYear; " providers="; providers.count(); " queries="; searchQueries.count()
     for providerIndex = 0 to providers.count()-1
         if m.top.cancelRequested then exit for
-        ' Start a fresh fair-share deadline for every provider. A previous
-        ' provider timing out must not prevent the next provider from running.
         rpHdTaskBeginSlice(providers.count()-providerIndex)
         if rpHdTaskSliceExpired() then exit for
         source = providers[providerIndex]
@@ -1800,16 +1816,10 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             else
                 matches = []
                 for each candidate in catalog.items
-                    print "[RokuPlus source-search-debug-candidate] provider="; source; " query="; orbitText(searchQuery,100); " titleKey="; rpHdTaskCinemetaTitleKey(item.title); " candidateType="; type(candidate); " candidateTitle="; orbitText(candidate.title,100); " candidateYear="; rpHdTaskCinemetaYear(candidate.year)
-                    if rpHdTaskCinemetaTitleKey(item.title) = "avatarthelastairbender" or rpHdTaskCinemetaTitleKey(item.title) = "avatar the last airbender"
-                        print "[RokuPlus avatar-match-trace] provider="; source; " query="; searchQuery; " discoveryTitle="; orbitText(item.title,100); " discoveryKind="; orbitText(item.kind,16); " discoveryYear="; rpHdTaskCinemetaYear(item.year); " candidateTitle="; orbitText(candidate.title,100); " candidateKind="; orbitText(candidate.kind,16); " candidateYear="; rpHdTaskCinemetaYear(candidate.year); " exactTitleKey="; rpHdTaskCinemetaTitleKey(candidate.title); " queryKey="; rpHdTaskCinemetaTitleKey(searchQuery)
-                    end if
-                    exactDiscoveryMatch = rpHdTaskSameDiscoveryItem(item,candidate,searchQuery)
+                    exactDiscoveryMatch = rpHdTaskSameDiscoveryItem(discovery,candidate,searchQuery)
                     if exactDiscoveryMatch
                         matches.push(candidate)
-                    else if rpHdTaskSameDiscoveryYearUnique(item,candidate,catalog.items,searchQuery)
-                        ' A provider may return its localized title for an exact title search.
-                        ' Accept only a single search result with the same content type and exact year.
+                    else if rpHdTaskSameDiscoveryYearUnique(discovery,candidate,catalog.items,searchQuery)
                         matches.push(candidate)
                         print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=localized-year-match title="; orbitText(candidate.title,100); " year="; orbitText(candidate.year,12)
                     end if
@@ -1820,13 +1830,16 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     if kind = "series" then operation = "meta"
                     sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99)}
                     sourceAnswer = rpHdTaskExecute(sourceRequest,fetcher,decoderAccept,sources)
+                    if sourceAnswer.ok and isEpisode
+                        sourceSeries = sourceAnswer.item
+                        sourceAnswer = rpHdTaskResolveAlternateEpisode(sourceSeries,item,source,answer.requestId,request,fetcher,decoderAccept,sources)
+                    end if
                     if sourceAnswer.ok
                         sourceAnswer.operation = "find-source"
                         sourceAnswer.requestId = answer.requestId
                         sourceAnswer.sourceProvider = source
-                        if kind = "movie" or type(sourceAnswer.item) <> "roAssociativeArray" then sourceAnswer.item = candidate
-                        print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=matched kind="; kind
-                        print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
+                        if not isEpisode and (kind = "movie" or type(sourceAnswer.item) <> "roAssociativeArray") then sourceAnswer.item = candidate
+                        print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=matched kind="; kind; " episode="; isEpisode
                         print "[RokuPlus source-search] finish result=matched provider="; source
                         return sourceAnswer
                     end if
@@ -1840,24 +1853,65 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 else
                     providerNoMatches++
                     print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=no-match candidates="; catalog.items.count()
-                    diagnosticCount = 0
-                    for each diagnosticCandidate in catalog.items
-                        if diagnosticCount >= 3 then exit for
-                        if type(diagnosticCandidate) = "roAssociativeArray"
-                            print "[RokuPlus source-search-candidate] provider="; source; " title="; orbitText(diagnosticCandidate.title,100); " kind="; orbitText(diagnosticCandidate.kind,16); " year="; orbitText(diagnosticCandidate.year,12); " imdb="; orbitText(diagnosticCandidate.imdbId,24)
-                            diagnosticCount++
-                        end if
-                    end for
                 end if
             end if
         end for
         print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
         if providerFailed then failures++
     end for
-    answer.message = "No se encontró una fuente compatible para este título. Prueba otro título o inténtalo más tarde."
+    if isEpisode
+        answer.message = "No se encontró otra fuente para el episodio "+seasonNumber.toStr()+"x"+episodeNumber.toStr()+"."
+    else
+        answer.message = "No se encontró una fuente compatible para este título. Prueba otro título o inténtalo más tarde."
+    end if
     if failures = providers.count() then answer.message = "Las fuentes no respondieron. Inténtalo de nuevo más tarde."
     print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
+end function
+
+function rpHdTaskResolveAlternateEpisode(series as dynamic, originalEpisode as object, provider as string, requestId as string, request as object, fetcher as dynamic, decoderAccept as dynamic, sources as dynamic) as object
+    answer = {ok:false,cancelled:false,requestId:requestId,operation:"find-source",provider:provider,message:"No se encontró ese episodio en la fuente alternativa."}
+    if type(series) <> "roAssociativeArray" then return answer
+    seasonNumber = orbitInteger(originalEpisode.season,999,-1)
+    episodeNumber = orbitInteger(originalEpisode.episode,9999)
+    if seasonNumber < 0 or episodeNumber < 1 then return answer
+    rpHdTaskBeginSlice(2)
+    episodeRequest = {operation:"episodes",kind:"series",provider:provider,item:series,season:seasonNumber,requestId:requestId}
+    episodeAnswer = rpHdTaskExecute(episodeRequest,fetcher,decoderAccept,sources)
+    if not episodeAnswer.ok
+        answer.message = orbitText(episodeAnswer.message,240)
+        if answer.message = "" then answer.message = "No se pudo cargar la temporada de la fuente alternativa."
+        answer.cancelled = episodeAnswer.cancelled
+        return answer
+    end if
+    matchingEpisode = invalid
+    for each seasonEntry in episodeAnswer.seasons
+        if type(seasonEntry) = "roAssociativeArray" and orbitInteger(seasonEntry.number,999,-1) = seasonNumber and type(seasonEntry.episodes) = "roArray"
+            for each candidateEpisode in seasonEntry.episodes
+                if type(candidateEpisode) = "roAssociativeArray" and orbitInteger(candidateEpisode.season,999,-1) = seasonNumber and orbitInteger(candidateEpisode.episode,9999) = episodeNumber
+                    matchingEpisode = candidateEpisode
+                    exit for
+                end if
+            end for
+        end if
+        if matchingEpisode <> invalid then exit for
+    end for
+    if matchingEpisode = invalid
+        answer.message = "La fuente alternativa no contiene el episodio "+seasonNumber.toStr()+"x"+episodeNumber.toStr()+"."
+        return answer
+    end if
+    print "[RokuPlus source-fallback] episode-match provider="; provider; " season="; seasonNumber; " episode="; episodeNumber; " id="; orbitText(matchingEpisode.id,160)
+    rpHdTaskBeginSlice(2)
+    resolveRequest = {operation:"resolve",kind:"episode",provider:provider,item:matchingEpisode,requestId:requestId,attempt:orbitInteger(request.attempt,99)}
+    resolved = rpHdTaskExecute(resolveRequest,fetcher,decoderAccept,sources)
+    if resolved.ok
+        resolved.item = matchingEpisode
+        resolved.sourceFallback = true
+        resolved.sourceProvider = provider
+        print "[RokuPlus source-fallback] episode-resolved provider="; provider
+        return resolved
+    end if
+    return resolved
 end function
 
 function rpHdTaskHasTitleSuffixBoundary(baseTitle as string, fullTitle as string) as boolean
