@@ -3522,7 +3522,11 @@ if m.view = "profiles"
         if m.season <> previousSeason
             drawScreen()
         else if m.zone <> previousZone
-            paintFocus()
+            if m.zone = "nav" or previousZone = "nav"
+                drawScreen()
+            else
+                paintFocus()
+            end if
         else if m.zone = "episodes" and previousEpisode <> m.episode
             if (previousEpisode \\ 4) = (m.episode \\ 4)
                 paintFocus()
