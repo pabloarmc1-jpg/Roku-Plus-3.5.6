@@ -474,7 +474,7 @@ sub homeScreen()
         item = m.features[heroIndex]
         heroUri = item.background
         if heroUri = "" then heroUri = item.poster
-        if heroUri <> "" then m.heroBackgroundPoster = art(heroUri,0,0,1920,1080)
+        if heroUri <> "" then m.heroBackgroundPoster = art(heroUri,0,0,1920,1080,"scaleToFill",1600,900)
         art("pkg:/images/ui/hero-shade.png",0,0,1920,1080)
         panel(0,112,1920,8,"0xFFFFFF12")
         featureCount = m.features.count()
