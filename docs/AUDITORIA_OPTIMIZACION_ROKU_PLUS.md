@@ -482,3 +482,12 @@
 - No se modifican el reproductor, los controles, el motor, audio, subtítulos ni reanudación.
 - Código: commit `30d7a3e` en `components/PlusScene.brs`.
 - Estado: cambio guardado y revisado estáticamente; pendiente instalar/compilar y validar el cambio de géneros en Roku.
+
+
+### Corrección de salto al entrar a la cuadrícula desde categorías (2026-11-15)
+- Se identificó que una pulsación mantenida de Abajo podía generar eventos repetidos: el primero cambiaba de `categories` a `grid` y el siguiente avanzaba cinco posiciones en la cuadrícula.
+- Se añade una protección temporal que consume las repeticiones de esa misma pulsación hasta recibir la liberación de la tecla.
+- Una nueva pulsación de Abajo ya navega normalmente por la cuadrícula.
+- No se cambia la distribución de portadas, el tamaño de filas/columnas, los filtros ni el reproductor.
+- Código: commit `7aa8aa6` en `components/PlusScene.brs`.
+- Estado: guardado y revisado estáticamente; pendiente validar en Roku.
