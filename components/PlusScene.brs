@@ -99,6 +99,7 @@ sub init()
     m.searchText = ""
     m.searchCursor = 0
     m.searchSuggestions = []
+    m.searchCache = {key:"",items:[],clock:invalid}
     m.searchDeleteHeld = false
     m.searchDeleteCleared = false
     m.searchOriginView = "home"
@@ -466,6 +467,13 @@ sub fetched(event as object)
         end if
     else if context.operation = "catalog" or context.operation = "search"
         if context.operation = "search"
+            if answer.partial <> true and answer.items.count() > 0
+                cacheQuery = lcase(orbitText(context.query,120))
+                if cacheQuery <> ""
+                    m.searchCache = {key:m.catalogMode + "|" + m.hdProvider + "|all|" + cacheQuery,items:answer.items,clock:CreateObject("roTimespan")}
+                    m.searchCache.clock.mark()
+                end if
+            end if
             m.pageTitles = orbitUniqueCatalogItems(answer.items)
             applyGenreFilter()
             m.offset = 0
@@ -1591,6 +1599,22 @@ sub submitGlobalSearch()
         loadBrowsePage(0)
     else
         m.kind = "movie"
+        cacheKey = m.catalogMode + "|" + m.hdProvider + "|all|" + searchQuery
+        if type(m.searchCache) = "roAssociativeArray" and m.searchCache.key = cacheKey and m.searchCache.clock <> invalid
+            cacheAge = m.searchCache.clock.totalMilliseconds()
+            if cacheAge >= 0 and cacheAge < 120000
+                m.pageTitles = orbitUniqueCatalogItems(m.searchCache.items)
+                applyGenreFilter()
+                m.offset = 0
+                m.nextOffset = 0
+                m.more = false
+                m.cursor = 0
+                m.note = ""
+                drawScreen()
+                m.top.setFocus(true)
+                return
+            end if
+        end if
         fetch({operation:"search",kind:"all",query:searchQuery,offset:0})
     end if
     drawScreen()
