@@ -62,83 +62,83 @@ sub rpHdTaskEnrichCatalogGenres(items as object, kind as string, fetcher as dyna
             rpHdTaskBeginSlice(remaining)
             if rpHdTaskSliceExpired() then exit for
             transfer = CreateObject("roUrlTransfer")
-        escapedTitle = transfer.escape(searchTitle)
-        endpoint = "https://v3-cinemeta.strem.io/catalog/"+kind+"/top/search="+escapedTitle+".json"
-        response = fetcher(endpoint,"cinemeta","")
-        attempted++
-        if response.cancelled then exit for
-        if rpHdTaskSliceExpired() then exit for
-        if response.ok
-            data = ParseJson(response.body)
-            if type(data) = "roAssociativeArray" and type(data.metas) = "roArray"
-                exactMatch = invalid
-                exactCount = 0
-                yearMatch = invalid
-                yearCount = 0
-                itemKey = rpHdTaskCinemetaTitleKey(searchTitle)
-                itemYear = rpHdTaskCinemetaYear(item.year)
-                for each meta in data.metas
-                    if type(meta) = "roAssociativeArray"
-                        metaKey = rpHdTaskCinemetaTitleKey(meta.name)
-                        metaYear = rpHdTaskCinemetaYear(meta.year)
-                        if metaYear = "" then metaYear = rpHdTaskCinemetaYear(meta.releaseInfo)
-                        metaId = orbitText(meta.id,80)
-                        if metaKey = itemKey and metaId <> ""
-                            exactMatch = meta
-                            exactCount++
-                        end if
-                        if itemYear <> "" and metaYear = itemYear and metaId <> ""
-                            yearMatch = meta
-                            yearCount++
-                        end if
-                    end if
-                end for
-                match = invalid
-                if exactCount = 1
-                    match = exactMatch
-                else if exactCount = 0 and itemYear <> "" and yearCount = 1
-                    ' Localized titles can differ; accept only one search result for the exact year.
-                    match = yearMatch
-                end if
-                if match <> invalid and not rpHdTaskSliceExpired()
-                    metaId = orbitText(match.id,80)
-                    if CreateObject("roRegex","^tt[0-9]{6,12}$","").isMatch(metaId)
-                        metaEndpoint = "https://v3-cinemeta.strem.io/meta/"+kind+"/"+metaId+".json"
-                        metaResponse = fetcher(metaEndpoint,"cinemeta","")
-                        metaRequests++
-                        if metaResponse.cancelled then exit for
-                        if metaResponse.ok
-                            detailData = ParseJson(metaResponse.body)
-                            detail = invalid
-                            if type(detailData) = "roAssociativeArray"
-                                if type(detailData.meta) = "roAssociativeArray"
-                                    detail = detailData.meta
-                                else
-                                    detail = detailData
-                                end if
+            escapedTitle = transfer.escape(searchTitle)
+            endpoint = "https://v3-cinemeta.strem.io/catalog/"+kind+"/top/search="+escapedTitle+".json"
+            response = fetcher(endpoint,"cinemeta","")
+            attempted++
+            if response.cancelled then exit for
+            if rpHdTaskSliceExpired() then exit for
+            if response.ok
+                data = ParseJson(response.body)
+                if type(data) = "roAssociativeArray" and type(data.metas) = "roArray"
+                    exactMatch = invalid
+                    exactCount = 0
+                    yearMatch = invalid
+                    yearCount = 0
+                    itemKey = rpHdTaskCinemetaTitleKey(searchTitle)
+                    itemYear = rpHdTaskCinemetaYear(item.year)
+                    for each meta in data.metas
+                        if type(meta) = "roAssociativeArray"
+                            metaKey = rpHdTaskCinemetaTitleKey(meta.name)
+                            metaYear = rpHdTaskCinemetaYear(meta.year)
+                            if metaYear = "" then metaYear = rpHdTaskCinemetaYear(meta.releaseInfo)
+                            metaId = orbitText(meta.id,80)
+                            if metaKey = itemKey and metaId <> ""
+                                exactMatch = meta
+                                exactCount++
                             end if
-                            if type(detail) = "roAssociativeArray" and type(detail.genres) = "roArray" and detail.genres.count() > 0
-                                if type(item.genres) <> "roArray" then item.genres = []
-                                beforeCount = item.genres.count()
-                                for each genre in detail.genres
-                                    if GetInterface(genre,"ifString") <> invalid
-                                        genreName = lcase(genre.trim())
-                                        if genreName <> ""
-                                            found = false
-                                            for each savedGenre in item.genres
-                                                if GetInterface(savedGenre,"ifString") <> invalid and lcase(savedGenre.trim()) = genreName then found = true
-                                            end for
-                                            if not found then item.genres.push(genreName)
-                                        end if
+                            if itemYear <> "" and metaYear = itemYear and metaId <> ""
+                                yearMatch = meta
+                                yearCount++
+                            end if
+                        end if
+                    end for
+                    match = invalid
+                    if exactCount = 1
+                        match = exactMatch
+                    else if exactCount = 0 and itemYear <> "" and yearCount = 1
+                        ' Localized titles can differ; accept only one search result for the exact year.
+                        match = yearMatch
+                    end if
+                    if match <> invalid and not rpHdTaskSliceExpired()
+                        metaId = orbitText(match.id,80)
+                        if CreateObject("roRegex","^tt[0-9]{6,12}$","").isMatch(metaId)
+                            metaEndpoint = "https://v3-cinemeta.strem.io/meta/"+kind+"/"+metaId+".json"
+                            metaResponse = fetcher(metaEndpoint,"cinemeta","")
+                            metaRequests++
+                            if metaResponse.cancelled then exit for
+                            if metaResponse.ok
+                                detailData = ParseJson(metaResponse.body)
+                                detail = invalid
+                                if type(detailData) = "roAssociativeArray"
+                                    if type(detailData.meta) = "roAssociativeArray"
+                                        detail = detailData.meta
+                                    else
+                                        detail = detailData
                                     end if
-                                end for
-                                if item.genres.count() > beforeCount then enriched++
+                                end if
+                                if type(detail) = "roAssociativeArray" and type(detail.genres) = "roArray" and detail.genres.count() > 0
+                                    if type(item.genres) <> "roArray" then item.genres = []
+                                    beforeCount = item.genres.count()
+                                    for each genre in detail.genres
+                                        if GetInterface(genre,"ifString") <> invalid
+                                            genreName = lcase(genre.trim())
+                                            if genreName <> ""
+                                                found = false
+                                                for each savedGenre in item.genres
+                                                    if GetInterface(savedGenre,"ifString") <> invalid and lcase(savedGenre.trim()) = genreName then found = true
+                                                end for
+                                                if not found then item.genres.push(genreName)
+                                            end if
+                                        end if
+                                    end for
+                                    if item.genres.count() > beforeCount then enriched++
+                                end if
                             end if
                         end if
                     end if
                 end if
             end if
-        end if
         end if
     end for
     m.hdProviderDeadline = 0
@@ -171,7 +171,11 @@ function rpHdTaskEnrichItemFromTvmaze(item as object, fetcher as dynamic) as boo
             end if
         end if
     end for
-    if exactCount <> 1 or type(selected.genres) <> "roArray" then return false
+    if exactCount <> 1
+        print "[RokuPlus tvmaze-catalog] exact_match_count="; exactCount; " title="; title
+        return false
+    end if
+    if type(selected.genres) <> "roArray" then return false
     if type(item.genres) <> "roArray" then item.genres = []
     beforeCount = item.genres.count()
     for each genre in selected.genres
