@@ -1879,11 +1879,10 @@ function rpHdTaskCinemetaBrowseCatalog(request as object, answer as object, fetc
     skip = (skip \ 20) * 20
     sort = "popular"
     catalogId = "top"
-    genre = ""
+    genre = rpHdTaskCinemetaGenre(orbitText(request.query,80))
     if orbitInteger(request.attempt,1) = 1 then sort = "recent"
-    ' The Roku log confirmed that Cinemeta top without filters responds HTTP 200.
-    ' Its genre/year URL variants returned HTTP 404.
-    ' Fetch only this known-good catalog; filtering and year ordering are local.
+    ' Genre categories are requested from Cinemeta with their own genre extra.
+    ' Only the unfiltered "Todos" feed uses the general top catalog.
     catalogKinds = [kind]
     if kind = "all" then catalogKinds = ["movie","series"]
     transfer = CreateObject("roUrlTransfer")
@@ -1893,7 +1892,10 @@ function rpHdTaskCinemetaBrowseCatalog(request as object, answer as object, fetc
     hasMore = false
     for each catalogKind in catalogKinds
         if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
-        endpoint = "https://v3-cinemeta.strem.io/catalog/"+catalogKind+"/"+catalogId+"/skip="+skip.toStr()+".json"
+        endpoint = "https://v3-cinemeta.strem.io/catalog/"+catalogKind+"/"+catalogId
+        if genre <> "" then endpoint += "/genre="+genre
+        endpoint += "/skip="+skip.toStr()+".json"
+        print "[RokuPlus cinemeta-catalog] request kind="; catalogKind; " genre="; genre; " skip="; skip
         response = fetcher(endpoint,"cinemeta","")
         if response.cancelled then return rpHdTaskFailure(answer,response)
         if not response.ok
@@ -1957,7 +1959,7 @@ function rpHdTaskCinemetaBrowseCatalog(request as object, answer as object, fetc
     answer.total = 0
     answer.message = ""
     if not answer.ok then answer.message = "Cinemeta no pudo cargar esta categoría. Vuelve a intentarlo."
-    print "[RokuPlus cinemeta-catalog] kind="; kind; " sort="; sort; " catalog=top-local-filter skip="; skip; " results="; answer.items.count(); " failures="; failures
+    print "[RokuPlus cinemeta-catalog] kind="; kind; " sort="; sort; " catalog="; catalogId; " genre="; genre; " skip="; skip; " results="; answer.items.count(); " failures="; failures
     return answer
 end function
 
