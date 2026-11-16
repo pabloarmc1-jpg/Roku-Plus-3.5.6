@@ -3,7 +3,7 @@
 ' No network, provider resolution, registry, player or SceneGraph operations.
 
 function rpHdLibrary() as object
-    path = "pkg:/data/hd-library.json"
+    path = "pkg:/source/hd-library.json"
     ' File access and ParseJson are Task-thread-only in SceneGraph applications.
     files = CreateObject("roFileSystem")
     exists = files.exists(path)
