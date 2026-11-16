@@ -200,6 +200,10 @@ function rpHdTaskTvmazeSearchTitle(value as string) as string
     key = lcase(title)
     title = CreateObject("roRegex","\s*\((19|20)[0-9]{2}\)\s*$","").replace(title,"").trim()
     if key = "hora de aventura" then return "Adventure Time"
+    if key = "ben 10: fuerza alienígena" or key = "ben 10: fuerza alienígena (2008)" then return "Ben 10: Alien Force"
+    if key = "ben 10: supremacía alienígena" or key = "ben 10: supremacía alienígena (2010)" then return "Ben 10: Ultimate Alien"
+    if key = "viaje a las estrellas: espacio profundo nueve" or key = "viaje a las estrellas: espacio profundo nueve (1993)" then return "Star Trek: Deep Space Nine"
+    if key = "el cuento de la criada" or key = "el cuento de la criada (2017)" then return "The Handmaid's Tale"
     if key = "merlina" or key = "merlina (2022)" then return "Wednesday"
     if key = "juego de tronos" or key = "juego de tronos (2011)" then return "Game of Thrones"
     if key = "bojack horseman (2014)" then return "BoJack Horseman"
