@@ -415,6 +415,13 @@
 - Pendiente: revisar el nuevo mensaje del servidor en un registro Roku para determinar si es un error de API, parámetro o respuesta del servidor. No se considera corregido hasta tener esa evidencia.
 
 
+### Corrección de asociación de fuentes desde fichas Cinemeta (2026-11-16)
+- El registro Roku mostró que, al pulsar Reproducir desde una ficha Cinemeta, la búsqueda se ejecutaba, pero varios proveedores devolvían cero coincidencias para el título consultado.
+- La búsqueda ahora prueba, en este orden, la consulta original, el título canónico y el título canónico acompañado del año cuando está disponible.
+- Si los dos registros contienen IDs IMDb diferentes, se permite una coincidencia alternativa únicamente cuando el título normalizado es exactamente igual y ambos años existen y coinciden. Los IDs iguales mantienen su validación anterior; las diferencias de año y los títulos distintos se rechazan.
+- Cuando no hay coincidencia, se registran hasta tres candidatos (título, año e IMDb) por proveedor para identificar si el problema es la indexación/búsqueda del proveedor o la comparación de identidad.
+- No se modifica ningún adaptador de reproducción ni el reproductor, controles, pausa, seek, reanudación, audio o subtítulos.
+- **Estado:** commit guardado y verificado en GitHub; pendiente compilar e intentar reproducir desde Roku. Los nuevos registros de candidatos son necesarios para confirmar si el caso de Rick and Morty queda resuelto.
 ### Categorías online directamente desde Cinemeta (2026-11-16)
 
 - Las páginas de Explorar en modo HD online ahora usan la operación `cinemeta-catalog`; ya no pasan por `rpHdTaskCombinedCatalog` ni consultan LaMovie, AllCalidad, CineHax, SeriesMetro o CineCalidad para llenar las categorías.
