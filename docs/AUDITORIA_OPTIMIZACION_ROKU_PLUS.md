@@ -277,3 +277,11 @@
 - No se cambia la selección de elementos, el contenido del catálogo, la rotación fuera de la interacción ni el reproductor.
 - Corrección en `components/PlusScene.brs`, commit `5a3a933`.
 - Estado: **pendiente compilar y probar en Roku**. Verificar el foco al recorrer la fila hasta el extremo derecho, seguir avanzando, retroceder al extremo izquierdo y abrir una tarjeta después de desplazar la ventana.
+
+
+### Ajuste del foco en la fila inferior de Home (2026-11-15)
+- Reporte del usuario: al bajar desde «Películas para explorar», el foco parecía quedar entre dos imágenes.
+- Diagnóstico estático: las tarjetas de «Mi lista» avanzan 270 px por posición, pero cada marco de foco tenía 276 px de ancho, por lo que los marcos contiguos se solapaban 6 px.
+- Ajuste en `components/PlusSceneViews.brs`: marco de «Mi lista» cambiado a x+4 y ancho 268 px; se conserva la altura y la posición vertical. Esto alinea el marco con la tarjeta y evita el solapamiento horizontal.
+- No se modificaron los índices de navegación, el movimiento del cursor, la carga de imágenes ni el reproductor.
+- Estado: cambio guardado en GitHub; pendiente de compilar y confirmar visualmente en Roku.
