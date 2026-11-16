@@ -292,7 +292,7 @@ sub drawScreen()
         if m.view = "appearance" then appearanceScreen()
         if m.view = "credits" then creditsScreen()
         if m.view = "hd-source" then hdSourceScreen()
-        if m.busy or m.note <> ""
+        if (m.busy or m.note <> "") and m.view <> "source-resolving"
             panel(72,970,1770,86,"0x181818F5")
             text = m.note
             if m.busy then text = "Consultando el catálogo…"
