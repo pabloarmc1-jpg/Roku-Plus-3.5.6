@@ -1799,6 +1799,17 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             if not skipProvider and (source <> "cinecalidad" or kind <> "series") then providers.push(source)
         end if
     end for
+    ' For automatic source discovery, prefer providers that expose Vimeos first,
+    ' then providers that can expose VOE, and leave SeriesMetro/Fastream last.
+    ' Keep the user's catalog/provider selection untouched; this order applies
+    ' only to alternate-source discovery after a source fails.
+    orderedProviders = []
+    for each preferredProvider in ["cinehax","cinecalidad","allcalidad","lamovie","seriesmetro"]
+        for each availableProvider in providers
+            if availableProvider = preferredProvider then orderedProviders.push(availableProvider)
+        end for
+    end for
+    providers = orderedProviders
     if providers.count() = 0
         answer.message = "No hay proveedores compatibles para este tipo de contenido."
         print "[RokuPlus source-search] result=no-providers kind="; kind
