@@ -283,6 +283,7 @@ sub drawScreen()
         if m.view = "library" then libraryScreen()
         if m.view = "browse" then browseScreen()
         if m.view = "detail" then detailScreen()
+        if m.view = "source-resolving" then sourceResolvingScreen()
         if m.view = "episodes" then episodeScreen()
         if m.view = "live" then liveScreen()
         if m.view = "settings" then settingsScreen()
@@ -777,6 +778,26 @@ sub detailSelectable(index as integer, text as string, x as integer, y as intege
         label.horizAlign = "center"
     end if
     focusTarget("action",index,x-5,y-5,w+10,h+10)
+end sub
+
+sub sourceResolvingScreen()
+    item = m.detail
+    panel(0,0,1920,1080,"0x080A0FFF")
+    backdrop = ""
+    if type(item) = "roAssociativeArray"
+        backdrop = orbitText(item.background,2048)
+        if backdrop = "" then backdrop = orbitText(item.poster,2048)
+    end if
+    if backdrop <> "" then art(backdrop,0,0,1920,1080)
+    panel(0,0,1920,1080,"0x080A0FE8")
+    words("ROKU PLUS",100,90,1720,52,26,"0xE50914FF")
+    words("PREPARANDO REPRODUCCIÓN",100,350,1720,48,23,"0xAEB7C4FF")
+    titleText = "Tu contenido"
+    if type(item) = "roAssociativeArray" then titleText = orbitText(item.title,180)
+    words(titleText,100,420,1720,110,48,"0xFFFFFFFF").wrap = true
+    words("Buscando una fuente compatible en las bibliotecas disponibles…",100,570,1720,72,27,"0xD4D9E2FF").wrap = true
+    words("La reproducción comenzará cuando se encuentre y valide el enlace.",100,650,1720,52,21,"0xAEB7C4FF").wrap = true
+    words("ATRÁS  ·  Cancelar búsqueda",100,930,1720,42,21,"0xAEB7C4FF")
 end sub
 
 sub detailScreen()
