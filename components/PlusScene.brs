@@ -484,8 +484,7 @@ sub fetched(event as object)
             if m.titles.count() = 0 then m.note = "No se encontraron películas ni series con ese título."
             if answer.partial = true then m.note = "Una fuente no respondió. Se muestran los resultados disponibles."
         else if answer.items.count() = 0 and context.offset > 0 and not answer.hasMore
-            m.pageTitles = []
-            applyGenreFilter()
+            ' Keep the already displayed titles: reaching the end must not clear the continuous list.
             m.more = false
             m.note = "Llegaste al final de los resultados."
         else
@@ -494,15 +493,33 @@ sub fetched(event as object)
                 m.catalogPageCache = {key:pageKey,items:answer.items,nextOffset:answer.nextSkip,hasMore:answer.hasMore,clock:CreateObject("roTimespan")}
                 m.catalogPageCache.clock.mark()
             end if
-            m.pageTitles = orbitUniqueCatalogItems(answer.items)
+            previousVisibleCount = m.titles.count()
+            if context.offset > 0
+                combinedPage = []
+                for each existingItem in m.pageTitles
+                    combinedPage.push(existingItem)
+                end for
+                for each nextItem in answer.items
+                    combinedPage.push(nextItem)
+                end for
+                m.pageTitles = orbitUniqueCatalogItems(combinedPage)
+            else
+                m.pageTitles = orbitUniqueCatalogItems(answer.items)
+            end if
             applyGenreFilter()
             m.offset = context.offset
             m.nextOffset = answer.nextSkip
             m.more = answer.hasMore
             m.cursor = 0
+            if context.offset > 0 and m.titles.count() > previousVisibleCount
+                m.cursor = previousVisibleCount
+            else if context.offset > 0 and m.titles.count() > 0
+                m.cursor = m.titles.count()-1
+            end if
             if context.doesExist("last") and context.last then m.cursor = m.titles.count()-1
             if m.cursor < 0 then m.cursor = 0
-            m.catalogFadePending = context.offset > 0 and answer.items.count() > 0
+            ' New pages join the existing grid without a page-transition fade.
+            m.catalogFadePending = false
         end if
         if context.operation = "search" then m.catalogFadePending = false
         m.zone = "grid"
@@ -2779,12 +2796,29 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
         if type(m.catalogPageCache) = "roAssociativeArray" and m.catalogPageCache.key = pageKey and m.catalogPageCache.clock <> invalid
             pageAge = m.catalogPageCache.clock.totalMilliseconds()
             if pageAge >= 0 and pageAge < 90000
-                m.pageTitles = orbitUniqueCatalogItems(m.catalogPageCache.items)
+                previousVisibleCount = m.titles.count()
+                if offset > 0
+                    combinedPage = []
+                    for each existingItem in m.pageTitles
+                        combinedPage.push(existingItem)
+                    end for
+                    for each nextItem in m.catalogPageCache.items
+                        combinedPage.push(nextItem)
+                    end for
+                    m.pageTitles = orbitUniqueCatalogItems(combinedPage)
+                else
+                    m.pageTitles = orbitUniqueCatalogItems(m.catalogPageCache.items)
+                end if
                 applyGenreFilter()
                 m.offset = offset
                 m.nextOffset = m.catalogPageCache.nextOffset
                 m.more = m.catalogPageCache.hasMore
                 m.cursor = 0
+                if offset > 0 and m.titles.count() > previousVisibleCount
+                    m.cursor = previousVisibleCount
+                else if offset > 0 and m.titles.count() > 0
+                    m.cursor = m.titles.count()-1
+                end if
                 if last then m.cursor = m.titles.count()-1
                 if m.cursor < 0 then m.cursor = 0
                 m.catalogFadePending = false
