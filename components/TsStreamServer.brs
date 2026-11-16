@@ -249,23 +249,38 @@ end sub
 sub rpTsRelaySendBytes(connection as object, value as object, server as object, port as object)
     offset = 0
     total = value.Count()
+    chunkLimit = 32768
     server.sendOk = true
+    timer = CreateObject("roTimespan")
+    timer.Mark()
+    print "[RokuPlus ts-relay] payload_send_begin bytes="; total; " chunkLimit="; chunkLimit
     while offset < total
-        count = connection.send(value,offset,total-offset)
+        remaining = total - offset
+        sendLength = chunkLimit
+        if remaining < sendLength then sendLength = remaining
+        count = connection.send(value,offset,sendLength)
         if count > 0
             offset += count
+            if offset = count
+                print "[RokuPlus ts-relay] payload_first_write accepted="; count; " total="; total; " elapsedMs="; timer.TotalMilliseconds()
+            end if
         else if count < 0 and (connection.eAgain() or connection.eWouldBlock())
             if not rpTsRelayWaitWritable(connection,port,server)
-                print "[RokuPlus ts-relay] send_wait_failed kind=bytes offset="; offset; " total="; total; " status="; connection.status(); " eConnReset="; connection.eConnReset(); " eConnAborted="; connection.eConnAborted(); " eNotConn="; connection.eNotConn(); " eIsConn="; connection.eIsConn()
+                print "[RokuPlus ts-relay] send_wait_failed kind=bytes offset="; offset; " requested="; sendLength; " total="; total; " elapsedMs="; timer.TotalMilliseconds(); " status="; connection.status(); " eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock(); " eConnReset="; connection.eConnReset(); " eConnAborted="; connection.eConnAborted(); " eNotConn="; connection.eNotConn(); " eIsConn="; connection.eIsConn()
                 server.sendOk = false
                 exit while
             end if
         else
-            print "[RokuPlus ts-relay] send_failed kind=bytes count="; count; " offset="; offset; " total="; total; " status="; connection.status(); " eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock(); " eConnReset="; connection.eConnReset(); " eConnAborted="; connection.eConnAborted(); " eNotConn="; connection.eNotConn(); " eIsConn="; connection.eIsConn()
+            print "[RokuPlus ts-relay] send_failed kind=bytes count="; count; " offset="; offset; " requested="; sendLength; " total="; total; " elapsedMs="; timer.TotalMilliseconds(); " status="; connection.status(); " eAgain="; connection.eAgain(); " eWouldBlock="; connection.eWouldBlock(); " eConnReset="; connection.eConnReset(); " eConnAborted="; connection.eConnAborted(); " eNotConn="; connection.eNotConn(); " eIsConn="; connection.eIsConn()
             server.sendOk = false
             exit while
         end if
     end while
+    if server.sendOk
+        print "[RokuPlus ts-relay] payload_send_complete bytes="; offset; " elapsedMs="; timer.TotalMilliseconds()
+    else
+        print "[RokuPlus ts-relay] payload_send_abort bytesSent="; offset; " total="; total; " elapsedMs="; timer.TotalMilliseconds()
+    end if
 end sub
 
 function rpTsRelayWaitWritable(connection as object, port as object, server as object) as boolean
