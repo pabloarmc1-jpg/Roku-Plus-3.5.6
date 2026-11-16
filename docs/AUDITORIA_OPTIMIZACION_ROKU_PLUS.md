@@ -189,3 +189,13 @@
 - Commits de selección: `8ec5b6c`, `1306d19` y `4969d2a`. El usuario confirmó que funciona en Roku.
 - Siguiente optimización incremental: al cambiar entre acciones de la pantalla de detalle, conservar los nodos ya dibujados y ejecutar solo `paintFocus()`. El redibujado completo se mantiene al entrar/salir de la barra lateral. Commit `13e3726`.
 - Estado de esta última optimización: **validada por el usuario en Roku**. El usuario confirmó que funciona tras probar la navegación de las acciones de detalle. Se conserva el redibujado completo al entrar/salir de la barra lateral. No tocar el reproductor.
+
+
+### Navegación del teclado de búsqueda (2026-11-15)
+
+- La pantalla de búsqueda ya dibuja simultáneamente las teclas, las acciones y las sugerencias disponibles, y registra sus objetivos de foco en `m.focusItems`.
+- Al mover el cursor con las flechas, antes se ejecutaba `drawScreen()` y se reconstruían todos esos nodos aunque solo cambiara el borde de selección.
+- Se cambió únicamente ese redibujado de navegación por `paintFocus()`, que actualiza la visibilidad de los bordes sobre los objetivos existentes.
+- La escritura de caracteres, actualización de sugerencias, borrado, selección de resultados y acciones siguen usando sus rutas de actualización originales; no se cambió la búsqueda ni sus datos.
+- Cambio guardado en `components/PlusScene.brs`, commit `acf9145`.
+- Estado: **pendiente compilar y probar en Roku**. Verificar flechas entre teclas, transición a sugerencias y acciones, escribir y borrar texto, seleccionar una sugerencia y cancelar. Si el foco desaparece o queda desfasado, revertir esta optimización. No tocar el reproductor.
