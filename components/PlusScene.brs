@@ -445,6 +445,7 @@ sub fetched(event as object)
                 m.pageTitles = answer.alternatives
                 m.kind = orbitText(answer.alternativeKind,16)
                 m.query = ""
+                m.genreFilter = "Todos"
                 m.offset = 0
                 m.nextOffset = 0
                 m.more = false
