@@ -1983,7 +1983,7 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
     usefulWanted = 0
     usefulCandidate = 0
     for each word in wantedWords
-        if len(word) >= 3 and not ignored.includes(word)
+        if len(word) >= 3 and not rpHdTaskSuggestionIgnoredWord(word)
             usefulWanted++
             found = false
             for each other in candidateWords
@@ -1993,7 +1993,7 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
         end if
     end for
     for each word in candidateWords
-        if len(word) >= 3 and not ignored.includes(word) then usefulCandidate++
+        if len(word) >= 3 and not rpHdTaskSuggestionIgnoredWord(word) then usefulCandidate++
     end for
     if usefulWanted = 0 or usefulCandidate = 0 then return 0
     denominator = usefulWanted
@@ -2005,12 +2005,19 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
     return score
 end function
 
+function rpHdTaskSuggestionIgnoredWord(value as string) as boolean
+    for each ignoredWord in ["the","and","for","with","from","una","uno","las","los","del","de","la","el","un","a","an","of","to","in"]
+        if value = ignoredWord then return true
+    end for
+    return false
+end function
+
 function rpHdTaskSortSuggestions(items as object) as object
     sorted = []
     for each item in items
         inserted = false
         for i = 0 to sorted.count()-1
-            if orbitFloat(item.suggestionScore,0) > orbitFloat(sorted[i].suggestionScore,0)
+            if item.suggestionScore > sorted[i].suggestionScore
                 sorted.insert(i,item)
                 inserted = true
                 exit for
