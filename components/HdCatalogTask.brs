@@ -1840,6 +1840,14 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         yearQuery = cinemetaTitle+" "+discoveryYear
         searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,yearQuery)
     end if
+    ' If the full-title search returns no useful candidates, a distinctive
+    ' title word can reveal provider entries with shortened/localized names.
+    ' Source matching remains protected by the exact-title/IMDb checks below.
+    suggestionQuery = rpHdTaskSuggestionSearchQuery(cinemetaTitle)
+    if suggestionQuery <> "" and rpHdTaskCinemetaTitleKey(suggestionQuery) <> rpHdTaskCinemetaTitleKey(cinemetaTitle)
+        searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,suggestionQuery)
+        print "[RokuPlus source-search] suggestion-query="; suggestionQuery
+    end if
     if searchQueries.count() = 0
         answer.message = "No hay un título válido para buscar en las fuentes."
         return answer
@@ -1893,7 +1901,13 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     for each suggestionCandidate in catalog.items
                         if type(suggestionCandidate) = "roAssociativeArray"
                             suggestionScore = rpHdTaskSuggestionScore(discovery.title,suggestionCandidate.title,discovery.year,suggestionCandidate.year)
-                            if suggestionScore >= 0.22
+                            if type(suggestionCandidate.metadataAliases) = "roArray"
+                                for each suggestionAlias in suggestionCandidate.metadataAliases
+                                    aliasScore = rpHdTaskSuggestionScore(discovery.title,suggestionAlias,discovery.year,suggestionCandidate.year)
+                                    if aliasScore > suggestionScore then suggestionScore = aliasScore
+                                end for
+                            end if
+                            if suggestionScore >= 0.15
                                 suggestionKey = rpHdTaskCinemetaTitleKey(suggestionCandidate.title)
                                 alreadySuggested = false
                                 for each savedSuggestion in suggestions
@@ -1972,6 +1986,21 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     return answer
 end function
 
+function rpHdTaskSuggestionSearchQuery(title as dynamic) as string
+    words = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(title,240))," ").trim().split(" ")
+    selected = ""
+    selectedLength = 0
+    for each word in words
+        if len(word) >= 4 and not rpHdTaskSuggestionIgnoredWord(word)
+            if len(word) >= selectedLength
+                selected = word
+                selectedLength = len(word)
+            end if
+        end if
+    end for
+    return selected
+end function
+
 function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynamic, wantedYear as dynamic, candidateYear as dynamic) as float
     wanted = rpHdTaskCinemetaTitleKey(wantedTitle)
     candidate = rpHdTaskCinemetaTitleKey(candidateTitle)
@@ -2005,7 +2034,7 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
 end function
 
 function rpHdTaskSuggestionIgnoredWord(value as string) as boolean
-    for each ignoredWord in ["the","and","for","with","from","una","uno","las","los","del","de","la","el","un","a","an","of","to","in"]
+    for each ignoredWord in ["the","and","for","with","from","una","uno","las","los","del","de","la","el","un","a","an","of","to","in","your","our","his","her","their","this","that","being","movie","film","series"]
         if value = ignoredWord then return true
     end for
     return false
