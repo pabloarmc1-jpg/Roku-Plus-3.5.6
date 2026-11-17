@@ -440,6 +440,21 @@ sub fetched(event as object)
             end if
             m.autoplay = false
             m.note = answer.message
+            if type(answer.alternatives) = "roArray" and answer.alternatives.count() > 0 and answer.doesExist("alternativeKind")
+                m.pageTitles = answer.alternatives
+                m.kind = orbitText(answer.alternativeKind,16)
+                m.query = ""
+                m.offset = 0
+                m.nextOffset = 0
+                m.more = false
+                m.cursor = 0
+                m.view = "browse"
+                m.zone = "grid"
+                m.detailOrigin = "browse"
+                applyGenreFilter()
+                m.note = "No se encontró una fuente confirmada. Elige un título similar para revisar sus detalles y reproducirlo."
+                print "[RokuPlus source-alternatives] displayed="; m.titles.count(); " kind="; m.kind
+            end if
             drawScreen()
             return
         end if
