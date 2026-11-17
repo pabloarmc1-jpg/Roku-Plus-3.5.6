@@ -1751,10 +1751,19 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     requestedKind = orbitText(item.kind,16)
     isEpisode = requestedKind = "episode"
     kind = requestedKind
+    discoveryGenres = []
+    if type(item.genres) = "roArray"
+        for each itemGenre in item.genres
+            if GetInterface(itemGenre,"ifString") <> invalid
+                genreName = itemGenre.trim()
+                if genreName <> "" then discoveryGenres.push(genreName)
+            end if
+        end for
+    end if
     discovery = {
         kind:requestedKind,title:orbitText(item.title,200)
         year:orbitText(item.year,32),imdbId:orbitText(item.imdbId,40)
-        searchQuery:orbitText(item.searchQuery,200)
+        searchQuery:orbitText(item.searchQuery,200),genres:discoveryGenres
     }
     if isEpisode
         kind = "series"
@@ -1766,6 +1775,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         discovery = {
             kind:"series",title:seriesTitle,year:orbitText(item.year,32)
             imdbId:orbitText(item.seriesImdbId,40),searchQuery:orbitText(item.seriesSearchQuery,200)
+            genres:discoveryGenres
         }
     end if
     if kind <> "movie" and kind <> "series"
@@ -1981,6 +1991,17 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 if not alreadySuggested and suggestions.count() < 12 then suggestions.push(cinemetaSuggestion)
             end for
         end if
+        if suggestions.count() = 0 and not m.top.cancelRequested
+            ' Last resort: search Cinemeta by the selected title's genres,
+            ' then rank by shared genre, title resemblance and release year.
+            rpHdTaskBeginSlice(1)
+            if not rpHdTaskSliceExpired()
+                genreSuggestions = rpHdTaskCinemetaGenreFallback(cinemetaTitle,kind,discoveryYear,discovery.genres,fetcher)
+                for each genreSuggestion in genreSuggestions
+                    if suggestions.count() < 12 then suggestions.push(genreSuggestion)
+                end for
+            end if
+        end if
     end if
     if isEpisode
         answer.message = "No se encontró otra fuente para el episodio "+seasonNumber.toStr()+"x"+episodeNumber.toStr()+"."
@@ -2132,6 +2153,105 @@ function rpHdTaskCinemetaSimilarTitles(title as string, kind as string, year as 
     end for
     print "[RokuPlus source-search] cinemeta-similar results="; results.count()
     return results
+end function
+
+function rpHdTaskCinemetaGenreFallback(title as string, kind as string, year as string, genres as dynamic, fetcher as dynamic) as object
+    results = []
+    if type(genres) <> "roArray" or genres.count() = 0 then return results
+    transfer = CreateObject("roUrlTransfer")
+    requestedGenres = []
+    for each rawGenre in genres
+        if GetInterface(rawGenre,"ifString") <> invalid
+            genreName = rawGenre.trim()
+            genreKey = lcase(genreName)
+            if genreName <> ""
+                alreadyAdded = false
+                for each savedGenre in requestedGenres
+                    if lcase(savedGenre) = genreKey then alreadyAdded = true
+                end for
+                if not alreadyAdded and requestedGenres.count() < 2 then requestedGenres.push(genreName)
+            end if
+        end if
+    end for
+    for each requestedGenre in requestedGenres
+        if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
+        endpoint = "https://v3-cinemeta.strem.io/catalog/"+kind+"/top/genre="+transfer.escape(requestedGenre)+".json"
+        print "[RokuPlus source-search] cinemeta-genre-fallback-query="; requestedGenre
+        response = fetcher(endpoint,"cinemeta","")
+        if response.cancelled and m.top.cancelRequested then exit for
+        if not response.ok
+            print "[RokuPlus source-search] cinemeta-genre-fallback result=error genre="; requestedGenre
+        else
+            data = ParseJson(response.body)
+            if type(data) = "roAssociativeArray" and type(data.metas) = "roArray"
+                for each meta in data.metas
+                    if results.count() >= 12 then exit for
+                    if type(meta) = "roAssociativeArray"
+                        metaId = orbitText(meta.id,80)
+                        metaTitle = orbitText(meta.name,200).trim()
+                        metaKind = orbitText(meta.type,16)
+                        metaYear = rpHdTaskCinemetaYear(meta.year)
+                        if metaYear = "" then metaYear = rpHdTaskCinemetaYear(meta.releaseInfo)
+                        validMeta = metaTitle <> "" and metaTitle <> title and CreateObject("roRegex","^tt[0-9]{6,12}$","").isMatch(metaId) and (metaKind = "" or metaKind = kind)
+                        yearDistance = 0
+                        if year <> "" and metaYear <> ""
+                            yearDistance = abs(val(year)-val(metaYear))
+                            if yearDistance > 6 then validMeta = false
+                        end if
+                        if validMeta
+                            candidateGenres = []
+                            if type(meta.genres) = "roArray"
+                                for each candidateGenre in meta.genres
+                                    if GetInterface(candidateGenre,"ifString") <> invalid
+                                        candidateGenreName = lcase(candidateGenre.trim())
+                                        if candidateGenreName <> "" then candidateGenres.push(candidateGenreName)
+                                    end if
+                                end for
+                            end if
+                            sharedGenres = 0
+                            for each wantedGenre in requestedGenres
+                                for each candidateGenreName in candidateGenres
+                                    if lcase(wantedGenre) = candidateGenreName
+                                        sharedGenres++
+                                        exit for
+                                    end if
+                                end for
+                            end for
+                            if sharedGenres > 0
+                                genreScore = sharedGenres/requestedGenres.count()
+                                nameScore = rpHdTaskSuggestionScore(title,metaTitle,year,metaYear)
+                                yearScore = 0.10
+                                if year <> "" and metaYear <> ""
+                                    yearScore = 1-(yearDistance/7)
+                                end if
+                                combinedScore = genreScore*0.55+nameScore*0.25+yearScore*0.20
+                                if combinedScore >= 0.30
+                                    suggestion = {
+                                        id:"cinemeta-"+metaId, imdbId:metaId, kind:kind
+                                        provider:"all", discoverySource:"cinemeta", library:"hd-online"
+                                        title:metaTitle, searchQuery:metaTitle, year:metaYear
+                                        description:orbitText(meta.description,4000)
+                                        poster:orbitText(meta.poster,2048), background:orbitText(meta.background,2048)
+                                        genres:candidateGenres, runtime:0, language:"", seasons:[]
+                                        source:"Cinemeta", suggestionScore:combinedScore
+                                    }
+                                    duplicate = false
+                                    for each saved in results
+                                        if lcase(orbitText(saved.imdbId,40)) = lcase(metaId) then duplicate = true
+                                    end for
+                                    if not duplicate then results.push(suggestion)
+                                end if
+                            end if
+                        end if
+                    end if
+                end for
+            else
+                print "[RokuPlus source-search] cinemeta-genre-fallback result=invalid-json genre="; requestedGenre
+            end if
+        end if
+    end for
+    print "[RokuPlus source-search] cinemeta-genre-fallback results="; results.count()
+    return rpHdTaskSortSuggestions(results)
 end function
 
 function rpHdTaskSuggestionIgnoredWord(value as string) as boolean
