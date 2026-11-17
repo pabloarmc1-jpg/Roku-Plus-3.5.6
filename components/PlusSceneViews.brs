@@ -801,8 +801,12 @@ sub sourceResolvingScreen()
     titleText = "Tu contenido"
     if type(item) = "roAssociativeArray"
         titleText = orbitText(item.title,180)
-        if orbitText(item.kind,20) = "episode" and type(m.series) = "roAssociativeArray"
-            titleText = orbitText(m.series.title,180)
+        if orbitText(item.kind,20) = "episode"
+            if type(m.series) = "roAssociativeArray"
+                titleText = orbitText(m.series.title,180)
+            else
+                titleText = orbitText(item.seriesTitle,180)
+            end if
         end if
     end if
     if logoUri <> ""
