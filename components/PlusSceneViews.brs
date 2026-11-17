@@ -806,29 +806,43 @@ sub sourceResolvingScreen()
         words("La reproducción comenzará aquí cuando se encuentre y valide el enlace.",100,710,1720,52,21,"0xAEB7C4FF").wrap = true
         words("ATRÁS  ·  Cancelar búsqueda",100,930,1720,42,21,"0xAEB7C4FF")
     else if type(m.sourceAlternatives) = "roArray" and m.sourceAlternatives.count() > 0
-        words("TÍTULOS SIMILARES  ·  Selecciona uno para intentar reproducirlo",100,690,1720,38,21,"0xAEB7C4FF")
+        words("TÍTULOS SIMILARES  ·  Elige uno o espera la reproducción automática",100,690,1720,38,21,"0xAEB7C4FF")
         visibleCount = m.sourceAlternatives.count()
         if visibleCount > 5 then visibleCount = 5
         firstIndex = m.sourceAlternativeCursor - 2
         if firstIndex < 0 then firstIndex = 0
         if firstIndex + visibleCount > m.sourceAlternatives.count() then firstIndex = m.sourceAlternatives.count() - visibleCount
+        cardWidth = 320
+        cardGap = 24
+        totalWidth = visibleCount*cardWidth + (visibleCount-1)*cardGap
+        startX = int((1920-totalWidth)/2)
         for row = 0 to visibleCount-1
             itemIndex = firstIndex + row
             candidate = m.sourceAlternatives[itemIndex]
-            rowY = 738 + row*46
-            rowColor = "0x171C26DD"
-            textColor = "0xE6EAF0FF"
+            cardX = startX + row*(cardWidth+cardGap)
+            cardY = 738
             if itemIndex = m.sourceAlternativeCursor
-                rowColor = "0xE50914EE"
-                textColor = "0xFFFFFFFF"
+                panel(cardX-5,cardY-5,cardWidth+10,270,"0xE50914FF")
+                panel(cardX,cardY,cardWidth,260,"0x24151BEE")
+            else
+                panel(cardX,cardY,cardWidth,260,"0x171C26DD")
             end if
-            panel(100,rowY,1720,40,rowColor)
-            candidateTitle = orbitText(candidate.title,150)
+            posterUri = orbitText(candidate.poster,2048)
+            if posterUri = "" then posterUri = orbitText(candidate.background,2048)
+            if posterUri <> ""
+                thumbnail(posterUri,cardX+88,cardY+10,144,190,"poster")
+            else
+                panel(cardX+88,cardY+10,144,190,"0x303744FF")
+                words("SIN PORTADA",cardX+96,cardY+88,128,32,15,"0xD4D9E2FF").horizAlign = "center"
+            end if
+            candidateTitle = orbitText(candidate.title,90)
             candidateYear = orbitText(candidate.year,4)
             if candidateYear <> "" then candidateTitle = candidateTitle+" ("+candidateYear+")"
-            words(candidateTitle,122,rowY+7,1670,28,22,textColor)
+            words(candidateTitle,cardX+12,cardY+207,cardWidth-24,45,18,"0xFFFFFFFF").horizAlign = "center"
         end for
-        words("↑ ↓  Elegir título       OK  ·  Intentar reproducción       ATRÁS  ·  Volver",100,1000,1720,38,20,"0xAEB7C4FF")
+        countdownText = "Se intentará reproducir el primer título en "+m.sourceAlternativeCountdown.toStr()+" segundos"
+        words(countdownText,100,1020,1720,32,22,"0xFFFFFFFF").horizAlign = "center"
+        words("↑ ↓  Elegir       OK  ·  Reproducir ahora       ATRÁS  ·  Cancelar",100,1060,1720,25,17,"0xAEB7C4FF").horizAlign = "center"
     else
         words("OK  ·  Intentar de nuevo       ATRÁS  ·  Volver a detalles",100,930,1720,42,21,"0xAEB7C4FF")
     end if
