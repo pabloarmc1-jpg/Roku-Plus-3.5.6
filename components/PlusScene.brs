@@ -456,6 +456,8 @@ sub fetched(event as object)
     if type(answer.tvmazeCache) = "roAssociativeArray" then m.tvmazeCache = answer.tvmazeCache
     cancelRequest()
     if not answer.ok
+        voeBlocked = false
+        if answer.doesExist("voeBlocked") and answer.voeBlocked = true then voeBlocked = true
         if (context.operation = "resolve" or context.operation = "resume-episode") and type(context.item) = "roAssociativeArray" and orbitText(context.item.kind,16) = "episode" and rpHdOnlineProvider(context.item.provider) <> "" and context.item.hdFallbackTried <> true
             context.item.hdFallbackTried = true
             print "[RokuPlus source-fallback] trigger=resolve-failed provider="; orbitText(context.item.provider,32); " season="; orbitInteger(context.item.season,999); " episode="; orbitInteger(context.item.episode,9999)
