@@ -2022,54 +2022,105 @@ function rpHdTaskLocalizedTitleAliasKey(title as dynamic) as string
     return ""
 end function
 
+' Compare provider titles against the canonical discovery title and provider-supplied
+' alternate titles. A conservative edit-distance fallback catches spelling variants.
+function rpHdTaskTitleSimilarity(leftTitle as dynamic, rightTitle as dynamic) as float
+    leftKey = rpHdTaskCinemetaTitleKey(leftTitle)
+    rightKey = rpHdTaskCinemetaTitleKey(rightTitle)
+    if leftKey = "" or rightKey = "" then return 0
+    if leftKey = rightKey then return 1
+    leftLength = len(leftKey)
+    rightLength = len(rightKey)
+    longest = leftLength
+    if rightLength > longest then longest = rightLength
+    if longest < 8 then return 0
+    lengthDifference = abs(leftLength-rightLength)
+    if lengthDifference > 2 or lengthDifference/longest > 0.12 then return 0
+
+    previous = []
+    for column = 0 to rightLength
+        previous.push(column)
+    end for
+    for row = 1 to leftLength
+        current = [row]
+        for column = 1 to rightLength
+            current.push(0)
+        end for
+        for column = 1 to rightLength
+            cost = 0
+            if mid(leftKey,row,1) <> mid(rightKey,column,1) then cost = 1
+            deletion = previous[column] + 1
+            insertion = current[column-1] + 1
+            substitution = previous[column-1] + cost
+            best = deletion
+            if insertion < best then best = insertion
+            if substitution < best then best = substitution
+            current[column] = best
+        end for
+        previous = current
+    end for
+    distance = previous[rightLength]
+    return 1 - (distance/longest)
+end function
+
+function rpHdTaskTitleMatchesCandidate(discoveryTitle as dynamic, candidate as dynamic) as boolean
+    if type(candidate) <> "roAssociativeArray" then return false
+    wantedKey = rpHdTaskCinemetaTitleKey(discoveryTitle)
+    candidateKey = rpHdTaskCinemetaTitleKey(candidate.title)
+    if wantedKey = "" or candidateKey = "" then return false
+    if wantedKey = candidateKey then return true
+    aliases = candidate.metadataAliases
+    if type(aliases) = "roArray"
+        for each alias in aliases
+            aliasKey = rpHdTaskCinemetaTitleKey(alias)
+            if aliasKey <> "" and aliasKey = wantedKey then return true
+        end for
+    end if
+    return rpHdTaskTitleSimilarity(wantedKey,candidateKey) >= 0.88
+end function
+
 function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dynamic, candidates as dynamic, searchQuery as string) as boolean
     if type(discovery) <> "roAssociativeArray" or type(candidate) <> "roAssociativeArray" or type(candidates) <> "roArray" then return false
     if candidates.count() = 0 then return false
     if searchQuery.trim() = "" then return false
-    discoveryKey = rpHdTaskCinemetaTitleKey(discovery.title)
-    if rpHdTaskLocalizedTitleAliasKey(discoveryKey) = "avatar-the-last-airbender"
-        candidateKey = rpHdTaskCinemetaTitleKey(candidate.title)
-        print "[RokuPlus source-match-debug] candidate="; orbitText(candidate.title,100); " kind="; orbitText(candidate.kind,16); " wantedKind="; orbitText(discovery.kind,16); " year="; rpHdTaskCinemetaYear(candidate.year); " wantedYear="; rpHdTaskCinemetaYear(discovery.year); " imdb="; orbitText(candidate.imdbId,24); " wantedImdb="; orbitText(discovery.imdbId,24); " queryKey="; rpHdTaskCinemetaTitleKey(searchQuery); " titleKey="; candidateKey; " alias="; rpHdTaskLocalizedTitleAliasKey(candidateKey)
-    end if
+    discoveryTitle = rpHdTaskCinemetaTitleKey(discovery.title)
+    queryTitle = rpHdTaskCinemetaTitleKey(searchQuery)
+    if discoveryTitle = "" or queryTitle <> discoveryTitle then return false
     if orbitText(discovery.kind,16) <> orbitText(candidate.kind,16) then return false
     wantedYear = rpHdTaskCinemetaYear(discovery.year)
     candidateYear = rpHdTaskCinemetaYear(candidate.year)
     if wantedYear = "" or candidateYear = "" or wantedYear <> candidateYear then return false
+
     wantedImdb = lcase(orbitText(discovery.imdbId,40))
     candidateImdb = lcase(orbitText(candidate.imdbId,40))
     if wantedImdb <> "" and candidateImdb <> "" and wantedImdb <> candidateImdb then return false
+    if not rpHdTaskTitleMatchesCandidate(discovery.title,candidate) then return false
 
-    ' Permit a provider subtitle/localized suffix only when the searched title
-    ' is the exact Cinemeta title and one same-kind, same-year prefix candidate exists.
-    discoveryTitle = rpHdTaskCinemetaTitleKey(discovery.title)
-    candidateTitle = rpHdTaskCinemetaTitleKey(candidate.title)
-    queryTitle = rpHdTaskCinemetaTitleKey(searchQuery)
-    if discoveryTitle = "" or candidateTitle = "" or queryTitle <> discoveryTitle then return false
-    if candidateTitle = discoveryTitle then return false
-    aliasKey = rpHdTaskLocalizedTitleAliasKey(discoveryTitle)
-    candidateAliasKey = rpHdTaskLocalizedTitleAliasKey(candidateTitle)
-    isKnownLocalizedAlias = aliasKey <> "" and candidateAliasKey = aliasKey
-    if not isKnownLocalizedAlias and not rpHdTaskHasTitleSuffixBoundary(discoveryTitle, candidateTitle) then return false
-
-    prefixMatches = 0
+    ' Only accept the alternate title when it identifies exactly one candidate
+    ' of the same media kind and release year in this provider result set.
+    equivalentMatches = 0
     for each possible in candidates
         if type(possible) = "roAssociativeArray"
             if orbitText(possible.kind,16) = orbitText(discovery.kind,16)
                 possibleYear = rpHdTaskCinemetaYear(possible.year)
-                possibleTitle = rpHdTaskCinemetaTitleKey(possible.title)
                 possibleImdb = lcase(orbitText(possible.imdbId,40))
                 imdbCompatible = wantedImdb = "" or possibleImdb = "" or wantedImdb = possibleImdb
-                if possibleYear = wantedYear and imdbCompatible and possibleTitle <> ""
-                    possibleAliasKey = rpHdTaskLocalizedTitleAliasKey(possibleTitle)
-                    if rpHdTaskHasTitleSuffixBoundary(discoveryTitle, possibleTitle) or (aliasKey <> "" and possibleAliasKey = aliasKey) then prefixMatches++
+                if possibleYear = wantedYear and imdbCompatible
+                    if rpHdTaskTitleMatchesCandidate(discovery.title,possible)
+                        equivalentMatches++
+                    end if
                 end if
             end if
         end if
     end for
-    if aliasKey = "avatar-the-last-airbender"
-        print "[RokuPlus source-match-debug] aliasKey="; aliasKey; " candidateAlias="; candidateAliasKey; " knownAlias="; isKnownLocalizedAlias; " prefixMatches="; prefixMatches
+    if equivalentMatches = 1
+        print "[RokuPlus source-match] result=unique-title-match title="; left(orbitText(candidate.title,100),100); " year="; wantedYear
+        return true
     end if
-    return prefixMatches = 1
+    if equivalentMatches > 1
+        print "[RokuPlus source-match] result=ambiguous-title-match matches="; equivalentMatches; " title="; left(orbitText(discovery.title,100),100)
+    end if
+    return false
 end function
 
 function rpHdTaskSameDiscoveryItem(discovery as dynamic, candidate as dynamic, searchQuery as string) as boolean
