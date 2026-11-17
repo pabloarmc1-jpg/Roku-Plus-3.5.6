@@ -82,6 +82,11 @@ sub init()
     m.endScreenRequestId = invalid
     m.endScreenNextEpisodePending = false
     m.endScreenWatchedRequestId = invalid
+    m.nextEpisodePrefetchTask = invalid
+    m.nextEpisodePrefetchRequestId = ""
+    m.nextEpisodePrefetchParentRequestId = ""
+    m.nextEpisodePrefetchParentItemId = ""
+    m.nextEpisodePrefetchAnswer = invalid
     m.introDbTask = invalid
     m.introDbCache = {}
     m.introDbSegments = invalid
@@ -930,6 +935,7 @@ sub invidiousPlayerClosed(event as object)
 end sub
 
 sub launchVideo(item as object, url as string, format as string)
+    cancelNextEpisodePrefetch()
     m.sourceLaunchPending = false
     targetPlayer = m.standardPlayer
     targetEngine = "standard"
@@ -1469,6 +1475,65 @@ sub showPlayerEndError(message as string)
     m.player.endScreenData = {kind:"movie",heading:"NO SE PUDO ABRIR",message:safeMessage,items:[]}
 end sub
 
+sub cancelNextEpisodePrefetch()
+    if m.nextEpisodePrefetchTask <> invalid
+        m.nextEpisodePrefetchTask.unobserveField("result")
+        m.nextEpisodePrefetchTask.cancelRequested = true
+        m.nextEpisodePrefetchTask = invalid
+    end if
+    m.nextEpisodePrefetchRequestId = ""
+    m.nextEpisodePrefetchParentRequestId = ""
+    m.nextEpisodePrefetchParentItemId = ""
+    m.nextEpisodePrefetchAnswer = invalid
+end sub
+
+sub startNextEpisodePrefetch(item as object)
+    if m.view <> "player" or type(item) <> "roAssociativeArray" then return
+    if orbitText(item.kind,16) <> "episode" then return
+    provider = rpHdOnlineProvider(item.provider)
+    if provider = "" then return
+    if orbitText(item.providerId,120) = "" and orbitText(item.providerSlug,200) = "" and orbitText(item.providerTmdbId,120) = ""
+        print "[RokuPlus next-episode-prefetch] skipped=provider-identity-missing"
+        return
+    end if
+    cancelNextEpisodePrefetch()
+    requestId = CreateObject("roDeviceInfo").getRandomUUID()
+    task = CreateObject("roSGNode","HdCatalogTask")
+    if task = invalid then return
+    task.operation = "resolve"
+    task.kind = "episode"
+    task.provider = provider
+    task.item = item
+    task.attempt = orbitInteger(item.hdAttempt,99)
+    task.requestId = requestId
+    task.observeField("result","nextEpisodePrefetchResult")
+    m.nextEpisodePrefetchTask = task
+    m.nextEpisodePrefetchRequestId = requestId
+    m.nextEpisodePrefetchParentRequestId = m.activePlaybackRequestId
+    m.nextEpisodePrefetchParentItemId = orbitText(m.detail.id,180)
+    print "[RokuPlus next-episode-prefetch] start provider="; provider; " season="; orbitInteger(item.season,999); " episode="; orbitInteger(item.episode,9999)
+    task.control = "RUN"
+end sub
+
+sub nextEpisodePrefetchResult(event as object)
+    if m.nextEpisodePrefetchTask = invalid then return
+    if not m.nextEpisodePrefetchTask.isSameNode(event.getRoSGNode()) then return
+    answer = event.getData()
+    m.nextEpisodePrefetchTask.unobserveField("result")
+    m.nextEpisodePrefetchTask = invalid
+    if type(answer) <> "roAssociativeArray" then return
+    if answer.requestId <> m.nextEpisodePrefetchRequestId then return
+    if m.view <> "player" or m.activePlaybackRequestId <> m.nextEpisodePrefetchParentRequestId then return
+    if type(m.detail) <> "roAssociativeArray" or orbitText(m.detail.id,180) <> m.nextEpisodePrefetchParentItemId then return
+    if answer.ok = true
+        m.nextEpisodePrefetchAnswer = {itemId:orbitText(answer.item.id,180),parentRequestId:m.nextEpisodePrefetchParentRequestId,answer:answer}
+        print "[RokuPlus next-episode-prefetch] ready=1 format="; orbitText(answer.streamFormat,12)
+    else
+        print "[RokuPlus next-episode-prefetch] ready=0 reason="; orbitText(answer.message,160)
+    end if
+    m.nextEpisodePrefetchRequestId = ""
+end sub
+
 sub preparePlaybackEndScreen()
     if m.view <> "player" or m.detail = invalid then return
     if m.detail.kind = "episode"
@@ -1478,6 +1543,7 @@ sub preparePlaybackEndScreen()
         if nextItem <> invalid
             items.push(nextItem)
             heading = "SIGUIENTE EPISODIO"
+            startNextEpisodePrefetch(nextItem)
         end if
         if nextItem = invalid and m.series <> invalid and (usesOnlineHd() or rpIsOnlineHdItem(m.series))
             ' Continue Watching may restore an episode without its parent season cache.
@@ -1535,7 +1601,34 @@ sub playerEndSelection(event as object)
     if item.kind = "episode"
         m.detailOrigin = "episodes"
         m.autoplay = false
-        playDetail()
+        prefetched = invalid
+        if type(m.nextEpisodePrefetchAnswer) = "roAssociativeArray"
+            if m.nextEpisodePrefetchParentRequestId = selection.requestId and m.nextEpisodePrefetchAnswer.itemId = item.id
+                prefetched = m.nextEpisodePrefetchAnswer.answer
+            end if
+        end if
+        if type(prefetched) = "roAssociativeArray" and prefetched.ok = true
+            print "[RokuPlus next-episode-prefetch] reuse=1 title="; orbitText(item.title,120)
+            m.detail.hdAutoRetry = 0
+            if type(prefetched.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = prefetched.mediaHeaders
+            m.detail.playbackEngine = "standard"
+            if prefetched.doesExist("playbackEngine") and prefetched.playbackEngine = "host" then m.detail.playbackEngine = "host"
+            m.detail.hdAttempt = orbitInteger(prefetched.attemptUsed,99)
+            m.pendingSubtitleTracks = prefetched.subtitleTracks
+            m.pendingSelectedSubtitleGroup = orbitText(prefetched.selectedSubtitleGroup,100)
+            m.pendingSourceHost = orbitText(prefetched.sourceHost,24)
+            m.pendingSegmentUrls = prefetched.segmentUrls
+            m.pendingSegmentDurations = prefetched.segmentDurations
+            m.pendingFallbackSegmentUrls = prefetched.fallbackSegmentUrls
+            m.pendingFallbackSegmentDurations = prefetched.fallbackSegmentDurations
+            m.pendingFallbackTsRelay = prefetched.fallbackTsRelayEnabled = true
+            m.pendingTsRelay = prefetched.tsRelayEnabled = true
+            m.nextEpisodePrefetchAnswer = invalid
+            launchVideo(m.detail,prefetched.url,prefetched.streamFormat)
+        else
+            cancelNextEpisodePrefetch()
+            playDetail()
+        end if
     else if item.kind = "movie"
         m.detailOrigin = "home"
         if usesOnlineHd() or rpIsOnlineHdItem(item)
