@@ -644,20 +644,15 @@ sub startPlaybackEndCountdownIfReady()
     ready = m.playbackFinished
     if not ready and type(m.introDbData) = "roAssociativeArray"
         position = playerPosition()
-        endAt = -1.0
+        creditsStart = -1.0
         outro = m.introDbData.outro
         if type(outro) = "roAssociativeArray"
-            if GetInterface(outro.end_sec,"ifFloat") <> invalid or GetInterface(outro.end_sec,"ifDouble") <> invalid or GetInterface(outro.end_sec,"ifInt") <> invalid or GetInterface(outro.end_sec,"ifLongInt") <> invalid then endAt = outro.end_sec
-            if endAt < 0 and outro.end_ms <> invalid then endAt = outro.end_ms / 1000.0
+            if GetInterface(outro.start_sec,"ifFloat") <> invalid or GetInterface(outro.start_sec,"ifDouble") <> invalid or GetInterface(outro.start_sec,"ifInt") <> invalid or GetInterface(outro.start_sec,"ifLongInt") <> invalid then creditsStart = outro.start_sec
+            if creditsStart < 0 and outro.start_ms <> invalid then creditsStart = outro.start_ms / 1000.0
         end if
-        post = m.introDbData.post_credits
-        if type(post) = "roAssociativeArray"
-            postEnd = -1.0
-            if GetInterface(post.end_sec,"ifFloat") <> invalid or GetInterface(post.end_sec,"ifDouble") <> invalid or GetInterface(post.end_sec,"ifInt") <> invalid or GetInterface(post.end_sec,"ifLongInt") <> invalid then postEnd = post.end_sec
-            if postEnd < 0 and post.end_ms <> invalid then postEnd = post.end_ms / 1000.0
-            if postEnd > endAt then endAt = postEnd
-        end if
-        if position <> invalid and endAt >= 0 and position >= endAt then ready = true
+        ' Begin the next-episode countdown as soon as the outro/credits start.
+        ' Keep the current decoder running; this only displays the overlay.
+        if position <> invalid and creditsStart >= 0 and position >= creditsStart then ready = true
     end if
     if not ready then return
 
