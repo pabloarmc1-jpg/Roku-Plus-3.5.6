@@ -86,6 +86,7 @@ sub init()
     m.nextEpisodePrefetchRequestId = ""
     m.nextEpisodePrefetchParentRequestId = ""
     m.nextEpisodePrefetchParentItemId = ""
+    m.nextEpisodePrefetchItemId = ""
     m.nextEpisodePrefetchAnswer = invalid
     m.introDbTask = invalid
     m.introDbCache = {}
@@ -1484,6 +1485,7 @@ sub cancelNextEpisodePrefetch()
     m.nextEpisodePrefetchRequestId = ""
     m.nextEpisodePrefetchParentRequestId = ""
     m.nextEpisodePrefetchParentItemId = ""
+    m.nextEpisodePrefetchItemId = ""
     m.nextEpisodePrefetchAnswer = invalid
 end sub
 
@@ -1511,6 +1513,7 @@ sub startNextEpisodePrefetch(item as object)
     m.nextEpisodePrefetchRequestId = requestId
     m.nextEpisodePrefetchParentRequestId = m.activePlaybackRequestId
     m.nextEpisodePrefetchParentItemId = orbitText(m.detail.id,180)
+    m.nextEpisodePrefetchItemId = orbitText(item.id,180)
     print "[RokuPlus next-episode-prefetch] start provider="; provider; " season="; orbitInteger(item.season,999); " episode="; orbitInteger(item.episode,9999)
     task.control = "RUN"
 end sub
@@ -1526,12 +1529,13 @@ sub nextEpisodePrefetchResult(event as object)
     if m.view <> "player" or m.activePlaybackRequestId <> m.nextEpisodePrefetchParentRequestId then return
     if type(m.detail) <> "roAssociativeArray" or orbitText(m.detail.id,180) <> m.nextEpisodePrefetchParentItemId then return
     if answer.ok = true
-        m.nextEpisodePrefetchAnswer = {itemId:orbitText(answer.item.id,180),parentRequestId:m.nextEpisodePrefetchParentRequestId,answer:answer}
+        m.nextEpisodePrefetchAnswer = {itemId:m.nextEpisodePrefetchItemId,parentRequestId:m.nextEpisodePrefetchParentRequestId,answer:answer}
         print "[RokuPlus next-episode-prefetch] ready=1 format="; orbitText(answer.streamFormat,12)
     else
         print "[RokuPlus next-episode-prefetch] ready=0 reason="; orbitText(answer.message,160)
     end if
     m.nextEpisodePrefetchRequestId = ""
+    m.nextEpisodePrefetchItemId = ""
 end sub
 
 sub preparePlaybackEndScreen()
