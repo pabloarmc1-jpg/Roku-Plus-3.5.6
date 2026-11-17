@@ -1978,7 +1978,6 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
     if wanted = "" or candidate = "" or wanted = candidate then return 0
     wantedWords = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(wantedTitle,240))," ").trim().split(" ")
     candidateWords = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(candidateTitle,240))," ").trim().split(" ")
-    ignored = ["the","and","for","with","from","una","uno","las","los","del","de","la","el","un","a","an","of","to","in"]
     shared = 0
     usefulWanted = 0
     usefulCandidate = 0
