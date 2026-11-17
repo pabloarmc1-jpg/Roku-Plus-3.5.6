@@ -1915,31 +1915,6 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                         print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=localized-year-match title="; orbitText(candidate.title,100); " year="; orbitText(candidate.year,12)
                     end if
                 end for
-                ' Keep plausible title alternatives for a user choice if no verified source is found.
-                if not isEpisode
-                    for each suggestionCandidate in catalog.items
-                        if type(suggestionCandidate) = "roAssociativeArray"
-                            suggestionScore = rpHdTaskSuggestionScore(discovery.title,suggestionCandidate.title,discovery.year,suggestionCandidate.year)
-                            if type(suggestionCandidate.metadataAliases) = "roArray"
-                                for each suggestionAlias in suggestionCandidate.metadataAliases
-                                    aliasScore = rpHdTaskSuggestionScore(discovery.title,suggestionAlias,discovery.year,suggestionCandidate.year)
-                                    if aliasScore > suggestionScore then suggestionScore = aliasScore
-                                end for
-                            end if
-                            if suggestionScore >= 0.30
-                                suggestionKey = rpHdTaskCinemetaTitleKey(suggestionCandidate.title)
-                                alreadySuggested = false
-                                for each savedSuggestion in suggestions
-                                    if rpHdTaskCinemetaTitleKey(savedSuggestion.title) = suggestionKey then alreadySuggested = true
-                                end for
-                                if not alreadySuggested and suggestions.count() < 12
-                                    suggestionCandidate.suggestionScore = suggestionScore
-                                    suggestions.push(suggestionCandidate)
-                                end if
-                            end if
-                        end if
-                    end for
-                end if
                 if matches.count() = 1
                     candidate = matches[0]
                     operation = "resolve"
@@ -2022,8 +1997,7 @@ function rpHdTaskSuggestionSearchQueries(title as dynamic) as object
     words = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(title,240))," ").trim().split(" ")
     selected = []
     used = {}
-    ' Use up to three distinct, meaningful words so provider indexes can find
-    ' shortened titles without asking Cinemeta to suggest or resolve anything.
+    ' Select distinctive words to build a second Cinemeta search phrase.
     for pass = 0 to 1
         bestWord = ""
         bestLength = 0
