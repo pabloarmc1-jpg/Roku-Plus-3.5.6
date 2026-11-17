@@ -2042,9 +2042,11 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
             seenWanted[word] = true
             usefulWanted++
             if not seenCandidate.doesExist(word)
+                found = false
                 for each other in candidateWords
-                    if word = other then shared++
+                    if word = other then found = true
                 end for
+                if found then shared++
                 seenCandidate[word] = true
             end if
         end if
