@@ -1932,7 +1932,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                                     if aliasScore > suggestionScore then suggestionScore = aliasScore
                                 end for
                             end if
-                            if suggestionScore >= 0.15
+                            if suggestionScore >= 0.30
                                 suggestionKey = rpHdTaskCinemetaTitleKey(suggestionCandidate.title)
                                 alreadySuggested = false
                                 for each savedSuggestion in suggestions
@@ -2032,34 +2032,38 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
     if wanted = "" or candidate = "" or wanted = candidate then return 0
     wantedWords = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(wantedTitle,240))," ").trim().split(" ")
     candidateWords = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(candidateTitle,240))," ").trim().split(" ")
+    seenWanted = {}
+    seenCandidate = {}
     shared = 0
     usefulWanted = 0
     usefulCandidate = 0
     for each word in wantedWords
-        if len(word) >= 3 and not rpHdTaskSuggestionIgnoredWord(word)
+        if len(word) >= 3 and not rpHdTaskSuggestionIgnoredWord(word) and not seenWanted.doesExist(word)
+            seenWanted[word] = true
             usefulWanted++
-            found = false
-            for each other in candidateWords
-                if word = other then found = true
-            end for
-            if found then shared++
+            if not seenCandidate.doesExist(word)
+                for each other in candidateWords
+                    if word = other then shared++
+                end for
+                seenCandidate[word] = true
+            end if
         end if
     end for
     for each word in candidateWords
-        if len(word) >= 3 and not rpHdTaskSuggestionIgnoredWord(word) then usefulCandidate++
+        if len(word) >= 3 and not rpHdTaskSuggestionIgnoredWord(word) and not seenCandidate.doesExist(word)
+            seenCandidate[word] = true
+            usefulCandidate++
+        end if
     end for
-    if usefulWanted = 0 or usefulCandidate = 0 then return 0
+    if usefulWanted = 0 or usefulCandidate + shared = 0 or shared = 0 then return 0
+    usefulCandidate += shared
     denominator = usefulWanted
     if usefulCandidate > denominator then denominator = usefulCandidate
-    score = shared/denominator
-    if rpHdTaskCinemetaYear(wantedYear) <> "" and rpHdTaskCinemetaYear(wantedYear) = rpHdTaskCinemetaYear(candidateYear)
-        score += 0.15
-    end if
-    return score
+    return shared/denominator
 end function
 
 function rpHdTaskSuggestionIgnoredWord(value as string) as boolean
-    for each ignoredWord in ["the","and","for","with","from","una","uno","las","los","del","de","la","el","un","a","an","of","to","in","your","our","his","her","their","this","that","being","movie","film","series"]
+    for each ignoredWord in ["the","and","for","with","from","una","uno","las","los","del","de","la","el","un","a","an","of","to","in","your","our","his","her","their","this","that","being","movie","film","series","mother","house"]
         if value = ignoredWord then return true
     end for
     return false
