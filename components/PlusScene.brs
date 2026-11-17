@@ -3359,7 +3359,7 @@ sub playDetail()
     m.sourceAlternativeCursor = 0
     m.sourceLaunchPending = true
     m.note = ""
-    drawScreen()
+    m.view = "source-resolving"
     if orbitText(m.detail.discoverySource,32) = "cinemeta"
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
