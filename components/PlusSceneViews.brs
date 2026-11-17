@@ -805,6 +805,30 @@ sub sourceResolvingScreen()
     if m.busy
         words("La reproducción comenzará aquí cuando se encuentre y valide el enlace.",100,710,1720,52,21,"0xAEB7C4FF").wrap = true
         words("ATRÁS  ·  Cancelar búsqueda",100,930,1720,42,21,"0xAEB7C4FF")
+    else if type(m.sourceAlternatives) = "roArray" and m.sourceAlternatives.count() > 0
+        words("TÍTULOS SIMILARES  ·  Selecciona uno para intentar reproducirlo",100,690,1720,38,21,"0xAEB7C4FF")
+        visibleCount = m.sourceAlternatives.count()
+        if visibleCount > 5 then visibleCount = 5
+        firstIndex = m.sourceAlternativeCursor - 2
+        if firstIndex < 0 then firstIndex = 0
+        if firstIndex + visibleCount > m.sourceAlternatives.count() then firstIndex = m.sourceAlternatives.count() - visibleCount
+        for row = 0 to visibleCount-1
+            itemIndex = firstIndex + row
+            candidate = m.sourceAlternatives[itemIndex]
+            rowY = 738 + row*46
+            rowColor = "0x171C26DD"
+            textColor = "0xE6EAF0FF"
+            if itemIndex = m.sourceAlternativeCursor
+                rowColor = "0xE50914EE"
+                textColor = "0xFFFFFFFF"
+            end if
+            panel(100,rowY,1720,40,rowColor)
+            candidateTitle = orbitText(candidate.title,150)
+            candidateYear = rpHdTaskCinemetaYear(candidate.year)
+            if candidateYear <> "" then candidateTitle = candidateTitle+" ("+candidateYear+")"
+            words(candidateTitle,122,rowY+7,1670,28,22,textColor)
+        end for
+        words("↑ ↓  Elegir título       OK  ·  Intentar reproducción       ATRÁS  ·  Volver",100,1000,1720,38,20,"0xAEB7C4FF")
     else
         words("OK  ·  Intentar de nuevo       ATRÁS  ·  Volver a detalles",100,930,1720,42,21,"0xAEB7C4FF")
     end if
