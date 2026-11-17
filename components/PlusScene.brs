@@ -886,14 +886,15 @@ sub streamXImagesLoaded(event as object)
     m.streamXImageRequestId = ""
     if type(answer) <> "roAssociativeArray" then return
     if orbitText(answer.requestId,80) = "" then return
-    if answer.requestId <> m.streamXImagePendingRequestId and m.streamXImagePendingRequestId <> "" then return
     if answer.requestId <> m.streamXImagePendingRequestId then return
     cacheKey = orbitText(m.streamXImagePendingKey,400)
     if cacheKey = "" then return
     imageResult = {logo:orbitText(answer.logo,2048),background:orbitText(answer.background,2048),imdbId:orbitText(answer.imdbId,40)}
     m.streamXImageCache[cacheKey] = imageResult
     if m.streamXImageKey = cacheKey then m.streamXImages = imageResult
-    print "[RokuPlus StreamX] preload-complete logo="; imageResult.logo <> ""; " banner="; imageResult.background <> ""
+    hasLogo = imageResult.logo <> ""
+    hasBanner = imageResult.background <> ""
+    print "[RokuPlus StreamX] preload-complete logo="; hasLogo; " banner="; hasBanner
     if m.view = "source-resolving" and m.streamXImageKey = cacheKey then drawScreen()
 end sub
 
