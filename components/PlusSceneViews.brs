@@ -845,7 +845,7 @@ sub sourceResolvingScreen()
         countdownText = "Reproducción automática detenida · Elige un título o pulsa Atrás"
         if m.sourceAlternativeCountdown > 0 then countdownText = "Se intentará reproducir el primer título en "+m.sourceAlternativeCountdown.toStr()+" segundos"
         words(countdownText,100,1020,1720,32,22,"0xFFFFFFFF").horizAlign = "center"
-        words("↑ ↓  Elegir       OK  ·  Reproducir ahora       ATRÁS  ·  Cancelar",100,1060,1720,25,17,"0xAEB7C4FF").horizAlign = "center"
+        words("← →  Elegir película       OK  ·  Reproducir ahora       ATRÁS  ·  Cancelar",100,1060,1720,25,17,"0xAEB7C4FF").horizAlign = "center"
     else
         words("OK  ·  Intentar de nuevo       ATRÁS  ·  Volver a detalles",100,930,1720,42,21,"0xAEB7C4FF")
     end if
