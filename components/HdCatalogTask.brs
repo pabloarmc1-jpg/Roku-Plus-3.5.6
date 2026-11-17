@@ -2019,7 +2019,7 @@ function rpHdTaskSuggestionSearchQueries(title as dynamic) as object
     used = {}
     ' Use up to three distinct, meaningful words so provider indexes can find
     ' shortened titles without asking Cinemeta to suggest or resolve anything.
-    for pass = 0 to 2
+    for pass = 0 to 1
         bestWord = ""
         bestLength = 0
         for each word in words
