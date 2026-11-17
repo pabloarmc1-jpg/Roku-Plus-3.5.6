@@ -152,6 +152,8 @@ sub init()
     m.detailOrigin = "home"
     m.autoplay = false
     m.sourceLaunchPending = false
+    m.sourceAlternatives = []
+    m.sourceAlternativeCursor = 0
     m.busy = false
     m.job = invalid
     m.request = ""
@@ -440,22 +442,13 @@ sub fetched(event as object)
             end if
             m.autoplay = false
             m.note = answer.message
+            m.sourceAlternatives = []
+            m.sourceAlternativeCursor = 0
             if type(answer.alternatives) = "roArray" and answer.alternatives.count() > 0 and answer.doesExist("alternativeKind")
                 m.sourceLaunchPending = false
-                m.pageTitles = answer.alternatives
-                m.kind = orbitText(answer.alternativeKind,16)
-                m.query = ""
-                m.genreFilter = "Todos"
-                m.offset = 0
-                m.nextOffset = 0
-                m.more = false
-                m.cursor = 0
-                m.view = "browse"
-                m.zone = "grid"
-                m.detailOrigin = "browse"
-                applyGenreFilter()
-                m.note = "No se encontró una fuente confirmada. Elige un título similar para revisar sus detalles y reproducirlo."
-                print "[RokuPlus source-alternatives] displayed="; m.titles.count(); " kind="; m.kind
+                m.sourceAlternatives = answer.alternatives
+                m.note = "No se encontró una fuente confirmada. Selecciona un título similar para intentar reproducirlo."
+                print "[RokuPlus source-alternatives] displayed="; m.sourceAlternatives.count(); " kind="; orbitText(answer.alternativeKind,16); " view="; m.view
             end if
             drawScreen()
             return
@@ -3136,6 +3129,8 @@ sub playDetail()
         return
     end if
     m.playbackMode = "direct"
+    m.sourceAlternatives = []
+    m.sourceAlternativeCursor = 0
     m.sourceLaunchPending = true
     m.view = "source-resolving"
     m.note = ""
@@ -3379,6 +3374,27 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if m.view = "player" or m.view = "invidious-player" then return false
+    if m.view = "source-resolving" and not m.busy and type(m.sourceAlternatives) = "roArray" and m.sourceAlternatives.count() > 0
+        if key = "up" and m.sourceAlternativeCursor > 0
+            m.sourceAlternativeCursor--
+            drawScreen()
+            return true
+        else if key = "down" and m.sourceAlternativeCursor < m.sourceAlternatives.count()-1
+            m.sourceAlternativeCursor++
+            drawScreen()
+            return true
+        else if key = "OK"
+            selectedAlternative = m.sourceAlternatives[m.sourceAlternativeCursor]
+            if type(selectedAlternative) = "roAssociativeArray"
+                print "[RokuPlus source-alternatives] selected title="; left(orbitText(selectedAlternative.title,120),120); " provider="; orbitText(selectedAlternative.provider,32)
+                m.detail = selectedAlternative
+                m.sourceAlternatives = []
+                m.sourceAlternativeCursor = 0
+                playDetail()
+            end if
+            return true
+        end if
+    end if
     if m.view = "source-resolving" and not m.busy and key = "OK"
         m.sourceLaunchPending = false
         playDetail()
