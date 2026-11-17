@@ -445,6 +445,9 @@ sub fetched(event as object)
             return
         end if
         if context.operation = "find-source"
+            if not voeBlocked
+                if advanceSourceAlternativeAfterMiss() then return
+            end if
             if not m.sourceLaunchPending
                 m.view = orbitText(context.returnView,24)
                 if m.view = "" then m.view = "detail"
@@ -500,26 +503,8 @@ sub fetched(event as object)
                 end if
             end if
         end if
-        if m.sourceAlternativeAutoActive and not voeBlocked and (context.operation = "resolve" or context.operation = "find-source" or context.operation = "resume-episode")
-            nextAlternativeIndex = m.sourceAlternativeAttemptIndex + 1
-            if type(m.sourceAlternativeQueue) = "roArray" and nextAlternativeIndex >= 0 and nextAlternativeIndex < m.sourceAlternativeQueue.count()
-                nextAlternative = m.sourceAlternativeQueue[nextAlternativeIndex]
-                m.sourceAlternativeStatus = "Sin coincidencia con el título anterior. Reproduciendo el siguiente: "+orbitText(nextAlternative.title,100)
-                print "[RokuPlus source-alternatives] no-match next="; nextAlternativeIndex+1; " title="; left(orbitText(nextAlternative.title,120),120)
-                chooseSourceAlternative(nextAlternativeIndex,true)
-                return
-            else
-                m.sourceAlternativeAutoActive = false
-                m.sourceAlternativeStatus = "Sin coincidencia en los títulos similares. Puedes elegir otra portada o volver atrás."
-                if type(m.sourceAlternativeQueue) = "roArray" then m.sourceAlternatives = m.sourceAlternativeQueue
-                m.sourceAlternativeCursor = m.sourceAlternativeAttemptIndex
-                if m.sourceAlternativeCursor < 0 then m.sourceAlternativeCursor = 0
-                if type(m.sourceAlternatives) = "roArray" and m.sourceAlternativeCursor >= m.sourceAlternatives.count() then m.sourceAlternativeCursor = m.sourceAlternatives.count()-1
-                m.sourceAlternativeQueue = []
-                m.sourceAlternativeAttemptIndex = -1
-                drawScreen()
-                return
-            end if
+        if not voeBlocked and (context.operation = "resolve" or context.operation = "find-source" or context.operation = "resume-episode")
+            if advanceSourceAlternativeAfterMiss() then return
         end if
         m.autoplay = false
         m.note = answer.message
@@ -3157,6 +3142,28 @@ function detailActionCount() as integer
     if m.detail.kind = "series" or m.catalogMode = "hd" then return 2
     if m.capabilities.hevcKnown and not m.capabilities.canDecodeHevc then return 2
     return 3
+end function
+
+function advanceSourceAlternativeAfterMiss() as boolean
+    if not m.sourceAlternativeAutoActive then return false
+    nextAlternativeIndex = m.sourceAlternativeAttemptIndex + 1
+    if type(m.sourceAlternativeQueue) = "roArray" and nextAlternativeIndex >= 0 and nextAlternativeIndex < m.sourceAlternativeQueue.count()
+        nextAlternative = m.sourceAlternativeQueue[nextAlternativeIndex]
+        m.sourceAlternativeStatus = "Sin coincidencia con el título anterior. Reproduciendo el siguiente: "+orbitText(nextAlternative.title,100)
+        print "[RokuPlus source-alternatives] no-match next="; nextAlternativeIndex+1; " title="; left(orbitText(nextAlternative.title,120),120)
+        chooseSourceAlternative(nextAlternativeIndex,true)
+        return true
+    end if
+    m.sourceAlternativeAutoActive = false
+    m.sourceAlternativeStatus = "Sin coincidencia en los títulos similares. Puedes elegir otra portada o volver atrás."
+    if type(m.sourceAlternativeQueue) = "roArray" then m.sourceAlternatives = m.sourceAlternativeQueue
+    m.sourceAlternativeCursor = m.sourceAlternativeAttemptIndex
+    if m.sourceAlternativeCursor < 0 then m.sourceAlternativeCursor = 0
+    if type(m.sourceAlternatives) = "roArray" and m.sourceAlternativeCursor >= m.sourceAlternatives.count() then m.sourceAlternativeCursor = m.sourceAlternatives.count()-1
+    m.sourceAlternativeQueue = []
+    m.sourceAlternativeAttemptIndex = -1
+    drawScreen()
+    return true
 end function
 
 sub stopSourceAlternativeCountdown()
