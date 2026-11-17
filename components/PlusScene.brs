@@ -155,6 +155,10 @@ sub init()
     m.sourceAlternatives = []
     m.sourceAlternativeCursor = 0
     m.sourceAlternativeCountdown = 0
+    m.sourceAlternativeQueue = []
+    m.sourceAlternativeAttemptIndex = -1
+    m.sourceAlternativeAutoActive = false
+    m.sourceAlternativeStatus = ""
     m.sourceAlternativeTimer = CreateObject("roSGNode","Timer")
     m.sourceAlternativeTimer.duration = 1
     m.sourceAlternativeTimer.repeat = true
@@ -450,6 +454,10 @@ sub fetched(event as object)
             m.sourceAlternatives = []
             m.sourceAlternativeCursor = 0
             if type(answer.alternatives) = "roArray" and answer.alternatives.count() > 0 and answer.doesExist("alternativeKind")
+                m.sourceAlternativeQueue = answer.alternatives
+                m.sourceAlternativeAttemptIndex = -1
+                m.sourceAlternativeAutoActive = false
+                m.sourceAlternativeStatus = ""
                 m.sourceLaunchPending = false
                 m.sourceAlternatives = answer.alternatives
                 m.sourceAlternativeCursor = 0
@@ -492,6 +500,27 @@ sub fetched(event as object)
                 end if
             end if
         end if
+        if m.sourceAlternativeAutoActive and not voeBlocked and (context.operation = "resolve" or context.operation = "find-source" or context.operation = "resume-episode")
+            nextAlternativeIndex = m.sourceAlternativeAttemptIndex + 1
+            if type(m.sourceAlternativeQueue) = "roArray" and nextAlternativeIndex >= 0 and nextAlternativeIndex < m.sourceAlternativeQueue.count()
+                nextAlternative = m.sourceAlternativeQueue[nextAlternativeIndex]
+                m.sourceAlternativeStatus = "Sin coincidencia con el título anterior. Reproduciendo el siguiente: "+orbitText(nextAlternative.title,100)
+                print "[RokuPlus source-alternatives] no-match next="; nextAlternativeIndex+1; " title="; left(orbitText(nextAlternative.title,120),120)
+                chooseSourceAlternative(nextAlternativeIndex,true)
+                return
+            else
+                m.sourceAlternativeAutoActive = false
+                m.sourceAlternativeStatus = "Sin coincidencia en los títulos similares. Puedes elegir otra portada o volver atrás."
+                if type(m.sourceAlternativeQueue) = "roArray" then m.sourceAlternatives = m.sourceAlternativeQueue
+                m.sourceAlternativeCursor = m.sourceAlternativeAttemptIndex
+                if m.sourceAlternativeCursor < 0 then m.sourceAlternativeCursor = 0
+                if type(m.sourceAlternatives) = "roArray" and m.sourceAlternativeCursor >= m.sourceAlternatives.count() then m.sourceAlternativeCursor = m.sourceAlternatives.count()-1
+                m.sourceAlternativeQueue = []
+                m.sourceAlternativeAttemptIndex = -1
+                drawScreen()
+                return
+            end if
+        end if
         m.autoplay = false
         m.note = answer.message
         if m.sourceLaunchPending then m.view = "source-resolving"
@@ -509,6 +538,12 @@ sub fetched(event as object)
     end if
     if type(m.detail) = "roAssociativeArray" then m.detail.hdAutoRetry = 0
     if type(context.item) = "roAssociativeArray" then context.item.hdAutoRetry = 0
+    if m.sourceAlternativeAutoActive
+        m.sourceAlternativeAutoActive = false
+        m.sourceAlternativeQueue = []
+        m.sourceAlternativeAttemptIndex = -1
+        m.sourceAlternativeStatus = ""
+    end if
     if context.operation = "invidious-search"
         m.invidiousItems = answer.items
         m.invidiousCursor = 0
@@ -3144,6 +3179,10 @@ sub sourceAlternativeTimerTick()
     if m.sourceAlternativeCountdown > 0 then m.sourceAlternativeCountdown = m.sourceAlternativeCountdown - 1
     if m.sourceAlternativeCountdown <= 0
         stopSourceAlternativeCountdown()
+        m.sourceAlternativeQueue = m.sourceAlternatives
+        m.sourceAlternativeAutoActive = true
+        m.sourceAlternativeAttemptIndex = -1
+        m.sourceAlternativeStatus = ""
         print "[RokuPlus source-alternatives] autoplay=1 index=0"
         chooseSourceAlternative(0,true)
     else
@@ -3152,12 +3191,24 @@ sub sourceAlternativeTimerTick()
 end sub
 
 sub chooseSourceAlternative(index as integer, automatic as boolean)
-    if type(m.sourceAlternatives) <> "roArray" or index < 0 or index >= m.sourceAlternatives.count() then return
-    selectedAlternative = m.sourceAlternatives[index]
+    selectedAlternative = invalid
+    if automatic
+        if type(m.sourceAlternativeQueue) <> "roArray" or index < 0 or index >= m.sourceAlternativeQueue.count() then return
+        selectedAlternative = m.sourceAlternativeQueue[index]
+        m.sourceAlternativeAttemptIndex = index
+        m.sourceAlternativeAutoActive = true
+    else
+        if type(m.sourceAlternatives) <> "roArray" or index < 0 or index >= m.sourceAlternatives.count() then return
+        selectedAlternative = m.sourceAlternatives[index]
+        m.sourceAlternativeAutoActive = false
+        m.sourceAlternativeQueue = []
+        m.sourceAlternativeAttemptIndex = -1
+        m.sourceAlternativeStatus = ""
+    end if
     if type(selectedAlternative) <> "roAssociativeArray" then return
     stopSourceAlternativeCountdown()
     mode = "manual"
-    if automatic then mode = "timeout"
+    if automatic then mode = "automatic"
     print "[RokuPlus source-alternatives] selected mode="; mode; " title="; left(orbitText(selectedAlternative.title,120),120); " provider="; orbitText(selectedAlternative.provider,32)
     m.detail = selectedAlternative
     m.sourceAlternatives = []
@@ -3511,10 +3562,14 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
     end if
     if key = "back"
-        if m.view = "source-resolving" and not m.busy
+        if m.view = "source-resolving"
             stopSourceAlternativeCountdown()
             m.sourceAlternatives = []
             m.sourceAlternativeCursor = 0
+            m.sourceAlternativeQueue = []
+            m.sourceAlternativeAttemptIndex = -1
+            m.sourceAlternativeAutoActive = false
+            m.sourceAlternativeStatus = ""
         end if
         if m.view = "search-keyboard"
             closeSearchKeyboard()
