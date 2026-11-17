@@ -1849,14 +1849,16 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         yearQuery = cinemetaTitle+" "+discoveryYear
         searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,yearQuery)
     end if
-    ' If the full-title search returns no useful candidates, a distinctive
-    ' title word can reveal provider entries with shortened/localized names.
-    ' Source matching remains protected by the exact-title/IMDb checks below.
-    suggestionQuery = rpHdTaskSuggestionSearchQuery(cinemetaTitle)
-    if suggestionQuery <> "" and rpHdTaskCinemetaTitleKey(suggestionQuery) <> rpHdTaskCinemetaTitleKey(cinemetaTitle)
-        searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,suggestionQuery)
-        print "[RokuPlus source-search] suggestion-query="; suggestionQuery
-    end if
+    ' Similar-title discovery is performed only against provider catalogs.
+    ' Search up to three distinctive title words directly at each source; no
+    ' Cinemeta request or metadata lookup is made for this alternatives pass.
+    suggestionQueries = rpHdTaskSuggestionSearchQueries(cinemetaTitle)
+    for each suggestionQuery in suggestionQueries
+        if suggestionQuery <> "" and rpHdTaskCinemetaTitleKey(suggestionQuery) <> rpHdTaskCinemetaTitleKey(cinemetaTitle)
+            searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,suggestionQuery)
+            print "[RokuPlus source-search] direct-provider-suggestion-query="; suggestionQuery
+        end if
+    end for
     if searchQueries.count() = 0
         answer.message = "No hay un título válido para buscar en las fuentes."
         return answer
@@ -2011,17 +2013,26 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     return answer
 end function
 
-function rpHdTaskSuggestionSearchQuery(title as dynamic) as string
+function rpHdTaskSuggestionSearchQueries(title as dynamic) as object
     words = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(title,240))," ").trim().split(" ")
-    selected = ""
-    selectedLength = 0
-    for each word in words
-        if len(word) >= 4 and not rpHdTaskSuggestionIgnoredWord(word)
-            if len(word) >= selectedLength
-                selected = word
-                selectedLength = len(word)
+    selected = []
+    used = {}
+    ' Use up to three distinct, meaningful words so provider indexes can find
+    ' shortened titles without asking Cinemeta to suggest or resolve anything.
+    for pass = 0 to 2
+        bestWord = ""
+        bestLength = 0
+        for each word in words
+            if len(word) >= 4 and not rpHdTaskSuggestionIgnoredWord(word) and not used.doesExist(word)
+                if len(word) > bestLength
+                    bestWord = word
+                    bestLength = len(word)
+                end if
             end if
-        end if
+        end for
+        if bestWord = "" then exit for
+        selected.push(bestWord)
+        used[bestWord] = true
     end for
     return selected
 end function
