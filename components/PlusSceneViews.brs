@@ -796,7 +796,7 @@ sub sourceResolvingScreen()
     if type(item) = "roAssociativeArray" then titleText = orbitText(item.title,180)
     words(titleText,100,420,1720,110,48,"0xFFFFFFFF").wrap = true
     statusText = "Buscando una fuente compatible en las bibliotecas disponibles…"
-    if m.busy and orbitText(m.sourceAlternativeStatus,180) <> ""
+    if orbitText(m.sourceAlternativeStatus,180) <> ""
         statusText = m.sourceAlternativeStatus
     else if not m.busy and m.note <> ""
         statusText = m.note
@@ -842,7 +842,8 @@ sub sourceResolvingScreen()
             if candidateYear <> "" then candidateTitle = candidateTitle+" ("+candidateYear+")"
             words(candidateTitle,cardX+12,cardY+207,cardWidth-24,45,18,"0xFFFFFFFF").horizAlign = "center"
         end for
-        countdownText = "Se intentará reproducir el primer título en "+m.sourceAlternativeCountdown.toStr()+" segundos"
+        countdownText = "Reproducción automática detenida · Elige un título o pulsa Atrás"
+        if m.sourceAlternativeCountdown > 0 then countdownText = "Se intentará reproducir el primer título en "+m.sourceAlternativeCountdown.toStr()+" segundos"
         words(countdownText,100,1020,1720,32,22,"0xFFFFFFFF").horizAlign = "center"
         words("↑ ↓  Elegir       OK  ·  Reproducir ahora       ATRÁS  ·  Cancelar",100,1060,1720,25,17,"0xAEB7C4FF").horizAlign = "center"
     else
