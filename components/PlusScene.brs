@@ -393,6 +393,15 @@ sub catalogTimedOut()
     end if
     pendingContext = m.pending
     cancelRequest()
+    if m.sourceAlternativeAutoActive
+        m.sourceAlternativeAutoActive = false
+        m.sourceAlternatives = m.sourceAlternativeQueue
+        m.sourceAlternativeCursor = m.sourceAlternativeAttemptIndex
+        if m.sourceAlternativeCursor < 0 then m.sourceAlternativeCursor = 0
+        m.sourceAlternativeQueue = []
+        m.sourceAlternativeAttemptIndex = -1
+        m.sourceAlternativeStatus = "La búsqueda tardó demasiado. Puedes elegir otra portada o volver atrás."
+    end if
     m.autoplay = false
     m.note = "La consulta tardó demasiado. Pulsa OK para intentar de nuevo o Atrás para volver."
     if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" and not m.sourceLaunchPending then m.view = "detail"
@@ -414,6 +423,15 @@ sub catalogState(event as object)
     if type(m.job.result) = "roAssociativeArray" then return
     pendingContext = m.pending
     cancelRequest()
+    if m.sourceAlternativeAutoActive
+        m.sourceAlternativeAutoActive = false
+        m.sourceAlternatives = m.sourceAlternativeQueue
+        m.sourceAlternativeCursor = m.sourceAlternativeAttemptIndex
+        if m.sourceAlternativeCursor < 0 then m.sourceAlternativeCursor = 0
+        m.sourceAlternativeQueue = []
+        m.sourceAlternativeAttemptIndex = -1
+        m.sourceAlternativeStatus = "No se pudo completar la búsqueda. Puedes elegir otra portada o volver atrás."
+    end if
     m.autoplay = false
     m.note = "No se pudo completar la consulta. Vuelve a intentar."
     if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" and not m.sourceLaunchPending then m.view = "detail"
