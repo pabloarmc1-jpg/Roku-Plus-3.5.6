@@ -796,7 +796,9 @@ sub sourceResolvingScreen()
     if type(item) = "roAssociativeArray" then titleText = orbitText(item.title,180)
     words(titleText,100,420,1720,110,48,"0xFFFFFFFF").wrap = true
     statusText = "Buscando una fuente compatible en las bibliotecas disponibles…"
-    if not m.busy and m.note <> ""
+    if m.busy and orbitText(m.sourceAlternativeStatus,180) <> ""
+        statusText = m.sourceAlternativeStatus
+    else if not m.busy and m.note <> ""
         statusText = m.note
     else if not m.busy
         statusText = "No se pudo preparar la reproducción."
