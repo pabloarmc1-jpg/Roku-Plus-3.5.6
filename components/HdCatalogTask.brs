@@ -1849,16 +1849,8 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         yearQuery = cinemetaTitle+" "+discoveryYear
         searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,yearQuery)
     end if
-    ' Similar-title discovery is performed only against provider catalogs.
-    ' Search up to three distinctive title words directly at each source; no
-    ' Cinemeta request or metadata lookup is made for this alternatives pass.
-    suggestionQueries = rpHdTaskSuggestionSearchQueries(cinemetaTitle)
-    for each suggestionQuery in suggestionQueries
-        if suggestionQuery <> "" and rpHdTaskCinemetaTitleKey(suggestionQuery) <> rpHdTaskCinemetaTitleKey(cinemetaTitle)
-            searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,suggestionQuery)
-            print "[RokuPlus source-search] direct-provider-suggestion-query="; suggestionQuery
-        end if
-    end for
+    ' Resolve the selected Cinemeta title exactly at providers.
+    ' Similar-title discovery is a separate Cinemeta catalog search after source resolution fails.
     if searchQueries.count() = 0
         answer.message = "No hay un título válido para buscar en las fuentes."
         return answer
@@ -1998,6 +1990,19 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
         if providerFailed then failures++
     end for
+    if not isEpisode and not m.top.cancelRequested and not rpHdTaskSliceExpired()
+        cinemetaSuggestions = rpHdTaskCinemetaSimilarTitles(cinemetaTitle,kind,discoveryYear,fetcher)
+        for each cinemetaSuggestion in cinemetaSuggestions
+            suggestionKey = lcase(orbitText(cinemetaSuggestion.imdbId,40))
+            alreadySuggested = false
+            for each savedSuggestion in suggestions
+                savedId = lcase(orbitText(savedSuggestion.imdbId,40))
+                if suggestionKey <> "" and savedId = suggestionKey then alreadySuggested = true
+                if suggestionKey = "" and rpHdTaskCinemetaTitleKey(savedSuggestion.title) = rpHdTaskCinemetaTitleKey(cinemetaSuggestion.title) then alreadySuggested = true
+            end for
+            if not alreadySuggested and suggestions.count() < 12 then suggestions.push(cinemetaSuggestion)
+        end for
+    end if
     if isEpisode
         answer.message = "No se encontró otra fuente para el episodio "+seasonNumber.toStr()+"x"+episodeNumber.toStr()+"."
     else
@@ -2007,7 +2012,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     if not isEpisode and suggestions.count() > 0
         answer.alternatives = rpHdTaskSortSuggestions(suggestions)
         answer.alternativeKind = kind
-        print "[RokuPlus source-search] alternatives count="; answer.alternatives.count(); " kind="; kind
+        print "[RokuPlus source-search] alternatives count="; answer.alternatives.count(); " kind="; kind; " discovery=cinemeta"
     end if
     print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
@@ -2052,14 +2057,11 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
         if len(word) >= 3 and not rpHdTaskSuggestionIgnoredWord(word) and not seenWanted.doesExist(word)
             seenWanted[word] = true
             usefulWanted++
-            if not seenCandidate.doesExist(word)
-                found = false
-                for each other in candidateWords
-                    if word = other then found = true
-                end for
-                if found then shared++
-                seenCandidate[word] = true
-            end if
+            found = false
+            for each other in candidateWords
+                if word = other then found = true
+            end for
+            if found then shared++
         end if
     end for
     for each word in candidateWords
@@ -2068,11 +2070,91 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
             usefulCandidate++
         end if
     end for
-    if usefulWanted = 0 or usefulCandidate + shared = 0 or shared = 0 then return 0
-    usefulCandidate += shared
+    if usefulWanted = 0 or usefulCandidate = 0 or shared = 0 then return 0
     denominator = usefulWanted
     if usefulCandidate > denominator then denominator = usefulCandidate
-    return shared/denominator
+    overlapScore = shared/denominator
+    ' Reordered words and extra subtitles remain valid; a single shared generic
+    ' word does not. For one-word titles require a strong spelling similarity.
+    if shared < 2
+        if usefulWanted = 1 and usefulCandidate = 1
+            spellingScore = rpHdTaskTitleSimilarity(wantedTitle,candidateTitle)
+            if spellingScore >= 0.72 then return spellingScore
+        end if
+        return 0
+    end if
+    return overlapScore
+end function
+
+function rpHdTaskCinemetaSimilarTitles(title as string, kind as string, year as string, fetcher as dynamic) as object
+    results = []
+    if title.trim() = "" or (kind <> "movie" and kind <> "series") then return results
+    queries = []
+    rpHdTaskAppendUniqueSearchQuery(queries,title)
+    words = rpHdTaskSuggestionSearchQueries(title)
+    if words.count() >= 2
+        compactQuery = words[0]+" "+words[1]
+        if rpHdTaskCinemetaTitleKey(compactQuery) <> rpHdTaskCinemetaTitleKey(title)
+            rpHdTaskAppendUniqueSearchQuery(queries,compactQuery)
+        end if
+    end if
+    transfer = CreateObject("roUrlTransfer")
+    for each query in queries
+        if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
+        endpoint = "https://v3-cinemeta.strem.io/catalog/"+kind+"/top/search="+transfer.escape(query)+".json"
+        print "[RokuPlus source-search] cinemeta-similar-query="; query
+        response = fetcher(endpoint,"cinemeta","")
+        if response.cancelled and m.top.cancelRequested then exit for
+        if not response.ok
+            print "[RokuPlus source-search] cinemeta-similar result=error query="; query
+        else
+            data = ParseJson(response.body)
+            if type(data) = "roAssociativeArray" and type(data.metas) = "roArray"
+                for each meta in data.metas
+                    if results.count() >= 12 then exit for
+                    if type(meta) = "roAssociativeArray"
+                        metaId = orbitText(meta.id,80)
+                        metaTitle = orbitText(meta.name,200).trim()
+                        metaKind = orbitText(meta.type,16)
+                        if metaTitle <> "" and CreateObject("roRegex","^tt[0-9]{6,12}$","").isMatch(metaId) and (metaKind = "" or metaKind = kind)
+                            score = rpHdTaskSuggestionScore(title,metaTitle,year,meta.year)
+                            if score >= 0.40
+                                metaYear = rpHdTaskCinemetaYear(meta.year)
+                                if metaYear = "" then metaYear = rpHdTaskCinemetaYear(meta.releaseInfo)
+                                genres = []
+                                if type(meta.genres) = "roArray"
+                                    for each genreValue in meta.genres
+                                        if GetInterface(genreValue,"ifString") <> invalid
+                                            genreName = lcase(genreValue.trim())
+                                            if genreName <> "" then genres.push(genreName)
+                                        end if
+                                    end for
+                                end if
+                                suggestion = {
+                                    id:"cinemeta-"+metaId, imdbId:metaId, kind:kind
+                                    provider:"all", discoverySource:"cinemeta", library:"hd-online"
+                                    title:metaTitle, searchQuery:metaTitle, year:metaYear
+                                    description:orbitText(meta.description,4000)
+                                    poster:orbitText(meta.poster,2048), background:orbitText(meta.background,2048)
+                                    genres:genres, runtime:0, language:"", seasons:[]
+                                    source:"Cinemeta", suggestionScore:score
+                                }
+                                duplicate = false
+                                for each saved in results
+                                    if lcase(orbitText(saved.imdbId,40)) = lcase(metaId) then duplicate = true
+                                end for
+                                if not duplicate then results.push(suggestion)
+                            end if
+                        end if
+                    end if
+                end for
+            else
+                print "[RokuPlus source-search] cinemeta-similar result=invalid-json query="; query
+            end if
+        end if
+    end for
+    print "[RokuPlus source-search] cinemeta-similar results="; results.count()
+    return results
 end function
 
 function rpHdTaskSuggestionIgnoredWord(value as string) as boolean
