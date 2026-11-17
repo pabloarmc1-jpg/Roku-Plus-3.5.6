@@ -149,6 +149,13 @@ sub init()
     m.episodeMode = "seasons"
     m.detail = invalid
     m.series = invalid
+    m.streamXImageTask = invalid
+    m.streamXImageRequestId = ""
+    m.streamXImagePendingRequestId = ""
+    m.streamXImagePendingKey = ""
+    m.streamXImageKey = ""
+    m.streamXImages = invalid
+    m.streamXImageCache = {}
     m.detailOrigin = "home"
     m.autoplay = false
     m.sourceLaunchPending = false
@@ -676,6 +683,7 @@ sub fetched(event as object)
             end for
         end if
         m.detail = answer.item
+        preloadStreamXImages(m.detail)
         if m.autoplay
             m.autoplay = false
             playDetail()
@@ -771,6 +779,7 @@ end sub
 
 sub openDetails(item as object, origin as string, playNow = false as boolean)
     m.detail = item
+    preloadStreamXImages(item)
     m.detail.hdAttempt = 0
     m.detail.hdAutoRetry = 0
     blockKey = rpVoeBlockKey(m.detail)
@@ -807,6 +816,76 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
             fetch({operation:"meta",item:item})
         end if
     end if
+end sub
+
+sub preloadStreamXImages(item as dynamic)
+    if type(item) <> "roAssociativeArray" then return
+    lookupItem = item
+    mediaType = "movie"
+    if orbitText(item.kind,20) = "series"
+        mediaType = "series"
+    else if orbitText(item.kind,20) = "episode"
+        mediaType = "series"
+        if type(m.series) = "roAssociativeArray"
+            lookupItem = m.series
+        end if
+    end if
+
+    title = orbitText(lookupItem.title,160)
+    if title = "" and mediaType = "series" then title = orbitText(item.seriesTitle,160)
+    imdbId = orbitText(lookupItem.imdbId,40)
+    if imdbId = "" and mediaType = "series" then imdbId = orbitText(item.seriesImdbId,40)
+    year = orbitText(lookupItem.year,4)
+    if year = "" then year = orbitText(item.year,4)
+    if title = "" and imdbId = "" then return
+
+    cacheKey = mediaType+"|"+imdbId
+    if imdbId = "" then cacheKey += "|"+lcase(title)+"|"+year
+    m.streamXImageKey = cacheKey
+    if m.streamXImageCache.doesExist(cacheKey)
+        m.streamXImages = m.streamXImageCache[cacheKey]
+        return
+    end if
+    if m.streamXImageTask <> invalid and m.streamXImageRequestId <> ""
+        if m.streamXImageRequestId = cacheKey then return
+        m.streamXImageTask.cancelRequested = true
+        m.streamXImageTask.unobserveField("result")
+    end if
+
+    requestId = CreateObject("roDeviceInfo").getRandomUUID()
+    task = CreateObject("roSGNode","StreamXImageTask")
+    task.imdbId = imdbId
+    task.mediaType = mediaType
+    task.title = title
+    task.year = year
+    task.requestId = requestId
+    task.observeField("result","streamXImagesLoaded")
+    m.streamXImageTask = task
+    m.streamXImageRequestId = requestId
+    m.streamXImagePendingRequestId = requestId
+    m.streamXImagePendingKey = cacheKey
+    print "[RokuPlus StreamX] preload-start type="; mediaType; " imdb="; imdbId; " title="; left(title,80)
+    task.control = "RUN"
+end sub
+
+sub streamXImagesLoaded(event as object)
+    if m.streamXImageTask = invalid then return
+    if not m.streamXImageTask.isSameNode(event.getRoSGNode()) then return
+    answer = event.getData()
+    m.streamXImageTask.unobserveField("result")
+    m.streamXImageTask = invalid
+    m.streamXImageRequestId = ""
+    if type(answer) <> "roAssociativeArray" then return
+    if orbitText(answer.requestId,80) = "" then return
+    if answer.requestId <> m.streamXImagePendingRequestId and m.streamXImagePendingRequestId <> "" then return
+    if answer.requestId <> m.streamXImagePendingRequestId then return
+    cacheKey = orbitText(m.streamXImagePendingKey,400)
+    if cacheKey = "" then return
+    imageResult = {logo:orbitText(answer.logo,2048),background:orbitText(answer.background,2048),imdbId:orbitText(answer.imdbId,40)}
+    m.streamXImageCache[cacheKey] = imageResult
+    if m.streamXImageKey = cacheKey then m.streamXImages = imageResult
+    print "[RokuPlus StreamX] preload-complete logo="; imageResult.logo <> ""; " banner="; imageResult.background <> ""
+    if m.view = "source-resolving" and m.streamXImageKey = cacheKey then drawScreen()
 end sub
 
 sub launchInvidiousVideo(item as object, url as string, format as string, bitrate as dynamic)
@@ -3246,6 +3325,7 @@ end sub
 sub playDetail()
     stopSourceAlternativeCountdown()
     if m.detail = invalid then return
+    preloadStreamXImages(m.detail)
     if m.busy then return
     blockKey = rpVoeBlockKey(m.detail)
     if (m.detail.doesExist("voeBlocked") and m.detail.voeBlocked = true) or (blockKey <> "" and m.voeBlockedSession.doesExist(blockKey))
