@@ -2016,6 +2016,7 @@ function rpHdTaskSortSuggestions(items as object) as object
     for each item in items
         sorted.push(item)
     end for
+    if sorted.count() < 2 then return sorted
     for i = 0 to sorted.count()-2
         for j = i+1 to sorted.count()-1
             if sorted[j].suggestionScore > sorted[i].suggestionScore
