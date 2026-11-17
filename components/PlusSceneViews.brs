@@ -795,9 +795,7 @@ sub sourceResolvingScreen()
         logoUri = orbitText(m.streamXImages.logo,2048)
     end if
     if backdrop <> "" then art(backdrop,0,0,1920,1080)
-    panel(0,0,1920,1080,"0x080A0FE8")
-    words("ROKU PLUS",100,90,1720,52,26,"0xE50914FF")
-    words("PREPARANDO REPRODUCCIÓN",100,350,1720,48,23,"0xAEB7C4FF")
+    panel(0,0,1920,1080,"0x080A0F88")
     titleText = "Tu contenido"
     if type(item) = "roAssociativeArray"
         titleText = orbitText(item.title,180)
@@ -810,9 +808,9 @@ sub sourceResolvingScreen()
         end if
     end if
     if logoUri <> ""
-        art(logoUri,100,410,900,190,"scaleToFit")
+        art(logoUri,510,330,900,190,"scaleToFit")
     else
-        words(titleText,100,420,1720,110,48,"0xFFFFFFFF").wrap = true
+        words(titleText,510,350,900,110,48,"0xFFFFFFFF").wrap = true
     end if
     statusText = "Buscando una fuente compatible en las bibliotecas disponibles…"
     if orbitText(m.sourceAlternativeStatus,180) <> ""
