@@ -2055,10 +2055,9 @@ function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynam
     ' Reordered words and extra subtitles remain valid; a single shared generic
     ' word does not. For one-word titles require a strong spelling similarity.
     if shared < 2
-        if usefulWanted = 1 and usefulCandidate = 1
-            spellingScore = rpHdTaskTitleSimilarity(wantedTitle,candidateTitle)
-            if spellingScore >= 0.72 then return spellingScore
-        end if
+        ' Permit a close whole-title spelling variant, but reject loose one-word overlap.
+        spellingScore = rpHdTaskTitleSimilarity(wantedTitle,candidateTitle)
+        if spellingScore >= 0.82 then return spellingScore
         return 0
     end if
     return overlapScore
