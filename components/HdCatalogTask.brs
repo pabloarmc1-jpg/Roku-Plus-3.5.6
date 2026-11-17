@@ -1855,6 +1855,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         searchQueries = episodeQueries
     end if
     failures = 0
+    suggestions = []
     print "[RokuPlus source-search] start kind="; kind; " episode="; isEpisode; " title="; cinemetaTitle; " year="; discoveryYear; " providers="; providers.count(); " queries="; searchQueries.count()
     for providerIndex = 0 to providers.count()-1
         if m.top.cancelRequested then exit for
@@ -1887,6 +1888,25 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                         print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=localized-year-match title="; orbitText(candidate.title,100); " year="; orbitText(candidate.year,12)
                     end if
                 end for
+                ' Keep plausible title alternatives for a user choice if no verified source is found.
+                if not isEpisode
+                    for each suggestionCandidate in catalog.items
+                        if type(suggestionCandidate) = "roAssociativeArray"
+                            suggestionScore = rpHdTaskSuggestionScore(discovery.title,suggestionCandidate.title,discovery.year,suggestionCandidate.year)
+                            if suggestionScore >= 0.22
+                                suggestionKey = rpHdTaskCinemetaTitleKey(suggestionCandidate.title)
+                                alreadySuggested = false
+                                for each savedSuggestion in suggestions
+                                    if rpHdTaskCinemetaTitleKey(savedSuggestion.title) = suggestionKey then alreadySuggested = true
+                                end for
+                                if not alreadySuggested and suggestions.count() < 12
+                                    suggestionCandidate.suggestionScore = suggestionScore
+                                    suggestions.push(suggestionCandidate)
+                                end if
+                            end if
+                        end if
+                    end for
+                end if
                 if matches.count() = 1
                     candidate = matches[0]
                     operation = "resolve"
@@ -1943,8 +1963,62 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         answer.message = "No se encontró una fuente compatible para este título. Prueba otro título o inténtalo más tarde."
     end if
     if failures = providers.count() then answer.message = "Las fuentes no respondieron. Inténtalo de nuevo más tarde."
+    if not isEpisode and suggestions.count() > 0
+        answer.alternatives = rpHdTaskSortSuggestions(suggestions)
+        answer.alternativeKind = kind
+        print "[RokuPlus source-search] alternatives count="; answer.alternatives.count(); " kind="; kind
+    end if
     print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
+end function
+
+function rpHdTaskSuggestionScore(wantedTitle as dynamic, candidateTitle as dynamic, wantedYear as dynamic, candidateYear as dynamic) as float
+    wanted = rpHdTaskCinemetaTitleKey(wantedTitle)
+    candidate = rpHdTaskCinemetaTitleKey(candidateTitle)
+    if wanted = "" or candidate = "" or wanted = candidate then return 0
+    wantedWords = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(wantedTitle,240))," ").trim().split(" ")
+    candidateWords = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(candidateTitle,240))," ").trim().split(" ")
+    ignored = ["the","and","for","with","from","una","uno","las","los","del","de","la","el","un","a","an","of","to","in"]
+    shared = 0
+    usefulWanted = 0
+    usefulCandidate = 0
+    for each word in wantedWords
+        if len(word) >= 3 and not ignored.includes(word)
+            usefulWanted++
+            found = false
+            for each other in candidateWords
+                if word = other then found = true
+            end for
+            if found then shared++
+        end if
+    end for
+    for each word in candidateWords
+        if len(word) >= 3 and not ignored.includes(word) then usefulCandidate++
+    end for
+    if usefulWanted = 0 or usefulCandidate = 0 then return 0
+    denominator = usefulWanted
+    if usefulCandidate > denominator then denominator = usefulCandidate
+    score = shared/denominator
+    if rpHdTaskCinemetaYear(wantedYear) <> "" and rpHdTaskCinemetaYear(wantedYear) = rpHdTaskCinemetaYear(candidateYear)
+        score += 0.15
+    end if
+    return score
+end function
+
+function rpHdTaskSortSuggestions(items as object) as object
+    sorted = []
+    for each item in items
+        inserted = false
+        for i = 0 to sorted.count()-1
+            if orbitFloat(item.suggestionScore,0) > orbitFloat(sorted[i].suggestionScore,0)
+                sorted.insert(i,item)
+                inserted = true
+                exit for
+            end if
+        end for
+        if not inserted then sorted.push(item)
+    end for
+    return sorted
 end function
 
 function rpHdTaskResolveAlternateEpisode(series as dynamic, originalEpisode as object, provider as string, requestId as string, request as object, fetcher as dynamic, decoderAccept as dynamic, sources as dynamic) as object
