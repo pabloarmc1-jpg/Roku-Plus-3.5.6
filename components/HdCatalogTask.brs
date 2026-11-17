@@ -1739,7 +1739,7 @@ end function
 function rpHdTaskSearchTitleCore(value as dynamic) as string
     title = orbitText(value,200).trim()
     if title = "" then return ""
-    return CreateObject("roRegex","^(the|a|an|el|la|los|las|un|una|une|le|les)\\s+","i").replace(title,"").trim()
+    return CreateObject("roRegex","^(the|a|an|el|la|los|las|un|una|une|le|les)\s+","i").replace(title,"").trim()
 end function
 
 function rpHdTaskFindSource(request as object, answer as object, fetcher as dynamic, decoderAccept as dynamic, sources as dynamic) as object
