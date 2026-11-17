@@ -1965,18 +1965,22 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
         if providerFailed then failures++
     end for
-    if not isEpisode and not m.top.cancelRequested and not rpHdTaskSliceExpired()
-        cinemetaSuggestions = rpHdTaskCinemetaSimilarTitles(cinemetaTitle,kind,discoveryYear,fetcher)
-        for each cinemetaSuggestion in cinemetaSuggestions
-            suggestionKey = lcase(orbitText(cinemetaSuggestion.imdbId,40))
-            alreadySuggested = false
-            for each savedSuggestion in suggestions
-                savedId = lcase(orbitText(savedSuggestion.imdbId,40))
-                if suggestionKey <> "" and savedId = suggestionKey then alreadySuggested = true
-                if suggestionKey = "" and rpHdTaskCinemetaTitleKey(savedSuggestion.title) = rpHdTaskCinemetaTitleKey(cinemetaSuggestion.title) then alreadySuggested = true
+    if not isEpisode and not m.top.cancelRequested
+        ' Reserve a final fair time slice for the Cinemeta alternatives lookup.
+        rpHdTaskBeginSlice(1)
+        if not rpHdTaskSliceExpired()
+            cinemetaSuggestions = rpHdTaskCinemetaSimilarTitles(cinemetaTitle,kind,discoveryYear,fetcher)
+            for each cinemetaSuggestion in cinemetaSuggestions
+                suggestionKey = lcase(orbitText(cinemetaSuggestion.imdbId,40))
+                alreadySuggested = false
+                for each savedSuggestion in suggestions
+                    savedId = lcase(orbitText(savedSuggestion.imdbId,40))
+                    if suggestionKey <> "" and savedId = suggestionKey then alreadySuggested = true
+                    if suggestionKey = "" and rpHdTaskCinemetaTitleKey(savedSuggestion.title) = rpHdTaskCinemetaTitleKey(cinemetaSuggestion.title) then alreadySuggested = true
+                end for
+                if not alreadySuggested and suggestions.count() < 12 then suggestions.push(cinemetaSuggestion)
             end for
-            if not alreadySuggested and suggestions.count() < 12 then suggestions.push(cinemetaSuggestion)
-        end for
+        end if
     end if
     if isEpisode
         answer.message = "No se encontró otra fuente para el episodio "+seasonNumber.toStr()+"x"+episodeNumber.toStr()+"."
