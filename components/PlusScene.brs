@@ -441,6 +441,7 @@ sub fetched(event as object)
             m.autoplay = false
             m.note = answer.message
             if type(answer.alternatives) = "roArray" and answer.alternatives.count() > 0 and answer.doesExist("alternativeKind")
+                m.sourceLaunchPending = false
                 m.pageTitles = answer.alternatives
                 m.kind = orbitText(answer.alternativeKind,16)
                 m.query = ""
