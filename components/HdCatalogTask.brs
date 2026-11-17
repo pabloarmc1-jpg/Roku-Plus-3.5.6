@@ -2094,10 +2094,13 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
     wantedImdb = lcase(orbitText(discovery.imdbId,40))
     candidateImdb = lcase(orbitText(candidate.imdbId,40))
     if wantedImdb <> "" and candidateImdb <> "" and wantedImdb <> candidateImdb then return false
-    if not rpHdTaskTitleMatchesCandidate(discovery.title,candidate) then return false
 
-    ' Only accept the alternate title when it identifies exactly one candidate
-    ' of the same media kind and release year in this provider result set.
+    titleMatch = rpHdTaskTitleMatchesCandidate(discovery.title,candidate)
+    ' Count same-year results only inside a small provider search response.
+    ' This permits a translated title (e.g. English -> Spanish) when the exact
+    ' title query returns one and only one result for the requested year.
+    sameYearMatches = 0
+    selectedYearMatch = false
     equivalentMatches = 0
     for each possible in candidates
         if type(possible) = "roAssociativeArray"
@@ -2106,6 +2109,10 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
                 possibleImdb = lcase(orbitText(possible.imdbId,40))
                 imdbCompatible = wantedImdb = "" or possibleImdb = "" or wantedImdb = possibleImdb
                 if possibleYear = wantedYear and imdbCompatible
+                    sameYearMatches++
+                    if rpHdTaskCinemetaTitleKey(possible.title) = rpHdTaskCinemetaTitleKey(candidate.title)
+                        selectedYearMatch = true
+                    end if
                     if rpHdTaskTitleMatchesCandidate(discovery.title,possible)
                         equivalentMatches++
                     end if
@@ -2113,12 +2120,25 @@ function rpHdTaskSameDiscoveryYearUnique(discovery as dynamic, candidate as dyna
             end if
         end if
     end for
-    if equivalentMatches = 1
+    if titleMatch and equivalentMatches = 1
         print "[RokuPlus source-match] result=unique-title-match title="; left(orbitText(candidate.title,100),100); " year="; wantedYear
         return true
     end if
-    if equivalentMatches > 1
+    if titleMatch and equivalentMatches > 1
         print "[RokuPlus source-match] result=ambiguous-title-match matches="; equivalentMatches; " title="; left(orbitText(discovery.title,100),100)
+        return false
+    end if
+
+    ' A translation can be textually unrelated. In that case, accept only if
+    ' the exact canonical-title search returned <=10 candidates and exactly
+    ' one candidate of the same media kind has the requested release year.
+    ' Large/popular catalog fallbacks are deliberately excluded.
+    if not titleMatch and candidates.count() <= 10 and sameYearMatches = 1 and selectedYearMatch
+        print "[RokuPlus source-match] result=unique-year-search-match title="; left(orbitText(candidate.title,100),100); " year="; wantedYear; " candidates="; candidates.count()
+        return true
+    end if
+    if sameYearMatches > 1
+        print "[RokuPlus source-match] result=ambiguous-year-search-match matches="; sameYearMatches; " title="; left(orbitText(discovery.title,100),100)
     end if
     return false
 end function
