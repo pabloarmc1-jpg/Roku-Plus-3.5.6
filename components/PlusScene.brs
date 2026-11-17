@@ -819,7 +819,11 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
 end sub
 
 sub preloadStreamXImages(item as dynamic)
-    if type(item) <> "roAssociativeArray" then return
+    if type(item) <> "roAssociativeArray"
+        m.streamXImageKey = ""
+        m.streamXImages = invalid
+        return
+    end if
     lookupItem = item
     mediaType = "movie"
     if orbitText(item.kind,20) = "series"
@@ -837,17 +841,22 @@ sub preloadStreamXImages(item as dynamic)
     if imdbId = "" and mediaType = "series" then imdbId = orbitText(item.seriesImdbId,40)
     year = orbitText(lookupItem.year,4)
     if year = "" then year = orbitText(item.year,4)
-    if title = "" and imdbId = "" then return
+    if title = "" and imdbId = ""
+        m.streamXImageKey = ""
+        m.streamXImages = invalid
+        return
+    end if
 
     cacheKey = mediaType+"|"+imdbId
     if imdbId = "" then cacheKey += "|"+lcase(title)+"|"+year
+    if m.streamXImageKey <> cacheKey then m.streamXImages = invalid
     m.streamXImageKey = cacheKey
     if m.streamXImageCache.doesExist(cacheKey)
         m.streamXImages = m.streamXImageCache[cacheKey]
         return
     end if
     if m.streamXImageTask <> invalid and m.streamXImageRequestId <> ""
-        if m.streamXImageRequestId = cacheKey then return
+        if m.streamXImagePendingKey = cacheKey then return
         m.streamXImageTask.cancelRequested = true
         m.streamXImageTask.unobserveField("result")
     end if
