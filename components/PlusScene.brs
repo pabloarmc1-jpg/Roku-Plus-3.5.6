@@ -154,6 +154,11 @@ sub init()
     m.sourceLaunchPending = false
     m.sourceAlternatives = []
     m.sourceAlternativeCursor = 0
+    m.sourceAlternativeCountdown = 0
+    m.sourceAlternativeTimer = CreateObject("roSGNode","Timer")
+    m.sourceAlternativeTimer.duration = 1
+    m.sourceAlternativeTimer.repeat = true
+    m.sourceAlternativeTimer.observeField("fire","sourceAlternativeTimerTick")
     m.busy = false
     m.job = invalid
     m.request = ""
@@ -447,6 +452,8 @@ sub fetched(event as object)
             if type(answer.alternatives) = "roArray" and answer.alternatives.count() > 0 and answer.doesExist("alternativeKind")
                 m.sourceLaunchPending = false
                 m.sourceAlternatives = answer.alternatives
+                m.sourceAlternativeCursor = 0
+                startSourceAlternativeCountdown()
                 m.note = "No se encontró una fuente confirmada. Selecciona un título similar para intentar reproducirlo."
                 print "[RokuPlus source-alternatives] displayed="; m.sourceAlternatives.count(); " kind="; orbitText(answer.alternativeKind,16); " view="; m.view
             end if
@@ -3117,7 +3124,49 @@ function detailActionCount() as integer
     return 3
 end function
 
+sub stopSourceAlternativeCountdown()
+    if m.sourceAlternativeTimer <> invalid then m.sourceAlternativeTimer.control = "stop"
+    m.sourceAlternativeCountdown = 0
+end sub
+
+sub startSourceAlternativeCountdown()
+    stopSourceAlternativeCountdown()
+    if type(m.sourceAlternatives) <> "roArray" or m.sourceAlternatives.count() = 0 then return
+    m.sourceAlternativeCountdown = 30
+    if m.sourceAlternativeTimer <> invalid then m.sourceAlternativeTimer.control = "start"
+end sub
+
+sub sourceAlternativeTimerTick()
+    if m.view <> "source-resolving" or m.busy or type(m.sourceAlternatives) <> "roArray" or m.sourceAlternatives.count() = 0
+        stopSourceAlternativeCountdown()
+        return
+    end if
+    if m.sourceAlternativeCountdown > 0 then m.sourceAlternativeCountdown = m.sourceAlternativeCountdown - 1
+    if m.sourceAlternativeCountdown <= 0
+        stopSourceAlternativeCountdown()
+        print "[RokuPlus source-alternatives] autoplay=1 index=0"
+        chooseSourceAlternative(0,true)
+    else
+        drawScreen()
+    end if
+end sub
+
+sub chooseSourceAlternative(index as integer, automatic as boolean)
+    if type(m.sourceAlternatives) <> "roArray" or index < 0 or index >= m.sourceAlternatives.count() then return
+    selectedAlternative = m.sourceAlternatives[index]
+    if type(selectedAlternative) <> "roAssociativeArray" then return
+    stopSourceAlternativeCountdown()
+    mode = "manual"
+    if automatic then mode = "timeout"
+    print "[RokuPlus source-alternatives] selected mode="; mode; " title="; left(orbitText(selectedAlternative.title,120),120); " provider="; orbitText(selectedAlternative.provider,32)
+    m.detail = selectedAlternative
+    m.sourceAlternatives = []
+    m.sourceAlternativeCursor = 0
+    playDetail()
+end sub
+
 sub playDetail()
+    stopSourceAlternativeCountdown()
     if m.detail = invalid then return
     if m.busy then return
     blockKey = rpVoeBlockKey(m.detail)
@@ -3384,14 +3433,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             drawScreen()
             return true
         else if key = "OK"
-            selectedAlternative = m.sourceAlternatives[m.sourceAlternativeCursor]
-            if type(selectedAlternative) = "roAssociativeArray"
-                print "[RokuPlus source-alternatives] selected title="; left(orbitText(selectedAlternative.title,120),120); " provider="; orbitText(selectedAlternative.provider,32)
-                m.detail = selectedAlternative
-                m.sourceAlternatives = []
-                m.sourceAlternativeCursor = 0
-                playDetail()
-            end if
+            chooseSourceAlternative(m.sourceAlternativeCursor,false)
             return true
         end if
     end if
@@ -3469,6 +3511,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
     end if
     if key = "back"
+        if m.view = "source-resolving" and not m.busy
+            stopSourceAlternativeCountdown()
+            m.sourceAlternatives = []
+            m.sourceAlternativeCursor = 0
+        end if
         if m.view = "search-keyboard"
             closeSearchKeyboard()
             return true
