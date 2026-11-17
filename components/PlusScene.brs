@@ -3502,11 +3502,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if m.view = "player" or m.view = "invidious-player" then return false
     if m.view = "source-resolving" and not m.busy and type(m.sourceAlternatives) = "roArray" and m.sourceAlternatives.count() > 0
-        if key = "up" and m.sourceAlternativeCursor > 0
+        if key = "left" and m.sourceAlternativeCursor > 0
             m.sourceAlternativeCursor--
             drawScreen()
             return true
-        else if key = "down" and m.sourceAlternativeCursor < m.sourceAlternatives.count()-1
+        else if key = "right" and m.sourceAlternativeCursor < m.sourceAlternatives.count()-1
             m.sourceAlternativeCursor++
             drawScreen()
             return true
