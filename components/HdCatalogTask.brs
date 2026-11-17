@@ -2014,15 +2014,16 @@ end function
 function rpHdTaskSortSuggestions(items as object) as object
     sorted = []
     for each item in items
-        inserted = false
-        for i = 0 to sorted.count()-1
-            if item.suggestionScore > sorted[i].suggestionScore
-                sorted.insert(i,item)
-                inserted = true
-                exit for
+        sorted.push(item)
+    end for
+    for i = 0 to sorted.count()-2
+        for j = i+1 to sorted.count()-1
+            if sorted[j].suggestionScore > sorted[i].suggestionScore
+                saved = sorted[i]
+                sorted[i] = sorted[j]
+                sorted[j] = saved
             end if
         end for
-        if not inserted then sorted.push(item)
     end for
     return sorted
 end function
