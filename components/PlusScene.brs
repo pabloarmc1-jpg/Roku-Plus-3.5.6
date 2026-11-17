@@ -411,7 +411,10 @@ sub catalogTimedOut()
     end if
     m.autoplay = false
     m.note = "La consulta tardó demasiado. Pulsa OK para intentar de nuevo o Atrás para volver."
-    if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" and not m.sourceLaunchPending then m.view = "detail"
+    if type(pendingContext) = "roAssociativeArray" and (pendingContext.operation = "find-source" or pendingContext.operation = "resolve" or pendingContext.operation = "resume-episode")
+        if m.sourceLaunchPending and not m.sourceAlternativeAutoActive then m.view = "detail"
+        m.sourceLaunchPending = false
+    end if
     if m.view = "player"
         if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
             showPlayerNextEpisodeError(m.note)
@@ -441,7 +444,10 @@ sub catalogState(event as object)
     end if
     m.autoplay = false
     m.note = "No se pudo completar la consulta. Vuelve a intentar."
-    if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "find-source" and not m.sourceLaunchPending then m.view = "detail"
+    if type(pendingContext) = "roAssociativeArray" and (pendingContext.operation = "find-source" or pendingContext.operation = "resolve" or pendingContext.operation = "resume-episode")
+        if m.sourceLaunchPending and not m.sourceAlternativeAutoActive then m.view = "detail"
+        m.sourceLaunchPending = false
+    end if
     if m.view = "player"
         if type(pendingContext) = "roAssociativeArray" and pendingContext.operation = "episodes"
             showPlayerNextEpisodeError(m.note)
@@ -475,15 +481,15 @@ sub fetched(event as object)
             if not voeBlocked
                 if advanceSourceAlternativeAfterMiss() then return
             end if
-            if not m.sourceLaunchPending
-                m.view = orbitText(context.returnView,24)
-                if m.view = "" then m.view = "detail"
-            end if
+            m.view = orbitText(context.returnView,24)
+            if m.view = "" then m.view = "detail"
+            m.sourceLaunchPending = false
             m.autoplay = false
             m.note = answer.message
             m.sourceAlternatives = []
             m.sourceAlternativeCursor = 0
             if type(answer.alternatives) = "roArray" and answer.alternatives.count() > 0 and answer.doesExist("alternativeKind")
+                m.view = "source-resolving"
                 m.sourceAlternativeQueue = answer.alternatives
                 m.sourceAlternativeAttemptIndex = -1
                 m.sourceAlternativeAutoActive = false
@@ -535,7 +541,10 @@ sub fetched(event as object)
         end if
         m.autoplay = false
         m.note = answer.message
-        if m.sourceLaunchPending then m.view = "source-resolving"
+        if m.sourceLaunchPending
+            m.sourceLaunchPending = false
+            m.view = "detail"
+        end if
         if context.operation = "compatible" then m.note = "La reproducción con PC no está disponible. Puedes elegir Reproducir para usar la conexión directa."
         if m.view = "player"
             if context.operation = "episodes"
@@ -3349,7 +3358,6 @@ sub playDetail()
     m.sourceAlternatives = []
     m.sourceAlternativeCursor = 0
     m.sourceLaunchPending = true
-    m.view = "source-resolving"
     m.note = ""
     drawScreen()
     if orbitText(m.detail.discoverySource,32) = "cinemeta"
@@ -3380,9 +3388,7 @@ end sub
 
 sub enterEpisodes()
     if orbitText(m.detail.discoverySource,32) = "cinemeta"
-        m.view = "source-resolving"
         m.note = ""
-        drawScreen()
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
     end if
