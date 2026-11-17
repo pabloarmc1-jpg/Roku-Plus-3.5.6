@@ -824,7 +824,7 @@ sub sourceResolvingScreen()
             end if
             panel(100,rowY,1720,40,rowColor)
             candidateTitle = orbitText(candidate.title,150)
-            candidateYear = rpHdTaskCinemetaYear(candidate.year)
+            candidateYear = orbitText(candidate.year,4)
             if candidateYear <> "" then candidateTitle = candidateTitle+" ("+candidateYear+")"
             words(candidateTitle,122,rowY+7,1670,28,22,textColor)
         end for
