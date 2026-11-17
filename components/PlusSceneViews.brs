@@ -788,13 +788,28 @@ sub sourceResolvingScreen()
         backdrop = orbitText(item.background,2048)
         if backdrop = "" then backdrop = orbitText(item.poster,2048)
     end if
+    logoUri = ""
+    if type(m.streamXImages) = "roAssociativeArray"
+        streamBanner = orbitText(m.streamXImages.background,2048)
+        if streamBanner <> "" then backdrop = streamBanner
+        logoUri = orbitText(m.streamXImages.logo,2048)
+    end if
     if backdrop <> "" then art(backdrop,0,0,1920,1080)
     panel(0,0,1920,1080,"0x080A0FE8")
     words("ROKU PLUS",100,90,1720,52,26,"0xE50914FF")
     words("PREPARANDO REPRODUCCIÓN",100,350,1720,48,23,"0xAEB7C4FF")
     titleText = "Tu contenido"
-    if type(item) = "roAssociativeArray" then titleText = orbitText(item.title,180)
-    words(titleText,100,420,1720,110,48,"0xFFFFFFFF").wrap = true
+    if type(item) = "roAssociativeArray"
+        titleText = orbitText(item.title,180)
+        if orbitText(item.kind,20) = "episode" and type(m.series) = "roAssociativeArray"
+            titleText = orbitText(m.series.title,180)
+        end if
+    end if
+    if logoUri <> ""
+        art(logoUri,100,410,900,190,"scaleToFit")
+    else
+        words(titleText,100,420,1720,110,48,"0xFFFFFFFF").wrap = true
+    end if
     statusText = "Buscando una fuente compatible en las bibliotecas disponibles…"
     if orbitText(m.sourceAlternativeStatus,180) <> ""
         statusText = m.sourceAlternativeStatus
