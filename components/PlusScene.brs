@@ -1387,6 +1387,7 @@ sub playerClosed(event as object)
     if m.player.active = true then return
     if m.view = "live" then return
     if m.view <> "player" then return
+    cancelNextEpisodePrefetch()
     if m.stallWatchTimer <> invalid then m.stallWatchTimer.control = "stop"
     m.stallEpisodeActive = false
     ' A source switch requested from the end screen waits for the old decoder
