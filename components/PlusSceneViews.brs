@@ -796,35 +796,13 @@ sub sourceResolvingScreen()
     end if
     if backdrop <> "" then art(backdrop,0,0,1920,1080)
     panel(0,0,1920,1080,"0x080A0F88")
-    titleText = "Tu contenido"
-    if type(item) = "roAssociativeArray"
-        titleText = orbitText(item.title,180)
-        if orbitText(item.kind,20) = "episode"
-            if type(m.series) = "roAssociativeArray"
-                titleText = orbitText(m.series.title,180)
-            else
-                titleText = orbitText(item.seriesTitle,180)
-            end if
-        end if
-    end if
     if logoUri <> ""
         art(logoUri,510,330,900,190,"scaleToFit")
-    else
-        words(titleText,510,350,900,110,48,"0xFFFFFFFF").wrap = true
     end if
-    statusText = "Buscando una fuente compatible en las bibliotecas disponibles…"
-    if orbitText(m.sourceAlternativeStatus,180) <> ""
-        statusText = m.sourceAlternativeStatus
-    else if not m.busy and m.note <> ""
-        statusText = m.note
-    else if not m.busy
-        statusText = "No se pudo preparar la reproducción."
-    end if
-    words(statusText,100,570,1720,112,27,"0xD4D9E2FF").wrap = true
-    if m.busy
-        words("La reproducción comenzará aquí cuando se encuentre y valide el enlace.",100,710,1720,52,21,"0xAEB7C4FF").wrap = true
-        words("ATRÁS  ·  Cancelar búsqueda",100,930,1720,42,21,"0xAEB7C4FF")
-    else if type(m.sourceAlternatives) = "roArray" and m.sourceAlternatives.count() > 0
+
+    ' Keep all guidance hidden during normal source lookup.
+    ' Text is shown only when similar titles are available.
+    if not m.busy and type(m.sourceAlternatives) = "roArray" and m.sourceAlternatives.count() > 0
         words("TÍTULOS SIMILARES  ·  Elige uno o espera la reproducción automática",100,690,1720,38,21,"0xAEB7C4FF")
         visibleCount = m.sourceAlternatives.count()
         if visibleCount > 5 then visibleCount = 5
@@ -863,8 +841,6 @@ sub sourceResolvingScreen()
         if m.sourceAlternativeCountdown > 0 then countdownText = "Se intentará reproducir el primer título en "+m.sourceAlternativeCountdown.toStr()+" segundos"
         words(countdownText,100,1020,1720,32,22,"0xFFFFFFFF").horizAlign = "center"
         words("← →  Elegir película       OK  ·  Reproducir ahora       ATRÁS  ·  Cancelar",100,1060,1720,25,17,"0xAEB7C4FF").horizAlign = "center"
-    else
-        words("OK  ·  Intentar de nuevo       ATRÁS  ·  Volver a detalles",100,930,1720,42,21,"0xAEB7C4FF")
     end if
 end sub
 
