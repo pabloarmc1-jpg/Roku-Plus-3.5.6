@@ -1733,6 +1733,15 @@ function rpHdTaskAppendUniqueSearchQuery(queries as object, value as dynamic) as
     return queries
 end function
 
+' Remove a leading article for providers whose search index stores the title
+' without it (e.g. "The Gilded Age" -> "Gilded Age"). This is a query variant
+' only; candidate identity/year validation remains unchanged.
+function rpHdTaskSearchTitleCore(value as dynamic) as string
+    title = orbitText(value,200).trim()
+    if title = "" then return ""
+    return CreateObject("roRegex","^(the|a|an|el|la|los|las|un|una|une|le|les)\\s+","i").replace(title,"").trim()
+end function
+
 function rpHdTaskFindSource(request as object, answer as object, fetcher as dynamic, decoderAccept as dynamic, sources as dynamic) as object
     item = request.item
     if type(item) <> "roAssociativeArray"
@@ -1876,7 +1885,23 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         providerNoMatches = 0
         providerAmbiguous = 0
         providerUnavailable = 0
-        for each searchQuery in searchQueries
+        providerSearchQueries = []
+        for each baseSearchQuery in searchQueries
+            rpHdTaskAppendUniqueSearchQuery(providerSearchQueries,baseSearchQuery)
+        end for
+        if source = "cinehax" and not isEpisode
+            originalCore = rpHdTaskSearchTitleCore(originalQuery)
+            titleCore = rpHdTaskSearchTitleCore(cinemetaTitle)
+            if originalCore <> "" and rpHdTaskCinemetaTitleKey(originalCore) <> rpHdTaskCinemetaTitleKey(originalQuery)
+                rpHdTaskAppendUniqueSearchQuery(providerSearchQueries,originalCore)
+                print "[RokuPlus source-search] provider=cinehax title-variant="; originalCore
+            end if
+            if titleCore <> "" and rpHdTaskCinemetaTitleKey(titleCore) <> rpHdTaskCinemetaTitleKey(cinemetaTitle)
+                rpHdTaskAppendUniqueSearchQuery(providerSearchQueries,titleCore)
+                print "[RokuPlus source-search] provider=cinehax title-variant="; titleCore
+            end if
+        end if
+        for each searchQuery in providerSearchQueries
             if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
             providerQueries++
             catalog = rpHdTaskCatalogPage(source,kind,1,searchQuery,fetcher)
