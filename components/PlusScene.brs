@@ -412,7 +412,7 @@ sub catalogTimedOut()
     m.autoplay = false
     m.note = "La consulta tardó demasiado. Pulsa OK para intentar de nuevo o Atrás para volver."
     if type(pendingContext) = "roAssociativeArray" and (pendingContext.operation = "find-source" or pendingContext.operation = "resolve" or pendingContext.operation = "resume-episode")
-        if m.sourceLaunchPending and not m.sourceAlternativeAutoActive then m.view = "detail"
+        if m.sourceLaunchPending and (type(m.sourceAlternatives) <> "roArray" or m.sourceAlternatives.count() = 0) then m.view = "detail"
         m.sourceLaunchPending = false
     end if
     if m.view = "player"
