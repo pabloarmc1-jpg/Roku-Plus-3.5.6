@@ -602,56 +602,62 @@ function rpTsRelayAuditPayload(payload as object) as object
                     payloadStart = offset + 5 + payload[offset+4]
                 end if
                 if payloadStart < offset + 188 and payloadStart < total
-                    if pid = 0
+                    ' PSI pointer_field is valid only when PUSI marks a new section.
+                    if (payload[offset+1] mod 128) >= 64 and (payload[offset+1] mod 128) < 128
                         pointer = payload[payloadStart]
-                        sectionStart = payloadStart + 1 + pointer
-                        if sectionStart + 12 <= offset + 188 and payload[sectionStart] = 0
-                            sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
-                            sectionEnd = sectionStart + 3 + sectionLength
-                            if sectionEnd <= offset + 188
-                                entry = sectionStart + 8
-                                while entry + 4 <= sectionEnd - 4
-                                    programNumber = payload[entry] * 256 + payload[entry+1]
-                                    if programNumber > 0
-                                        result.pmtPid = (payload[entry+2] mod 32) * 256 + payload[entry+3]
-                                        exit while
-                                    end if
-                                    entry += 4
-                                end while
-                            end if
-                        end if
-                    else if pid = result.pmtPid
-                        pointer = payload[payloadStart]
-                        sectionStart = payloadStart + 1 + pointer
-                        if sectionStart + 12 <= offset + 188 and payload[sectionStart] = 2
-                            sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
-                            sectionEnd = sectionStart + 3 + sectionLength
-                            if sectionEnd <= offset + 188
-                                result.pmtPackets++
-                                programInfoLength = (payload[sectionStart+10] mod 16) * 256 + payload[sectionStart+11]
-                                entry = sectionStart + 12 + programInfoLength
-                                while entry + 5 <= sectionEnd - 4
-                                    streamType = payload[entry]
-                                    elementaryPid = (payload[entry+1] mod 32) * 256 + payload[entry+2]
-                                    esInfoLength = (payload[entry+3] mod 16) * 256 + payload[entry+4]
-                                    if streamType = 27
-                                        result.h264 = true
-                                        result.videoPid = elementaryPid
-                                    else if streamType = 15 or streamType = 17
-                                        result.aac = true
-                                        if result.audioPid < 0 then result.audioPid = elementaryPid
-                                        audioKey = elementaryPid.toStr()
-                                        if not audioPidSeen.doesExist(audioKey)
-                                            audioPidSeen[audioKey] = true
-                                            result.audioPidCount++
-                                            if result.audioPidCount <= maxAudioPidList
-                                                if result.audioPidList <> "" then result.audioPidList += ","
-                                                result.audioPidList += audioKey
+                        if pointer <= offset + 187 - payloadStart
+                            sectionStart = payloadStart + 1 + pointer
+                            if pid = 0
+                                if sectionStart + 12 <= offset + 188 and payload[sectionStart] = 0
+                                    sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
+                                    sectionEnd = sectionStart + 3 + sectionLength
+                                    if sectionLength >= 9 and sectionLength <= 1021 and sectionEnd <= offset + 188
+                                        entry = sectionStart + 8
+                                        while entry + 4 <= sectionEnd - 4
+                                            programNumber = payload[entry] * 256 + payload[entry+1]
+                                            if programNumber > 0
+                                                result.pmtPid = (payload[entry+2] mod 32) * 256 + payload[entry+3]
+                                                exit while
                                             end if
+                                            entry += 4
+                                        end while
+                                    end if
+                                end if
+                            else if pid = result.pmtPid
+                                if sectionStart + 12 <= offset + 188 and payload[sectionStart] = 2
+                                    sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
+                                    sectionEnd = sectionStart + 3 + sectionLength
+                                    if sectionLength >= 13 and sectionLength <= 1021 and sectionEnd <= offset + 188
+                                        result.pmtPackets++
+                                        programInfoLength = (payload[sectionStart+10] mod 16) * 256 + payload[sectionStart+11]
+                                        entry = sectionStart + 12 + programInfoLength
+                                        if entry <= sectionEnd - 4
+                                            while entry + 5 <= sectionEnd - 4
+                                                streamType = payload[entry]
+                                                elementaryPid = (payload[entry+1] mod 32) * 256 + payload[entry+2]
+                                                esInfoLength = (payload[entry+3] mod 16) * 256 + payload[entry+4]
+                                                if entry + 5 + esInfoLength > sectionEnd - 4 then exit while
+                                                if streamType = 27
+                                                    result.h264 = true
+                                                    result.videoPid = elementaryPid
+                                                else if streamType = 15 or streamType = 17
+                                                    result.aac = true
+                                                    if result.audioPid < 0 then result.audioPid = elementaryPid
+                                                    audioKey = elementaryPid.toStr()
+                                                    if not audioPidSeen.doesExist(audioKey)
+                                                        audioPidSeen[audioKey] = true
+                                                        result.audioPidCount++
+                                                        if result.audioPidCount <= maxAudioPidList
+                                                            if result.audioPidList <> "" then result.audioPidList += ","
+                                                            result.audioPidList += audioKey
+                                                        end if
+                                                    end if
+                                                end if
+                                                entry += 5 + esInfoLength
+                                            end while
                                         end if
                                     end if
-                                    entry += 5 + esInfoLength
-                                end while
+                                end if
                             end if
                         end if
                     end if
@@ -663,25 +669,34 @@ function rpTsRelayAuditPayload(payload as object) as object
                             if payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
                                 pesFlags = (payload[payloadStart+7] \ 64) mod 4
                                 pesHeaderLength = payload[payloadStart+8]
-                                if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5
-                                    if payloadStart + 14 <= offset + 188
-                                        pts = rpTsRelayReadPts(payload,payloadStart+9)
+                                pesHeaderEnd = payloadStart + 9 + pesHeaderLength
+                                ' This audit only parses PES optional headers contained in this TS packet.
+                                if pesHeaderEnd <= offset + 188
+                                    if pesFlags = 2 and pesHeaderLength >= 5 and payloadStart + 14 <= pesHeaderEnd
+                                        pts = rpTsRelayReadPts(payload,payloadStart+9,2)
                                         if pts >= 0
                                             if result.ptsCount = 0 then result.firstPts = pts
                                             result.lastPts = pts
                                             result.ptsCount++
                                         end if
-                                    end if
-                                    if pesFlags = 3 and pesHeaderLength >= 10 and payloadStart + 19 <= offset + 188
-                                        dts = rpTsRelayReadPts(payload,payloadStart+14)
+                                    else if pesFlags = 3 and pesHeaderLength >= 10 and payloadStart + 19 <= pesHeaderEnd
+                                        pts = rpTsRelayReadPts(payload,payloadStart+9,3)
+                                        if pts >= 0
+                                            if result.ptsCount = 0 then result.firstPts = pts
+                                            result.lastPts = pts
+                                            result.ptsCount++
+                                        end if
+                                        dts = rpTsRelayReadPts(payload,payloadStart+14,1)
                                         if dts >= 0
                                             if result.dtsCount = 0 then result.firstDts = dts
                                             result.lastDts = dts
                                             result.dtsCount++
                                         end if
                                     end if
+                                    dataStart = pesHeaderEnd
+                                else
+                                    dataStart = offset + 188
                                 end if
-                                dataStart = payloadStart + 9 + pesHeaderLength
                             end if
                         end if
                     end if
@@ -716,7 +731,7 @@ function rpTsRelayAuditPayload(payload as object) as object
     return result
 end function
 
-function rpTsRelayReadPts(payload as object, offset as integer) as dynamic
+function rpTsRelayReadPts(payload as object, offset as integer, expectedPrefix as integer) as dynamic
     if offset < 0 or offset + 4 >= payload.Count() then return -1
     b0 = payload[offset]
     b1 = payload[offset+1]
@@ -724,7 +739,7 @@ function rpTsRelayReadPts(payload as object, offset as integer) as dynamic
     b3 = payload[offset+3]
     b4 = payload[offset+4]
     prefix = b0 \ 16
-    if prefix <> 1 and prefix <> 2 and prefix <> 3 then return -1
+    if prefix <> expectedPrefix then return -1
     if (b0 mod 2) <> 1 or (b2 mod 2) <> 1 or (b4 mod 2) <> 1 then return -1
     ' MPEG-2 PTS/DTS is a 33-bit clock. Ignore marker bits and retain bit 1 of byte 2.
     return ((b0 mod 16) \ 2) * 1073741824 + b1 * 4194304 + (b2 \ 2) * 32768 + b3 * 128 + (b4 \ 2)
