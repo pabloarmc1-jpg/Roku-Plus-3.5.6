@@ -4,20 +4,10 @@ function rpWatchSection(profileId = "p1" as string) as object
     return CreateObject("roRegistrySection", "RokuPlusWatch_" + safeId)
 end function
 
-function rpWatchLoad(profileId = "p1" as string) as object
-    section = rpWatchSection(profileId)
-    if GetInterface(section, "ifRegistrySection") = invalid then return []
-    raw = section.read("stateV1")
-    if (GetInterface(raw, "ifString") = invalid or len(raw) = 0) and rpNormalizeProfileId(profileId) = "p1"
-        legacy = CreateObject("roRegistrySection", "RokuPlusWatch")
-        if GetInterface(legacy, "ifRegistrySection") <> invalid then raw = legacy.read("stateV1")
-        if GetInterface(raw, "ifString") <> invalid and len(raw) > 0
-            if len(raw) <= 65536 then section.write("stateV1",raw): section.flush()
-        end if
-    end if
-    if GetInterface(raw, "ifString") = invalid or len(raw) = 0 or len(raw) > 65536 then return []
+function rpWatchParse(raw as dynamic) as dynamic
+    if GetInterface(raw, "ifString") = invalid or len(raw) = 0 or len(raw) > 65536 then return invalid
     parsed = ParseJson(raw)
-    if type(parsed) <> "roArray" then return []
+    if type(parsed) <> "roArray" then return invalid
     ' Registry contents can outlive app upgrades or be partially malformed.
     ' Keep only records with a safe identity and finite playback clocks.
     clean = []
@@ -51,6 +41,48 @@ function rpWatchLoad(profileId = "p1" as string) as object
     return unique
 end function
 
+function rpWatchLoad(profileId = "p1" as string) as object
+    section = rpWatchSection(profileId)
+    if GetInterface(section, "ifRegistrySection") = invalid then return []
+    raw = section.read("stateV1")
+    loaded = rpWatchParse(raw)
+    if type(loaded) = "roArray"
+        ' Refresh the backup only from a successfully parsed primary state.
+        backupCurrent = section.read("stateV1Backup")
+        if GetInterface(backupCurrent,"ifString") = invalid
+            if section.write("stateV1Backup",raw) = true then section.flush()
+        else if backupCurrent <> raw
+            if section.write("stateV1Backup",raw) = true then section.flush()
+        end if
+        return loaded
+    end if
+    ' The primary state is missing or invalid. Prefer the newest validated backup.
+    backupRaw = section.read("stateV1Backup")
+    recovered = rpWatchParse(backupRaw)
+    if type(recovered) = "roArray"
+        restored = FormatJson(recovered)
+        if GetInterface(restored,"ifString") <> invalid and len(restored) <= 65536
+            if section.write("stateV1",restored) = true then section.flush()
+        end if
+        return recovered
+    end if
+    ' Only use the pre-profile legacy section when neither current copy is usable.
+    if rpNormalizeProfileId(profileId) = "p1"
+        legacy = CreateObject("roRegistrySection", "RokuPlusWatch")
+        if GetInterface(legacy, "ifRegistrySection") <> invalid
+            legacyRaw = legacy.read("stateV1")
+            legacyItems = rpWatchParse(legacyRaw)
+            if type(legacyItems) = "roArray"
+                ' Migrate only validated legacy JSON; never copy corrupt data.
+                if section.write("stateV1",legacyRaw) = true then section.flush()
+                if section.write("stateV1Backup",legacyRaw) = true then section.flush()
+                return legacyItems
+            end if
+        end if
+    end if
+    return []
+end function
+
 function rpWatchSave(items as object, profileId = "p1" as string) as boolean
     if type(items) <> "roArray" then return false
     while items.count() > 60
@@ -58,10 +90,15 @@ function rpWatchSave(items as object, profileId = "p1" as string) as boolean
     end while
     payload = FormatJson(items)
     if GetInterface(payload, "ifString") = invalid or len(payload) > 65536 then return false
+    if type(rpWatchParse(payload)) <> "roArray" then return false
     section = rpWatchSection(profileId)
     if GetInterface(section, "ifRegistrySection") = invalid then return false
     if section.write("stateV1", payload) <> true then return false
-    return section.flush() = true
+    if section.flush() <> true then return false
+    ' Save the backup only after the new primary state has been flushed.
+    ' A failed backup write does not invalidate the successfully saved primary.
+    if section.write("stateV1Backup",payload) = true then section.flush()
+    return true
 end function
 
 function rpWatchIndex(items as object, itemId as string) as integer
