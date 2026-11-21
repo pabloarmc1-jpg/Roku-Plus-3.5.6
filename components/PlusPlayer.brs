@@ -1011,12 +1011,15 @@ sub openRequest()
         if m.tsFastreamPrefetchEligible and m.tsPrefetchTask <> invalid
             m.tsPrefetchTask.segments = m.tsRelaySegments
             m.tsPrefetchTask.mediaHeaders = supplied.mediaHeaders
+            prefetchNeedsStart = m.tsPrefetchTask.status <> "running" and m.tsPrefetchTask.status <> "starting"
             m.tsPrefetchTask.requestIndex = 0
             m.tsPrefetchTask.generation = m.tsPrefetchTask.generation + 1
             m.tsPrefetchTask.readyFiles = {}
             m.tsPrefetchTask.stopRequested = false
-            m.tsPrefetchTask.status = "starting"
-            if m.tsPrefetchTask.status <> "running" then m.tsPrefetchTask.control = "RUN"
+            if prefetchNeedsStart
+                m.tsPrefetchTask.status = "starting"
+                m.tsPrefetchTask.control = "RUN"
+            end if
             m.tsStreamServer.prefetchTask = m.tsPrefetchTask
             print "[RokuPlus ts-prefetch] provider=fastream worker=started window=2"
         end if
