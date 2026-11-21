@@ -304,10 +304,18 @@ end sub
 sub rpTsRelaySendString(connection as object, value as string, server as object, port as object)
     offset = 0
     server.sendOk = true
+    progressTimer = CreateObject("roTimespan")
+    progressTimer.Mark()
     while offset < len(value)
+        if server.stopRequested or progressTimer.TotalMilliseconds() >= 30000
+            print "[RokuPlus ts-relay] send_abort kind=string offset="; offset; " reason="; iif(server.stopRequested,"stopped","no_progress_timeout")
+            server.sendOk = false
+            exit while
+        end if
         count = connection.sendStr(mid(value,offset+1))
         if count > 0
             offset += count
+            progressTimer.Mark()
         else if count < 0 and (connection.eAgain() or connection.eWouldBlock())
             if not rpTsRelayWaitWritable(connection,port,server)
                 print "[RokuPlus ts-relay] send_wait_failed kind=string offset="; offset; " status="; connection.status(); " eConnReset="; connection.eConnReset(); " eConnAborted="; connection.eConnAborted(); " eNotConn="; connection.eNotConn(); " eIsConn="; connection.eIsConn()
@@ -329,14 +337,24 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
     server.sendOk = true
     timer = CreateObject("roTimespan")
     timer.Mark()
+    progressTimer = CreateObject("roTimespan")
+    progressTimer.Mark()
     print "[RokuPlus ts-relay] payload_send_begin bytes="; total; " chunkLimit="; chunkLimit
     while offset < total
+        if server.stopRequested or progressTimer.TotalMilliseconds() >= 30000
+            reason = "no_progress_timeout"
+            if server.stopRequested then reason = "stopped"
+            print "[RokuPlus ts-relay] payload_send_abort bytesSent="; offset; " total="; total; " elapsedMs="; timer.TotalMilliseconds(); " reason="; reason
+            server.sendOk = false
+            exit while
+        end if
         remaining = total - offset
         sendLength = chunkLimit
         if remaining < sendLength then sendLength = remaining
         count = connection.send(value,offset,sendLength)
         if count > 0
             offset = offset + count
+            progressTimer.Mark()
             if offset = count
                 print "[RokuPlus ts-relay] payload_first_write accepted="; count; " total="; total; " elapsedMs="; timer.TotalMilliseconds()
             end if
