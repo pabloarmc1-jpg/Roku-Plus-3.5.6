@@ -709,6 +709,7 @@ sub openRequest()
     m.mediaOpen = false
     if m.tsStreamServer <> invalid
         m.tsStreamServer.stopRequested = true
+        m.tsStreamServer.accessKey = ""
         m.tsStreamServer.generation = m.tsStreamServer.generation + 1
     end if
     if m.tsPrefetchTask <> invalid then m.tsPrefetchTask.stopRequested = true
