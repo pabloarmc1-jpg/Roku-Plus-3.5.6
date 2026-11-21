@@ -213,7 +213,8 @@ sub rpTsRelayServe(connection as object, server as object)
         end if
         ' Unique paths prevent a cancelled/late transfer from overwriting a
         ' later segment after the connection has moved on.
-        filePath = "tmp:/rp_ts_relay_segment_" + connectionGeneration.toStr() + "_" + segmentIndex.toStr() + ".ts"
+        transferToken = xfer.GetIdentity().ToStr()
+        filePath = "tmp:/rp_ts_relay_segment_" + connectionGeneration.toStr() + "_" + segmentIndex.toStr() + "_" + transferToken + ".ts"
         DeleteFile(filePath)
         prefetched = false
         if prefetchTask <> invalid
