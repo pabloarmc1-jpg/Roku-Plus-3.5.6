@@ -165,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     ' Keep PID continuity baselines across every HLS segment in this relay response.
     tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
-    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},psiActiveVersions:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,programNumber:-1,pcrPid:-1,videoPid:-1,audioPids:[]}
+    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},psiActiveVersions:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,programNumber:-1,pcrPid:-1,pmtSignature:"",videoPid:-1,audioPids:[]}
     segmentDiscontinuities = server.segmentDiscontinuities
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
@@ -1257,6 +1257,8 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
             end for
             rpTsRelayClearPmtVersionState(state,selectedPmtPid)
         end if
+        state.pcrPid = -1
+        state.pmtSignature = ""
         state.videoPid = -1
         state.audioPids = []
         rpTsRelayResetPesClockState(state)
@@ -1295,6 +1297,7 @@ sub rpTsRelayResetProgramState(state as object)
     state.pmtPid = -1
     state.programNumber = -1
     state.pcrPid = -1
+    state.pmtSignature = ""
     state.videoPid = -1
     state.audioPids = []
 end sub
@@ -1317,7 +1320,33 @@ function rpTsRelayPidArraysEqual(leftPids as object, rightPids as object) as boo
     return true
 end function
 
+' Fingerprint the complete validated PMT content while excluding version_number
+' and CRC bytes. Descriptor, stream-type, PCR, or program-info changes are detected
+' even when elementary PID assignments remain unchanged.
+function rpTsRelayPmtContentSignature(sections as object) as string
+    if type(sections) <> "roArray" or sections.count() = 0 then return ""
+    hashA = 7
+    hashB = 19
+    byteCount = 0
+    for section in sections
+        if type(section) <> "roArray" then return ""
+        total = section.count()
+        if total < 16 or total > 1024 then return ""
+        for index = 0 to total - 5
+            if index <> 5
+                value = section[index]
+                hashA = (hashA * 31 + value + 1) mod 2147483629
+                hashB = (hashB * 131 + value + 1) mod 2147483587
+                byteCount++
+            end if
+        end for
+    end for
+    return byteCount.toStr() + ":" + hashA.toStr() + ":" + hashB.toStr()
+end function
+
 sub rpTsRelayApplyPmtSections(state as object, sections as object)
+    pmtSignature = rpTsRelayPmtContentSignature(sections)
+    if pmtSignature = "" then return
     selectedVideoPid = -1
     selectedPcrPid = -1
     selectedAudioPids = []
@@ -1382,15 +1411,18 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
     if type(previousAudioPids) <> "roArray" then previousAudioPids = []
     audioPidsChanged = not rpTsRelayPidArraysEqual(previousAudioPids,selectedAudioPids)
     pcrPidChanged = previousPcrPid <> selectedPcrPid
-    if previousVideoPid <> selectedVideoPid or audioPidsChanged or pcrPidChanged
+    previousPmtSignature = state.pmtSignature
+    pmtContentChanged = previousPmtSignature <> "" and previousPmtSignature <> pmtSignature
+    if previousVideoPid <> selectedVideoPid or audioPidsChanged or pcrPidChanged or pmtContentChanged
         rpTsRelayResetPesClockState(state)
         if pcrPidChanged
             state.lastPcr = {}
             state.havePcr = {}
         end if
-        print "[RokuPlus ts-audit] pmt_stream_pids_changed videoOld="; previousVideoPid; " videoNew="; selectedVideoPid; " audioOld="; previousAudioPids; " audioNew="; selectedAudioPids; " pcrOld="; previousPcrPid; " pcrNew="; selectedPcrPid; " pes_clock_state_reset=true"
+        print "[RokuPlus ts-audit] pmt_stream_pids_changed videoOld="; previousVideoPid; " videoNew="; selectedVideoPid; " audioOld="; previousAudioPids; " audioNew="; selectedAudioPids; " pcrOld="; previousPcrPid; " pcrNew="; selectedPcrPid; " contentChanged="; pmtContentChanged; " pes_clock_state_reset=true"
     end if
     state.pcrPid = selectedPcrPid
+    state.pmtSignature = pmtSignature
     state.videoPid = selectedVideoPid
     state.audioPids = selectedAudioPids
 end sub
