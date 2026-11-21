@@ -820,10 +820,10 @@ function rpTsRelayAuditContinuity(payload as object, state as object) as object
         if payload[offset] = &H47
             pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
             header = payload[offset+3]
-            adaptationControl = (header \\ 16) mod 4
+            adaptationControl = (header \ 16) mod 4
             hasPayload = adaptationControl = 1 or adaptationControl = 3
             discontinuity = false
-            if (adaptationControl = 2 or adaptationControl = 3) and adaptationControl <> 0
+            if adaptationControl = 2 or adaptationControl = 3
                 adaptationLength = payload[offset+4]
                 if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
                     adaptationFlags = payload[offset+5]
