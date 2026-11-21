@@ -42,10 +42,31 @@ sub runTsStreamServer()
     end if
     m.top.status = "listening"
     print "[RokuPlus ts-relay] listening port=49322 segments="; m.top.segments.count()
+    relayCleanupTimer = CreateObject("roTimespan")
+    relayCleanupTimer.Mark()
     ' Keep the local listener reusable. stopRequested aborts the active response
     ' and rejects new clients until the next playback request resets the flag.
     while true
         event = wait(250,port)
+        ' The listener loop runs only between client responses, so no direct
+        ' upstream segment transfer is active while this orphan sweep executes.
+        ' Late completions from cancelled requests have unique paths and are
+        ' removed here without touching the Fastream prefetch namespace.
+        if relayCleanupTimer.TotalMilliseconds() >= 5000
+            relayEntries = CreateObject("roFileSystem").GetDirectoryListing("tmp:/")
+            relayCleanupCount = 0
+            if type(relayEntries) = "roArray"
+                for each relayEntry in relayEntries
+                    if GetInterface(relayEntry,"ifString") <> invalid and left(relayEntry,len(relayTempPrefix)) = relayTempPrefix
+                        if DeleteFile("tmp:/" + relayEntry) then relayCleanupCount++
+                    end if
+                end for
+            end if
+            if relayCleanupCount > 0
+                print "[RokuPlus ts-relay] orphan_cleanup removed="; relayCleanupCount
+            end if
+            relayCleanupTimer.Mark()
+        end if
         if type(event) = "roSocketEvent"
             if event.getSocketID() = listener.getID() and listener.isReadable()
                 connection = listener.accept()
