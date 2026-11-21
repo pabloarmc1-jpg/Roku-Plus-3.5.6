@@ -643,7 +643,12 @@ end sub
 ' Detect both socket errors and an orderly peer FIN. A readable socket with
 ' no remaining input returns an empty string after the peer has closed.
 function rpTsRelayClientClosed(connection as object) as boolean
-    if connection.isException() then return true
+    ' isException() reports out-of-band readability, not a general socket error.
+    ' Use the documented connection error flags for reset/abort/disconnected states.
+    if connection.eConnReset() or connection.eConnAborted() or connection.eNotConn()
+        return true
+    end if
+    ' A readable socket returning no bytes indicates an orderly peer close.
     if connection.isReadable()
         probe = connection.receiveStr(1)
         if probe = "" then return true
