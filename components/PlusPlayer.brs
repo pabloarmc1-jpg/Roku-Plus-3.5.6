@@ -2922,6 +2922,7 @@ sub onPulse()
     verifyAudioTrackSelection()
     now = m.monotonic.totalMilliseconds()
     advanceTsRelayRestart(now)
+    advanceTsRelayLocalSeek(now)
     advanceSegmentRestart(now)
     advanceHlsSoftRestart(now)
     ' 3.5.55: sample native Video fields during HLS startup as well as normal playback.
