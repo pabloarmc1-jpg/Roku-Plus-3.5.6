@@ -584,8 +584,8 @@ function rpTsRelayAuditPayload(payload as object) as object
                     if discontinuity
                         ' A declared discontinuity starts a new continuity baseline.
                     else if continuity = lastCounters[key]
-                        ' MPEG-TS permits an identical retransmitted payload packet
-                        ' to repeat its continuity counter. Do not flag it as a gap.
+                        ' A repeated payload continuity counter is a duplicate candidate,
+                        ' not a missing packet. This audit does not byte-compare retransmits.
                         result.continuityDuplicates++
                     else if continuity <> expected
                         result.continuityErrors++
