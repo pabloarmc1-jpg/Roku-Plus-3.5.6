@@ -334,6 +334,7 @@ sub rpTsRelayServe(connection as object, server as object)
                     readyMap.Delete(segmentIndex.toStr())
                     prefetchTask.readyFiles = readyMap
                 end if
+                prefetchTask.requestIndex = segmentIndex
             end if
             exit for
         end if
@@ -341,11 +342,27 @@ sub rpTsRelayServe(connection as object, server as object)
         if not payload.ReadFile(filePath)
             print "[RokuPlus ts-relay] file_read_failed index="; sentSegments+1
             DeleteFile(filePath)
+            if prefetched
+                readyMap = prefetchTask.readyFiles
+                if type(readyMap) = "roAssociativeArray" and readyMap.doesExist(segmentIndex.toStr())
+                    readyMap.Delete(segmentIndex.toStr())
+                    prefetchTask.readyFiles = readyMap
+                end if
+                prefetchTask.requestIndex = segmentIndex
+            end if
             exit for
         end if
         payloadSize = payload.Count()
         if payloadSize <= 0
             DeleteFile(filePath)
+            if prefetched
+                readyMap = prefetchTask.readyFiles
+                if type(readyMap) = "roAssociativeArray" and readyMap.doesExist(segmentIndex.toStr())
+                    readyMap.Delete(segmentIndex.toStr())
+                    prefetchTask.readyFiles = readyMap
+                end if
+                prefetchTask.requestIndex = segmentIndex
+            end if
             exit for
         end if
         ' Check packet framing and critical TS header fields on every segment.
