@@ -287,7 +287,6 @@ sub drawScreen()
         if m.view = "episodes" then episodeScreen()
         if m.view = "live" then liveScreen()
         if m.view = "settings" then settingsScreen()
-        if m.view = "invidious" then invidiousScreen()
         if m.view = "profiles" then profilesScreen()
         if m.view = "appearance" then appearanceScreen()
         if m.view = "credits" then creditsScreen()
@@ -1281,7 +1280,7 @@ sub settingsScreen()
     words("Puedes corregir tus elecciones cuando quieras.",324,218,1480,55,25,"0xB3B3B3FF")
     appearance = "Vidrio"
     if m.theme = "classic" then appearance = "Clásico"
-    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Resolución detectada","Buscar videos · Invidious"]
+    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Resolución detectada"]
     helperValue = m.compatBase
     if helperValue = "" then helperValue = "No configurado"
     tmdbStatus = "No configurada"
@@ -1297,8 +1296,8 @@ sub settingsScreen()
         if display.videoMode <> "" then displayValue = displayValue+" · "+display.videoMode
         if display.uiName <> "" then displayValue = displayValue+" · interfaz "+display.uiName
     end if
-    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue,"YouTube mediante yt.chocolatemoo53.com"]
-    for i = 0 to 10
+    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue]
+    for i = 0 to 9
         y = 250+i*63
         panel(320,y,1522,58,"0x181818FF")
         words(labels[i],352,y+4,900,29,23,"0xFFFFFFFF")
@@ -1308,30 +1307,6 @@ sub settingsScreen()
     words("Las claves se guardan en el registro local de este Roku y se muestran ocultas.",324,990,1480,36,19,"0xB1BEB3FF")
 end sub
 
-
-sub invidiousScreen()
-    topBar()
-    words("YouTube · Invidious",72,142,1500,76,46,"0xFFFFFFFF")
-    words("Instancia: yt.chocolatemoo53.com · Búsqueda: "+m.invidiousQuery,76,218,1740,48,23,"0xB3B3B3FF")
-    words("OK: intentar reproducir · Atrás: volver · ↑ / ↓: elegir video",76,270,1740,38,20,"0x888888FF")
-    if m.invidiousItems.count() = 0 and not m.busy
-        words("No hay resultados para mostrar. Abre Configuración y vuelve a Buscar videos · Invidious.",100,410,1600,90,30,"0xB3B3B3FF").wrap = true
-    end if
-    for i = 0 to 9
-        if i < m.invidiousItems.count()
-            item = m.invidiousItems[i]
-            y = 330+i*63
-            if i = m.invidiousCursor
-                panel(72,y-4,1770,58,"0x315F91FF")
-                panel(78,y+4,5,42,"0x75B8FFFF")
-            else
-                panel(72,y-4,1770,58,"0x181818FF")
-            end if
-            words(item.title,96,y+2,1370,30,22,"0xFFFFFFFF").wrap = true
-            words(item.author,98,y+32,1350,20,15,"0xD2DCE8FF")
-        end if
-    end for
-end sub
 
 sub profilesScreen()
     topBar()
