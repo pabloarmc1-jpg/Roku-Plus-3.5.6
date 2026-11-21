@@ -250,8 +250,18 @@ function rpSaveProfileName(profileId as string, value as string) as boolean
     if clean = "" then return false
     section = CreateObject("roRegistrySection","RokuPlusProfileMeta")
     if GetInterface(section,"ifRegistrySection") = invalid then return false
-    if section.write("name_"+safe,clean) <> true then return false
-    return section.flush() = true
+    key = "name_"+safe
+    previous = section.read(key)
+    if section.write(key,clean) <> true then return false
+    if section.flush() = true then return true
+    ' Restore the previous value if the Registry commit failed.
+    if GetInterface(previous,"ifString") = invalid or previous = ""
+        section.delete(key)
+    else
+        section.write(key,previous)
+    end if
+    section.flush()
+    return false
 end function
 
 function rpSaveProfileAvatar(profileId as string, value as integer) as boolean
@@ -259,8 +269,18 @@ function rpSaveProfileAvatar(profileId as string, value as integer) as boolean
     if value < 0 or value > 5 then return false
     section = CreateObject("roRegistrySection","RokuPlusProfileMeta")
     if GetInterface(section,"ifRegistrySection") = invalid then return false
-    if section.write("avatar_"+safe,value.toStr()) <> true then return false
-    return section.flush() = true
+    key = "avatar_"+safe
+    previous = section.read(key)
+    if section.write(key,value.toStr()) <> true then return false
+    if section.flush() = true then return true
+    ' Restore the previous value if the Registry commit failed.
+    if GetInterface(previous,"ifString") = invalid or previous = ""
+        section.delete(key)
+    else
+        section.write(key,previous)
+    end if
+    section.flush()
+    return false
 end function
 
 
