@@ -77,16 +77,22 @@ sub runTsPrefetch()
                     entry = pending[eventId]
                     statusCode = event.GetResponseCode()
                     elapsed = entry.timer.TotalMilliseconds()
-                    if event.GetInt() = 1 and statusCode >= 200 and statusCode < 300 and m.top.generation = activeGeneration and not m.top.stopRequested
+                    fileSystem = CreateObject("roFileSystem")
+                    downloadedSize = fileSystem.GetFileSize(entry.filePath)
+                    if event.GetInt() = 1 and statusCode >= 200 and statusCode < 300 and m.top.generation = activeGeneration and not m.top.stopRequested and downloadedSize > 0 and downloadedSize <= 16777216
                         ready[entry.index.toStr()] = entry.filePath
                         m.top.readyFiles = ready
-                        print "[RokuPlus ts-prefetch] fetch_ready segment="; entry.index; " status="; statusCode; " elapsedMs="; elapsed; " active="; pending.count()-1
+                        print "[RokuPlus ts-prefetch] fetch_ready segment="; entry.index; " bytes="; downloadedSize; " status="; statusCode; " elapsedMs="; elapsed; " active="; pending.count()-1
                     else
                         DeleteFile(entry.filePath)
                         if m.top.generation = activeGeneration and not m.top.stopRequested
                             ready[entry.index.toStr()] = "FAILED"
                             m.top.readyFiles = ready
-                            print "[RokuPlus ts-prefetch] fetch_failed segment="; entry.index; " status="; statusCode; " elapsedMs="; elapsed
+                            if downloadedSize > 16777216
+                                print "[RokuPlus ts-prefetch] fetch_rejected segment="; entry.index; " bytes="; downloadedSize; " reason=size_limit"
+                            else
+                                print "[RokuPlus ts-prefetch] fetch_failed segment="; entry.index; " status="; statusCode; " bytes="; downloadedSize; " elapsedMs="; elapsed
+                            end if
                         end if
                     end if
                     pending.Delete(eventId)
