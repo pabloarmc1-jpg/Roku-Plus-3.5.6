@@ -47,14 +47,14 @@ sub runCompatibilityRequest()
                 result.errorcode = "prepare_timeout"
                 result.message = "La preparación tardó demasiado. Se usará la fuente directa."
             end if
-            m.top.result = result
+            if not m.top.cancelRequested then m.top.result = result
             return
         end if
         job = rpCompatResponse(response.data, jobId, base)
         if job.status = "invalid"
             result.errorcode = "helper_protocol"
             result.message = "La computadora devolvió una respuesta incompatible. Se usará la fuente directa."
-            m.top.result = result
+            if not m.top.cancelRequested then m.top.result = result
             return
         end if
         jobId = job.jobid
@@ -67,13 +67,13 @@ sub runCompatibilityRequest()
             result.url = job.playlist
             result.streamFormat = "hls"
             result.jobid = jobId
-            m.top.result = result
+            if not m.top.cancelRequested then m.top.result = result
             return
         end if
         if job.status = "error"
             result.errorcode = "helper_error"
             result.message = "No se pudo preparar este título en la computadora. Se usará la fuente directa."
-            m.top.result = result
+            if not m.top.cancelRequested then m.top.result = result
             return
         end if
         ' A small cooperative pause leaves cancellation responsive while the
@@ -122,7 +122,7 @@ sub runCompatibilityTouch()
             if job.status = "error" then result.errorcode = "helper_error"
         end if
     end if
-    m.top.result = result
+    if not m.top.cancelRequested then m.top.result = result
 end sub
 
 function rpCompatTouchRoute(value as dynamic) as string
