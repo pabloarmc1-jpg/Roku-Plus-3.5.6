@@ -75,6 +75,7 @@ sub init()
     m.nextEpisode = invalid
     m.nextEpisodeCountdown = 0
     m.voeBlockedSession = {}
+    m.voeBlockedSessionOrder = []
     m.profileId = rpLoadProfileId()
     m.watchState = rpWatchLoad(m.profileId)
     m.profileCursor = 0
@@ -530,12 +531,12 @@ sub fetched(event as object)
             if type(context.item) = "roAssociativeArray"
                 context.item.voeBlocked = true
                 blockKey = rpVoeBlockKey(context.item)
-                if blockKey <> "" then m.voeBlockedSession[blockKey] = true
+                if blockKey <> "" then rpRememberVoeBlockedSession(blockKey)
             end if
             if type(m.detail) = "roAssociativeArray"
                 m.detail.voeBlocked = true
                 blockKey = rpVoeBlockKey(m.detail)
-                if blockKey <> "" then m.voeBlockedSession[blockKey] = true
+                if blockKey <> "" then rpRememberVoeBlockedSession(blockKey)
             end if
             print "[RokuPlus voe] retry_suppressed=1 reason=anti-bot-session"
         end if
@@ -4833,6 +4834,19 @@ if m.view = "profiles"
     return true
 end function
 
+
+' Keep anti-bot suppression for recent titles without growing for the whole session.
+sub rpRememberVoeBlockedSession(key as string)
+    if key = "" then return
+    if m.voeBlockedSession.doesExist(key) then return
+    while m.voeBlockedSession.count() >= 80 and m.voeBlockedSessionOrder.count() > 0
+        oldestKey = m.voeBlockedSessionOrder[0]
+        m.voeBlockedSessionOrder.delete(0)
+        if m.voeBlockedSession.doesExist(oldestKey) then m.voeBlockedSession.delete(oldestKey)
+    end while
+    m.voeBlockedSession[key] = true
+    m.voeBlockedSessionOrder.push(key)
+end sub
 
 function rpVoeBlockKey(item as dynamic) as string
     if type(item) <> "roAssociativeArray" then return ""
