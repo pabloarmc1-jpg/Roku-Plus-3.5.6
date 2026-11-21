@@ -22,7 +22,7 @@ sub runInvidiousRequest()
                             title = row.title
                             author = ""
                             if row.doesExist("author") then author = row.author
-                            if GetInterface(id,"ifString") <> invalid and id <> "" and GetInterface(title,"ifString") <> invalid
+                            if GetInterface(id,"ifString") <> invalid and CreateObject("roRegex","^[A-Za-z0-9_-]{6,20}$","").isMatch(id) and GetInterface(title,"ifString") <> invalid
                                 answer.items.push({id:id,title:left(title,180),author:left(author,100),kind:"movie",provider:"invidious",poster:"",background:""})
                             end if
                         end if
@@ -39,7 +39,7 @@ sub runInvidiousRequest()
         end if
     else if m.top.operation = "resolve"
         videoId = m.top.videoId
-        if GetInterface(videoId,"ifString") = invalid or videoId = "" or len(videoId) > 20
+        if GetInterface(videoId,"ifString") = invalid or not CreateObject("roRegex","^[A-Za-z0-9_-]{6,20}$","").isMatch(videoId)
             answer.message = "El identificador del video no es válido."
         else
             endpoint = base + "/api/v1/videos/" + videoId + "?local=true&region=MX&hl=es"
