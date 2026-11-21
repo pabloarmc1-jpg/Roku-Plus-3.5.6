@@ -661,7 +661,7 @@ function rpTsRelayAuditPayload(payload as object) as object
                     if payload[offset+1] >= 64 and payload[offset+1] < 128
                         if payloadStart + 9 < offset + 188
                             if payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
-                                pesFlags = (payload[payloadStart+7] \ 64) mod 4
+                                pesFlags = (payload[payloadStart+7] \\ 64) mod 4
                                 pesHeaderLength = payload[payloadStart+8]
                                 if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5
                                     if payloadStart + 14 <= offset + 188
@@ -675,7 +675,17 @@ function rpTsRelayAuditPayload(payload as object) as object
                                     if pesFlags = 3 and pesHeaderLength >= 10 and payloadStart + 19 <= offset + 188
                                         dts = rpTsRelayReadPts(payload,payloadStart+14)
                                         if dts >= 0
-                                            if result.dts                    ' A four-byte start code plus NAL header must fit inside this TS packet.
+                                            if result.dtsCount = 0 then result.firstDts = dts
+                                            result.lastDts = dts
+                                            result.dtsCount++
+                                        end if
+                                    end if
+                                end if
+                                dataStart = payloadStart + 9 + pesHeaderLength
+                            end if
+                        end if
+                    end if
+                    ' A four-byte start code plus NAL header must fit inside this TS packet.
                     ' Keep the scan bounded to the packet and the actual byte-array length.
                     nalEnd = offset + 183
                     if nalEnd > total - 5 then nalEnd = total - 5
@@ -690,16 +700,7 @@ function rpTsRelayAuditPayload(payload as object) as object
                                 end if
                                 if nalType = 5
                                     result.idrCount++
-                                    if result.firstIdrPacket < 0 then result.firstIdrPacket = offset \ 188
-                                else if nalType = 7
-                                    result.sps = true
-                                else if nalType = 8
-                                    result.pps = true
-                                end if
-                            end if
-                        end for
-                    end iflt.idrCount++
-                                    if result.firstIdrPacket < 0 then result.firstIdrPacket = offset \ 188
+                                    if result.firstIdrPacket < 0 then result.firstIdrPacket = offset \\ 188
                                 else if nalType = 7
                                     result.sps = true
                                 else if nalType = 8
