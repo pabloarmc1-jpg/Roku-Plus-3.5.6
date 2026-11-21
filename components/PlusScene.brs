@@ -1363,7 +1363,7 @@ sub playerProgress(event as object)
         refreshWatchLists = true
         print "[RokuPlus watch] save-periodic="; saved; " records="; m.watchState.count(); " id="; detailId; " position="; sample.position; " duration="; sample.duration
     end if
-    if record <> invalid then print "[RokuPlus watch] record id="; detailId; " position="; record.position; " duration="; record.duration; " provider="; orbitText(record.provider,32); " slug="; orbitText(record.providerSlug,200)
+    if record <> invalid and m.watchDiagCount <= 8 then print "[RokuPlus watch] record id="; detailId; " position="; record.position; " duration="; record.duration; " provider="; orbitText(record.provider,32); " slug="; orbitText(record.providerSlug,200)
     ' Rebuild the derived lists only at the save cadence or on completion.
     if refreshWatchLists
         m.continueItems = rpWatchContinue(m.watchState)
