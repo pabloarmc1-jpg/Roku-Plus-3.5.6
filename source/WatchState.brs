@@ -8,33 +8,69 @@ function rpWatchParse(raw as dynamic) as dynamic
     if GetInterface(raw, "ifString") = invalid or len(raw) = 0 or len(raw) > 65536 then return invalid
     parsed = ParseJson(raw)
     if type(parsed) <> "roArray" then return invalid
-    ' Registry contents can outlive app upgrades or be partially malformed.
-    ' Deduplicate while scanning so duplicates do not consume the 60-record limit.
+    ' Reject a partially malformed snapshot instead of treating skipped records
+    ' as a valid (possibly empty) history that could overwrite the backup.
     unique = []
     seenIds = {}
     for each entry in parsed
-        if type(entry) = "roAssociativeArray"
-            if entry.doesExist("id") and GetInterface(entry.id,"ifString") <> invalid
-                safeId = orbitText(entry.id,180)
-                if safeId <> "" and left(safeId,5) <> "live:"
-                    if not seenIds.doesExist(entry.id)
-                        position = 0
-                        duration = 0
-                        if entry.doesExist("position") then position = rpWatchNumber(entry.position)
-                        if entry.doesExist("duration") then duration = rpWatchNumber(entry.duration)
-                        entry.position = position
-                        entry.duration = duration
-                        if not entry.doesExist("watched") then entry.watched = false
-                        if not entry.doesExist("listed") then entry.listed = false
-                        seenIds[entry.id] = true
-                        unique.push(entry)
-                        if unique.count() >= 60 then exit for
-                    end if
-                end if
+        if type(entry) <> "roAssociativeArray" then return invalid
+        if not entry.doesExist("id") or GetInterface(entry.id,"ifString") = invalid then return invalid
+        safeId = orbitText(entry.id,180)
+        if safeId = "" or len(entry.id) > 180 or safeId <> entry.id or left(safeId,5) = "live:" then return invalid
+
+        position = 0
+        duration = 0
+        if entry.doesExist("position")
+            if not rpWatchStoredNumberValid(entry.position) then return invalid
+            position = entry.position
+        end if
+        if entry.doesExist("duration")
+            if not rpWatchStoredNumberValid(entry.duration) then return invalid
+            duration = entry.duration
+        end if
+        if entry.doesExist("watched")
+            if type(entry.watched) <> "Boolean" then return invalid
+        end if
+        if entry.doesExist("listed")
+            if type(entry.listed) <> "Boolean" then return invalid
+        end if
+
+        ' Validate optional display/source strings before accepting the record.
+        stringFields = ["title", "kind", "poster", "background", "year", "provider", "imdbId", "providerSlug", "providerTmdbId", "providerKind", "seriesTitle", "seriesId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind"]
+        for each field in stringFields
+            if entry.doesExist(field)
+                if GetInterface(entry[field],"ifString") = invalid then return invalid
             end if
+        end for
+        for each field in ["providerId", "seriesProviderId"]
+            if entry.doesExist(field)
+                value = entry[field]
+                if GetInterface(value,"ifString") = invalid and not rpWatchStoredNumberValid(value) then return invalid
+            end if
+        end for
+        if entry.doesExist("seriesSeasonNumbers")
+            if type(entry.seriesSeasonNumbers) <> "roArray" then return invalid
+        end if
+
+        if not seenIds.doesExist(safeId)
+            entry.id = safeId
+            entry.position = position
+            entry.duration = duration
+            if not entry.doesExist("watched") then entry.watched = false
+            if not entry.doesExist("listed") then entry.listed = false
+            seenIds[safeId] = true
+            unique.push(entry)
+            if unique.count() >= 60 then exit for
         end if
     end for
     return unique
+end function
+
+function rpWatchStoredNumberValid(value as dynamic) as boolean
+    numeric = GetInterface(value,"ifInt") <> invalid or GetInterface(value,"ifLongInt") <> invalid or GetInterface(value,"ifFloat") <> invalid or GetInterface(value,"ifDouble") <> invalid
+    if not numeric then return false
+    if value <> value or value < 0 or value > 9000000000000.0 then return false
+    return true
 end function
 
 function rpWatchLoad(profileId = "p1" as string) as object
