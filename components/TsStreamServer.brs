@@ -528,7 +528,11 @@ sub rpTsRelayServe(connection as object, server as object)
     end for
     if server.nextSegmentIndex >= segments.count()
         rpTsRelaySendString(connection,"0"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
-        print "[RokuPlus ts-relay] stream_complete segments="; sentSegments; " bytes="; sentBytes
+        if server.sendOk
+            print "[RokuPlus ts-relay] stream_complete segments="; sentSegments; " bytes="; sentBytes
+        else
+            print "[RokuPlus ts-relay] stream_end_send_failed segments="; sentSegments; " bytes="; sentBytes
+        end if
     else
         print "[RokuPlus ts-relay] stream_incomplete segments="; sentSegments; " total="; segments.count()
     end if
