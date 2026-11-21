@@ -425,6 +425,10 @@ function rpWatchToggle(items as object, item as object, field as string) as obje
     end if
     items[index][field] = not current
     items[index].updated = 0
+    ' Keep the live in-memory history under the same cap as update/load/save.
+    while items.count() > 60
+        items.delete(items.count()-1)
+    end while
     return items
 end function
 
