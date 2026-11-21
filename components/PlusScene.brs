@@ -1424,6 +1424,14 @@ sub playerClosed(event as object)
     if m.view = "live" then return
     if m.view <> "player" then return
     cancelNextEpisodePrefetch()
+    ' IntroDB lookup belongs to the active playback session; stop it when
+    ' that session closes so a late response cannot update a closed player.
+    if m.introDbTask <> invalid
+        m.introDbTask.unobserveField("result")
+        m.introDbTask.cancelRequested = true
+        m.introDbTask = invalid
+    end if
+    m.introDbSegments = invalid
     if m.stallWatchTimer <> invalid then m.stallWatchTimer.control = "stop"
     m.stallEpisodeActive = false
     ' A source switch requested from the end screen waits for the old decoder
