@@ -3329,14 +3329,20 @@ sub dispatchPendingSeek()
     if m.pendingSeek = invalid or m.ticket <> invalid or m.failed or not m.mediaOpen then return
     if m.monotonic.totalMilliseconds() < m.pendingSeek.dueAt then return
     state = m.decoder.state
-    if state <> "playing" and state <> "paused" then return
+    forceRestart = false
+    if m.pendingSeek.doesExist("forceRestart") then forceRestart = m.pendingSeek.forceRestart = true
+    if state <> "playing" and state <> "paused"
+        ' A timed-out TS resume can be stuck in buffering. Its retry must
+        ' restart the relay instead of waiting for the same decoder to recover.
+        if not (forceRestart and m.tsRelayMode and state = "buffering") then return
+    end if
     origin = playerPosition()
     if origin = invalid then return
     target = m.pendingSeek.target
     isResumeSeek = false
     if m.pendingSeek.doesExist("isResume") then isResumeSeek = m.pendingSeek.isResume = true
     m.pendingSeek = invalid
-    if abs(target-origin) < 0.05
+    if abs(target-origin) < 0.05 and not forceRestart
         if isResumeSeek
             m.resumeFailed = false
             emitDiagnostic("resume_already_at_target")
@@ -3414,7 +3420,10 @@ end sub
 sub scheduleResumeRetry(target as dynamic, reason as string)
     if m.resumeAttempts < 2 and not m.failed and m.mediaOpen
         m.resumeAttempts = m.resumeAttempts + 1
-        m.pendingSeek = {target:target,dueAt:m.monotonic.totalMilliseconds()+700,isResume:true}
+        ' A TS relay's global clock includes its segment offset. It can equal
+        ' the requested target while the local decoder is still stalled, so
+        ' retry by restarting the relay even when global position looks exact.
+        m.pendingSeek = {target:target,dueAt:m.monotonic.totalMilliseconds()+700,isResume:true,forceRestart:m.tsRelayMode}
         emitDiagnostic("resume_retry")
     else
         m.resumeFailed = true
