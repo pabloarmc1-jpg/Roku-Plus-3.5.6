@@ -819,7 +819,14 @@ sub fetched(event as object)
             m.latamChannels = answer.items
             m.latamLoaded = true
         end if
-        if m.view = "live" then refreshLiveList(true)
+        if m.view = "live"
+            refreshLiveList(true)
+            ' Favorites spans the selected country and LATAM. Load both lists
+            ' sequentially because the scene owns only one catalog task at a time.
+            if context.operation = "country" and m.liveFilter = 3 and m.liveFavorites.count() > 0 and not m.latamLoaded
+                fetch({operation:"latam"})
+            end if
+        end if
     end if
     drawScreen()
     if context.operation = "meta" and m.view = "episodes" then loadEpisodeSeason()
@@ -2569,8 +2576,16 @@ sub selectLiveFilter(filter as integer)
     m.zone = "live-filters"
     m.note = ""
     refreshLiveList(false)
-    if (m.liveFilter = 2 or m.liveFilter = 3) and not m.latamLoaded
-        if m.liveFilter = 2 or m.liveFavorites.count() > 0 then fetch({operation:"latam"})
+    if m.liveFilter = 2
+        if not m.latamLoaded then fetch({operation:"latam"})
+    else if m.liveFilter = 3
+        if m.liveFavorites.count() > 0
+            if m.liveLoadedCountry <> m.countryCode
+                fetch({operation:"country"})
+            else if not m.latamLoaded
+                fetch({operation:"latam"})
+            end if
+        end if
     else if (m.liveFilter = 0 or m.liveFilter = 1) and m.liveLoadedCountry <> m.countryCode
         fetch({operation:"country"})
     end if
