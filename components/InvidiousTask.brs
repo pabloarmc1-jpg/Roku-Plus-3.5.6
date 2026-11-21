@@ -53,7 +53,7 @@ sub runInvidiousRequest()
                     if selected.doesExist("bitrate") then answer.bitrate = selected.bitrate
                     answer.ok = true
                     answer.message = ""
-                else
+                else if type(parsed) = "roAssociativeArray"
                     ' Invidious exposes a single MPEG-DASH manifest for its separate
                     ' adaptive audio/video representations. Roku Video can consume DASH
                     ' natively, so let the Roku adaptive player select supported tracks.
@@ -72,6 +72,9 @@ sub runInvidiousRequest()
                         print "[RokuPlus Invidious codecs] DASH_FALLBACK available=false"
                         answer.message = "No hay una pista progresiva compatible ni un manifiesto DASH HTTPS disponible en esta instancia."
                     end if
+                else
+                    print "[RokuPlus Invidious codecs] RESPONSE_REJECT reason=invalid_video_metadata"
+                    answer.message = "Invidious devolvió datos de video con una estructura no válida."
                 end if
             else
                 answer.message = response.message
