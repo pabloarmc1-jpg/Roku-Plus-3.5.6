@@ -1350,10 +1350,13 @@ sub playerProgress(event as object)
         end if
     end if
     record = rpWatchGet(m.watchState,m.detail.id)
+    refreshWatchLists = sample.state = "finished"
     if m.watchSaveClock = invalid
         saved = rpWatchSave(m.watchState,m.profileId)
         m.watchSaveClock = CreateObject("roTimespan")
         m.watchSaveClock.mark()
+        refreshWatchLists = true
+        refreshWatchLists = true
         print "[RokuPlus watch] save-first="; saved; " records="; m.watchState.count(); " id="; detailId; " position="; sample.position; " duration="; sample.duration
     else if m.watchSaveClock.totalMilliseconds() >= 5000
         saved = rpWatchSave(m.watchState,m.profileId)
@@ -1361,7 +1364,6 @@ sub playerProgress(event as object)
         print "[RokuPlus watch] save-periodic="; saved; " records="; m.watchState.count(); " id="; detailId; " position="; sample.position; " duration="; sample.duration
     end if
     if record <> invalid then print "[RokuPlus watch] record id="; detailId; " position="; record.position; " duration="; record.duration; " provider="; orbitText(record.provider,32); " slug="; orbitText(record.providerSlug,200)
-    m.continueItems = rpWatchContinue(m.watchState)
     refreshHomeListItems()
 end sub
 
