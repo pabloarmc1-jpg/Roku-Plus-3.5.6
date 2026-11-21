@@ -58,7 +58,7 @@ sub rpTsRelayServe(connection as object, server as object)
     connection.notifyException(true)
     requestTimer = CreateObject("roTimespan")
     requestTimer.Mark()
-    while len(request) < 8192 and not complete and requestTimer.TotalMilliseconds() < 5000
+    while len(request) < 8192 and not complete and requestTimer.TotalMilliseconds() < 5000 and not server.stopRequested and connectionGeneration = server.generation
         if connection.isException() then exit while
         if connection.isReadable()
             part = connection.receiveStr(2048)
