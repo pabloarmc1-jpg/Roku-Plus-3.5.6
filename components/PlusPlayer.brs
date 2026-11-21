@@ -79,6 +79,7 @@ sub init()
     m.skipPromptDismissedTarget = invalid
     m.endScreenItems = []
     m.endCountdownActive = false
+    m.endCountdownManual = false
     m.endCountdownRemaining = 0
     m.endCountdownLastAt = 0
     m.endSelectionSent = false
@@ -497,6 +498,7 @@ sub onEndScreenDataChanged(event as object)
     data = event.getData()
     if type(data) <> "roAssociativeArray" then return
     m.endCountdownActive = false
+    m.endCountdownManual = false
     m.endCountdownRemaining = 0
     if type(data.items) = "roArray" then m.endScreenItems = data.items else m.endScreenItems = []
     m.endScreenIndex = 0
@@ -639,7 +641,7 @@ sub updateEndCountdownVisual()
 end sub
 
 sub startPlaybackEndCountdownIfReady()
-    if not m.endScreenOpen or m.endCountdownActive then return
+    if not m.endScreenOpen or m.endCountdownActive or m.endCountdownManual then return
     if type(m.endScreenItems) <> "roArray" or m.endScreenItems.count() = 0 then return
 
     ready = m.playbackFinished
@@ -666,6 +668,10 @@ end sub
 
 sub movePlaybackEndSelection(direction as integer)
     if m.endScreenItems.count() = 0 then return
+    m.endCountdownManual = true
+    m.endCountdownActive = false
+    m.endCountdownRemaining = 0
+    updateEndCountdownVisual()
     m.endScreenIndex += direction
     if m.endScreenIndex < 0 then m.endScreenIndex = m.endScreenItems.count()-1
     if m.endScreenIndex >= m.endScreenItems.count() then m.endScreenIndex = 0
