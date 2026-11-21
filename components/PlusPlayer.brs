@@ -3367,6 +3367,10 @@ end sub
 
 sub verifySeekResult()
     if m.ticket = invalid or not m.mediaOpen then return
+    ' A TS relay restart first lands at a segment boundary. Do not confirm
+    ' that intermediate position until advanceTsRelayLocalSeek applies the
+    ' remaining in-segment offset and clears its pending marker.
+    if m.tsRelayLocalSeekPending <> invalid then return
     now = m.monotonic.totalMilliseconds()
     if now - m.ticket.issuedAt < 200 then return
     state = m.decoder.state
