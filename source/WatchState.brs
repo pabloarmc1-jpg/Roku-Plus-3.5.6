@@ -58,12 +58,16 @@ function rpWatchParse(raw as dynamic) as dynamic
         if entry.doesExist("seriesSeasonNumbers")
             if type(entry.seriesSeasonNumbers) <> "roArray" or entry.seriesSeasonNumbers.count() > 100 then return invalid
             seenSeasons = {}
+            normalizedSeasons = []
             for each seasonValue in entry.seriesSeasonNumbers
                 if not rpWatchStoredIntegerValid(seasonValue,0,999) then return invalid
-                seasonKey = int(seasonValue).toStr()
+                seasonNumber = int(seasonValue)
+                seasonKey = seasonNumber.toStr()
                 if seenSeasons.doesExist(seasonKey) then return invalid
                 seenSeasons[seasonKey] = true
+                normalizedSeasons.push(seasonNumber)
             end for
+            entry.seriesSeasonNumbers = normalizedSeasons
         end if
 
         if not seenIds.doesExist(safeId)
