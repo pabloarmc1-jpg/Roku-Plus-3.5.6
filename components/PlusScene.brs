@@ -3656,9 +3656,15 @@ sub playDetail()
     m.sourceLaunchPending = true
     m.note = ""
     keepActiveEpisode = m.view = "player" and m.player.active = true and type(m.activePlaybackItem) = "roAssociativeArray" and m.detail.kind = "episode"
-    ' Preserve the actual title screen as the return destination. The resolving
-    ' screen is temporary and must never become viewBeforePlayer.
-    if not keepActiveEpisode and m.view <> "source-resolving" and m.view <> "player" then m.viewBeforePlayer = m.view
+    ' Episodes are opened through a temporary episode detail card. Playback
+    ' must return to the parent series browser, not that temporary card.
+    if not keepActiveEpisode and m.view = "detail" and m.detail.kind = "episode" and m.detailOrigin = "episodes" and type(m.series) = "roAssociativeArray"
+        m.viewBeforePlayer = "episodes"
+        m.zone = "episodes"
+    else if not keepActiveEpisode and m.view <> "source-resolving" and m.view <> "player"
+        m.viewBeforePlayer = m.view
+    end if
+    ' The resolving screen is temporary and must never become viewBeforePlayer.
     if not keepActiveEpisode then m.view = "source-resolving"
     if orbitText(m.detail.discoverySource,32) = "cinemeta"
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
