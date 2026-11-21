@@ -310,7 +310,7 @@ sub rpTsRelayServe(connection as object, server as object)
             generationChanged = false
             clientDisconnected = false
             while prefetchTimer.TotalMilliseconds() < 35000 and not server.stopRequested and connectionGeneration = server.generation
-                if connection.isException()
+                if rpTsRelayClientClosed(connection)
                     clientDisconnected = true
                     exit while
                 end if
@@ -362,7 +362,7 @@ sub rpTsRelayServe(connection as object, server as object)
                         fetchReason = "cancelled"
                         exit while
                     end if
-                    if connection.isException()
+                    if rpTsRelayClientClosed(connection)
                         fetchReason = "client_disconnected"
                         exit while
                     end if
@@ -640,6 +640,17 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
     end if
 end sub
 
+' Detect both socket errors and an orderly peer FIN. A readable socket with
+' no remaining input returns an empty string after the peer has closed.
+function rpTsRelayClientClosed(connection as object) as boolean
+    if connection.isException() then return true
+    if connection.isReadable()
+        probe = connection.receiveStr(1)
+        if probe = "" then return true
+    end if
+    return false
+end function
+
 function rpTsRelayWaitWritable(connection as object, port as object, server as object) as boolean
     ' Wait for the socket's writable notification instead of polling blindly.
     ' A slow decoder can temporarily apply TCP backpressure while consuming a
@@ -648,7 +659,7 @@ function rpTsRelayWaitWritable(connection as object, port as object, server as o
     timer.Mark()
     while timer.TotalMilliseconds() < 30000
         if server.stopRequested then return false
-        if connection.isException() then return false
+        if rpTsRelayClientClosed(connection) then return false
         if connection.isWritable() then return true
         event = wait(1000,port)
         if type(event) = "roSocketEvent"
