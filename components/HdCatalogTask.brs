@@ -2824,6 +2824,7 @@ function rpHdTaskLoadEpisodes(parent as object, season as integer, fetcher as dy
     provider = parent.provider
     pages = []
     declared = []
+    seenEpisodes = {}
     page = 1
     complete = false
     for attempt = 1 to 12
@@ -2831,10 +2832,29 @@ function rpHdTaskLoadEpisodes(parent as object, season as integer, fetcher as dy
         response = rpHdTaskFetchJson(endpoint,fetcher)
         if not response.ok then return rpHdTaskFailure(answer,response)
         normalized = rpHdOnlineEpisodes(response.data,provider,parent)
+        newEpisodes = 0
+        if provider = "lamovie"
+            for each loadedSeason in normalized.seasons
+                if type(loadedSeason.episodes) = "roArray"
+                    for each episodeItem in loadedSeason.episodes
+                        episodeId = orbitText(episodeItem.id,180)
+                        if episodeId <> "" and not seenEpisodes.doesExist(episodeId)
+                            seenEpisodes[episodeId] = true
+                            newEpisodes++
+                        end if
+                    end for
+                end if
+            end for
+        end if
         pages.push(normalized.seasons)
         for each number in normalized.seasonNumbers
             if not rpHdTaskHasNumber(declared,number) then declared.push(number)
         end for
+        if provider = "lamovie" and normalized.hasMore and newEpisodes = 0
+            ' A repeated/empty page cannot add episodes; keep the valid pages.
+            complete = true
+            exit for
+        end if
         if not normalized.hasMore or provider = "allcalidad"
             complete = true
             exit for
