@@ -1274,7 +1274,7 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
             if state.psiTables.doesExist(tableKey) then state.psiTables.Delete(tableKey)
             print "[RokuPlus ts-audit] psi_table_rejected pid="; pid; " kind="; tableKind; " version="; versionNumber
         end if
-    end iff
+    end if
 end sub
 
 function rpTsRelayApplyPatSections(state as object, sections as object) as boolean
@@ -1283,19 +1283,19 @@ function rpTsRelayApplyPatSections(state as object, sections as object) as boole
     programPids = {}
     for section in sections
         total = section.count()
-        if total < 12 then return
-        if ((total - 12) mod 4) <> 0 then return
+        if total < 12 then return false
+        if ((total - 12) mod 4) <> 0 then return false
         entry = 8
         while entry + 4 <= total - 4
             programNumber = section[entry] * 256 + section[entry+1]
-            if (section[entry+2] \\ 32) <> 7 then return
+            if (section[entry+2] \\ 32) <> 7 then return false
             pmtPid = (section[entry+2] mod 32) * 256 + section[entry+3]
             if programNumber > 0
                 ' PMT PIDs must be in the usable elementary/program range.
-                if pmtPid < 16 or pmtPid > 8190 then return
+                if pmtPid < 16 or pmtPid > 8190 then return false
                 programKey = programNumber.toStr()
                 if programPids.doesExist(programKey)
-                    if programPids[programKey] <> pmtPid then return
+                    if programPids[programKey] <> pmtPid then return false
                 else
                     programPids[programKey] = pmtPid
                 end if
@@ -1446,7 +1446,7 @@ end function
 
 function rpTsRelayApplyPmtSections(state as object, sections as object) as boolean
     pmtSignature = rpTsRelayPmtContentSignature(sections)
-    if pmtSignature = "" then return
+    if pmtSignature = "" then return false
     selectedVideoPid = -1
     selectedPcrPid = -1
     selectedAudioPids = []
@@ -1455,20 +1455,20 @@ function rpTsRelayApplyPmtSections(state as object, sections as object) as boole
     programInfoSignature = invalid
     for section in sections
         total = section.count()
-        if total < 16 then return
-        if (section[8] \ 32) <> 7 then return
+        if total < 16 then return false
+        if (section[8] \ 32) <> 7 then return false
         sectionPcrPid = (section[8] mod 32) * 256 + section[9]
-        if sectionPcrPid <> 8191 and (sectionPcrPid < 16 or sectionPcrPid > 8190) then return
+        if sectionPcrPid <> 8191 and (sectionPcrPid < 16 or sectionPcrPid > 8190) then return false
         if selectedPcrPid < 0
             selectedPcrPid = sectionPcrPid
         else if selectedPcrPid <> sectionPcrPid
-            return
+            return false
         end if
-        if (section[10] \\ 16) <> 15 then return
+        if (section[10] \\ 16) <> 15 then return false
         programInfoLength = (section[10] mod 16) * 256 + section[11]
         entry = 12 + programInfoLength
-        if entry > total - 4 then return
-        if not rpTsRelayDescriptorLoopValid(section,12,programInfoLength) then return
+        if entry > total - 4 then return false
+        if not rpTsRelayDescriptorLoopValid(section,12,programInfoLength) then return false
         currentProgramInfo = ""
         for descriptorIndex = 12 to entry - 1
             currentProgramInfo = currentProgramInfo + section[descriptorIndex].toStr() + ","
@@ -1477,20 +1477,20 @@ function rpTsRelayApplyPmtSections(state as object, sections as object) as boole
             programInfoSignature = currentProgramInfo
         else if programInfoSignature <> currentProgramInfo
             ' Program-level descriptors must agree across all PMT sections.
-            return
+            return false
         end if
         while entry + 5 <= total - 4
             streamType = section[entry]
-            if (section[entry+1] \\ 32) <> 7 then return
-            if (section[entry+3] \\ 16) <> 15 then return
+            if (section[entry+1] \\ 32) <> 7 then return false
+            if (section[entry+3] \\ 16) <> 15 then return false
             elementaryPid = (section[entry+1] mod 32) * 256 + section[entry+2]
             esInfoLength = (section[entry+3] mod 16) * 256 + section[entry+4]
-            if elementaryPid < 16 or elementaryPid > 8190 then return
-            if entry + 5 + esInfoLength > total - 4 then return
-            if not rpTsRelayDescriptorLoopValid(section,entry+5,esInfoLength) then return
+            if elementaryPid < 16 or elementaryPid > 8190 then return false
+            if entry + 5 + esInfoLength > total - 4 then return false
+            if not rpTsRelayDescriptorLoopValid(section,entry+5,esInfoLength) then return false
             streamKey = elementaryPid.toStr()
             ' An elementary PID may appear only once in the complete PMT.
-            if selectedStreamTypes.doesExist(streamKey) then return
+            if selectedStreamTypes.doesExist(streamKey) then return false
             selectedStreamTypes[streamKey] = streamType
             if streamType = 27
                 ' The relay clock inspector tracks one H.264 PID. Choose it
@@ -1506,7 +1506,7 @@ function rpTsRelayApplyPmtSections(state as object, sections as object) as boole
             end if
             entry += 5 + esInfoLength
         end while
-        if entry <> total - 4 then return
+        if entry <> total - 4 then return false
     end for
     ' Stable ordering prevents a reordered multi-section PMT from looking like
     ' a changed audio PID set and unnecessarily clearing clock/PES baselines.
