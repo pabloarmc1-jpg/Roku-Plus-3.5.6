@@ -12,6 +12,8 @@ sub runTsPrefetch()
     pending = {}
     staleTransfers = {}
     nextToSchedule = 0
+    staleCleanupTimer = CreateObject("roTimespan")
+    staleCleanupTimer.Mark()
     m.top.readyFiles = ready
     m.top.status = "running"
 
@@ -49,7 +51,9 @@ sub runTsPrefetch()
                 end for
                 for each pendingId in pendingIds
                     pendingEntry = pending[pendingId]
-                    staleTransfers[pendingId] = {filePath:pendingEntry.filePath,xfer:pendingEntry.xfer}
+                    staleTimer = CreateObject("roTimespan")
+                    staleTimer.Mark()
+                    staleTransfers[pendingId] = {filePath:pendingEntry.filePath,xfer:pendingEntry.xfer,timer:staleTimer}
                     pendingEntry.xfer.AsyncCancel()
                 end for
                 cancelTimer = CreateObject("roTimespan")
@@ -131,7 +135,9 @@ sub runTsPrefetch()
             for each timedOutId in timedOutIds
                 timedOutEntry = pending[timedOutId]
                 timedOutEntry.xfer.AsyncCancel()
-                staleTransfers[timedOutId] = {filePath:timedOutEntry.filePath,xfer:timedOutEntry.xfer}
+                staleTimer = CreateObject("roTimespan")
+                staleTimer.Mark()
+                staleTransfers[timedOutId] = {filePath:timedOutEntry.filePath,xfer:timedOutEntry.xfer,timer:staleTimer}
                 DeleteFile(timedOutEntry.filePath)
                 pending.Delete(timedOutId)
                 if m.top.generation = activeGeneration and not m.top.stopRequested
@@ -140,6 +146,46 @@ sub runTsPrefetch()
                 end if
                 print "[RokuPlus ts-prefetch] fetch_timeout segment="; timedOutEntry.index; " elapsedMs="; timedOutEntry.timer.TotalMilliseconds()
             end for
+
+            ' Retire cancellation records that never receive their completion event.
+            ' Unique per-transfer paths plus the orphan sweep below prevent late writes
+            ' from colliding with a newer retry of the same segment.
+            expiredStaleIds = []
+            for each staleId in staleTransfers
+                staleEntry = staleTransfers[staleId]
+                if staleEntry.timer.TotalMilliseconds() >= 30000 then expiredStaleIds.push(staleId)
+            end for
+            for each expiredStaleId in expiredStaleIds
+                expiredEntry = staleTransfers[expiredStaleId]
+                DeleteFile(expiredEntry.filePath)
+                staleTransfers.Delete(expiredStaleId)
+                print "[RokuPlus ts-prefetch] stale_retired id="; expiredStaleId
+            end for
+
+            ' Periodically remove late files from retired/cancelled transfers. Files
+            ' still owned by pending, ready, or stale entries are never swept.
+            if staleCleanupTimer.TotalMilliseconds() >= 5000
+                tempEntries = fileSystem.GetDirectoryListing("tmp:/")
+                if type(tempEntries) = "roArray"
+                    for each tempEntry in tempEntries
+                        if GetInterface(tempEntry, "ifString") <> invalid and left(tempEntry, 12) = "rp_fastream_"
+                            candidatePath = "tmp:/" + tempEntry
+                            tracked = false
+                            for each pendingKey in pending
+                                if pending[pendingKey].filePath = candidatePath then tracked = true
+                            end for
+                            for each readyKey in ready
+                                if ready[readyKey] = candidatePath then tracked = true
+                            end for
+                            for each staleKey in staleTransfers
+                                if staleTransfers[staleKey].filePath = candidatePath then tracked = true
+                            end for
+                            if not tracked then DeleteFile(candidatePath)
+                        end if
+                    end for
+                end if
+                staleCleanupTimer.Mark()
+            end if
 
             ' Fill at most two transfer slots. Keep the scheduling horizon close
             ' to the segment the relay is currently waiting to consume.
@@ -183,11 +229,13 @@ sub runTsPrefetch()
                             if GetInterface(referer, "ifString") <> invalid and len(referer) > 0 then xfer.AddHeader("Referer", referer)
                         end if
                         xfer.SetMessagePort(port)
+                        transferId = xfer.GetIdentity().ToStr()
+                        filePath = "tmp:/rp_fastream_" + activeGeneration.toStr() + "_" + key + "_" + transferId + ".ts"
+                        DeleteFile(filePath)
                         timer = CreateObject("roTimespan")
                         timer.Mark()
                         started = xfer.AsyncGetToFile(filePath)
                         if started
-                            transferId = xfer.GetIdentity().ToStr()
                             pending[transferId] = {xfer:xfer,index:index,filePath:filePath,timer:timer}
                             print "[RokuPlus ts-prefetch] fetch_begin segment="; index; " active="; pending.count()
                         else
