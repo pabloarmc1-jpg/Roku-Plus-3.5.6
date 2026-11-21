@@ -1182,16 +1182,22 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
                 state.psiTables.Delete(staleKey)
             end for
         end if
-    else if tableKind = "pat" and not state.psiTables.doesExist(tableKey)
-        ' No PAT version is active yet for this transport_stream_id. Remove
-        ' partial assemblies from older transport IDs only once a new candidate
-        ' starts; the previous applied program state remains untouched.
-        patPrefix = pid.toStr() + ":pat:"
-        stalePatTables = []
-        for existingKey in state.psiTables
-            if left(existingKey,len(patPrefix)) = patPrefix then stalePatTables.push(existingKey)
-        end for
-        for staleKey in stalePatTables
+    else if not state.psiTables.doesExist(tableKey)
+        ' Before any version has been applied, retain only one pending version
+        ' per table identity. PAT also has one transport_stream_id at a time.
+        if tableKind = "pat"
+            patPrefix = pid.toStr() + ":pat:"
+            stalePendingTables = []
+            for existingKey in state.psiTables
+                if left(existingKey,len(patPrefix)) = patPrefix then stalePendingTables.push(existingKey)
+            end for
+        else
+            stalePendingTables = []
+            for existingKey in state.psiTables
+                if left(existingKey,len(tablePrefix)) = tablePrefix then stalePendingTables.push(existingKey)
+            end for
+        end if
+        for staleKey in stalePendingTables
             state.psiTables.Delete(staleKey)
         end for
     end if
