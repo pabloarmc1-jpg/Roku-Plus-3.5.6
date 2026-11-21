@@ -3697,6 +3697,7 @@ function rpWatchLastEpisodeForSeries(series as object) as dynamic
     if type(series) <> "roAssociativeArray" or type(m.watchState) <> "roArray" then return invalid
     seriesId = orbitText(series.id,180)
     seriesImdbId = orbitImdb(series.imdbId)
+    seriesTmdbId = orbitText(series.providerTmdbId,40)
     seriesTitle = lcase(orbitText(series.title,180))
     seriesProvider = lcase(orbitText(series.provider,32))
     seriesYear = left(orbitText(series.year,12),4)
@@ -3706,16 +3707,19 @@ function rpWatchLastEpisodeForSeries(series as object) as dynamic
                 matches = false
                 savedSeriesId = orbitText(saved.seriesId,180)
                 savedSeriesImdb = orbitImdb(saved.seriesImdbId)
+                savedSeriesTmdb = orbitText(saved.seriesProviderTmdbId,40)
                 savedTitle = lcase(orbitText(saved.seriesTitle,180))
                 savedProvider = lcase(orbitText(saved.provider,32))
                 savedYear = left(orbitText(saved.year,12),4)
                 if seriesImdbId <> "" and savedSeriesImdb = seriesImdbId then matches = true
+                if not matches and seriesTmdbId <> "" and savedSeriesTmdb = seriesTmdbId then matches = true
                 if not matches and seriesId <> "" and savedSeriesId = seriesId then matches = true
                 if not matches and seriesTitle <> "" and savedTitle = seriesTitle
                     idsConflict = (seriesId <> "" and savedSeriesId <> "" and seriesId <> savedSeriesId)
                     imdbConflict = (seriesImdbId <> "" and savedSeriesImdb <> "" and seriesImdbId <> savedSeriesImdb)
+                    tmdbConflict = (seriesTmdbId <> "" and savedSeriesTmdb <> "" and seriesTmdbId <> savedSeriesTmdb)
                     sameYear = (seriesYear = "" or savedYear = "" or seriesYear = savedYear)
-                    if not idsConflict and not imdbConflict and savedProvider = seriesProvider and seriesProvider <> "" and sameYear
+                    if not idsConflict and not imdbConflict and not tmdbConflict and savedProvider = seriesProvider and seriesProvider <> "" and sameYear
                         matches = true
                     end if
                 end if
