@@ -680,7 +680,7 @@ sub fetched(event as object)
         if type(answer.item) = "roAssociativeArray" and context.doesExist("item") and type(context.item) = "roAssociativeArray"
             ' Keep legacy source fields only when the refreshed metadata omitted them.
             ' A validated replacement value must not be overwritten by stale history.
-            identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers"]
+            identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesImdbId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers"]
             for each identityField in identityFields
                 if context.item.doesExist(identityField)
                     sourceValue = context.item[identityField]
@@ -3696,22 +3696,28 @@ end sub
 function rpWatchLastEpisodeForSeries(series as object) as dynamic
     if type(series) <> "roAssociativeArray" or type(m.watchState) <> "roArray" then return invalid
     seriesId = orbitText(series.id,180)
-    seriesImdbId = orbitText(series.imdbId,180)
+    seriesImdbId = orbitImdb(series.imdbId)
     seriesTitle = lcase(orbitText(series.title,180))
     seriesProvider = lcase(orbitText(series.provider,32))
+    seriesYear = left(orbitText(series.year,12),4)
     for each saved in m.watchState
         if type(saved) = "roAssociativeArray" and orbitText(saved.kind,20) = "episode"
             if saved.doesExist("season") and saved.doesExist("episode")
                 matches = false
                 savedSeriesId = orbitText(saved.seriesId,180)
-                savedImdbId = orbitText(saved.imdbId,180)
-                if seriesId <> "" and savedSeriesId = seriesId then matches = true
-                if seriesId <> "" and savedImdbId = seriesId then matches = true
-                if seriesImdbId <> "" and savedImdbId = seriesImdbId then matches = true
-                if not matches and seriesTitle <> ""
-                    savedTitle = lcase(orbitText(saved.seriesTitle,180))
-                    savedProvider = lcase(orbitText(saved.provider,32))
-                    if savedTitle = seriesTitle and savedProvider = seriesProvider and seriesProvider <> "" then matches = true
+                savedSeriesImdb = orbitImdb(saved.seriesImdbId)
+                savedTitle = lcase(orbitText(saved.seriesTitle,180))
+                savedProvider = lcase(orbitText(saved.provider,32))
+                savedYear = left(orbitText(saved.year,12),4)
+                if seriesImdbId <> "" and savedSeriesImdb = seriesImdbId then matches = true
+                if not matches and seriesId <> "" and savedSeriesId = seriesId then matches = true
+                if not matches and seriesTitle <> "" and savedTitle = seriesTitle
+                    idsConflict = (seriesId <> "" and savedSeriesId <> "" and seriesId <> savedSeriesId)
+                    imdbConflict = (seriesImdbId <> "" and savedSeriesImdb <> "" and seriesImdbId <> savedSeriesImdb)
+                    sameYear = (seriesYear = "" or savedYear = "" or seriesYear = savedYear)
+                    if not idsConflict and not imdbConflict and savedProvider = seriesProvider and seriesProvider <> "" and sameYear
+                        matches = true
+                    end if
                 end if
                 if matches then return saved
             end if
@@ -4395,6 +4401,7 @@ if m.view = "profiles"
                 if saved.doesExist("episode") then resumeItem.episode = orbitInteger(saved.episode,9999,0)
                 if saved.doesExist("seriesTitle") then resumeItem.seriesTitle = orbitText(saved.seriesTitle,180)
                 if saved.doesExist("seriesId") then resumeItem.seriesId = orbitText(saved.seriesId,180)
+                if saved.doesExist("seriesImdbId") then resumeItem.seriesImdbId = orbitImdb(saved.seriesImdbId)
                 if saved.doesExist("seriesProviderId") then resumeItem.seriesProviderId = saved.seriesProviderId
                 if saved.doesExist("seriesProviderSlug") then resumeItem.seriesProviderSlug = orbitText(saved.seriesProviderSlug,200)
                 if saved.doesExist("seriesProviderTmdbId") then resumeItem.seriesProviderTmdbId = orbitText(saved.seriesProviderTmdbId,40)
