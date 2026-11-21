@@ -105,7 +105,9 @@ function rpWatchMigrateIdentity(items as object, oldItem as object, newItem as o
             newValue = newItem[field]
             if newValue <> invalid
                 useValue = true
-                if GetInterface(newValue,"ifString") <> invalid and newValue = "" then useValue = false
+                if GetInterface(newValue,"ifString") <> invalid
+                    if newValue = "" then useValue = false
+                end if
                 if useValue then record[field] = newValue
             end if
         end if
