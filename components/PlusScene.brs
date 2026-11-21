@@ -703,7 +703,9 @@ sub fetched(event as object)
                         if not targetMissing
                             targetValue = answer.item[identityField]
                             if targetValue = invalid then targetMissing = true
-                            if GetInterface(targetValue, "ifString") <> invalid and targetValue = "" then targetMissing = true
+                            if GetInterface(targetValue, "ifString") <> invalid
+                                if targetValue = "" then targetMissing = true
+                            end if
                         end if
                         if targetMissing
                             keepValue = true
