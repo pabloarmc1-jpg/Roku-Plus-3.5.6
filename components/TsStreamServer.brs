@@ -27,21 +27,28 @@ sub runTsStreamServer()
     end if
     m.top.status = "listening"
     print "[RokuPlus ts-relay] listening port=49322 segments="; m.top.segments.count()
-    while not m.top.stopRequested
+    ' Keep the local listener reusable. stopRequested aborts the active response
+    ' and rejects new clients until the next playback request resets the flag.
+    while true
         event = wait(250,port)
         if type(event) = "roSocketEvent"
             if event.getSocketID() = listener.getID() and listener.isReadable()
                 connection = listener.accept()
-                if connection <> invalid then rpTsRelayServe(connection,m.top)
+                if connection <> invalid
+                    if m.top.stopRequested
+                        connection.close()
+                    else
+                        rpTsRelayServe(connection,m.top)
+                    end if
+                end if
             end if
         end if
     end while
-    listener.close()
-    m.top.status = "stopped"
-    print "[RokuPlus ts-relay] stopped"
 end sub
 
 sub rpTsRelayServe(connection as object, server as object)
+    connectionGeneration = server.generation
+    server.connectionGeneration = connectionGeneration
     request = ""
     complete = false
     connectionPort = CreateObject("roMessagePort")
@@ -65,6 +72,10 @@ sub rpTsRelayServe(connection as object, server as object)
             end if
         end if
     end while
+    if server.stopRequested or connectionGeneration <> server.generation
+        connection.close()
+        return
+    end if
     if not complete
         if requestTimer.TotalMilliseconds() >= 5000
             print "[RokuPlus ts-relay] rejected_incomplete_request reason=timeout"
@@ -154,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     prefetchGeneration = -1
     if prefetchTask <> invalid then prefetchGeneration = prefetchTask.generation
     for segmentIndex = startIndex to segments.count() - 1
-        if server.stopRequested then exit for
+        if server.stopRequested or connectionGeneration <> server.generation then exit for
         if prefetchTask <> invalid
             if prefetchTask.stopRequested or prefetchTask.generation <> prefetchGeneration
                 print "[RokuPlus ts-relay] prefetch_generation_changed segment="; segmentIndex
@@ -182,7 +193,7 @@ sub rpTsRelayServe(connection as object, server as object)
             prefetchPath = ""
             prefetchKey = segmentIndex.toStr()
             generationChanged = false
-            while prefetchTimer.TotalMilliseconds() < 180000 and not server.stopRequested
+            while prefetchTimer.TotalMilliseconds() < 180000 and not server.stopRequested and connectionGeneration = server.generation
                 if prefetchTask.stopRequested or prefetchTask.generation <> prefetchGeneration
                     generationChanged = true
                     exit while
@@ -215,12 +226,20 @@ sub rpTsRelayServe(connection as object, server as object)
             print "[RokuPlus ts-relay] upstream_fetch_begin segment="; segmentIndex
             code = xfer.GetToFile(filePath)
             fetchMs = fetchTimer.TotalMilliseconds()
+            if server.stopRequested or connectionGeneration <> server.generation
+                DeleteFile(filePath)
+                exit for
+            end if
             print "[RokuPlus ts-relay] upstream_fetch_end segment="; segmentIndex; " status="; code; " elapsedMs="; fetchMs
             if code < 200 or code >= 300
                 print "[RokuPlus ts-relay] upstream_failed index="; sentSegments+1; " status="; code
                 DeleteFile(filePath)
                 exit for
             end if
+        end if
+        if server.stopRequested or connectionGeneration <> server.generation
+            DeleteFile(filePath)
+            exit for
         end if
         payload = CreateObject("roByteArray")
         if not payload.ReadFile(filePath)
@@ -307,7 +326,7 @@ sub rpTsRelaySendString(connection as object, value as string, server as object,
     progressTimer = CreateObject("roTimespan")
     progressTimer.Mark()
     while offset < len(value)
-        if server.stopRequested or progressTimer.TotalMilliseconds() >= 30000
+        if server.stopRequested or server.generation <> server.connectionGeneration or progressTimer.TotalMilliseconds() >= 30000
             reason = "no_progress_timeout"
             if server.stopRequested then reason = "stopped"
             print "[RokuPlus ts-relay] send_abort kind=string offset="; offset; " reason="; reason
@@ -343,7 +362,7 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
     progressTimer.Mark()
     print "[RokuPlus ts-relay] payload_send_begin bytes="; total; " chunkLimit="; chunkLimit
     while offset < total
-        if server.stopRequested or progressTimer.TotalMilliseconds() >= 30000
+        if server.stopRequested or server.generation <> server.connectionGeneration or progressTimer.TotalMilliseconds() >= 30000
             reason = "no_progress_timeout"
             if server.stopRequested then reason = "stopped"
             print "[RokuPlus ts-relay] payload_send_abort bytesSent="; offset; " total="; total; " elapsedMs="; timer.TotalMilliseconds(); " reason="; reason
