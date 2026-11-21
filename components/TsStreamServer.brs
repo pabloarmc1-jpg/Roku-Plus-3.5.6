@@ -165,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     ' Keep PID continuity baselines across every HLS segment in this relay response.
     tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
-    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0}
+    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},pesBuffers:{},pmtPid:-1,videoPid:-1}
     segmentDiscontinuities = server.segmentDiscontinuities
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
@@ -191,6 +191,8 @@ sub rpTsRelayServe(connection as object, server as object)
                 tsClockState.haveDts = {}
                 tsClockState.lastPts = {}
                 tsClockState.havePts = {}
+                tsClockState.psiBuffers = {}
+                tsClockState.pesBuffers = {}
                 tsContinuityState.lastCounters = {}
                 tsContinuityState.haveCounters = {}
             end if
@@ -295,7 +297,11 @@ sub rpTsRelayServe(connection as object, server as object)
         ' The full PSI/clock/continuity inspection remains sampled to bound CPU cost.
         quickAudit = rpTsRelayQuickAuditPayload(payload)
         if quickAudit.aligned and quickAudit.syncErrors = 0 and quickAudit.headerErrors = 0
+            fragmentedAudit = rpTsRelayAuditFragmentedHeaders(payload,tsClockState)
             clockAudit = rpTsRelayAuditClocks(payload,tsClockState)
+            if fragmentedAudit.pesHeaders > 0 or fragmentedAudit.psiSections > 0
+                print "[RokuPlus ts-audit] fragmented_headers segment="; segmentIndex; " psiSections="; fragmentedAudit.psiSections; " pesHeaders="; fragmentedAudit.pesHeaders; " videoPid="; tsClockState.videoPid; " pmtPid="; tsClockState.pmtPid
+            end if
             if clockAudit.pcrWraps > 0 or clockAudit.pcrRegressions > 0 or clockAudit.dtsWraps > 0 or clockAudit.dtsRegressions > 0 or clockAudit.ptsWraps > 0
                 print "[RokuPlus ts-clock] segment="; segmentIndex; " pcrWraps="; clockAudit.pcrWraps; " pcrRegressions="; clockAudit.pcrRegressions; " dtsWraps="; clockAudit.dtsWraps; " dtsRegressions="; clockAudit.dtsRegressions; " ptsWraps="; clockAudit.ptsWraps
             end if
@@ -307,6 +313,14 @@ sub rpTsRelayServe(connection as object, server as object)
             ' A malformed segment breaks the observation window; do not compare
             ' counters across bytes whose packet boundaries could not be trusted.
             tsContinuityState = {lastCounters:{},haveCounters:{},errors:tsContinuityState.errors,duplicates:tsContinuityState.duplicates,checked:tsContinuityState.checked}
+            tsClockState.lastPcr = {}
+            tsClockState.havePcr = {}
+            tsClockState.lastDts = {}
+            tsClockState.haveDts = {}
+            tsClockState.lastPts = {}
+            tsClockState.havePts = {}
+            tsClockState.psiBuffers = {}
+            tsClockState.pesBuffers = {}
         end if
         if not quickAudit.aligned or quickAudit.syncErrors > 0 or quickAudit.headerErrors > 0
             print "[RokuPlus ts-audit] structural_warning segment="; segmentIndex; " bytes="; payloadSize; " packets="; quickAudit.packetCount; " aligned="; quickAudit.aligned; " syncErrors="; quickAudit.syncErrors; " headerErrors="; quickAudit.headerErrors; " firstBad="; quickAudit.firstBadOffset
@@ -829,7 +843,7 @@ end function
 ' Scan PCR and PES clocks on every segment while carrying PID baselines across
 ' segment boundaries. This is diagnostic only and never alters the payload.
 function rpTsRelayAuditClocks(payload as object, state as object) as object
-    result = {pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0}
+    result = {pcrWraps:0,pcrRegressions:0}
     if type(payload) <> "roByteArray" or type(state) <> "roAssociativeArray" then return result
     total = payload.Count()
     if total <= 0 or (total mod 188) <> 0 then return result
@@ -837,95 +851,149 @@ function rpTsRelayAuditClocks(payload as object, state as object) as object
         if payload[offset] = &H47
             pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
             header = payload[offset+3]
-            adaptationControl = (header \ 16) mod 4
-            payloadPresent = adaptationControl = 1 or adaptationControl = 3
-            discontinuity = false
-            payloadStart = offset + 4
+            adaptationControl = (header \\ 16) mod 4
             if adaptationControl = 2 or adaptationControl = 3
                 adaptationLength = payload[offset+4]
                 if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
                     adaptationFlags = payload[offset+5]
-                    if adaptationFlags >= 128
-                        discontinuity = true
-                        key = pid.toStr()
+                    key = pid.toStr()
+                    discontinuity = adaptationFlags >= 128
+                    if discontinuity
                         if state.havePcr.doesExist(key) then state.havePcr.Delete(key)
                         if state.lastPcr.doesExist(key) then state.lastPcr.Delete(key)
-                        if state.haveDts.doesExist(key) then state.haveDts.Delete(key)
-                        if state.lastDts.doesExist(key) then state.lastDts.Delete(key)
-                        if state.havePts.doesExist(key) then state.havePts.Delete(key)
-                        if state.lastPts.doesExist(key) then state.lastPts.Delete(key)
                     end if
-                    if (adaptationFlags mod 32) >= 16
-                        if adaptationLength >= 7
-                            pcrReserved = (payload[offset+10] mod 128) \ 2
-                            pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
-                            if pcrReserved = 63 and pcrExtension <= 299
-                                pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \ 128)
-                                pcrValue = pcrBase * 300 + pcrExtension
-                                key = pid.toStr()
-                                if not discontinuity and state.havePcr.doesExist(key)
-                                    if state.lastPcr[key] - pcrValue > 1288490188800
-                                        result.pcrWraps++
-                                        state.pcrWraps++
-                                    else if pcrValue < state.lastPcr[key]
-                                        result.pcrRegressions++
-                                        state.pcrRegressions++
-                                    end if
+                    if (adaptationFlags mod 32) >= 16 and adaptationLength >= 7
+                        pcrReserved = (payload[offset+10] mod 128) \\ 2
+                        pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
+                        if pcrReserved = 63 and pcrExtension <= 299
+                            pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \\ 128)
+                            pcrValue = pcrBase * 300 + pcrExtension
+                            if not discontinuity and state.havePcr.doesExist(key)
+                                if state.lastPcr[key] - pcrValue > 1288490188800
+                                    result.pcrWraps++
+                                    state.pcrWraps++
+                                else if pcrValue < state.lastPcr[key]
+                                    result.pcrRegressions++
+                                    state.pcrRegressions++
                                 end if
-                                state.lastPcr[key] = pcrValue
-                                state.havePcr[key] = true
                             end if
+                            state.lastPcr[key] = pcrValue
+                            state.havePcr[key] = true
                         end if
                     end if
                 end if
-                payloadStart = offset + 5 + adaptationLength
             end if
-            key = pid.toStr()
-            if payloadPresent and payloadStart + 9 < offset + 188 and payloadStart < offset + 188
-                if payload[offset+1] >= 64 and payload[offset+1] < 128
-                    if payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
-                        pesFlags = (payload[payloadStart+7] \ 64) mod 4
-                        pesHeaderLength = payload[payloadStart+8]
-                        pesHeaderEnd = payloadStart + 9 + pesHeaderLength
-                        if pesHeaderEnd <= offset + 188
-                            if pesFlags = 2 and pesHeaderLength >= 5
-                                pts = rpTsRelayReadPts(payload,payloadStart+9,2)
-                                if pts >= 0
-                                    if state.havePts.doesExist(key)
-                                        if state.lastPts[key] - pts > 4294967296
-                                            result.ptsWraps++
-                                            state.ptsWraps++
-                                        end if
-                                    end if
-                                    state.lastPts[key] = pts
-                                    state.havePts[key] = true
+        end if
+    end for
+    return result
+end function
+
+' Assemble PSI sections and PES timestamp headers across TS packet boundaries.
+' This is a read-only diagnostic pass; it never changes or drops stream bytes.
+function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as object
+    result = {psiSections:0,pesHeaders:0}
+    if type(payload) <> "roByteArray" or type(state) <> "roAssociativeArray" then return result
+    total = payload.Count()
+    if total <= 0 or (total mod 188) <> 0 then return result
+    for offset = 0 to total - 188 step 188
+        if payload[offset] = &H47
+            pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
+            header = payload[offset+3]
+            adaptationControl = (header \\ 16) mod 4
+            if adaptationControl = 1 or adaptationControl = 3
+                payloadStart = offset + 4
+                if adaptationControl = 3
+                    adaptationLength = payload[offset+4]
+                    if adaptationLength > 183 or offset + 5 + adaptationLength > offset + 188
+                        payloadStart = offset + 188
+                    else
+                        payloadStart = offset + 5 + adaptationLength
+                    end if
+                end if
+                if payloadStart < offset + 188
+                    payloadUnitStart = payload[offset+1] >= 64 and payload[offset+1] < 128
+                    discontinuity = false
+                    if adaptationControl = 3 or adaptationControl = 2
+                        adaptationLength = payload[offset+4]
+                        if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
+                            discontinuity = payload[offset+5] >= 128
+                        end if
+                    end if
+                    key = pid.toStr()
+                    if discontinuity
+                        if state.psiBuffers.doesExist(key) then state.psiBuffers.Delete(key)
+                        if state.pesBuffers.doesExist(key) then state.pesBuffers.Delete(key)
+                    end if
+                    if pid = 0 or (state.pmtPid >= 0 and pid = state.pmtPid)
+                        if payloadUnitStart
+                            pointer = payload[payloadStart]
+                            if pointer <= offset + 187 - payloadStart
+                                if state.psiBuffers.doesExist(key) and pointer > 0
+                                    rpTsRelayPsiFeed(state,pid,payload,payloadStart+1,payloadStart+pointer)
                                 end if
-                            else if pesFlags = 3 and pesHeaderLength >= 10
-                                pts = rpTsRelayReadPts(payload,payloadStart+9,3)
-                                dts = rpTsRelayReadPts(payload,payloadStart+14,1)
-                                if pts >= 0
-                                    if state.havePts.doesExist(key)
-                                        if state.lastPts[key] - pts > 4294967296
-                                            result.ptsWraps++
-                                            state.ptsWraps++
-                                        end if
-                                    end if
-                                    state.lastPts[key] = pts
-                                    state.havePts[key] = true
+                                state.psiBuffers[key] = []
+                                sectionStart = payloadStart + 1 + pointer
+                                if sectionStart < offset + 188
+                                    result.psiSections += rpTsRelayPsiFeed(state,pid,payload,sectionStart,offset+188)
                                 end if
-                                if dts >= 0
-                                    if state.haveDts.doesExist(key)
-                                        if state.lastDts[key] - dts > 4294967296
-                                            result.dtsWraps++
-                                            state.dtsWraps++
-                                        else if dts < state.lastDts[key]
-                                            result.dtsRegressions++
-                                            state.dtsRegressions++
-                                        end if
+                            else
+                                if state.psiBuffers.doesExist(key) then state.psiBuffers.Delete(key)
+                            end if
+                        else if state.psiBuffers.doesExist(key)
+                            result.psiSections += rpTsRelayPsiFeed(state,pid,payload,payloadStart,offset+188)
+                        end if
+                    end if
+                    if state.videoPid >= 0 and pid = state.videoPid
+                        if payloadUnitStart
+                            state.pesBuffers[key] = []
+                        end if
+                        if state.pesBuffers.doesExist(key)
+                            pesBuffer = state.pesBuffers[key]
+                            for byteIndex = payloadStart to offset + 187
+                                if pesBuffer.count() < 19 then pesBuffer.push(payload[byteIndex])
+                            end for
+                            state.pesBuffers[key] = pesBuffer
+                            if pesBuffer.count() >= 9
+                                if pesBuffer[0] = 0 and pesBuffer[1] = 0 and pesBuffer[2] = 1
+                                    pesFlags = (pesBuffer[7] \\ 64) mod 4
+                                    pesHeaderLength = pesBuffer[8]
+                                    requiredBytes = 9
+                                    if pesFlags = 2 and pesHeaderLength >= 5
+                                        requiredBytes = 14
+                                    else if pesFlags = 3 and pesHeaderLength >= 10
+                                        requiredBytes = 19
                                     end if
-                                    state.lastDts[key] = dts
-                                    state.haveDts[key] = true
+                                    if requiredBytes > 9 and pesBuffer.count() >= requiredBytes
+                                        ptsPrefix = 2
+                                        if pesFlags = 3 then ptsPrefix = 3
+                                        pts = rpTsRelayReadPtsArray(pesBuffer,9,ptsPrefix)
+                                        if pts >= 0
+                                            if state.havePts.doesExist(key)
+                                                if state.lastPts[key] - pts > 4294967296
+                                                    state.ptsWraps++
+                                                end if
+                                            end if
+                                            state.lastPts[key] = pts
+                                            state.havePts[key] = true
+                                        end if
+                                        if pesFlags = 3
+                                            dts = rpTsRelayReadPtsArray(pesBuffer,14,1)
+                                            if dts >= 0
+                                                if state.haveDts.doesExist(key)
+                                                    if state.lastDts[key] - dts > 4294967296
+                                                        state.dtsWraps++
+                                                    else if dts < state.lastDts[key]
+                                                        state.dtsRegressions++
+                                                    end if
+                                                end if
+                                                state.lastDts[key] = dts
+                                                state.haveDts[key] = true
+                                            end if
+                                        end if
+                                        result.pesHeaders++
+                                    end if
                                 end if
+                                state.pesBuffers.Delete(key)
                             end if
                         end if
                     end if
@@ -934,6 +1002,84 @@ function rpTsRelayAuditClocks(payload as object, state as object) as object
         end if
     end for
     return result
+end function
+
+' Feed PSI bytes into a bounded per-PID section buffer and parse complete PAT/PMT sections.
+function rpTsRelayPsiFeed(state as object, pid as integer, payload as object, first as integer, afterLast as integer) as integer
+    if first < 0 or afterLast <= first then return 0
+    key = pid.toStr()
+    buffer = []
+    if state.psiBuffers.doesExist(key) then buffer = state.psiBuffers[key]
+    for i = first to afterLast - 1
+        if buffer.count() < 1024 then buffer.push(payload[i])
+    end for
+    parsed = 0
+    keepReading = true
+    while keepReading and buffer.count() >= 3
+        sectionLength = (buffer[1] mod 16) * 256 + buffer[2]
+        sectionTotal = 3 + sectionLength
+        if sectionLength < 9 or sectionLength > 1021
+            buffer = []
+            keepReading = false
+        else if buffer.count() < sectionTotal
+            keepReading = false
+        else
+            section = []
+            for i = 0 to sectionTotal - 1
+                section.push(buffer[i])
+            end for
+            rpTsRelayParsePsiSection(state,pid,section)
+            parsed++
+            remainder = []
+            for i = sectionTotal to buffer.count() - 1
+                remainder.push(buffer[i])
+            end for
+            buffer = remainder
+        end if
+    end while
+    state.psiBuffers[key] = buffer
+    return parsed
+end function
+
+function rpTsRelayParsePsiSection(state as object, pid as integer, section as object) as void
+    total = section.count()
+    if total < 12 then return
+    sectionLength = (section[1] mod 16) * 256 + section[2]
+    if sectionLength + 3 <> total then return
+    if pid = 0 and section[0] = 0
+        entry = 8
+        while entry + 4 <= total - 4
+            programNumber = section[entry] * 256 + section[entry+1]
+            if programNumber > 0
+                state.pmtPid = (section[entry+2] mod 32) * 256 + section[entry+3]
+                exit while
+            end if
+            entry += 4
+        end while
+    else if pid = state.pmtPid and section[0] = 2 and total >= 16
+        programInfoLength = (section[10] mod 16) * 256 + section[11]
+        entry = 12 + programInfoLength
+        while entry + 5 <= total - 4
+            streamType = section[entry]
+            elementaryPid = (section[entry+1] mod 32) * 256 + section[entry+2]
+            esInfoLength = (section[entry+3] mod 16) * 256 + section[entry+4]
+            if entry + 5 + esInfoLength > total - 4 then exit while
+            if streamType = 27 then state.videoPid = elementaryPid
+            entry += 5 + esInfoLength
+        end while
+    end if
+end function
+
+function rpTsRelayReadPtsArray(bytes as object, offset as integer, expectedPrefix as integer) as dynamic
+    if type(bytes) <> "roArray" or offset < 0 or offset + 4 >= bytes.count() then return -1
+    b0 = bytes[offset]
+    b1 = bytes[offset+1]
+    b2 = bytes[offset+2]
+    b3 = bytes[offset+3]
+    b4 = bytes[offset+4]
+    if (b0 \\ 16) <> expectedPrefix then return -1
+    if (b0 mod 2) <> 1 or (b2 mod 2) <> 1 or (b4 mod 2) <> 1 then return -1
+    return ((b0 mod 16) \\ 2) * 1073741824 + b1 * 4194304 + (b2 \\ 2) * 32768 + b3 * 128 + (b4 \\ 2)
 end function
 
 function rpTsRelayAuditContinuity(payload as object, state as object) as object
