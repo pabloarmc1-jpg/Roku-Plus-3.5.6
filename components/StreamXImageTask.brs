@@ -144,7 +144,7 @@ function resolveStreamXImdbId(title as string, yearValue as dynamic, mediaType a
             if GetInterface(candidate.year,"ifString") <> invalid then candidateYear = candidate.year
             if candidateId <> "" and candidateTitle <> "" and LCase(candidateTitle) = wantedTitle
                 if candidateType = mediaType and CreateObject("roRegex","^tt[0-9]{5,12}$","").isMatch(candidateId)
-                    if targetYear = "" or candidateYear = targetYear then return candidateId
+                    if targetYear = "" or candidateYear = "" or candidateYear = targetYear then return candidateId
                 end if
             end if
         end if
