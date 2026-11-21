@@ -289,15 +289,15 @@ sub rpTsRelayServe(connection as object, server as object)
                 print "[RokuPlus ts-audit] pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " audioPidCount="; tsAudit.audioPidCount; " audioPids="; tsAudit.audioPidList; " aac="; tsAudit.aac
                 print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
                 print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
-                print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " pcrErrors="; tsAudit.pcrErrors; " firstPcr90k="; tsAudit.firstPcr; " lastPcr90k="; tsAudit.lastPcr
-                print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
+                print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " pcrErrors="; tsAudit.pcrErrors; " pcrWraps="; tsAudit.pcrWraps; " pcrRegressions="; tsAudit.pcrRegressions; " firstPcr27m="; tsAudit.firstPcr; " lastPcr27m="; tsAudit.lastPcr
+                print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " dtsWraps="; tsAudit.dtsWraps; " dtsRegressions="; tsAudit.dtsRegressions; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
             else if sentSegments mod 25 = 0
                 print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked
                 print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " ccDuplicates="; tsAudit.continuityDuplicates; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " audioPidCount="; tsAudit.audioPidCount; " audioPids="; tsAudit.audioPidList; " aac="; tsAudit.aac
                 print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
                 print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
-                print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " pcrErrors="; tsAudit.pcrErrors; " firstPcr90k="; tsAudit.firstPcr; " lastPcr90k="; tsAudit.lastPcr
-                print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
+                print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " pcrErrors="; tsAudit.pcrErrors; " pcrWraps="; tsAudit.pcrWraps; " pcrRegressions="; tsAudit.pcrRegressions; " firstPcr27m="; tsAudit.firstPcr; " lastPcr27m="; tsAudit.lastPcr
+                print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " dtsWraps="; tsAudit.dtsWraps; " dtsRegressions="; tsAudit.dtsRegressions; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
             end if
         end if
         if payloadSize <= 0
@@ -534,9 +534,13 @@ function rpTsRelayAuditPayload(payload as object) as object
     result.lastPts = -1
     result.pcrCount = 0
     result.pcrErrors = 0
+    result.pcrWraps = 0
+    result.pcrRegressions = 0
     result.firstPcr = -1
     result.lastPcr = -1
     result.dtsCount = 0
+    result.dtsWraps = 0
+    result.dtsRegressions = 0
     result.firstDts = -1
     result.lastDts = -1
     total = payload.Count()
@@ -551,6 +555,10 @@ function rpTsRelayAuditPayload(payload as object) as object
     haveCounters = {}
     audioPidSeen = {}
     maxAudioPidList = 8
+    lastPcrByPid = {}
+    havePcrByPid = {}
+    lastDtsByPid = {}
+    haveDtsByPid = {}
     for offset = 0 to total - 188 step 188
         if payload[offset] <> &H47
             result.syncErrors++
@@ -568,16 +576,37 @@ function rpTsRelayAuditPayload(payload as object) as object
                 adaptationLength = payload[offset+4]
                 if adaptationLength > 0 and offset + 5 < total
                     adaptationFlags = payload[offset+5]
-                    if adaptationFlags >= 128 then discontinuity = true
+                    if adaptationFlags >= 128
+                        discontinuity = true
+                        clockKey = pid.toStr()
+                        if havePcrByPid.doesExist(clockKey) then havePcrByPid.Delete(clockKey)
+                        if lastPcrByPid.doesExist(clockKey) then lastPcrByPid.Delete(clockKey)
+                        if haveDtsByPid.doesExist(clockKey) then haveDtsByPid.Delete(clockKey)
+                        if lastDtsByPid.doesExist(clockKey) then lastDtsByPid.Delete(clockKey)
+                    end if
                     if (adaptationFlags mod 32) >= 16
                         if adaptationLength >= 7
                             pcrReserved = (payload[offset+10] mod 128) \ 2
                             pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
                             if pcrReserved = 63 and pcrExtension <= 299
                                 pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \ 128)
-                                pcrValue = pcrBase + pcrExtension / 300.0
+                                ' Keep PCR in 27 MHz ticks so wrap detection is exact.
+                                pcrValue = pcrBase * 300 + pcrExtension
+                                clockKey = pid.toStr()
+                                if havePcrByPid.doesExist(clockKey)
+                                    pcrDelta = pcrValue - lastPcrByPid[clockKey]
+                                    if pcrDelta < 0
+                                        if (lastPcrByPid[clockKey] - pcrValue) > 1288490188800
+                                            result.pcrWraps++
+                                        else
+                                            result.pcrRegressions++
+                                        end if
+                                    end if
+                                end if
                                 if result.pcrCount = 0 then result.firstPcr = pcrValue
                                 result.lastPcr = pcrValue
+                                lastPcrByPid[clockKey] = pcrValue
+                                havePcrByPid[clockKey] = true
                                 result.pcrCount++
                             else
                                 result.pcrErrors++
@@ -709,8 +738,21 @@ function rpTsRelayAuditPayload(payload as object) as object
                                         end if
                                         dts = rpTsRelayReadPts(payload,payloadStart+14,1)
                                         if dts >= 0
+                                            clockKey = pid.toStr()
+                                            if haveDtsByPid.doesExist(clockKey)
+                                                dtsDelta = dts - lastDtsByPid[clockKey]
+                                                if dtsDelta < 0
+                                                    if (lastDtsByPid[clockKey] - dts) > 4294967296
+                                                        result.dtsWraps++
+                                                    else
+                                                        result.dtsRegressions++
+                                                    end if
+                                                end if
+                                            end if
                                             if result.dtsCount = 0 then result.firstDts = dts
                                             result.lastDts = dts
+                                            lastDtsByPid[clockKey] = dts
+                                            haveDtsByPid[clockKey] = true
                                             result.dtsCount++
                                         end if
                                     end if
