@@ -10,7 +10,7 @@ sub runIntroDbLookup()
     season = m.top.season
     episode = m.top.episode
 
-    if imdbId = "" or not CreateObject("roRegex","^tt[0-9]{7,8}$","").isMatch(imdbId)
+    if imdbId = "" or not CreateObject("roRegex","^tt[0-9]{7,}$","").isMatch(imdbId)
         title = m.top.title.trim()
         if title = ""
             answer.message = "Falta el título para buscarlo en Cinemeta."
@@ -26,7 +26,7 @@ sub runIntroDbLookup()
         print "[RokuPlus cinemeta] resolved imdb="; imdbId; " title="; title
     end if
 
-    if not CreateObject("roRegex","^tt[0-9]{7,8}$","").isMatch(imdbId)
+    if not CreateObject("roRegex","^tt[0-9]{7,}$","").isMatch(imdbId)
         answer.message = "Cinemeta no devolvió un IMDb ID válido."
         if not m.top.cancelRequested then m.top.result = answer
         return
@@ -96,7 +96,7 @@ function introDbResolveCinemetaId(title as string, year as string, isMovie as bo
                 candidateYear = orbitYearText(candidate.releaseInfo)
                 if candidateYear = "" then candidateYear = orbitYearText(candidate.year)
                 if wantedYear <> "" and candidateYear <> "" and candidateYear <> wantedYear then validYear = false
-                if validYear and CreateObject("roRegex","^tt[0-9]{7,8}$","").isMatch(candidateId)
+                if validYear and CreateObject("roRegex","^tt[0-9]{7,}$","").isMatch(candidateId)
                     matchedId = candidateId
                     matchCount = matchCount + 1
                 end if
