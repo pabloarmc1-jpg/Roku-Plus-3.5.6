@@ -49,7 +49,7 @@ sub runTsPrefetch()
                 end for
                 for each pendingId in pendingIds
                     pendingEntry = pending[pendingId]
-                    staleTransfers[pendingId] = pendingEntry.filePath
+                    staleTransfers[pendingId] = {filePath:pendingEntry.filePath,xfer:pendingEntry.xfer}
                     pendingEntry.xfer.AsyncCancel()
                 end for
                 cancelTimer = CreateObject("roTimespan")
@@ -64,7 +64,7 @@ sub runTsPrefetch()
                             pending.Delete(cancelId)
                             if staleTransfers.doesExist(cancelId) then staleTransfers.Delete(cancelId)
                         else if staleTransfers.doesExist(cancelId)
-                            DeleteFile(staleTransfers[cancelId])
+                            DeleteFile(staleTransfers[cancelId].filePath)
                             staleTransfers.Delete(cancelId)
                         end if
                     end if
@@ -117,7 +117,7 @@ sub runTsPrefetch()
                 else if staleTransfers.doesExist(eventId)
                     ' A timed-out AsyncCancel may still deliver its completion event.
                     ' Remove any late file without allowing it to become a ready segment.
-                    DeleteFile(staleTransfers[eventId])
+                    DeleteFile(staleTransfers[eventId].filePath)
                     staleTransfers.Delete(eventId)
                 end if
             end if
@@ -131,7 +131,7 @@ sub runTsPrefetch()
             for each timedOutId in timedOutIds
                 timedOutEntry = pending[timedOutId]
                 timedOutEntry.xfer.AsyncCancel()
-                staleTransfers[timedOutId] = timedOutEntry.filePath
+                staleTransfers[timedOutId] = {filePath:timedOutEntry.filePath,xfer:timedOutEntry.xfer}
                 DeleteFile(timedOutEntry.filePath)
                 pending.Delete(timedOutId)
                 if m.top.generation = activeGeneration and not m.top.stopRequested
@@ -146,7 +146,7 @@ sub runTsPrefetch()
             requestIndex = m.top.requestIndex
             lastAllowed = requestIndex + 2
             if lastAllowed >= segments.count() then lastAllowed = segments.count() - 1
-            while pending.count() < 2 and nextToSchedule <= lastAllowed and nextToSchedule < segments.count()
+            while pending.count() < 2 and staleTransfers.count() < 8 and nextToSchedule <= lastAllowed and nextToSchedule < segments.count()
                 if m.top.stopRequested or m.top.generation <> activeGeneration then exit while
                 index = nextToSchedule
                 nextToSchedule++
@@ -223,7 +223,7 @@ sub runTsPrefetch()
         if type(staleEvent) = "roUrlEvent"
             staleId = staleEvent.GetSourceIdentity().ToStr()
             if staleTransfers.doesExist(staleId)
-                DeleteFile(staleTransfers[staleId])
+                DeleteFile(staleTransfers[staleId].filePath)
                 staleTransfers.Delete(staleId)
             end if
         end if
