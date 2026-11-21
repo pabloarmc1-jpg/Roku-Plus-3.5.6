@@ -106,7 +106,15 @@ end function
 function rpLiveLoadFavorites() as object
     section = CreateObject("roRegistrySection","RokuPlusPreferences")
     if GetInterface(section,"ifRegistrySection") = invalid then return []
-    return rpLiveFavoritesFromText(section.read("liveFavoritesV1"))
+    primaryText = section.read("liveFavoritesV1")
+    primary = rpLiveReadFavoriteRecord(primaryText)
+    if primary.valid then return primary.keys
+    ' Recover the last committed list if the primary registry value is damaged.
+    backupText = section.read("liveFavoritesV1Backup")
+    backup = rpLiveReadFavoriteRecord(backupText)
+    if not backup.valid then return []
+    if section.write("liveFavoritesV1",backupText) = true then section.flush()
+    return backup.keys
 end function
 
 function rpLiveStoreFavorites(section as object, keys as dynamic) as boolean
@@ -120,7 +128,12 @@ function rpLiveStoreFavorites(section as object, keys as dynamic) as boolean
     previousText = section.read("liveFavoritesV1")
     previous = rpLiveReadFavoriteRecord(previousText)
     if section.write("liveFavoritesV1",payload) <> true then return false
-    if section.flush() = true then return true
+    if section.flush() = true
+        ' Keep a separately committed recovery copy. A backup-write failure does
+        ' not undo the already durable primary value.
+        if section.write("liveFavoritesV1Backup",payload) = true then section.flush()
+        return true
+    end if
     if previous.valid
         section.write("liveFavoritesV1",previousText)
     else
