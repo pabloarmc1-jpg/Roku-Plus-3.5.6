@@ -3281,29 +3281,32 @@ sub homeFetched(event as object)
                 else
                     m.homeSeries = orbitUniqueCatalogItems(answer.items)
                 end if
-                cacheKey = entry.mode + "|" + entry.provider + "|" + entry.sort
-                cached = {movies: [], series: [], hasMovies: false, hasSeries: false, clock: CreateObject("roTimespan")}
-                if m.homeCache.doesExist(cacheKey)
-                    previousCache = m.homeCache[cacheKey]
-                    if type(previousCache) = "roAssociativeArray" then cached = previousCache
-                end if
-                if entry.kind = "movie"
-                    cachedMovies = cached.movies
-                    if entry.skip = 0 then cachedMovies = []
-                    for each cachedMovie in answer.items
-                        cachedMovies.push(cachedMovie)
-                    end for
-                    cached.movies = orbitUniqueCatalogItems(cachedMovies)
-                    if entry.skip = 0 then cached.hasMovies = true
-                else
-                    cached.series = orbitUniqueCatalogItems(answer.items)
-                    cached.hasSeries = true
-                end if
-                if cached.hasMovies and cached.hasSeries
-                    cached.clock.mark()
-                    m.homeCache[cacheKey] = cached
-                else
-                    m.homeCache[cacheKey] = cached
+                ' Partial provider responses remain visible, but must not enter the Home cache.
+                if not answer.doesExist("partial") or not answer.partial
+                    cacheKey = entry.mode + "|" + entry.provider + "|" + entry.sort
+                    cached = {movies: [], series: [], hasMovies: false, hasSeries: false, clock: CreateObject("roTimespan")}
+                    if m.homeCache.doesExist(cacheKey)
+                        previousCache = m.homeCache[cacheKey]
+                        if type(previousCache) = "roAssociativeArray" then cached = previousCache
+                    end if
+                    if entry.kind = "movie"
+                        cachedMovies = cached.movies
+                        if entry.skip = 0 then cachedMovies = []
+                        for each cachedMovie in answer.items
+                            cachedMovies.push(cachedMovie)
+                        end for
+                        cached.movies = orbitUniqueCatalogItems(cachedMovies)
+                        if entry.skip = 0 then cached.hasMovies = true
+                    else
+                        cached.series = orbitUniqueCatalogItems(answer.items)
+                        cached.hasSeries = true
+                    end if
+                    if cached.hasMovies and cached.hasSeries
+                        cached.clock.mark()
+                        m.homeCache[cacheKey] = cached
+                    else
+                        m.homeCache[cacheKey] = cached
+                    end if
                 end if
                 patchHomeHero = entry.kind = "movie" and entry.skip > 0
             else
