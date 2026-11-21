@@ -3933,14 +3933,16 @@ function onKeyEvent(key as string, press as boolean) as boolean
             toggleWatchItem(m.titles[m.cursor],"listed")
             return true
         end if
-        if m.view = "episodes" and m.episodeMode = "episodes" and m.series <> invalid
-            if m.season >= 0 and m.season < m.series.seasons.count()
-                episodes = m.series.seasons[m.season].episodes
-                if m.episode >= 0 and m.episode < episodes.count()
-                    toggleWatchItem(episodes[m.episode],"listed")
-                    return true
+        if m.view = "episodes" and m.episodeMode = "episodes"
+            if type(m.series) = "roAssociativeArray" and type(m.series.seasons) = "roArray"
+                if m.season >= 0 and m.season < m.series.seasons.count()
+                    episodes = m.series.seasons[m.season].episodes
+                    if type(episodes) = "roArray" and m.episode >= 0 and m.episode < episodes.count()
+                        toggleWatchItem(episodes[m.episode],"listed")
+                    end if
                 end if
             end if
+            return true
         end if
     end if
     if (key = "replay" or key = "instantreplay" or key = "reload") and m.view = "browse"
@@ -3961,12 +3963,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "options" then toggleCurrentWatch("watched") else toggleCurrentWatch("listed")
             return true
         end if
-        if m.view = "episodes" and m.episodeMode = "episodes" and m.series <> invalid
-            if m.episode < m.series.seasons[m.season].episodes.count()
-                m.detail = m.series.seasons[m.season].episodes[m.episode]
-                if key = "options" then toggleCurrentWatch("watched") else toggleCurrentWatch("listed")
-                return true
+        if m.view = "episodes" and m.episodeMode = "episodes"
+            if type(m.series) = "roAssociativeArray" and type(m.series.seasons) = "roArray"
+                if m.season >= 0 and m.season < m.series.seasons.count()
+                    episodes = m.series.seasons[m.season].episodes
+                    if type(episodes) = "roArray" and m.episode >= 0 and m.episode < episodes.count()
+                        m.detail = episodes[m.episode]
+                        if key = "options" then toggleCurrentWatch("watched") else toggleCurrentWatch("listed")
+                    end if
+                end if
             end if
+            return true
         end if
         openSearch()
         return true
