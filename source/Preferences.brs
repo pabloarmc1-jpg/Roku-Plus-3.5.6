@@ -245,6 +245,7 @@ function rpProfileAvatar(profileId as string) as integer
 end function
 
 function rpSaveProfileName(profileId as string, value as string) as boolean
+    if profileId <> "p1" and profileId <> "p2" and profileId <> "p3" and profileId <> "p4" then return false
     safe = rpNormalizeProfileId(profileId)
     clean = left(value.trim(),24)
     if clean = "" then return false
@@ -265,6 +266,7 @@ function rpSaveProfileName(profileId as string, value as string) as boolean
 end function
 
 function rpSaveProfileAvatar(profileId as string, value as integer) as boolean
+    if profileId <> "p1" and profileId <> "p2" and profileId <> "p3" and profileId <> "p4" then return false
     safe = rpNormalizeProfileId(profileId)
     if value < 0 or value > 5 then return false
     section = CreateObject("roRegistrySection","RokuPlusProfileMeta")
