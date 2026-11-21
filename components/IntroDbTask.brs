@@ -18,6 +18,7 @@ sub runIntroDbLookup()
             return
         end if
         imdbId = introDbResolveCinemetaId(title,m.top.year,isMovie,season,episode)
+        if m.top.cancelRequested then return
         if imdbId = ""
             answer.message = "Cinemeta no encontró una coincidencia segura para este título y episodio."
             if not m.top.cancelRequested then m.top.result = answer
@@ -70,6 +71,7 @@ end sub
 ' Resolve titles missing an IMDb identity. Search results must match title and,
 ' when available, year; episode metadata must contain the requested S/E pair.
 function introDbResolveCinemetaId(title as string, year as string, isMovie as boolean, season as integer, episode as integer) as string
+    if m.top.cancelRequested then return ""
     cleanTitle = introDbNormalizeTitle(title)
     if cleanTitle = "" then return ""
 
@@ -80,6 +82,7 @@ function introDbResolveCinemetaId(title as string, year as string, isMovie as bo
     if searchTitle = "" then searchTitle = title
     searchUrl = "https://v3-cinemeta.strem.io/catalog/" + mediaType + "/top/search=" + transfer.Escape(searchTitle) + ".json"
     searchData = introDbGetJson(searchUrl,6000)
+    if m.top.cancelRequested then return ""
     if type(searchData) <> "roAssociativeArray" then return ""
     if type(searchData.metas) <> "roArray" then return ""
 
@@ -88,6 +91,7 @@ function introDbResolveCinemetaId(title as string, year as string, isMovie as bo
     matchedId = ""
     matchCount = 0
     for each candidate in searchData.metas
+        if m.top.cancelRequested then return ""
         if type(candidate) = "roAssociativeArray"
             candidateTitle = introDbNormalizeTitle(candidate.name)
             candidateId = candidate.id
@@ -106,6 +110,7 @@ function introDbResolveCinemetaId(title as string, year as string, isMovie as bo
     if matchCount <> 1 then return ""
 
     metaData = introDbGetJson("https://v3-cinemeta.strem.io/meta/" + mediaType + "/" + matchedId + ".json",6000)
+    if m.top.cancelRequested then return ""
     if type(metaData) <> "roAssociativeArray" or type(metaData.meta) <> "roAssociativeArray" then return ""
     if introDbNormalizeTitle(metaData.meta.name) <> cleanTitle then return ""
 
@@ -113,6 +118,7 @@ function introDbResolveCinemetaId(title as string, year as string, isMovie as bo
         if type(metaData.meta.videos) <> "roArray" then return ""
         episodeFound = false
         for each video in metaData.meta.videos
+            if m.top.cancelRequested then return ""
             if type(video) = "roAssociativeArray"
                 if video.season = season and video.episode = episode then episodeFound = true
             end if
