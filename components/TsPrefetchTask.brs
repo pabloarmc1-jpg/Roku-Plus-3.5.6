@@ -31,6 +31,7 @@ sub runTsPrefetch()
                 end for
                 for each pendingId in pendingIds
                     pendingEntry = pending[pendingId]
+                    staleTransfers[pendingId] = pendingEntry.filePath
                     pendingEntry.xfer.AsyncCancel()
                 end for
                 cancelTimer = CreateObject("roTimespan")
@@ -43,6 +44,10 @@ sub runTsPrefetch()
                             cancelEntry = pending[cancelId]
                             DeleteFile(cancelEntry.filePath)
                             pending.Delete(cancelId)
+                            if staleTransfers.doesExist(cancelId) then staleTransfers.Delete(cancelId)
+                        else if staleTransfers.doesExist(cancelId)
+                            DeleteFile(staleTransfers[cancelId])
+                            staleTransfers.Delete(cancelId)
                         end if
                     end if
                 end while
@@ -165,6 +170,7 @@ sub runTsPrefetch()
         pendingIds.push(pendingId)
     end for
     for each pendingId in pendingIds
+        staleTransfers[pendingId] = pending[pendingId].filePath
         pending[pendingId].xfer.AsyncCancel()
     end for
     cancelTimer = CreateObject("roTimespan")
@@ -176,11 +182,30 @@ sub runTsPrefetch()
             if pending.doesExist(cancelId)
                 DeleteFile(pending[cancelId].filePath)
                 pending.Delete(cancelId)
+                if staleTransfers.doesExist(cancelId) then staleTransfers.Delete(cancelId)
+            else if staleTransfers.doesExist(cancelId)
+                DeleteFile(staleTransfers[cancelId])
+                staleTransfers.Delete(cancelId)
             end if
         end if
     end while
     for each pendingId in pending
         DeleteFile(pending[pendingId].filePath)
+    end for
+    staleDrainTimer = CreateObject("roTimespan")
+    staleDrainTimer.Mark()
+    while staleTransfers.count() > 0 and staleDrainTimer.TotalMilliseconds() < 30000
+        staleEvent = wait(100, port)
+        if type(staleEvent) = "roUrlEvent"
+            staleId = staleEvent.GetSourceIdentity().ToStr()
+            if staleTransfers.doesExist(staleId)
+                DeleteFile(staleTransfers[staleId])
+                staleTransfers.Delete(staleId)
+            end if
+        end if
+    end while
+    for each staleId in staleTransfers
+        DeleteFile(staleTransfers[staleId])
     end for
     for each key in ready
         readyPath = ready[key]
