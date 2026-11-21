@@ -49,6 +49,13 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
         ' The season endpoint accepts the numeric series ID; the parent slug is
         ' not required to enumerate chapter URLs for legacy watch records.
         parent = {id:"hdo-seriesmetro-"+parentNumber.toStr(),kind:"series",provider:"seriesmetro",providerId:parentNumber,providerSlug:"",title:orbitText(rawItem.seriesTitle,200),seasons:[]}
+        ' Carry the saved parent identity into the season adapter so newly
+        ' reconstructed episodes retain cross-provider resume metadata.
+        for each identityField in ["seriesImdbId", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers", "seriesId", "seriesProviderSlug"]
+            if rawItem.doesExist(identityField) then parent[identityField] = rawItem[identityField]
+        end for
+        if rawItem.doesExist("seriesProviderId") then parent.seriesProviderId = rawItem.seriesProviderId
+        if rawItem.doesExist("seriesTitle") then parent.title = orbitText(rawItem.seriesTitle,200)
         loaded = rpHdSeriesmetroLoadSeason(parent,seasonNumber,fetcher)
         if not loaded.ok
             answer.message = orbitText(loaded.message,240)
@@ -70,6 +77,25 @@ function rpHdSeriesmetroTask(request as object, answer as object, fetcher as dyn
             answer.message = "El episodio recuperado no coincide con el registro de Continuar viendo."
             return answer
         end if
+        ' The episode payload is fresh, but older saved records may contain
+        ' parent identity fields absent from the provider response. Preserve
+        ' those fields only when the rebuilt item has no value for them.
+        for each identityField in ["seriesImdbId", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers", "seriesId", "seriesProviderSlug", "seriesProviderId"]
+            if rawItem.doesExist(identityField)
+                savedValue = rawItem[identityField]
+                if savedValue <> invalid
+                    missingValue = not item.doesExist(identityField)
+                    if not missingValue
+                        currentValue = item[identityField]
+                        if currentValue = invalid then missingValue = true
+                        if GetInterface(currentValue,"ifString") <> invalid and currentValue = "" then missingValue = true
+                        if type(currentValue) = "roArray" and currentValue.count() = 0 then missingValue = true
+                    end if
+                    if missingValue then item[identityField] = savedValue
+                end if
+            end if
+        end for
+        if orbitText(item.seriesTitle,200) = "" then item.seriesTitle = orbitText(rawItem.seriesTitle,200)
         print "[RokuPlus series] resume-episode-recovered id="; item.id; " slug="; item.providerSlug
     else
         item = rpHdSeriesmetroInputItem(request.item)
