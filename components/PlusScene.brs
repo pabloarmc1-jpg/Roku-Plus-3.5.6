@@ -3079,7 +3079,7 @@ sub refreshHome()
     end if
     ' Reuse the last successful home response for five minutes. This avoids
     ' duplicate network work when users leave and quickly return to Home.
-    cacheKey = m.catalogMode + "|" + m.hdProvider
+    cacheKey = m.catalogMode + "|" + m.hdProvider + "|" + m.catalogSort
     if type(m.homeCache) = "roAssociativeArray" and m.homeCache.doesExist(cacheKey)
         cached = m.homeCache[cacheKey]
         if type(cached) = "roAssociativeArray" and cached.doesExist("hasMovies") and cached.doesExist("hasSeries") and cached.hasMovies and cached.hasSeries
@@ -3120,7 +3120,7 @@ sub startHomeCatalogTask(kind as string, skip as integer)
     task.requestId = request
     task.observeField("result","homeFetched")
     task.observeField("state","homeStopped")
-    m.homeJobs.push({node:task,request:request,kind:kind,skip:skip,mode:m.catalogMode,provider:m.hdProvider})
+    m.homeJobs.push({node:task,request:request,kind:kind,skip:skip,mode:m.catalogMode,provider:m.hdProvider,sort:m.catalogSort})
     task.control = "RUN"
 end sub
 
@@ -3281,7 +3281,7 @@ sub homeFetched(event as object)
                 else
                     m.homeSeries = orbitUniqueCatalogItems(answer.items)
                 end if
-                cacheKey = entry.mode + "|" + entry.provider
+                cacheKey = entry.mode + "|" + entry.provider + "|" + entry.sort
                 cached = {movies: [], series: [], hasMovies: false, hasSeries: false, clock: CreateObject("roTimespan")}
                 if m.homeCache.doesExist(cacheKey)
                     previousCache = m.homeCache[cacheKey]
