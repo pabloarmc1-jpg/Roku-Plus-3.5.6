@@ -80,14 +80,14 @@ sub runCatalogRequest()
         answer.message = "La consulta no tiene un identificador válido."
     end if
     if endpoint = ""
-        m.top.result = answer
+        if not m.top.cancelRequested then m.top.result = answer
         return
     end if
     response = orbitDownloadText(endpoint)
     if not response.ok
         answer.message = response.message
         answer.cancelled = response.cancelled
-        m.top.result = answer
+        if not m.top.cancelRequested then m.top.result = answer
         return
     end if
     if m.top.cancelRequested then return
