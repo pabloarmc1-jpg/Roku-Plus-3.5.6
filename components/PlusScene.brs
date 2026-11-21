@@ -863,8 +863,20 @@ sub rpStoreBoundedCache(cache as object, cacheOrder as object, key as string, va
     cacheOrder.push(key)
 end sub
 
+sub cancelStreamXImageTask()
+    if m.streamXImageTask <> invalid
+        m.streamXImageTask.unobserveField("result")
+        m.streamXImageTask.cancelRequested = true
+        m.streamXImageTask = invalid
+    end if
+    m.streamXImageRequestId = ""
+    m.streamXImagePendingRequestId = ""
+    m.streamXImagePendingKey = ""
+end sub
+
 sub preloadStreamXImages(item as dynamic)
     if type(item) <> "roAssociativeArray"
+        cancelStreamXImageTask()
         m.streamXImageKey = ""
         m.streamXImages = invalid
         return
@@ -887,6 +899,7 @@ sub preloadStreamXImages(item as dynamic)
     year = orbitText(lookupItem.year,4)
     if year = "" then year = orbitText(item.year,4)
     if title = "" and imdbId = ""
+        cancelStreamXImageTask()
         m.streamXImageKey = ""
         m.streamXImages = invalid
         return
@@ -897,13 +910,13 @@ sub preloadStreamXImages(item as dynamic)
     if m.streamXImageKey <> cacheKey then m.streamXImages = invalid
     m.streamXImageKey = cacheKey
     if m.streamXImageCache.doesExist(cacheKey)
+        cancelStreamXImageTask()
         m.streamXImages = m.streamXImageCache[cacheKey]
         return
     end if
     if m.streamXImageTask <> invalid and m.streamXImageRequestId <> ""
         if m.streamXImagePendingKey = cacheKey then return
-        m.streamXImageTask.cancelRequested = true
-        m.streamXImageTask.unobserveField("result")
+        cancelStreamXImageTask()
     end if
 
     requestId = CreateObject("roDeviceInfo").getRandomUUID()
