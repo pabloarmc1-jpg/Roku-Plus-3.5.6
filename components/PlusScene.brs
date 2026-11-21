@@ -165,6 +165,8 @@ sub init()
     m.streamXImageCache = {}
     m.streamXImageCacheOrder = []
     m.detailOrigin = "home"
+    m.detailHomeHero = 0
+    m.detailHomeHeroValid = false
     m.autoplay = false
     m.sourceLaunchPending = false
     m.sourceAlternatives = []
@@ -810,6 +812,8 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
     blockKey = rpVoeBlockKey(m.detail)
     m.detail.voeBlocked = blockKey <> "" and m.voeBlockedSession.doesExist(blockKey)
     m.detailOrigin = origin
+    m.detailHomeHeroValid = origin = "home" and m.zone = "hero"
+    if m.detailHomeHeroValid then m.detailHomeHero = m.hero
     m.autoplay = playNow
     m.action = 0
     m.view = "detail"
@@ -2356,7 +2360,7 @@ sub searchDismissed(event as object)
     scheduleDialogFocusRestore()
 end sub
 
-sub goHome()
+sub goHome(restoreHomeHero = false as boolean)
     stopLivePreview()
     if m.noteTimer <> invalid then m.noteTimer.control = "stop"
     cancelRequest()
@@ -2365,6 +2369,11 @@ sub goHome()
     m.nav = 0
     m.zone = "hero"
     m.hero = 0
+    if restoreHomeHero and m.detailHomeHeroValid and m.features.count() > 0
+        m.hero = m.detailHomeHero
+        if m.hero < 0 or m.hero > 1 then m.hero = 0
+    end if
+    m.detailHomeHeroValid = false
     drawScreen()
     m.top.setFocus(true)
 end sub
@@ -2396,7 +2405,7 @@ sub returnOneStep()
             m.view = "search-keyboard"
             m.zone = "search-suggestion"
         else
-            goHome()
+            goHome(m.detailOrigin = "home")
             return
         end if
     else if m.view = "episodes"
