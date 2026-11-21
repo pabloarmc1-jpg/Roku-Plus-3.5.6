@@ -1165,14 +1165,9 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
         state.psiTables[tableKey] = {lastSection:lastSectionNumber,sections:sections}
     end if
     tableState = state.psiTables[tableKey]
-    if tableState.lastSection <> lastSectionNumber
-        sections = []
-        while sections.count() <= lastSectionNumber
-            sections.push(invalid)
-        end while
-        tableState = {lastSection:lastSectionNumber,sections:sections}
-        state.psiTables[tableKey] = tableState
-    end if
+    ' A table version has one fixed last_section_number. Do not let a
+    ' conflicting section reset or mix with the current partial table.
+    if tableState.lastSection <> lastSectionNumber then return
     sections = tableState.sections
     sections[sectionNumber] = section
     tableState.sections = sections
