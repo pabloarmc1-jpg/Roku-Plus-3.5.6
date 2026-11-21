@@ -1164,9 +1164,28 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     tablePrefix = tableIdentity + ":"
     activeVersions = state.psiActiveVersions
     if type(activeVersions) <> "roAssociativeArray" then activeVersions = {}
-    if tableKind = "pat" and not activeVersions.doesExist(tableIdentity)
-        ' A transport stream has one active PAT transport_stream_id. Do not
-        ' retain partial tables/version keys for old IDs after a stream switch.
+    tableKey = tablePrefix + versionNumber.toStr()
+    if activeVersions.doesExist(tableIdentity)
+        activeVersion = activeVersions[tableIdentity]
+        versionDelta = (versionNumber - activeVersion + 32) mod 32
+        ' Compare against the last successfully applied version, not a pending one.
+        ' This keeps the current table usable while a newer version is incomplete.
+        if versionDelta >= 16 then return
+        if versionDelta > 0
+            staleKeys = []
+            for existingKey in state.psiTables
+                if left(existingKey,len(tablePrefix)) = tablePrefix and existingKey <> tableKey and existingKey <> tablePrefix + activeVersion.toStr()
+                    staleKeys.push(existingKey)
+                end if
+            end for
+            for staleKey in staleKeys
+                state.psiTables.Delete(staleKey)
+            end for
+        end if
+    else if tableKind = "pat" and not state.psiTables.doesExist(tableKey)
+        ' No PAT version is active yet for this transport_stream_id. Remove
+        ' partial assemblies from older transport IDs only once a new candidate
+        ' starts; the previous applied program state remains untouched.
         patPrefix = pid.toStr() + ":pat:"
         stalePatTables = []
         for existingKey in state.psiTables
@@ -1175,37 +1194,6 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
         for staleKey in stalePatTables
             state.psiTables.Delete(staleKey)
         end for
-        stalePatVersions = []
-        for existingKey in activeVersions
-            if left(existingKey,len(patPrefix)) = patPrefix then stalePatVersions.push(existingKey)
-        end for
-        for staleKey in stalePatVersions
-            activeVersions.Delete(staleKey)
-        end for
-        state.psiActiveVersions = activeVersions
-    end if
-    if activeVersions.doesExist(tableIdentity)
-        activeVersion = activeVersions[tableIdentity]
-        versionDelta = (versionNumber - activeVersion + 32) mod 32
-        ' MPEG-2 versions are modulo 32. Accept only forward movement 1..15;
-        ' reject delayed older sections and the ambiguous half-cycle (16).
-        if versionDelta >= 16 then return
-        if versionDelta > 0
-            activeVersions[tableIdentity] = versionNumber
-            state.psiActiveVersions = activeVersions
-            staleKeys = []
-            for existingKey in state.psiTables
-                if left(existingKey,len(tablePrefix)) = tablePrefix
-                    staleKeys.push(existingKey)
-                end if
-            end for
-            for staleKey in staleKeys
-                state.psiTables.Delete(staleKey)
-            end for
-        end if
-    else
-        activeVersions[tableIdentity] = versionNumber
-        state.psiActiveVersions = activeVersions
     end if
     tableKey = tablePrefix + versionNumber.toStr()
     if not state.psiTables.doesExist(tableKey)
@@ -1236,25 +1224,60 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
         if tableState.sections[index] = invalid then complete = false
     end for
     if complete
+        applied = false
         if tableKind = "pat"
-            rpTsRelayApplyPatSections(state,tableState.sections)
+            applied = rpTsRelayApplyPatSections(state,tableState.sections)
         else
-            rpTsRelayApplyPmtSections(state,tableState.sections)
+            applied = rpTsRelayApplyPmtSections(state,tableState.sections)
         end if
-        ' Retain only the active version's accumulator for this PID/table/extension.
-        staleKeys = []
-        for existingKey in state.psiTables
-            if left(existingKey,len(pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":")) = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":" and existingKey <> tableKey
-                staleKeys.push(existingKey)
+        if applied
+            activeVersions[tableIdentity] = versionNumber
+            state.psiActiveVersions = activeVersions
+            ' A PAT transport ID becomes active only after its complete table
+            ' has passed semantic validation and its program selection applied.
+            if tableKind = "pat"
+                patPrefix = pid.toStr() + ":pat:"
+                stalePatTables = []
+                for existingKey in state.psiTables
+                    if left(existingKey,len(patPrefix)) = patPrefix and existingKey <> tableKey
+                        stalePatTables.push(existingKey)
+                    end if
+                end for
+                for staleKey in stalePatTables
+                    state.psiTables.Delete(staleKey)
+                end for
+                stalePatVersions = []
+                for existingKey in activeVersions
+                    if left(existingKey,len(patPrefix)) = patPrefix and existingKey <> tableIdentity
+                        stalePatVersions.push(existingKey)
+                    end if
+                end for
+                for staleKey in stalePatVersions
+                    activeVersions.Delete(staleKey)
+                end for
+                state.psiActiveVersions = activeVersions
             end if
-        end for
-        for staleKey in staleKeys
-            state.psiTables.Delete(staleKey)
-        end for
-    end if
+            ' Retain the applied version and discard superseded partial assemblies.
+            staleKeys = []
+            for existingKey in state.psiTables
+                if left(existingKey,len(tablePrefix)) = tablePrefix and existingKey <> tableKey
+                    staleKeys.push(existingKey)
+                end if
+            end for
+            for staleKey in staleKeys
+                state.psiTables.Delete(staleKey)
+            end for
+            print "[RokuPlus ts-audit] psi_table_applied pid="; pid; " kind="; tableKind; " version="; versionNumber
+        else
+            ' Invalid complete candidate: keep the previous applied version/state
+            ' and allow a later retransmission of this version to rebuild it.
+            if state.psiTables.doesExist(tableKey) then state.psiTables.Delete(tableKey)
+            print "[RokuPlus ts-audit] psi_table_rejected pid="; pid; " kind="; tableKind; " version="; versionNumber
+        end if
+    end iff
 end sub
 
-sub rpTsRelayApplyPatSections(state as object, sections as object)
+function rpTsRelayApplyPatSections(state as object, sections as object) as boolean
     selectedPmtPid = -1
     selectedProgramNumber = -1
     programPids = {}
@@ -1324,7 +1347,8 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
         rpTsRelayResetPesClockState(state)
         print "[RokuPlus ts-audit] pat_program_changed pmtOld="; previousPmtPid; " pmtNew="; selectedPmtPid; " programOld="; previousProgramNumber; " programNew="; selectedProgramNumber; " elementary_state_reset=true"
     end if
-end sub
+    return true
+end function
 
 ' Forget PMT version ordering when its PID is reassigned or selected again.
 sub rpTsRelayClearPmtVersionState(state as object, pid as integer)
@@ -1420,7 +1444,7 @@ function rpTsRelayDescriptorLoopValid(section as object, first as integer, lengt
     return cursor = finish
 end function
 
-sub rpTsRelayApplyPmtSections(state as object, sections as object)
+function rpTsRelayApplyPmtSections(state as object, sections as object) as boolean
     pmtSignature = rpTsRelayPmtContentSignature(sections)
     if pmtSignature = "" then return
     selectedVideoPid = -1
@@ -1515,7 +1539,8 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
     state.pmtSignature = pmtSignature
     state.videoPid = selectedVideoPid
     state.audioPids = selectedAudioPids
-end sub
+    return true
+end function
 
 function rpTsRelayReadPtsArray(bytes as object, offset as integer, expectedPrefix as integer) as dynamic
     if type(bytes) <> "roArray" or offset < 0 or offset + 4 >= bytes.count() then return -1
