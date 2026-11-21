@@ -44,20 +44,38 @@ end sub
 sub rpTsRelayServe(connection as object, server as object)
     request = ""
     complete = false
-    while len(request) < 8192 and not complete
-        part = connection.receiveStr(2048)
-        if part = "" then exit while
-        request += part
-        if instr(1,request,chr(13)+chr(10)+chr(13)+chr(10)) > 0 then complete = true
+    connectionPort = CreateObject("roMessagePort")
+    connection.setMessagePort(connectionPort)
+    connection.notifyReadable(true)
+    connection.notifyWritable(true)
+    connection.notifyException(true)
+    requestTimer = CreateObject("roTimespan")
+    requestTimer.Mark()
+    while len(request) < 8192 and not complete and requestTimer.TotalMilliseconds() < 5000
+        if connection.isException() then exit while
+        if connection.isReadable()
+            part = connection.receiveStr(2048)
+            if part = "" then exit while
+            request += part
+            if instr(1,request,chr(13)+chr(10)+chr(13)+chr(10)) > 0 then complete = true
+        else
+            requestEvent = wait(100,connectionPort)
+            if type(requestEvent) = "roSocketEvent"
+                if requestEvent.getSocketID() = connection.getID() and connection.isException() then exit while
+            end if
+        end if
     end while
     if not complete
+        if requestTimer.TotalMilliseconds() >= 5000
+            print "[RokuPlus ts-relay] rejected_incomplete_request reason=timeout"
+        else if len(request) >= 8192
+            print "[RokuPlus ts-relay] rejected_incomplete_request reason=header_limit"
+        else
+            print "[RokuPlus ts-relay] rejected_incomplete_request reason=closed_or_exception"
+        end if
         connection.close()
         return
     end if
-    connectionPort = CreateObject("roMessagePort")
-    connection.setMessagePort(connectionPort)
-    connection.notifyWritable(true)
-    connection.notifyException(true)
     firstLine = request.split(chr(10))[0].trim()
     parts = firstLine.split(" ")
     if left(firstLine,4) <> "GET "
