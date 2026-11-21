@@ -3007,7 +3007,12 @@ sub invidiousSearchChosen(event as object)
     query = left(m.dialogBox.text.trim(),100)
     choice = event.getData()
     releaseDialog()
-    if choice <> 0 or query = "" then return
+    if choice <> 0 or query = ""
+        if m.view = "settings" then drawScreen()
+        m.top.setFocus(true)
+        scheduleDialogFocusRestore()
+        return
+    end if
     m.invidiousQuery = query
     m.invidiousItems = []
     m.invidiousCursor = 0
