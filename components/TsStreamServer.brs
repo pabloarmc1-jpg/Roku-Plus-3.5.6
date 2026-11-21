@@ -4,6 +4,12 @@ sub init()
 end sub
 
 sub runTsStreamServer()
+    ' The listener has not opened yet: safely remove a relay payload left by
+    ' an interrupted previous application session.
+    relayTempPath = "tmp:/rp_ts_relay_segment.ts"
+    if DeleteFile(relayTempPath)
+        print "[RokuPlus ts-relay] startup_cleanup removed_stale_payload=true"
+    end if
     port = CreateObject("roMessagePort")
     listener = CreateObject("roStreamSocket")
     listener.setMessagePort(port)
