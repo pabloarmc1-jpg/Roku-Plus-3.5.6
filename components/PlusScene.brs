@@ -4531,7 +4531,14 @@ if m.view = "profiles"
                 return true
             end if
             if key = "left"
-                if m.liveSearchCursor > 0 then m.liveSearchCursor = 0 else m.zone = "nav"
+                if m.liveSearchCursor > 0
+                    m.liveSearchCursor = 0
+                else
+                    m.zone = "nav"
+                    m.nav = 3
+                    drawScreen()
+                    return true
+                end if
             end if
             if key = "right" and m.liveQuery <> "" then m.liveSearchCursor = 1
             if key = "OK"
@@ -4569,7 +4576,12 @@ if m.view = "profiles"
             return true
         end if
         if m.zone = "live-actions"
-            if key = "left" then m.zone = "nav"
+            if key = "left"
+                m.zone = "nav"
+                m.nav = 3
+                drawScreen()
+                return true
+            end if
             if key = "right" then m.zone = "live"
             if key = "up" then m.liveAction = 0
             if key = "down" then m.liveAction = 1
