@@ -151,6 +151,7 @@ end function
 function rpHdCinehaxLoadEpisodes(parent as object, season as integer, fetcher as dynamic, declared as object) as object
     answer = {ok:false,cancelled:false,message:"No se pudieron cargar los episodios de CineHax.",seasons:[],seasonNumbers:[]}
     pages = []
+    seenEpisodes = {}
     page = 1
     complete = false
     for attempt = 1 to 12
@@ -162,7 +163,25 @@ function rpHdCinehaxLoadEpisodes(parent as object, season as integer, fetcher as
             answer.message = "CineHax devolvió episodios que no corresponden a esta temporada."
             return answer
         end if
+        newEpisodes = 0
+        for each loadedSeason in normalized.seasons
+            if type(loadedSeason.episodes) = "roArray"
+                for each episodeItem in loadedSeason.episodes
+                    episodeId = orbitText(episodeItem.id,180)
+                    if episodeId <> "" and not seenEpisodes.doesExist(episodeId)
+                        seenEpisodes[episodeId] = true
+                        newEpisodes++
+                    end if
+                end for
+            end if
+        end for
         pages.push(normalized.seasons)
+        ' A repeated/empty page cannot contribute more episodes; keep the
+        ' valid episodes already collected instead of exhausting all 12 tries.
+        if newEpisodes = 0
+            complete = true
+            exit for
+        end if
         if not normalized.hasMore
             complete = true
             exit for
