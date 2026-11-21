@@ -9,33 +9,29 @@ function rpWatchParse(raw as dynamic) as dynamic
     parsed = ParseJson(raw)
     if type(parsed) <> "roArray" then return invalid
     ' Registry contents can outlive app upgrades or be partially malformed.
-    ' Keep only records with a safe identity and finite playback clocks.
-    clean = []
+    ' Deduplicate while scanning so duplicates do not consume the 60-record limit.
+    unique = []
+    seenIds = {}
     for each entry in parsed
         if type(entry) = "roAssociativeArray"
             if entry.doesExist("id") and GetInterface(entry.id,"ifString") <> invalid
                 safeId = orbitText(entry.id,180)
                 if safeId <> "" and left(safeId,5) <> "live:"
-                    position = 0
-                    duration = 0
-                    if entry.doesExist("position") then position = rpWatchNumber(entry.position)
-                    if entry.doesExist("duration") then duration = rpWatchNumber(entry.duration)
-                    entry.position = position
-                    entry.duration = duration
-                    if not entry.doesExist("watched") then entry.watched = false
-                    if not entry.doesExist("listed") then entry.listed = false
-                    clean.push(entry)
-                    if clean.count() >= 60 then exit for
+                    if not seenIds.doesExist(entry.id)
+                        position = 0
+                        duration = 0
+                        if entry.doesExist("position") then position = rpWatchNumber(entry.position)
+                        if entry.doesExist("duration") then duration = rpWatchNumber(entry.duration)
+                        entry.position = position
+                        entry.duration = duration
+                        if not entry.doesExist("watched") then entry.watched = false
+                        if not entry.doesExist("listed") then entry.listed = false
+                        seenIds[entry.id] = true
+                        unique.push(entry)
+                        if unique.count() >= 60 then exit for
+                    end if
                 end if
             end if
-        end if
-    end for
-    unique = []
-    seenIds = {}
-    for each record in clean
-        if not seenIds.doesExist(record.id)
-            seenIds[record.id] = true
-            unique.push(record)
         end if
     end for
     return unique
