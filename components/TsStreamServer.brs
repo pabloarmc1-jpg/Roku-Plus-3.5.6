@@ -1142,6 +1142,7 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     if sectionLength + 3 <> total then return
     if sectionLength < 9 or sectionLength > 1021 then return
     if (section[1] \\ 16) <> 11 then return
+    if (section[5] \\ 64) <> 3 then return
     if section[5] mod 2 <> 1 then return
     if not rpTsRelayPsiCrcValid(section) then return
     sectionNumber = section[6]
@@ -1244,6 +1245,7 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
         entry = 8
         while entry + 4 <= total - 4
             programNumber = section[entry] * 256 + section[entry+1]
+            if (section[entry+2] \\ 32) <> 7 then return
             pmtPid = (section[entry+2] mod 32) * 256 + section[entry+3]
             if programNumber > 0
                 ' PMT PIDs must be in the usable elementary/program range.
@@ -1418,6 +1420,7 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
         else if selectedPcrPid <> sectionPcrPid
             return
         end if
+        if (section[10] \\ 16) <> 15 then return
         programInfoLength = (section[10] mod 16) * 256 + section[11]
         entry = 12 + programInfoLength
         if entry > total - 4 then return
@@ -1434,6 +1437,8 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
         end if
         while entry + 5 <= total - 4
             streamType = section[entry]
+            if (section[entry+1] \\ 32) <> 7 then return
+            if (section[entry+3] \\ 16) <> 15 then return
             elementaryPid = (section[entry+1] mod 32) * 256 + section[entry+2]
             esInfoLength = (section[entry+3] mod 16) * 256 + section[entry+4]
             if elementaryPid < 16 or elementaryPid > 8190 then return
