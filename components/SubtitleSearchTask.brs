@@ -350,7 +350,6 @@ function subtitleVttStamp(value as float) as string
     if len(minuteText) < 2 then minuteText = "0" + minuteText
     if len(secondText) < 2 then secondText = "0" + secondText
     if len(milliText) < 3 then milliText = "0" + milliText
-    if len(milliText) < 3 then milliText = "0" + milliText
     return hourText + ":" + minuteText + ":" + secondText + "." + milliText
 end function
 
