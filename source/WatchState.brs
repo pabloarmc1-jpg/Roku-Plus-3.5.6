@@ -124,26 +124,17 @@ function rpWatchCompactForSave(items as object) as object
         if type(record) = "roAssociativeArray"
             if record.doesExist("poster") then record.delete("poster")
             if record.doesExist("background") then record.delete("background")
-            textLimits = {id:180, title:100, kind:20, year:12, provider:32, imdbId:24, providerSlug:120, providerTmdbId:32, providerKind:16, seriesTitle:100, seriesId:120, seriesProviderSlug:120, seriesProviderTmdbId:32, seriesProviderKind:16}
-            for each field in textLimits
+            ' Compact display-only text. Keep catalog IDs, provider slugs,
+            ' resolver metadata and season coordinates intact for Continue Watching.
+            displayLimits = {title:100, kind:20, year:12, seriesTitle:100}
+            for each field in displayLimits
                 if record.doesExist(field)
                     value = record[field]
                     if GetInterface(value,"ifString") <> invalid
-                        record[field] = left(value,textLimits[field])
+                        record[field] = left(value,displayLimits[field])
                     end if
                 end if
             end for
-            for each field in ["providerId","seriesProviderId"]
-                if record.doesExist(field)
-                    value = record[field]
-                    if GetInterface(value,"ifString") <> invalid then record[field] = left(value,120)
-                end if
-            end for
-            if record.doesExist("seriesSeasonNumbers") and type(record.seriesSeasonNumbers) = "roArray"
-                while record.seriesSeasonNumbers.count() > 16
-                    record.seriesSeasonNumbers.delete(record.seriesSeasonNumbers.count()-1)
-                end while
-            end if
         end if
     end for
     return items
