@@ -284,6 +284,10 @@ sub rpTsRelayServe(connection as object, server as object)
             if boundaryAudit.errors > 0 or boundaryAudit.duplicates > 0
                 print "[RokuPlus ts-audit] continuity segment="; segmentIndex; " checked="; boundaryAudit.checked; " errors="; boundaryAudit.errors; " duplicates="; boundaryAudit.duplicates; " totalErrors="; boundaryAudit.totalErrors; " totalDuplicates="; boundaryAudit.totalDuplicates
             end if
+        else
+            ' A malformed segment breaks the observation window; do not compare
+            ' counters across bytes whose packet boundaries could not be trusted.
+            tsContinuityState = {lastCounters:{},haveCounters:{},errors:tsContinuityState.errors,duplicates:tsContinuityState.duplicates,checked:tsContinuityState.checked}
         end if
         if not quickAudit.aligned or quickAudit.syncErrors > 0 or quickAudit.headerErrors > 0
             print "[RokuPlus ts-audit] structural_warning segment="; segmentIndex; " bytes="; payloadSize; " packets="; quickAudit.packetCount; " aligned="; quickAudit.aligned; " syncErrors="; quickAudit.syncErrors; " headerErrors="; quickAudit.headerErrors; " firstBad="; quickAudit.firstBadOffset
