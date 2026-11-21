@@ -86,7 +86,7 @@ function rpHdCinehaxTask(request as object, answer as object, fetcher as dynamic
     iframe = rpHdCinehaxIframe(response.body)
     ' FacilitoPlay can redirect the player request directly to the Vimeos embed.
     ' Accept only the known Vimeos embed URL shape; never persist or synthesize its ID.
-    if iframe = "" and CreateObject("roRegex","^https://vimeos\\.net/embed-[a-zA-Z0-9_-]+(\\.html)?(\\?[^#]*)?$","").isMatch(finalUrl)
+    if iframe = "" and CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","").isMatch(finalUrl)
         iframe = finalUrl
     end if
     if iframe = ""
