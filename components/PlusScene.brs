@@ -453,7 +453,7 @@ sub catalogState(event as object)
     m.autoplay = false
     m.note = "No se pudo completar la consulta. Vuelve a intentar."
     if type(pendingContext) = "roAssociativeArray" and (pendingContext.operation = "find-source" or pendingContext.operation = "resolve" or pendingContext.operation = "resume-episode")
-        if m.sourceLaunchPending and not m.sourceAlternativeAutoActive then m.view = "detail"
+        if m.sourceLaunchPending and (type(m.sourceAlternatives) <> "roArray" or m.sourceAlternatives.count() = 0) then m.view = "detail"
         m.sourceLaunchPending = false
     end if
     if m.view = "player"
