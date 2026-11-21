@@ -216,8 +216,6 @@ sub runTsPrefetch()
                 if not ready.doesExist(key)
                     segmentUrl = segments[index]
                     if GetInterface(segmentUrl, "ifString") <> invalid and left(segmentUrl, 8) = "https://"
-                        filePath = "tmp:/rp_fastream_" + activeGeneration.toStr() + "_" + key + ".ts"
-                        DeleteFile(filePath)
                         xfer = CreateObject("roUrlTransfer")
                         xfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
                         xfer.SetUrl(segmentUrl)
