@@ -3279,12 +3279,56 @@ sub homeFetched(event as object)
             if m.catalogMode = "hd" and entry.provider <> m.hdProvider then return
             if answer.ok
                 if entry.kind = "movie"
+                    ' Preserve the selected hero by identity when the first page replaces the pool.
+                    selectedHeroId = ""
+                    selectedHeroImdbId = ""
+                    selectedHeroTitle = ""
+                    selectedHeroYear = ""
+                    if entry.skip = 0 and m.heroFeature >= 0 and m.heroFeature < m.features.count()
+                        selectedHero = m.features[m.heroFeature]
+                        selectedHeroId = orbitText(selectedHero.id,180)
+                        selectedHeroImdbId = orbitText(selectedHero.imdbId,40)
+                        selectedHeroTitle = lcase(orbitText(selectedHero.title,160))
+                        selectedHeroYear = orbitText(selectedHero.year,4)
+                    end if
                     mergedMovies = m.features
                     if entry.skip = 0 then mergedMovies = []
                     for each fetchedMovie in answer.items
                         mergedMovies.push(fetchedMovie)
                     end for
                     m.features = orbitUniqueCatalogItems(mergedMovies)
+                    if entry.skip = 0 and m.features.count() > 0
+                        restoredHero = -1
+                        if selectedHeroId <> ""
+                            for heroIndex = 0 to m.features.count()-1
+                                if orbitText(m.features[heroIndex].id,180) = selectedHeroId
+                                    restoredHero = heroIndex
+                                    exit for
+                                end if
+                            end for
+                        end if
+                        if restoredHero < 0 and selectedHeroImdbId <> ""
+                            for heroIndex = 0 to m.features.count()-1
+                                if orbitText(m.features[heroIndex].imdbId,40) = selectedHeroImdbId
+                                    restoredHero = heroIndex
+                                    exit for
+                                end if
+                            end for
+                        end if
+                        if restoredHero < 0 and selectedHeroTitle <> ""
+                            for heroIndex = 0 to m.features.count()-1
+                                candidate = m.features[heroIndex]
+                                if lcase(orbitText(candidate.title,160)) = selectedHeroTitle
+                                    candidateYear = orbitText(candidate.year,4)
+                                    if selectedHeroYear = "" or candidateYear = "" or candidateYear = selectedHeroYear
+                                        restoredHero = heroIndex
+                                        exit for
+                                    end if
+                                end if
+                            end for
+                        end if
+                        if restoredHero >= 0 then m.heroFeature = restoredHero
+                    end if
                     if m.heroFeature >= m.features.count() then m.heroFeature = 0
                     if m.discoveryOffset >= m.features.count() then m.discoveryOffset = 0
                     ' Load up to three Cinemeta/provider pages so the carousel has a deeper pool.
