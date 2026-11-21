@@ -900,7 +900,7 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
             pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
             header = payload[offset+3]
             adaptationControl = (header \\ 16) mod 4
-            if adaptationControl = 2
+            if adaptationControl = 2 or adaptationControl = 3
                 adaptationLength = payload[offset+4]
                 if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
                     if payload[offset+5] >= 128
@@ -928,18 +928,7 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                 end if
                 if payloadStart < offset + 188
                     payloadUnitStart = payload[offset+1] >= 64 and payload[offset+1] < 128
-                    discontinuity = false
-                    if adaptationControl = 3 or adaptationControl = 2
-                        adaptationLength = payload[offset+4]
-                        if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
-                            discontinuity = payload[offset+5] >= 128
-                        end if
-                    end if
                     key = pid.toStr()
-                    if discontinuity
-                        if state.psiBuffers.doesExist(key) then state.psiBuffers.Delete(key)
-                        if state.pesBuffers.doesExist(key) then state.pesBuffers.Delete(key)
-                    end if
                     if pid = 0 or (state.pmtPid >= 0 and pid = state.pmtPid)
                         if payloadUnitStart
                             pointer = payload[payloadStart]
