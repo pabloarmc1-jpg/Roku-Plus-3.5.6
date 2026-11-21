@@ -187,7 +187,11 @@ sub rpTsRelayServe(connection as object, server as object)
     if query <> ""
         for each parameter in query.split("&")
             pair = parameter.split("=")
-            if pair.count() <> 2 or pair[1] = ""
+            if pair.count() <> 2
+                queryValid = false
+                exit for
+            end if
+            if pair[1] = ""
                 queryValid = false
                 exit for
             end if
