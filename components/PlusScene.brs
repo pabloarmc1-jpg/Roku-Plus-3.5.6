@@ -3251,6 +3251,21 @@ sub discoveryRotationTick(event as object)
     end if
 end sub
 
+sub invalidateHomeCacheRow(entry as object)
+    cacheKey = entry.mode + "|" + entry.provider + "|" + entry.sort
+    cached = {movies: [], series: [], hasMovies: false, hasSeries: false, clock: CreateObject("roTimespan")}
+    if type(m.homeCache) = "roAssociativeArray" and m.homeCache.doesExist(cacheKey)
+        previousCache = m.homeCache[cacheKey]
+        if type(previousCache) = "roAssociativeArray" then cached = previousCache
+    end if
+    if entry.kind = "movie"
+        cached.hasMovies = false
+    else
+        cached.hasSeries = false
+    end if
+    m.homeCache[cacheKey] = cached
+end sub
+
 sub homeFetched(event as object)
     answer = event.getData()
     if type(answer) <> "roAssociativeArray" then return
@@ -3281,8 +3296,10 @@ sub homeFetched(event as object)
                 else
                     m.homeSeries = orbitUniqueCatalogItems(answer.items)
                 end if
-                ' Partial provider responses remain visible, but must not enter the Home cache.
-                if not answer.doesExist("partial") or not answer.partial
+                ' Partial provider responses remain visible, but invalidate this cache row.
+                if answer.doesExist("partial") and answer.partial
+                    invalidateHomeCacheRow(entry)
+                else
                     cacheKey = entry.mode + "|" + entry.provider + "|" + entry.sort
                     cached = {movies: [], series: [], hasMovies: false, hasSeries: false, clock: CreateObject("roTimespan")}
                     if m.homeCache.doesExist(cacheKey)
@@ -3310,6 +3327,7 @@ sub homeFetched(event as object)
                 end if
                 patchHomeHero = entry.kind = "movie" and entry.skip > 0
             else
+                invalidateHomeCacheRow(entry)
                 m.note = "No se pudo actualizar una de las filas. Puedes explorar desde el menú o volver a intentar."
             end if
             entry.node.unobserveField("result")
@@ -3334,6 +3352,7 @@ sub homeStopped(event as object)
         entry = m.homeJobs[i]
         if entry.node.isSameNode(event.getRoSGNode())
             if type(entry.node.result) = "roAssociativeArray" then return
+            invalidateHomeCacheRow(entry)
             entry.node.unobserveField("result")
             entry.node.unobserveField("state")
             m.homeJobs.delete(i)
