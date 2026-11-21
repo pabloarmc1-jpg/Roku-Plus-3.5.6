@@ -1027,7 +1027,7 @@ function rpTsRelayAuditClocks(payload as object, state as object) as object
         if payload[offset] = &H47
             pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
             header = payload[offset+3]
-            adaptationControl = (header \\ 16) mod 4
+            adaptationControl = (header \ 16) mod 4
             if adaptationControl = 2 or adaptationControl = 3
                 adaptationLength = payload[offset+4]
                 if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
@@ -1039,10 +1039,10 @@ function rpTsRelayAuditClocks(payload as object, state as object) as object
                         if state.lastPcr.doesExist(key) then state.lastPcr.Delete(key)
                     end if
                     if state.pcrPid >= 16 and state.pcrPid <= 8190 and pid = state.pcrPid and (adaptationFlags mod 32) >= 16 and adaptationLength >= 7
-                        pcrReserved = (payload[offset+10] mod 128) \\ 2
+                        pcrReserved = (payload[offset+10] mod 128) \ 2
                         pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
                         if pcrReserved = 63 and pcrExtension <= 299
-                            pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \\ 128)
+                            pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \ 128)
                             pcrValue = pcrBase * 300 + pcrExtension
                             if not discontinuity and state.havePcr.doesExist(key)
                                 if state.lastPcr[key] - pcrValue > 1288490188800
@@ -1076,10 +1076,10 @@ sub rpTsRelayResetPsiPidState(state as object, pid as integer, clearVersions as 
     tablePrefix = key + ":"
     staleTables = []
     if type(state.psiTables) = "roAssociativeArray"
-        for tableKey in state.psiTables
+        for each tableKey in state.psiTables
             if left(tableKey,len(tablePrefix)) = tablePrefix then staleTables.push(tableKey)
         end for
-        for tableKey in staleTables
+        for each tableKey in staleTables
             state.psiTables.Delete(tableKey)
         end for
     end if
@@ -1105,7 +1105,7 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
         if payload[offset] = &H47
             pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
             header = payload[offset+3]
-            adaptationControl = (header \\ 16) mod 4
+            adaptationControl = (header \ 16) mod 4
             discontinuity = false
             if adaptationControl = 2 or adaptationControl = 3
                 adaptationLength = payload[offset+4]
@@ -1189,7 +1189,7 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                             if pesBuffer.count() >= 9
                                 headerComplete = true
                                 if pesBuffer[0] = 0 and pesBuffer[1] = 0 and pesBuffer[2] = 1
-                                    pesFlags = (pesBuffer[7] \\ 64) mod 4
+                                    pesFlags = (pesBuffer[7] \ 64) mod 4
                                     pesHeaderLength = pesBuffer[8]
                                     requiredBytes = 9
                                     if pesFlags = 2 and pesHeaderLength >= 5
@@ -1331,8 +1331,8 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     sectionLength = (section[1] mod 16) * 256 + section[2]
     if sectionLength + 3 <> total then return
     if sectionLength < 9 or sectionLength > 1021 then return
-    if (section[1] \\ 16) <> 11 then return
-    if (section[5] \\ 64) <> 3 then return
+    if (section[1] \ 16) <> 11 then return
+    if (section[5] \ 64) <> 3 then return
     if section[5] mod 2 <> 1 then return
     if not rpTsRelayPsiCrcValid(section) then return
     sectionNumber = section[6]
@@ -1349,7 +1349,7 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     if tableKind = "pmt"
         if state.programNumber < 0 or tableExtension <> state.programNumber then return
     end if
-    versionNumber = (section[5] \\ 2) mod 32
+    versionNumber = (section[5] \ 2) mod 32
     tableIdentity = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr()
     tablePrefix = tableIdentity + ":"
     activeVersions = state.psiActiveVersions
@@ -1484,7 +1484,7 @@ function rpTsRelayApplyPatSections(state as object, sections as object) as boole
         entry = 8
         while entry + 4 <= total - 4
             programNumber = section[entry] * 256 + section[entry+1]
-            if (section[entry+2] \\ 32) <> 7 then return false
+            if (section[entry+2] \ 32) <> 7 then return false
             pmtPid = (section[entry+2] mod 32) * 256 + section[entry+3]
             if programNumber > 0
                 ' PMT PIDs must be in the usable elementary/program range.
@@ -1660,7 +1660,7 @@ function rpTsRelayApplyPmtSections(state as object, sections as object) as boole
         else if selectedPcrPid <> sectionPcrPid
             return false
         end if
-        if (section[10] \\ 16) <> 15 then return false
+        if (section[10] \ 16) <> 15 then return false
         programInfoLength = (section[10] mod 16) * 256 + section[11]
         entry = 12 + programInfoLength
         if entry > total - 4 then return false
@@ -1677,8 +1677,8 @@ function rpTsRelayApplyPmtSections(state as object, sections as object) as boole
         end if
         while entry + 5 <= total - 4
             streamType = section[entry]
-            if (section[entry+1] \\ 32) <> 7 then return false
-            if (section[entry+3] \\ 16) <> 15 then return false
+            if (section[entry+1] \ 32) <> 7 then return false
+            if (section[entry+3] \ 16) <> 15 then return false
             elementaryPid = (section[entry+1] mod 32) * 256 + section[entry+2]
             esInfoLength = (section[entry+3] mod 16) * 256 + section[entry+4]
             if elementaryPid < 16 or elementaryPid > 8190 then return false
@@ -1745,9 +1745,9 @@ function rpTsRelayReadPtsArray(bytes as object, offset as integer, expectedPrefi
     b2 = bytes[offset+2]
     b3 = bytes[offset+3]
     b4 = bytes[offset+4]
-    if (b0 \\ 16) <> expectedPrefix then return -1
+    if (b0 \ 16) <> expectedPrefix then return -1
     if (b0 mod 2) <> 1 or (b2 mod 2) <> 1 or (b4 mod 2) <> 1 then return -1
-    return ((b0 mod 16) \\ 2) * 1073741824 + b1 * 4194304 + (b2 \\ 2) * 32768 + b3 * 128 + (b4 \\ 2)
+    return ((b0 mod 16) \ 2) * 1073741824 + b1 * 4194304 + (b2 \ 2) * 32768 + b3 * 128 + (b4 \ 2)
 end function
 
 function rpTsRelayAuditContinuity(payload as object, state as object) as object
