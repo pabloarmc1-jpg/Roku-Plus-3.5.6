@@ -6,9 +6,18 @@ end sub
 sub runTsStreamServer()
     ' The listener has not opened yet: safely remove a relay payload left by
     ' an interrupted previous application session.
-    relayTempPath = "tmp:/rp_ts_relay_segment.ts"
-    if DeleteFile(relayTempPath)
-        print "[RokuPlus ts-relay] startup_cleanup removed_stale_payload=true"
+    relayTempPrefix = "rp_ts_relay_segment_"
+    relayEntries = CreateObject("roFileSystem").GetDirectoryListing("tmp:/")
+    relayStaleCount = 0
+    if type(relayEntries) = "roArray"
+        for each relayEntry in relayEntries
+            if GetInterface(relayEntry,"ifString") <> invalid and left(relayEntry,len(relayTempPrefix)) = relayTempPrefix
+                if DeleteFile("tmp:/" + relayEntry) then relayStaleCount++
+            end if
+        end for
+    end if
+    if relayStaleCount > 0
+        print "[RokuPlus ts-relay] startup_cleanup removed="; relayStaleCount
     end if
     port = CreateObject("roMessagePort")
     listener = CreateObject("roStreamSocket")
@@ -202,7 +211,9 @@ sub rpTsRelayServe(connection as object, server as object)
             if GetInterface(agent,"ifString") <> invalid and len(agent) > 0 then xfer.AddHeader("User-Agent",agent)
             if GetInterface(referer,"ifString") <> invalid and len(referer) > 0 then xfer.AddHeader("Referer",referer)
         end if
-        filePath = "tmp:/rp_ts_relay_segment.ts"
+        ' Unique paths prevent a cancelled/late transfer from overwriting a
+        ' later segment after the connection has moved on.
+        filePath = "tmp:/rp_ts_relay_segment_" + connectionGeneration.toStr() + "_" + segmentIndex.toStr() + ".ts"
         DeleteFile(filePath)
         prefetched = false
         if prefetchTask <> invalid
@@ -211,7 +222,7 @@ sub rpTsRelayServe(connection as object, server as object)
             prefetchPath = ""
             prefetchKey = segmentIndex.toStr()
             generationChanged = false
-            while prefetchTimer.TotalMilliseconds() < 180000 and not server.stopRequested and connectionGeneration = server.generation
+            while prefetchTimer.TotalMilliseconds() < 35000 and not server.stopRequested and connectionGeneration = server.generation
                 if prefetchTask.stopRequested or prefetchTask.generation <> prefetchGeneration
                     generationChanged = true
                     exit while
@@ -242,18 +253,68 @@ sub rpTsRelayServe(connection as object, server as object)
             fetchTimer = CreateObject("roTimespan")
             fetchTimer.Mark()
             print "[RokuPlus ts-relay] upstream_fetch_begin segment="; segmentIndex
-            code = xfer.GetToFile(filePath)
+            xfer.SetMessagePort(connectionPort)
+            fetchStarted = xfer.AsyncGetToFile(filePath)
+            fetchCode = -1
+            fetchReason = "start_failed"
+            if fetchStarted
+                transferId = xfer.GetIdentity().ToStr()
+                fetchDeadline = CreateObject("roTimespan")
+                fetchDeadline.Mark()
+                fetchDone = false
+                while fetchDeadline.TotalMilliseconds() < 30000 and not fetchDone
+                    if server.stopRequested or connectionGeneration <> server.generation
+                        fetchReason = "cancelled"
+                        exit while
+                    end if
+                    if connection.isException()
+                        fetchReason = "client_disconnected"
+                        exit while
+                    end if
+                    fetchEvent = wait(100,connectionPort)
+                    if type(fetchEvent) = "roUrlEvent"
+                        if fetchEvent.GetSourceIdentity().ToStr() = transferId
+                            fetchDone = true
+                            fetchCode = fetchEvent.GetResponseCode()
+                            if fetchEvent.GetInt() = 1 and fetchCode >= 200 and fetchCode < 300
+                                fetchReason = "ok"
+                            else
+                                fetchReason = "http_or_transfer_error"
+                            end if
+                        end if
+                    end if
+                end while
+                if not fetchDone and fetchReason = "start_failed"
+                    fetchReason = "timeout"
+                end if
+                if not fetchDone
+                    xfer.AsyncCancel()
+                    cancelDrain = CreateObject("roTimespan")
+                    cancelDrain.Mark()
+                    while cancelDrain.TotalMilliseconds() < 2500
+                        cancelEvent = wait(100,connectionPort)
+                        if type(cancelEvent) = "roUrlEvent"
+                            if cancelEvent.GetSourceIdentity().ToStr() = transferId
+                                fetchCode = cancelEvent.GetResponseCode()
+                                exit while
+                            end if
+                        end if
+                    end while
+                end if
+            end if
             fetchMs = fetchTimer.TotalMilliseconds()
+            if fetchReason <> "ok"
+                print "[RokuPlus ts-relay] upstream_failed segment="; segmentIndex; " reason="; fetchReason; " status="; fetchCode; " elapsedMs="; fetchMs
+                DeleteFile(filePath)
+                if server.stopRequested or connectionGeneration <> server.generation or fetchReason = "client_disconnected" then exit for
+                if fetchReason = "timeout" then print "[RokuPlus ts-relay] upstream_timeout segment="; segmentIndex; " limitMs=30000"
+                exit for
+            end if
             if server.stopRequested or connectionGeneration <> server.generation
                 DeleteFile(filePath)
                 exit for
             end if
-            print "[RokuPlus ts-relay] upstream_fetch_end segment="; segmentIndex; " status="; code; " elapsedMs="; fetchMs
-            if code < 200 or code >= 300
-                print "[RokuPlus ts-relay] upstream_failed index="; sentSegments+1; " status="; code
-                DeleteFile(filePath)
-                exit for
-            end if
+            print "[RokuPlus ts-relay] upstream_fetch_end segment="; segmentIndex; " status="; fetchCode; " elapsedMs="; fetchMs
         end if
         if server.stopRequested or connectionGeneration <> server.generation
             DeleteFile(filePath)
