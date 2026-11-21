@@ -227,10 +227,14 @@ function rpWatchMigrateIdentity(items as object, oldItem as object, newItem as o
     if oldKind = "episode"
         oldSeriesImdb = orbitImdb(oldItem.seriesImdbId)
         newSeriesImdb = orbitImdb(newItem.seriesImdbId)
+        oldSeriesTmdb = orbitText(oldItem.seriesProviderTmdbId,40)
+        newSeriesTmdb = orbitText(newItem.seriesProviderTmdbId,40)
+        sameSeriesIdentity = oldSeriesImdb <> "" and oldSeriesImdb = newSeriesImdb
+        if not sameSeriesIdentity and oldSeriesTmdb <> "" and oldSeriesTmdb = newSeriesTmdb then sameSeriesIdentity = true
         if oldImdb <> "" and newImdb <> ""
             if oldImdb <> newImdb then return items
         else
-            if oldSeriesImdb = "" or newSeriesImdb = "" or oldSeriesImdb <> newSeriesImdb then return items
+            if not sameSeriesIdentity then return items
         end if
         oldSeason = orbitInteger(oldItem.season,999,-1)
         newSeason = orbitInteger(newItem.season,999,-1)
