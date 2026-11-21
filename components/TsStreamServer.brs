@@ -399,17 +399,19 @@ sub rpTsRelayServe(connection as object, server as object)
         end if
         rpTsRelaySendString(connection,rpTsRelayHex(payloadSize)+chr(13)+chr(10),server,connectionPort)
         if not server.sendOk
-            DeleteFile(filePath)
+            ' Keep a completed prefetched file registered when the client drops.
+            ' The next local relay connection can reuse this exact segment.
+            if not prefetched then DeleteFile(filePath)
             exit for
         end if
         rpTsRelaySendBytes(connection,payload,server,connectionPort)
         if not server.sendOk
-            DeleteFile(filePath)
+            if not prefetched then DeleteFile(filePath)
             exit for
         end if
         rpTsRelaySendString(connection,chr(13)+chr(10),server,connectionPort)
         if not server.sendOk
-            DeleteFile(filePath)
+            if not prefetched then DeleteFile(filePath)
             exit for
         end if
         sentSegments++
