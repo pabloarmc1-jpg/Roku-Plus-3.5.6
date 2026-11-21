@@ -21,9 +21,9 @@ sub runInvidiousRequest()
                             id = row.videoId
                             title = row.title
                             author = ""
-                            if row.doesExist("author") then author = row.author
+                            if row.doesExist("author") and GetInterface(row.author,"ifString") <> invalid then author = left(row.author,100)
                             if GetInterface(id,"ifString") <> invalid and CreateObject("roRegex","^[A-Za-z0-9_-]{6,20}$","").isMatch(id) and GetInterface(title,"ifString") <> invalid
-                                answer.items.push({id:id,title:left(title,180),author:left(author,100),kind:"movie",provider:"invidious",poster:"",background:""})
+                                answer.items.push({id:id,title:left(title,180),author:author,kind:"movie",provider:"invidious",poster:"",background:""})
                             end if
                         end if
                         if answer.items.count() >= 10 then exit for
