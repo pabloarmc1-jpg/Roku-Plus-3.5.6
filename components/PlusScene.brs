@@ -4423,7 +4423,7 @@ if m.view = "profiles"
         else if key = "right"
             if m.cursor+1 < m.titles.count()
                 m.cursor++
-            else if m.more
+            else if m.more and not m.busy
                 loadBrowsePage(m.nextOffset)
                 return true
             end if
@@ -4440,7 +4440,7 @@ if m.view = "profiles"
         else if key = "down"
             if m.cursor+5 < m.titles.count()
                 m.cursor += 5
-            else if m.more
+            else if m.more and not m.busy
                 loadBrowsePage(m.nextOffset)
                 return true
             end if
@@ -4453,7 +4453,7 @@ if m.view = "profiles"
         else if key = "fastforward"
             if m.cursor+1 < m.titles.count()
                 m.cursor++
-            else if m.more
+            else if m.more and not m.busy
                 loadBrowsePage(m.nextOffset)
                 return true
             end if
