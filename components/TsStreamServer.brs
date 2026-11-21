@@ -165,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     ' Keep PID continuity baselines across every HLS segment in this relay response.
     tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
-    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,programNumber:-1,videoPid:-1,audioPids:[]}
+    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},psiActiveVersions:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,programNumber:-1,videoPid:-1,audioPids:[]}
     segmentDiscontinuities = server.segmentDiscontinuities
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
@@ -1129,19 +1129,35 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
         if state.programNumber < 0 or tableExtension <> state.programNumber then return
     end if
     versionNumber = (section[5] \\ 2) mod 32
-    tableKey = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":" + versionNumber.toStr()
+    tableIdentity = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr()
+    tablePrefix = tableIdentity + ":"
+    activeVersions = state.psiActiveVersions
+    if type(activeVersions) <> "roAssociativeArray" then activeVersions = {}
+    if activeVersions.doesExist(tableIdentity)
+        activeVersion = activeVersions[tableIdentity]
+        versionDelta = (versionNumber - activeVersion + 32) mod 32
+        ' MPEG-2 versions are modulo 32. Accept only forward movement 1..15;
+        ' reject delayed older sections and the ambiguous half-cycle (16).
+        if versionDelta >= 16 then return
+        if versionDelta > 0
+            activeVersions[tableIdentity] = versionNumber
+            state.psiActiveVersions = activeVersions
+            staleKeys = []
+            for existingKey in state.psiTables
+                if left(existingKey,len(tablePrefix)) = tablePrefix
+                    staleKeys.push(existingKey)
+                end if
+            end for
+            for staleKey in staleKeys
+                state.psiTables.Delete(staleKey)
+            end for
+        end if
+    else
+        activeVersions[tableIdentity] = versionNumber
+        state.psiActiveVersions = activeVersions
+    end if
+    tableKey = tablePrefix + versionNumber.toStr()
     if not state.psiTables.doesExist(tableKey)
-        ' A new version supersedes incomplete accumulators for the same table identity.
-        tablePrefix = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":"
-        staleKeys = []
-        for existingKey in state.psiTables
-            if left(existingKey,len(tablePrefix)) = tablePrefix and existingKey <> tableKey
-                staleKeys.push(existingKey)
-            end if
-        end for
-        for staleKey in staleKeys
-            state.psiTables.Delete(staleKey)
-        end for
         sections = []
         while sections.count() <= lastSectionNumber
             sections.push(invalid)
@@ -1229,6 +1245,15 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
             for staleKey in staleKeys
                 state.psiTables.Delete(staleKey)
             end for
+            activeVersionKeys = []
+            for activeKey in state.psiActiveVersions
+                if left(activeKey,len(newTablePrefix)-1) = left(newTablePrefix,len(newTablePrefix)-1)
+                    activeVersionKeys.push(activeKey)
+                end if
+            end for
+            for activeKey in activeVersionKeys
+                state.psiActiveVersions.Delete(activeKey)
+            end for
         end if
         state.videoPid = -1
         state.audioPids = []
@@ -1248,6 +1273,7 @@ sub rpTsRelayResetProgramState(state as object)
     state.havePts = {}
     state.psiBuffers = {}
     state.psiTables = {}
+    state.psiActiveVersions = {}
     state.pesBuffers = {}
     state.headerLastCounters = {}
     state.headerHaveCounters = {}
