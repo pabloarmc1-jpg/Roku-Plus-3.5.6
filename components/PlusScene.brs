@@ -751,6 +751,7 @@ sub fetched(event as object)
         m.pendingSourceHost = orbitText(answer.sourceHost,24)
         m.pendingSegmentUrls = answer.segmentUrls
         m.pendingSegmentDurations = answer.segmentDurations
+        m.pendingSegmentDiscontinuities = answer.segmentDiscontinuities
         m.pendingFallbackSegmentUrls = answer.fallbackSegmentUrls
         m.pendingFallbackSegmentDurations = answer.fallbackSegmentDurations
         m.pendingFallbackTsRelay = false
@@ -1133,6 +1134,10 @@ sub launchVideo(item as object, url as string, format as string)
     if type(m.pendingSegmentDurations) = "roArray"
         descriptor.segmentDurations = m.pendingSegmentDurations
         m.pendingSegmentDurations = invalid
+    end if
+    if type(m.pendingSegmentDiscontinuities) = "roArray"
+        descriptor.segmentDiscontinuities = m.pendingSegmentDiscontinuities
+        m.pendingSegmentDiscontinuities = invalid
     end if
     if m.pendingTsRelay then descriptor.tsRelayEnabled = true
     m.pendingTsRelay = false
