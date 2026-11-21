@@ -90,6 +90,7 @@ sub init()
     m.nextEpisodePrefetchAnswer = invalid
     m.introDbTask = invalid
     m.introDbCache = {}
+    m.introDbCacheOrder = []
     m.introDbSegments = invalid
     m.watchSaveClock = CreateObject("roTimespan")
     m.watchSaveClock.mark()
@@ -162,6 +163,7 @@ sub init()
     m.streamXImageKey = ""
     m.streamXImages = invalid
     m.streamXImageCache = {}
+    m.streamXImageCacheOrder = []
     m.detailOrigin = "home"
     m.autoplay = false
     m.sourceLaunchPending = false
@@ -833,6 +835,34 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
     end if
 end sub
 
+
+' Keep metadata caches bounded on Roku devices with limited memory.
+' FIFO eviction is intentionally simple and never touches active task/player data.
+sub rpStoreBoundedCache(cache as object, cacheOrder as object, key as string, value as dynamic, limit as integer)
+    if key = "" or limit < 1 then return
+    if cache.doesExist(key)
+        cache[key] = value
+        return
+    end if
+    while cache.count() >= limit and cacheOrder.count() > 0
+        oldestKey = cacheOrder[0]
+        cacheOrder.delete(0)
+        if cache.doesExist(oldestKey) then cache.delete(oldestKey)
+    end while
+    ' Recover safely if the order list and associative array ever diverge.
+    while cache.count() >= limit
+        removed = false
+        for each existingKey in cache
+            cache.delete(existingKey)
+            removed = true
+            exit for
+        end for
+        if not removed then exit while
+    end while
+    cache[key] = value
+    cacheOrder.push(key)
+end sub
+
 sub preloadStreamXImages(item as dynamic)
     if type(item) <> "roAssociativeArray"
         m.streamXImageKey = ""
@@ -905,7 +935,7 @@ sub streamXImagesLoaded(event as object)
     cacheKey = orbitText(m.streamXImagePendingKey,400)
     if cacheKey = "" then return
     imageResult = {logo:orbitText(answer.logo,2048),background:orbitText(answer.background,2048),imdbId:orbitText(answer.imdbId,40)}
-    m.streamXImageCache[cacheKey] = imageResult
+    rpStoreBoundedCache(m.streamXImageCache,m.streamXImageCacheOrder,cacheKey,imageResult,40)
     if m.streamXImageKey = cacheKey then m.streamXImages = imageResult
     hasLogo = imageResult.logo <> ""
     hasBanner = imageResult.background <> ""
@@ -1167,9 +1197,9 @@ sub introDbResult(event as object)
     if answer.ok
         cacheKey = orbitText(answer.cacheKey,100)
         cachedData = {intro:answer.intro,recap:answer.recap,outro:answer.outro,post_credits:answer.post_credits,no_intro:answer.no_intro,no_recap:answer.no_recap,no_outro:answer.no_outro}
-        if cacheKey <> "" then m.introDbCache[cacheKey] = cachedData
+        if cacheKey <> "" then rpStoreBoundedCache(m.introDbCache,m.introDbCacheOrder,cacheKey,cachedData,80)
         resolvedCacheKey = orbitText(answer.cacheKey,100)
-        if resolvedCacheKey <> "" then m.introDbCache[resolvedCacheKey] = cachedData
+        if resolvedCacheKey <> "" then rpStoreBoundedCache(m.introDbCache,m.introDbCacheOrder,resolvedCacheKey,cachedData,80)
         m.introDbSegments = answer
         m.player.introDbData = answer
         print "[RokuPlus introdb] lookup_ok intro="; type(answer.intro); " recap="; type(answer.recap); " outro="; type(answer.outro); " postCredits="; type(answer.post_credits)
