@@ -1465,7 +1465,7 @@ sub rpHdTaskLogManifest(body as dynamic, baseUrl as string)
                 version = mid(line,instr(1,line,":")+1).trim()
             else if left(line,14) = "#EXT-X-ENDLIST"
                 hasEndList = true
-            else if left(line,20) = "#EXT-X-DISCONTINUITY"
+            else if line = "#EXT-X-DISCONTINUITY"
                 discontinuities++
             else if left(line,17) = "#EXT-X-BYTERANGE:"
                 byteRanges++
