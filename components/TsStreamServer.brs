@@ -418,7 +418,11 @@ sub rpTsRelayServe(connection as object, server as object)
         ' Reject oversized or missing segment files before allocating a byte array.
         ' 16 MiB is above ordinary HLS TS segment sizes while bounding relay RAM.
         fileSystem = CreateObject("roFileSystem")
-        diskSize = fileSystem.GetFileSize(filePath)
+        fileInfo = fileSystem.Stat(filePath)
+        diskSize = -1
+        if type(fileInfo) = "roAssociativeArray" and fileInfo.type = "file"
+            diskSize = fileInfo.size
+        end if
         if diskSize <= 0 or diskSize > 16777216
             print "[RokuPlus ts-relay] segment_rejected index="; segmentIndex; " bytes="; diskSize; " limit=16777216"
             DeleteFile(filePath)
