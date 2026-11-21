@@ -1164,6 +1164,7 @@ sub launchVideo(item as object, url as string, format as string)
     ' generation cannot overwrite the currently selected title's watch state.
     descriptor.requestId = CreateObject("roDeviceInfo").getRandomUUID()
     m.activePlaybackRequestId = descriptor.requestId
+    m.activePlaybackProfileId = m.profileId
     m.lastPlaybackProgress = invalid
     m.endScreenRequestId = invalid
     m.endScreenWatchedRequestId = invalid
@@ -1338,6 +1339,10 @@ sub playerProgress(event as object)
         if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=sample-type"
         return
     end if
+    if m.activePlaybackProfileId = invalid or m.activePlaybackProfileId <> m.profileId
+        if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=profile-mismatch session="; orbitText(m.activePlaybackProfileId,8); " active="; orbitText(m.profileId,8)
+        return
+    end if
     if m.activePlaybackRequestId <> invalid
         if sample.requestId <> m.activePlaybackRequestId
             if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=request-mismatch sample="; orbitText(sample.requestId,80); " active="; orbitText(m.activePlaybackRequestId,80)
@@ -1497,8 +1502,12 @@ sub playerClosed(event as object)
         pendingSwitch = m.pendingEngineSwitch
         m.pendingEngineSwitch = invalid
         ' Persist the previous title before changing decoder instances.
-        rpWatchSave(m.watchState,m.profileId)
-        if m.watchSaveClock <> invalid then m.watchSaveClock.mark()
+        if m.activePlaybackProfileId = m.profileId
+            rpWatchSave(m.watchState,m.profileId)
+            if m.watchSaveClock <> invalid then m.watchSaveClock.mark()
+        else
+            print "[RokuPlus watch] engine-switch-save-skipped=profile-mismatch"
+        end if
         m.player.visible = false
         if pendingSwitch.target = "host"
             m.player = m.hostPlayer
@@ -1513,7 +1522,12 @@ sub playerClosed(event as object)
     ' Cancel it so a late network response cannot unexpectedly reopen playback.
     if m.busy then cancelRequest()
     m.autoplay = false
-    closeSaved = rpWatchSave(m.watchState,m.profileId)
+    closeSaved = false
+    if m.activePlaybackProfileId = m.profileId
+        closeSaved = rpWatchSave(m.watchState,m.profileId)
+    else
+        print "[RokuPlus watch] close-save-skipped=profile-mismatch session="; orbitText(m.activePlaybackProfileId,8); " active="; orbitText(m.profileId,8)
+    end if
     closeRecord = invalid
     if type(m.detail) = "roAssociativeArray" and m.detail.doesExist("id") then closeRecord = rpWatchGet(m.watchState,m.detail.id)
     if closeRecord <> invalid
@@ -1551,12 +1565,13 @@ sub playerClosed(event as object)
     end if
     finishedNaturally = false
     if type(m.lastPlaybackProgress) = "roAssociativeArray" then finishedNaturally = m.lastPlaybackProgress.state = "finished"
-    if finishedNaturally and m.detail <> invalid
+    if finishedNaturally and m.detail <> invalid and m.activePlaybackProfileId = m.profileId
         watchedRecord = rpWatchGet(m.watchState,m.detail.id)
         if watchedRecord = invalid or watchedRecord.watched <> true then m.watchState = rpWatchToggle(m.watchState,m.detail,"watched")
         rpWatchSave(m.watchState,m.profileId)
     end if
     m.lastPlaybackProgress = invalid
+    m.activePlaybackProfileId = invalid
     m.continueItems = rpWatchContinue(m.watchState)
     m.note = ""
     drawScreen()
