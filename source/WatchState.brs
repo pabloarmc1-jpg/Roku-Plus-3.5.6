@@ -151,20 +151,25 @@ end function
 
 function rpWatchSave(items as object, profileId = "p1" as string) as boolean
     if type(items) <> "roArray" then return false
-    while items.count() > 60
-        items.delete(items.count()-1)
+    ' Work on a JSON round-trip copy: compaction and size trimming must never
+    ' mutate the live in-memory history before persistence is confirmed.
+    copied = ParseJson(FormatJson(items))
+    if type(copied) <> "roArray" then return false
+    saveItems = copied
+    while saveItems.count() > 60
+        saveItems.delete(saveItems.count()-1)
     end while
-    payload = FormatJson(items)
+    payload = FormatJson(saveItems)
     if GetInterface(payload, "ifString") = invalid then return false
     if len(payload) > 65536
-        items = rpWatchCompactForSave(items)
-        payload = FormatJson(items)
+        saveItems = rpWatchCompactForSave(saveItems)
+        payload = FormatJson(saveItems)
     end if
     ' If an unusually large legacy record still exceeds the Registry limit,
-    ' discard oldest entries one at a time rather than losing the latest progress.
-    while GetInterface(payload, "ifString") <> invalid and len(payload) > 65536 and items.count() > 1
-        items.delete(items.count()-1)
-        payload = FormatJson(items)
+    ' discard oldest entries from the save copy, preserving the live history.
+    while GetInterface(payload, "ifString") <> invalid and len(payload) > 65536 and saveItems.count() > 1
+        saveItems.delete(saveItems.count()-1)
+        payload = FormatJson(saveItems)
     end while
     if GetInterface(payload, "ifString") = invalid or len(payload) > 65536 then return false
     if type(rpWatchParse(payload)) <> "roArray" then return false
