@@ -4074,6 +4074,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
             closeSearchKeyboard()
             return true
         end if
+        ' Handle Invidious before the generic busy/back path so BACK always
+        ' returns to Settings, including while a search or resolve is running.
+        if m.view = "invidious"
+            if m.busy then cancelRequest()
+            m.view = "settings"
+            m.zone = "settings"
+            m.settingsCursor = 10
+            drawScreen()
+            m.top.setFocus(true)
+            return true
+        end if
         if m.busy
             pendingContext = m.pending
             cancelRequest()
@@ -4108,15 +4119,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 selected = m.invidiousItems[m.invidiousCursor]
                 startInvidiousResolve(selected)
             end if
-            return true
-        end if
-        if key = "back"
-            if m.busy then cancelRequest()
-            m.view = "settings"
-            m.zone = "settings"
-            m.settingsCursor = 10
-            drawScreen()
-            m.top.setFocus(true)
             return true
         end if
         ' Invidious rows are drawn directly, not registered in m.focusItems.
