@@ -1476,12 +1476,14 @@ sub toggleWatchItem(item as object, field as string)
         m.watchState = rpWatchLoad(m.profileId)
         m.continueItems = rpWatchContinue(m.watchState)
         refreshHomeListItems()
+        if field = "listed" and m.libraryMode = "list" then refreshLibraryItems()
         m.note = "No se pudo guardar el cambio. Se restauró el último historial guardado."
         drawScreen()
         return
     end if
     m.continueItems = rpWatchContinue(m.watchState)
     refreshHomeListItems()
+    if field = "listed" and m.libraryMode = "list" then refreshLibraryItems()
     record = rpWatchGet(m.watchState,item.id)
     if field = "watched"
         if record <> invalid and record.watched then m.note = "Marcada como vista." else m.note = "Marcada como no vista."
@@ -2840,17 +2842,33 @@ sub refreshHomeListItems()
     end for
 end sub
 
+sub refreshLibraryItems()
+    m.libraryItems = []
+    if type(m.watchState) <> "roArray" then return
+    for each record in m.watchState
+        if type(record) = "roAssociativeArray"
+            if m.libraryMode = "history"
+                m.libraryItems.push(record)
+            else if record.doesExist("listed") and record.listed = true
+                m.libraryItems.push(record)
+            end if
+        end if
+    end for
+    if m.libraryItems.count() = 0
+        m.libraryCursor = 0
+    else if m.libraryCursor < 0
+        m.libraryCursor = 0
+    else if m.libraryCursor >= m.libraryItems.count()
+        m.libraryCursor = m.libraryItems.count()-1
+    end if
+end sub
+
 sub openLibrary(mode as string)
     stopLivePreview()
     cancelRequest()
     m.libraryMode = mode
-    m.libraryItems = []
-    for each record in m.watchState
-        if type(record) = "roAssociativeArray"
-            if mode = "history" or record.listed = true then m.libraryItems.push(record)
-        end if
-    end for
     m.libraryCursor = 0
+    refreshLibraryItems()
     m.view = "library"
     m.zone = "library"
     drawScreen()
