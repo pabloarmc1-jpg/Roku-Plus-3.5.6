@@ -749,8 +749,16 @@ sub fetched(event as object)
                 if m.series.seasons[i].number = incoming.number then m.series.seasons[i] = incoming
             end for
         end for
-        m.episode = 0
-        if m.view = "episodes" then applyPendingResumeEpisode()
+        if m.view = "episodes"
+            currentSeasonNumber = -999
+            if type(m.series.seasons) = "roArray" and m.season >= 0 and m.season < m.series.seasons.count()
+                currentSeasonNumber = orbitInteger(m.series.seasons[m.season].number,-999)
+            end if
+            if context.doesExist("season") and currentSeasonNumber = orbitInteger(context.season,-998)
+                m.episode = 0
+                applyPendingResumeEpisode()
+            end if
+        end if
         if m.view = "player" and m.endScreenNextEpisodePending
             for each seasonEntry in m.series.seasons
                 if seasonEntry.number = context.season then seasonEntry.loaded = true
