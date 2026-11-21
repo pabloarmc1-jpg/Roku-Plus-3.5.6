@@ -165,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     ' Keep PID continuity baselines across every HLS segment in this relay response.
     tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
-    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},pesBuffers:{},pmtPid:-1,videoPid:-1}
+    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,videoPid:-1}
     segmentDiscontinuities = server.segmentDiscontinuities
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
@@ -193,6 +193,8 @@ sub rpTsRelayServe(connection as object, server as object)
                 tsClockState.havePts = {}
                 tsClockState.psiBuffers = {}
                 tsClockState.pesBuffers = {}
+                tsClockState.headerLastCounters = {}
+                tsClockState.headerHaveCounters = {}
                 tsContinuityState.lastCounters = {}
                 tsContinuityState.haveCounters = {}
             end if
@@ -299,8 +301,8 @@ sub rpTsRelayServe(connection as object, server as object)
         if quickAudit.aligned and quickAudit.syncErrors = 0 and quickAudit.headerErrors = 0
             fragmentedAudit = rpTsRelayAuditFragmentedHeaders(payload,tsClockState)
             clockAudit = rpTsRelayAuditClocks(payload,tsClockState)
-            if fragmentedAudit.pesHeaders > 0 or fragmentedAudit.psiSections > 0
-                print "[RokuPlus ts-audit] fragmented_headers segment="; segmentIndex; " psiSections="; fragmentedAudit.psiSections; " pesHeaders="; fragmentedAudit.pesHeaders; " videoPid="; tsClockState.videoPid; " pmtPid="; tsClockState.pmtPid
+            if fragmentedAudit.pesHeaders > 0 or fragmentedAudit.psiSections > 0 or fragmentedAudit.headerGaps > 0 or fragmentedAudit.headerDuplicates > 0
+                print "[RokuPlus ts-audit] fragmented_headers segment="; segmentIndex; " psiSections="; fragmentedAudit.psiSections; " pesHeaders="; fragmentedAudit.pesHeaders; " headerGaps="; fragmentedAudit.headerGaps; " headerDuplicates="; fragmentedAudit.headerDuplicates; " videoPid="; tsClockState.videoPid; " pmtPid="; tsClockState.pmtPid
             end if
             if clockAudit.pcrWraps > 0 or clockAudit.pcrRegressions > 0 or fragmentedAudit.ptsWraps > 0 or fragmentedAudit.dtsWraps > 0 or fragmentedAudit.dtsRegressions > 0
                 print "[RokuPlus ts-clock] segment="; segmentIndex; " pcrWraps="; clockAudit.pcrWraps; " pcrRegressions="; clockAudit.pcrRegressions; " ptsWraps="; fragmentedAudit.ptsWraps; " dtsWraps="; fragmentedAudit.dtsWraps; " dtsRegressions="; fragmentedAudit.dtsRegressions
@@ -321,6 +323,8 @@ sub rpTsRelayServe(connection as object, server as object)
             tsClockState.havePts = {}
             tsClockState.psiBuffers = {}
             tsClockState.pesBuffers = {}
+            tsClockState.headerLastCounters = {}
+            tsClockState.headerHaveCounters = {}
         end if
         if not quickAudit.aligned or quickAudit.syncErrors > 0 or quickAudit.headerErrors > 0
             print "[RokuPlus ts-audit] structural_warning segment="; segmentIndex; " bytes="; payloadSize; " packets="; quickAudit.packetCount; " aligned="; quickAudit.aligned; " syncErrors="; quickAudit.syncErrors; " headerErrors="; quickAudit.headerErrors; " firstBad="; quickAudit.firstBadOffset
@@ -891,7 +895,7 @@ end function
 ' Assemble PSI sections and PES timestamp headers across TS packet boundaries.
 ' This is a read-only diagnostic pass; it never changes or drops stream bytes.
 function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as object
-    result = {psiSections:0,pesHeaders:0,ptsWraps:0,dtsWraps:0,dtsRegressions:0}
+    result = {psiSections:0,pesHeaders:0,ptsWraps:0,dtsWraps:0,dtsRegressions:0,headerGaps:0,headerDuplicates:0}
     if type(payload) <> "roByteArray" or type(state) <> "roAssociativeArray" then return result
     total = payload.Count()
     if total <= 0 or (total mod 188) <> 0 then return result
@@ -900,13 +904,17 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
             pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
             header = payload[offset+3]
             adaptationControl = (header \\ 16) mod 4
+            discontinuity = false
             if adaptationControl = 2 or adaptationControl = 3
                 adaptationLength = payload[offset+4]
                 if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
                     if payload[offset+5] >= 128
+                        discontinuity = true
                         key = pid.toStr()
                         if state.psiBuffers.doesExist(key) then state.psiBuffers.Delete(key)
                         if state.pesBuffers.doesExist(key) then state.pesBuffers.Delete(key)
+                        if state.headerHaveCounters.doesExist(key) then state.headerHaveCounters.Delete(key)
+                        if state.headerLastCounters.doesExist(key) then state.headerLastCounters.Delete(key)
                         if state.havePcr.doesExist(key) then state.havePcr.Delete(key)
                         if state.lastPcr.doesExist(key) then state.lastPcr.Delete(key)
                         if state.haveDts.doesExist(key) then state.haveDts.Delete(key)
@@ -916,7 +924,25 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                     end if
                 end if
             end if
-            if adaptationControl = 1 or adaptationControl = 3
+            hasPayload = adaptationControl = 1 or adaptationControl = 3
+            skipPayload = false
+            key = pid.toStr()
+            if hasPayload and pid <> 8191
+                if state.headerHaveCounters.doesExist(key)
+                    previousCounter = state.headerLastCounters[key]
+                    if not discontinuity and (header mod 16) = previousCounter
+                        skipPayload = true
+                        result.headerDuplicates++
+                    else if not discontinuity and (header mod 16) <> ((previousCounter + 1) mod 16)
+                        result.headerGaps++
+                        if state.psiBuffers.doesExist(key) then state.psiBuffers.Delete(key)
+                        if state.pesBuffers.doesExist(key) then state.pesBuffers.Delete(key)
+                    end if
+                end if
+                state.headerLastCounters[key] = header mod 16
+                state.headerHaveCounters[key] = true
+            end if
+            if hasPayload and not skipPayload
                 payloadStart = offset + 4
                 if adaptationControl = 3
                     adaptationLength = payload[offset+4]
