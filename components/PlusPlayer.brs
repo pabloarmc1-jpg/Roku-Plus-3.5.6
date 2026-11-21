@@ -767,6 +767,7 @@ sub openRequest()
     m.tsFastreamPrefetchEligible = false
     m.tsRelayPending = false
     m.tsRelaySegments = invalid
+    m.tsRelayDiscontinuities = invalid
     m.tsRelayDurations = invalid
     m.tsRelayDuration = invalid
     m.tsRelayPositionOffset = 0.0
@@ -881,6 +882,10 @@ sub openRequest()
     if supplied.tsRelayEnabled = true and type(supplied.segmentUrls) = "roArray" and supplied.segmentUrls.count() > 1
         m.tsRelayMode = true
         m.tsRelaySegments = supplied.segmentUrls
+        m.tsRelayDiscontinuities = invalid
+        if type(supplied.segmentDiscontinuities) = "roArray" and supplied.segmentDiscontinuities.count() = m.tsRelaySegments.count()
+            m.tsRelayDiscontinuities = supplied.segmentDiscontinuities
+        end if
         m.tsFastreamPrefetchEligible = supplied.sourceHost = "fastream"
         if m.tsFastreamPrefetchEligible
             print "[RokuPlus ts-prefetch] provider=fastream enabled=eligible segments="; m.tsRelaySegments.count()
@@ -1000,6 +1005,7 @@ sub openRequest()
 
     if m.tsRelayMode
         m.tsStreamServer.segments = m.tsRelaySegments
+        m.tsStreamServer.segmentDiscontinuities = m.tsRelayDiscontinuities
         m.tsStreamServer.mediaHeaders = supplied.mediaHeaders
         m.tsStreamServer.prefetchTask = invalid
         if m.tsFastreamPrefetchEligible and m.tsPrefetchTask <> invalid
