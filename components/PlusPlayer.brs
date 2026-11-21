@@ -707,6 +707,10 @@ sub openRequest()
     if len(supplied.url) = 0 then return
     ' Stop the preceding decoder without emitting a close for the new request.
     m.mediaOpen = false
+    if m.tsStreamServer <> invalid
+        m.tsStreamServer.stopRequested = true
+        m.tsStreamServer.generation = m.tsStreamServer.generation + 1
+    end if
     if m.tsPrefetchTask <> invalid then m.tsPrefetchTask.stopRequested = true
     m.endScreenOpen = false
     m.endScreenItems = []
@@ -1011,6 +1015,7 @@ sub openRequest()
         end if
         m.tsRelayAccessKey = CreateObject("roDeviceInfo").getRandomUUID()
         m.tsStreamServer.accessKey = m.tsRelayAccessKey
+        m.tsStreamServer.generation = m.generation
         m.tsStreamServer.stopRequested = false
         m.tsStreamServer.segmentsSent = 0
         m.tsStreamServer.nextSegmentIndex = 0
@@ -1108,6 +1113,10 @@ sub closePlayback()
         if GetInterface(m.current.requestId,"ifString") <> invalid then closedRequest.requestId = m.current.requestId
     end if
     m.closing = true
+    if m.tsStreamServer <> invalid
+        m.tsStreamServer.stopRequested = true
+        m.tsStreamServer.generation = m.tsStreamServer.generation + 1
+    end if
     if m.tsPrefetchTask <> invalid then m.tsPrefetchTask.stopRequested = true
     emitDiagnostic("close")
     m.mediaOpen = false
