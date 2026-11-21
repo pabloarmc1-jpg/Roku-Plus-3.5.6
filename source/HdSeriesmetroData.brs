@@ -127,7 +127,7 @@ end function
 function rpHdSeriesmetroKnownTmdbId(title as dynamic, kind as string) as string
     if kind <> "series" then return ""
     key = lcase(orbitText(title,200).trim())
-    key = CreateObject("roRegex","\\s*\\((?:19|20)[0-9]{2}\\)\\s*$","").replace(key,"").trim()
+    key = CreateObject("roRegex","\s*\((?:19|20)[0-9]{2}\)\s*$","").replace(key,"").trim()
     key = key.replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u").replace("ñ","n")
     if key = "the last man on earth" or key = "el ultimo hombre en la tierra"
         return "61888"
