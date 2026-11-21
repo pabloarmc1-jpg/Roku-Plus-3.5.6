@@ -692,19 +692,41 @@ sub fetched(event as object)
         ' Keep the original catalog identity when a provider metadata adapter
         ' returns a reduced item. Continue Watching needs these source fields.
         if type(answer.item) = "roAssociativeArray" and context.doesExist("item") and type(context.item) = "roAssociativeArray"
+            ' Keep legacy source fields only when the refreshed metadata omitted them.
+            ' A validated replacement value must not be overwritten by stale history.
             identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers"]
             for each identityField in identityFields
                 if context.item.doesExist(identityField)
                     sourceValue = context.item[identityField]
                     if sourceValue <> invalid
-                        keepValue = true
-                        if GetInterface(sourceValue, "ifString") <> invalid
-                            if sourceValue = "" then keepValue = false
+                        targetMissing = not answer.item.doesExist(identityField)
+                        if not targetMissing
+                            targetValue = answer.item[identityField]
+                            if targetValue = invalid then targetMissing = true
+                            if GetInterface(targetValue, "ifString") <> invalid and targetValue = "" then targetMissing = true
                         end if
-                        if keepValue then answer.item[identityField] = sourceValue
+                        if targetMissing
+                            keepValue = true
+                            if GetInterface(sourceValue, "ifString") <> invalid
+                                if sourceValue = "" then keepValue = false
+                            end if
+                            if keepValue then answer.item[identityField] = sourceValue
+                        end if
                     end if
                 end if
             end for
+            ' Re-key saved progress only when IMDb ID plus kind and episode
+            ' coordinates establish that both catalog IDs represent one item.
+            if type(m.watchState) = "roArray"
+                previousWatchCount = m.watchState.count()
+                m.watchState = rpWatchMigrateIdentity(m.watchState,context.item,answer.item)
+                if m.watchState.count() = previousWatchCount
+                    ' The helper may replace one entry without changing the count.
+                    if orbitText(context.item.id,180) <> orbitText(answer.item.id,180)
+                        rpWatchSave(m.watchState,m.profileId)
+                    end if
+                end if
+            end if
         end if
         m.detail = answer.item
         preloadStreamXImages(m.detail)
