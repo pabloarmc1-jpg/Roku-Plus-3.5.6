@@ -308,7 +308,9 @@ sub rpTsRelaySendString(connection as object, value as string, server as object,
     progressTimer.Mark()
     while offset < len(value)
         if server.stopRequested or progressTimer.TotalMilliseconds() >= 30000
-            print "[RokuPlus ts-relay] send_abort kind=string offset="; offset; " reason="; iif(server.stopRequested,"stopped","no_progress_timeout")
+            reason = "no_progress_timeout"
+            if server.stopRequested then reason = "stopped"
+            print "[RokuPlus ts-relay] send_abort kind=string offset="; offset; " reason="; reason
             server.sendOk = false
             exit while
         end if
