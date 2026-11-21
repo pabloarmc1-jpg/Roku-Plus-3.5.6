@@ -426,7 +426,7 @@ function orbitUniqueCatalogItems(items as dynamic) as object
                 end if
                 item.title = title
                 if orbitText(item.year,12).trim() = "" and year <> "" then item.year = year
-                key = "series|"+lcase(title)
+                key = "series|"+lcase(title)+"|"+year
             else if kind = "movie" and title <> ""
                 ' Movie providers also disagree about whether the year is part of
                 ' the title. Normalize "Example (2020)" before comparing cards.
@@ -440,12 +440,13 @@ function orbitUniqueCatalogItems(items as dynamic) as object
                 key = "movie|"+lcase(title)+"|"+year
             end if
             duplicateIndex = -1
-            if kind = "movie" and title <> ""
-                ' Merge same-title movie records when years match or one source
-                ' omits the year. Keep genuine remakes with different years.
+            if (kind = "movie" or kind = "series") and title <> ""
+                ' Merge same-title records when years match or one source omits
+                ' the year. Different known years remain separate (remakes/
+                ' distinct series adaptations must not collapse into one card).
                 for existingIndex = 0 to result.count()-1
                     existing = result[existingIndex]
-                    if orbitText(existing.kind,20) = "movie"
+                    if orbitText(existing.kind,20) = kind
                         existingTitle = orbitText(existing.title,200).trim()
                         if lcase(existingTitle) = lcase(title)
                             existingYear = orbitText(existing.year,12).trim()
