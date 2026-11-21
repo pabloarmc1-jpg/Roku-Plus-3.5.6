@@ -3288,6 +3288,29 @@ sub advanceTsRelayLocalSeek(now as integer)
     ' The deeper-preroll retry above is the only restart attempt for this seek.
     if not ready and elapsed < 2500 then return
 
+    ' For normal playback, let the restarted segment's local clock reach the
+    ' requested in-segment offset naturally. Some TS segments retain timestamp
+    ' offsets that make Video.seek land tens of seconds away despite actualStart
+    ' matching the requested value. Avoid that unreliable local seek entirely.
+    if state = "playing" and not m.wantPaused
+        if nativePosition < localTarget - 0.75 then return
+        m.tsRelayLocalSeekPending = invalid
+        m.ticket.issuedAt = now
+        waitBudget = localTarget * 1000 + 5000
+        if waitBudget < 12000 then waitBudget = 12000
+        m.ticket.deadlineAt = now + waitBudget
+        m.ticket.bufferingTimeoutExtended = false
+        m.ticket.sawBuffering = false
+        m.ticket.actualStart = invalid
+        m.ticket.actualStartAt = invalid
+        m.ticket.landingAt = invalid
+        m.ticket.landingPosition = invalid
+        m.ticket.sawClockJump = true
+        print "[RokuPlus ts-relay] local_clock_reached segment="; segmentIndex; " target="; localTarget; " nativePosition="; nativePosition
+        emitDiagnostic("ts_relay_local_clock_reached")
+        return
+    end if
+
     beforePosition = nativePosition
     advanceCount = m.tsRelayLocalSeekPending.advanceCount
     m.tsRelayLocalSeekPending = invalid
