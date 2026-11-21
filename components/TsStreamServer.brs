@@ -848,7 +848,7 @@ function rpTsRelayAuditClocks(payload as object, state as object) as object
                         if state.havePcr.doesExist(key) then state.havePcr.Delete(key)
                         if state.lastPcr.doesExist(key) then state.lastPcr.Delete(key)
                     end if
-                    if (adaptationFlags mod 32) >= 16 and adaptationLength >= 7
+                    if state.pcrPid >= 16 and state.pcrPid <= 8190 and pid = state.pcrPid and (adaptationFlags mod 32) >= 16 and adaptationLength >= 7
                         pcrReserved = (payload[offset+10] mod 128) \\ 2
                         pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
                         if pcrReserved = 63 and pcrExtension <= 299
