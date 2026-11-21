@@ -1076,7 +1076,7 @@ sub launchVideo(item as object, url as string, format as string)
     if m.playbackMode <> "compatible" or item.kind = "live" then m.activeJobId = ""
     eraseScreen()
     m.canvas.visible = false
-    if m.view <> "player" then m.viewBeforePlayer = m.view
+    if m.view <> "player" and m.view <> "source-resolving" then m.viewBeforePlayer = m.view
     m.view = "player"
     syncHomeRotationTimers()
     loadingTitleNode = m.player.findNode("loadingTitle")
@@ -3653,6 +3653,9 @@ sub playDetail()
     m.sourceLaunchPending = true
     m.note = ""
     keepActiveEpisode = m.view = "player" and m.player.active = true and type(m.activePlaybackItem) = "roAssociativeArray" and m.detail.kind = "episode"
+    ' Preserve the actual title screen as the return destination. The resolving
+    ' screen is temporary and must never become viewBeforePlayer.
+    if not keepActiveEpisode and m.view <> "source-resolving" and m.view <> "player" then m.viewBeforePlayer = m.view
     if not keepActiveEpisode then m.view = "source-resolving"
     if orbitText(m.detail.discoverySource,32) = "cinemeta"
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
