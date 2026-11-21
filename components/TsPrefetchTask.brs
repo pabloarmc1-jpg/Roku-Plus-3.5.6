@@ -10,6 +10,7 @@ sub runTsPrefetch()
     activeGeneration = -1
     ready = {}
     pending = {}
+    staleTransfers = {}
     nextToSchedule = 0
     m.top.readyFiles = ready
     m.top.status = "running"
@@ -84,8 +85,32 @@ sub runTsPrefetch()
                         end if
                     end if
                     pending.Delete(eventId)
+                else if staleTransfers.doesExist(eventId)
+                    ' A timed-out AsyncCancel may still deliver its completion event.
+                    ' Remove any late file without allowing it to become a ready segment.
+                    DeleteFile(staleTransfers[eventId])
+                    staleTransfers.Delete(eventId)
                 end if
             end if
+
+            ' A stalled upstream request must not occupy either prefetch slot forever.
+            timedOutIds = []
+            for each pendingId in pending
+                pendingEntry = pending[pendingId]
+                if pendingEntry.timer.TotalMilliseconds() >= 30000 then timedOutIds.push(pendingId)
+            end for
+            for each timedOutId in timedOutIds
+                timedOutEntry = pending[timedOutId]
+                timedOutEntry.xfer.AsyncCancel()
+                staleTransfers[timedOutId] = timedOutEntry.filePath
+                DeleteFile(timedOutEntry.filePath)
+                pending.Delete(timedOutId)
+                if m.top.generation = activeGeneration and not m.top.stopRequested
+                    ready[timedOutEntry.index.toStr()] = "FAILED"
+                    m.top.readyFiles = ready
+                end if
+                print "[RokuPlus ts-prefetch] fetch_timeout segment="; timedOutEntry.index; " elapsedMs="; timedOutEntry.timer.TotalMilliseconds()
+            end for
 
             ' Fill at most two transfer slots. Keep the scheduling horizon close
             ' to the segment the relay is currently waiting to consume.
