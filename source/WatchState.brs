@@ -111,6 +111,7 @@ function rpWatchStoredNumberValid(value as dynamic) as boolean
 end function
 
 function rpWatchLoad(profileId = "p1" as string) as object
+    if rpNormalizeProfileId(profileId) <> profileId then return []
     section = rpWatchSection(profileId)
     if GetInterface(section, "ifRegistrySection") = invalid then return []
     raw = section.read("stateV1")
@@ -177,6 +178,7 @@ function rpWatchCompactForSave(items as object) as object
 end function
 
 function rpWatchSave(items as object, profileId = "p1" as string) as boolean
+    if rpNormalizeProfileId(profileId) <> profileId then return false
     if type(items) <> "roArray" then return false
     ' Work on a JSON round-trip copy: compaction and size trimming must never
     ' mutate the live in-memory history before persistence is confirmed.
