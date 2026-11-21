@@ -3137,13 +3137,24 @@ sub advanceTsRelayRestart(now as integer)
         m.tsRelayRestartStage = 0
         return
     end if
-    ' The relay can only restart at a segment boundary. Verify against that
-    ' actual landing point while retaining the originally requested position
-    ' for diagnostics and user-facing context.
-    if m.ticket.doesExist("requestedTarget") = false then m.ticket.requestedTarget = m.ticket.target
-    m.ticket.target = relayOffset
-    m.tsRelayLocalSeekPending = invalid
+    ' Keep the ticket target on the requested global timeline. The relay
+    ' restarts at a segment boundary, then a local decoder seek completes the
+    ' remaining offset inside that segment before verification.
+    requestedTarget = m.ticket.target
+    localTarget = requestedTarget - relayOffset
+    if localTarget < 0
+        m.ticket = invalid
+        m.failed = true
+        m.notice = "No se pudo calcular la posición local del segmento TS."
+        m.noticeUntil = 2147483647
+        m.decoder.visible = false
+        revealTransport()
+        emitDiagnostic("ts_relay_local_target_invalid")
+        m.tsRelayRestartStage = 0
+        return
+    end if
     m.tsRelayPositionOffset = relayOffset
+    m.tsRelayLocalSeekPending = {target:localTarget,segment:m.tsRelayRestartSegment,clockWaitStartedAt:0,firstPosition:invalid,lastPosition:invalid,firstSampleAt:0,advanceCount:0}
     relayMedia = CreateObject("roSGNode","ContentNode")
     relayMedia.url = "http://" + m.tsRelayLocalIp + ":49322/stream.ts?key=" + m.tsRelayAccessKey + "&segment=" + m.tsRelayRestartSegment.toStr()
     relayMedia.title = m.titleText.text
@@ -3155,7 +3166,7 @@ sub advanceTsRelayRestart(now as integer)
     m.decoder.content = relayMedia
     m.decoder.autoplayAfterSeek = not m.wantPaused
     m.decoder.control = "play"
-    print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment; " landingOffset="; relayOffset; " requestedTarget="; m.ticket.requestedTarget
+    print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment; " landingOffset="; relayOffset; " requestedTarget="; requestedTarget; " localTarget="; localTarget
     emitDiagnostic("ts_relay_seek_restart")
     m.tsRelayRestartStage = 0
     m.tsRelayRestartAt = 0
