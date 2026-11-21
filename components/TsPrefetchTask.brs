@@ -100,7 +100,11 @@ sub runTsPrefetch()
                     statusCode = event.GetResponseCode()
                     elapsed = entry.timer.TotalMilliseconds()
                     fileSystem = CreateObject("roFileSystem")
-                    downloadedSize = fileSystem.GetFileSize(entry.filePath)
+                    fileInfo = fileSystem.Stat(entry.filePath)
+                    downloadedSize = -1
+                    if type(fileInfo) = "roAssociativeArray" and fileInfo.type = "file"
+                        downloadedSize = fileInfo.size
+                    end if
                     if event.GetInt() = 1 and statusCode >= 200 and statusCode < 300 and m.top.generation = activeGeneration and not m.top.stopRequested and downloadedSize > 0 and downloadedSize <= 16777216
                         ready[entry.index.toStr()] = entry.filePath
                         m.top.readyFiles = ready
