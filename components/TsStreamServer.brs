@@ -1086,10 +1086,10 @@ sub rpTsRelayResetPsiPidState(state as object, pid as integer, clearVersions as 
     if clearVersions
         staleVersions = []
         if type(state.psiActiveVersions) = "roAssociativeArray"
-            for versionKey in state.psiActiveVersions
+            for each versionKey in state.psiActiveVersions
                 if left(versionKey,len(tablePrefix)) = tablePrefix then staleVersions.push(versionKey)
             end for
-            for versionKey in staleVersions
+            for each versionKey in staleVersions
                 state.psiActiveVersions.Delete(versionKey)
             end for
         end if
@@ -1363,12 +1363,12 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
         if versionDelta >= 16 then return
         if versionDelta > 0
             staleKeys = []
-            for existingKey in state.psiTables
+            for each existingKey in state.psiTables
                 if left(existingKey,len(tablePrefix)) = tablePrefix and existingKey <> tableKey and existingKey <> tablePrefix + activeVersion.toStr()
                     staleKeys.push(existingKey)
                 end if
             end for
-            for staleKey in staleKeys
+            for each staleKey in staleKeys
                 state.psiTables.Delete(staleKey)
             end for
         end if
@@ -1378,16 +1378,16 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
         if tableKind = "pat"
             patPrefix = pid.toStr() + ":pat:"
             stalePendingTables = []
-            for existingKey in state.psiTables
+            for each existingKey in state.psiTables
                 if left(existingKey,len(patPrefix)) = patPrefix then stalePendingTables.push(existingKey)
             end for
         else
             stalePendingTables = []
-            for existingKey in state.psiTables
+            for each existingKey in state.psiTables
                 if left(existingKey,len(tablePrefix)) = tablePrefix then stalePendingTables.push(existingKey)
             end for
         end if
-        for staleKey in stalePendingTables
+        for each staleKey in stalePendingTables
             state.psiTables.Delete(staleKey)
         end for
     end if
@@ -1434,33 +1434,33 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
             if tableKind = "pat"
                 patPrefix = pid.toStr() + ":pat:"
                 stalePatTables = []
-                for existingKey in state.psiTables
+                for each existingKey in state.psiTables
                     if left(existingKey,len(patPrefix)) = patPrefix and existingKey <> tableKey
                         stalePatTables.push(existingKey)
                     end if
                 end for
-                for staleKey in stalePatTables
+                for each staleKey in stalePatTables
                     state.psiTables.Delete(staleKey)
                 end for
                 stalePatVersions = []
-                for existingKey in activeVersions
+                for each existingKey in activeVersions
                     if left(existingKey,len(patPrefix)) = patPrefix and existingKey <> tableIdentity
                         stalePatVersions.push(existingKey)
                     end if
                 end for
-                for staleKey in stalePatVersions
+                for each staleKey in stalePatVersions
                     activeVersions.Delete(staleKey)
                 end for
                 state.psiActiveVersions = activeVersions
             end if
             ' Retain the applied version and discard superseded partial assemblies.
             staleKeys = []
-            for existingKey in state.psiTables
+            for each existingKey in state.psiTables
                 if left(existingKey,len(tablePrefix)) = tablePrefix and existingKey <> tableKey
                     staleKeys.push(existingKey)
                 end if
             end for
-            for staleKey in staleKeys
+            for each staleKey in staleKeys
                 state.psiTables.Delete(staleKey)
             end for
             print "[RokuPlus ts-audit] psi_table_applied pid="; pid; " kind="; tableKind; " version="; versionNumber
@@ -1477,7 +1477,7 @@ function rpTsRelayApplyPatSections(state as object, sections as object) as boole
     selectedPmtPid = -1
     selectedProgramNumber = -1
     programPids = {}
-    for section in sections
+    for each section in sections
         total = section.count()
         if total < 12 then return false
         if ((total - 12) mod 4) <> 0 then return false
@@ -1515,10 +1515,10 @@ function rpTsRelayApplyPatSections(state as object, sections as object) as boole
             if state.psiBuffers.doesExist(oldPmtKey) then state.psiBuffers.Delete(oldPmtKey)
             staleKeys = []
             oldTablePrefix = oldPmtKey + ":pmt:"
-            for existingKey in state.psiTables
+            for each existingKey in state.psiTables
                 if left(existingKey,len(oldTablePrefix)) = oldTablePrefix then staleKeys.push(existingKey)
             end for
-            for staleKey in staleKeys
+            for each staleKey in staleKeys
                 state.psiTables.Delete(staleKey)
             end for
             rpTsRelayClearPmtVersionState(state,previousPmtPid)
@@ -1528,10 +1528,10 @@ function rpTsRelayApplyPatSections(state as object, sections as object) as boole
             if state.psiBuffers.doesExist(newPmtKey) then state.psiBuffers.Delete(newPmtKey)
             staleKeys = []
             newTablePrefix = newPmtKey + ":pmt:"
-            for existingKey in state.psiTables
+            for each existingKey in state.psiTables
                 if left(existingKey,len(newTablePrefix)) = newTablePrefix then staleKeys.push(existingKey)
             end for
-            for staleKey in staleKeys
+            for each staleKey in staleKeys
                 state.psiTables.Delete(staleKey)
             end for
             rpTsRelayClearPmtVersionState(state,selectedPmtPid)
@@ -1551,10 +1551,10 @@ sub rpTsRelayClearPmtVersionState(state as object, pid as integer)
     if pid < 0 then return
     prefix = pid.toStr() + ":pmt:"
     keys = []
-    for activeKey in state.psiActiveVersions
+    for each activeKey in state.psiActiveVersions
         if left(activeKey,len(prefix)) = prefix then keys.push(activeKey)
     end for
-    for activeKey in keys
+    for each activeKey in keys
         state.psiActiveVersions.Delete(activeKey)
     end for
 end sub
@@ -1608,7 +1608,7 @@ function rpTsRelayPmtContentSignature(sections as object) as string
     hashA = 7
     hashB = 19
     byteCount = 0
-    for section in sections
+    for each section in sections
         if type(section) <> "roArray" then return ""
         total = section.count()
         if total < 16 or total > 1024 then return ""
@@ -1649,7 +1649,7 @@ function rpTsRelayApplyPmtSections(state as object, sections as object) as boole
     selectedAudioSeen = {}
     selectedStreamTypes = {}
     programInfoSignature = invalid
-    for section in sections
+    for each section in sections
         total = section.count()
         if total < 16 then return false
         if (section[8] \ 32) <> 7 then return false
