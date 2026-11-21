@@ -263,8 +263,11 @@ function rpWatchUpdate(items as object, item as object, position as dynamic, dur
     record = rpWatchRecord(item,position,duration)
     if index >= 0
         old = items[index]
+        ' A fresh playback progress sample means the user has started watching
+        ' this title again. Clear the previous watched flag; the 92% rule below
+        ' will mark it watched again when the new playback reaches completion.
         if old.doesExist("watched")
-            if old.watched = true then record.watched = true
+            if old.watched = true then record.watched = false
         end if
         if old.doesExist("listed")
             if old.listed = true then record.listed = true
