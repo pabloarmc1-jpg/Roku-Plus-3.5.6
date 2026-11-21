@@ -274,14 +274,18 @@ sub rpTsRelayServe(connection as object, server as object)
             DeleteFile(filePath)
             exit for
         end if
-        ' Deep packet inspection is diagnostic, not part of forwarding. Sample it
-        ' periodically; always inspect a segment with an invalid TS packet length.
-        auditDue = (sentSegments > 0 and (sentSegments mod 25) = 0) or (payloadSize mod 188) <> 0
+        ' Check packet framing and critical TS header fields on every segment.
+        ' The full PSI/clock/continuity inspection remains sampled to bound CPU cost.
+        quickAudit = rpTsRelayQuickAuditPayload(payload)
+        if not quickAudit.aligned or quickAudit.syncErrors > 0 or quickAudit.headerErrors > 0
+            print "[RokuPlus ts-audit] structural_warning segment="; segmentIndex; " bytes="; payloadSize; " packets="; quickAudit.packetCount; " aligned="; quickAudit.aligned; " syncErrors="; quickAudit.syncErrors; " headerErrors="; quickAudit.headerErrors; " firstBad="; quickAudit.firstBadOffset
+        end if
+        auditDue = (sentSegments > 0 and (sentSegments mod 25) = 0) or not quickAudit.aligned or quickAudit.syncErrors > 0 or quickAudit.headerErrors > 0
         if auditDue
             tsAudit = rpTsRelayAuditPayload(payload)
             if not tsAudit.aligned or tsAudit.syncErrors > 0 or tsAudit.patPackets = 0 or tsAudit.continuityErrors > 0
                 print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " aligned="; tsAudit.aligned; " syncErrors="; tsAudit.syncErrors; " firstBad="; tsAudit.firstBadOffset
-                print "[RokuPlus ts-audit] pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors
+                print "[RokuPlus ts-audit] pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked; " ccErrors="; tsAudit.continuityErrors; " ccDuplicates="; tsAudit.continuityDuplicates
                 print "[RokuPlus ts-audit] pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " audioPidCount="; tsAudit.audioPidCount; " audioPids="; tsAudit.audioPidList; " aac="; tsAudit.aac
                 print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
                 print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
@@ -289,7 +293,7 @@ sub rpTsRelayServe(connection as object, server as object)
                 print "[RokuPlus ts-clock] dtsCount="; tsAudit.dtsCount; " firstDts90k="; tsAudit.firstDts; " lastDts90k="; tsAudit.lastDts
             else if sentSegments mod 25 = 0
                 print "[RokuPlus ts-audit] segment="; segmentIndex; " bytes="; payloadSize; " packets="; tsAudit.packetCount; " pat="; tsAudit.patPackets; " null="; tsAudit.nullPackets; " ccChecked="; tsAudit.continuityChecked
-                print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " audioPidCount="; tsAudit.audioPidCount; " audioPids="; tsAudit.audioPidList; " aac="; tsAudit.aac
+                print "[RokuPlus ts-audit] ccErrors="; tsAudit.continuityErrors; " ccDuplicates="; tsAudit.continuityDuplicates; " pmtPid="; tsAudit.pmtPid; " pmt="; tsAudit.pmtPackets; " videoPid="; tsAudit.videoPid; " h264="; tsAudit.h264; " audioPid="; tsAudit.audioPid; " audioPidCount="; tsAudit.audioPidCount; " audioPids="; tsAudit.audioPidList; " aac="; tsAudit.aac
                 print "[RokuPlus ts-audit] idr="; tsAudit.idrCount; " firstIdrPacket="; tsAudit.firstIdrPacket; " sps="; tsAudit.sps; " pps="; tsAudit.pps
                 print "[RokuPlus ts-audit] ptsCount="; tsAudit.ptsCount; " firstPts90k="; tsAudit.firstPts; " lastPts90k="; tsAudit.lastPts
                 print "[RokuPlus ts-clock] pcrCount="; tsAudit.pcrCount; " firstPcr90k="; tsAudit.firstPcr; " lastPcr90k="; tsAudit.lastPcr
@@ -459,6 +463,46 @@ function rpTsRelayHex(value as integer) as string
     return result
 end function
 
+' Fast structural validation for every segment. It does not alter or reject payloads.
+' Expensive PSI/PES/clock inspection remains in the sampled deep audit below.
+function rpTsRelayQuickAuditPayload(payload as object) as object
+    result = {aligned:false,packetCount:0,syncErrors:0,headerErrors:0,firstBadOffset:-1}
+    if type(payload) <> "roByteArray" then return result
+    total = payload.Count()
+    if total <= 0 then return result
+    result.aligned = (total mod 188) = 0
+    result.packetCount = total \ 188
+    for offset = 0 to total - 188 step 188
+        if payload[offset] <> &H47
+            result.syncErrors++
+            if result.firstBadOffset < 0 then result.firstBadOffset = offset
+        else
+            header = payload[offset+3]
+            adaptationControl = (header \ 16) mod 4
+            if adaptationControl = 0
+                result.headerErrors++
+                if result.firstBadOffset < 0 then result.firstBadOffset = offset + 3
+            else if adaptationControl = 2 or adaptationControl = 3
+                adaptationLength = payload[offset+4]
+                maxLength = 183
+                if adaptationControl = 3 then maxLength = 182
+                if adaptationLength > maxLength or offset + 5 + adaptationLength > offset + 188
+                    result.headerErrors++
+                    if result.firstBadOffset < 0 then result.firstBadOffset = offset + 4
+                end if
+            end if
+            if payload[offset+1] >= 128
+                result.headerErrors++
+                if result.firstBadOffset < 0 then result.firstBadOffset = offset + 1
+            end if
+        end if
+    end for
+    if not result.aligned and result.firstBadOffset < 0
+        result.firstBadOffset = total - (total mod 188)
+    end if
+    return result
+end function
+
 ' Read-only MPEG-TS packet audit. The payload is forwarded unchanged.
 ' Read-only MPEG-TS packet audit. The payload is forwarded unchanged.
 ' PSI inspection is intentionally limited to sections contained in one TS packet.
@@ -472,6 +516,7 @@ function rpTsRelayAuditPayload(payload as object) as object
     result.nullPackets = 0
     result.continuityErrors = 0
     result.continuityChecked = 0
+    result.continuityDuplicates = 0
     result.pmtPid = -1
     result.pmtPackets = 0
     result.videoPid = -1
@@ -536,7 +581,13 @@ function rpTsRelayAuditPayload(payload as object) as object
                 if haveCounters[key] = true
                     result.continuityChecked++
                     expected = (lastCounters[key] + 1) mod 16
-                    if continuity <> expected and not discontinuity
+                    if discontinuity
+                        ' A declared discontinuity starts a new continuity baseline.
+                    else if continuity = lastCounters[key]
+                        ' MPEG-TS permits an identical retransmitted payload packet
+                        ' to repeat its continuity counter. Do not flag it as a gap.
+                        result.continuityDuplicates++
+                    else if continuity <> expected
                         result.continuityErrors++
                     end if
                 end if
