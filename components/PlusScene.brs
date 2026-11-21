@@ -718,13 +718,9 @@ sub fetched(event as object)
             ' Re-key saved progress only when IMDb ID plus kind and episode
             ' coordinates establish that both catalog IDs represent one item.
             if type(m.watchState) = "roArray"
-                previousWatchCount = m.watchState.count()
                 m.watchState = rpWatchMigrateIdentity(m.watchState,context.item,answer.item)
-                if m.watchState.count() = previousWatchCount
-                    ' The helper may replace one entry without changing the count.
-                    if orbitText(context.item.id,180) <> orbitText(answer.item.id,180)
-                        rpWatchSave(m.watchState,m.profileId)
-                    end if
+                if orbitText(context.item.id,180) <> orbitText(answer.item.id,180)
+                    rpWatchSave(m.watchState,m.profileId)
                 end if
             end if
         end if
