@@ -282,7 +282,7 @@ function subtitleVttPlaylist(body as string, playlistUrl as string) as dynamic
             attrs = rpHdOnlineAttributes(line)
             if lcase(orbitText(attrs.METHOD,20)) <> "none" then return invalid
         else if line <> "" and left(line,1) <> "#"
-            if segmentCount >= 200 then exit for
+            if segmentCount >= 200 then return invalid
             segmentUrl = rpHdOnlineJoin(playlistUrl,line)
             if segmentUrl = "" or instr(1,lcase(segmentUrl),".vtt") = 0 then return invalid
             segment = subtitleGet(subtitleTransfer(""),segmentUrl)
@@ -429,14 +429,21 @@ function subtitleTransfer(apiKey as dynamic) as object
     return transfer
 end function
 
+function subtitleUrlAllowed(endpoint as string) as boolean
+    safeUrl = orbitHttpsUrl(endpoint)
+    if safeUrl = "" then return false
+    if left(safeUrl,37) = "https://subtitles.website/strapi/api/" then return true
+    if left(safeUrl,41) = "https://subtitles.website/strapi/uploads/" then return true
+    if left(safeUrl,29) = "https://api.subdl.com/api/v1/" then return true
+    if left(safeUrl,30) = "https://dl.subdl.com/subtitle/" then return true
+    sourceHost = CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com|([a-z0-9-]+\.)?arianathankspecial\.com)/","i").isMatch(safeUrl)
+    if not sourceHost then return false
+    lowerUrl = lcase(safeUrl)
+    return instr(1,lowerUrl,".vtt") > 0 or instr(1,lowerUrl,".srt") > 0 or instr(1,lowerUrl,".m3u8") > 0
+end function
+
 function subtitleGet(transfer as object, endpoint as string) as dynamic
-    allowed = false
-    if left(endpoint,37) = "https://subtitles.website/strapi/api/" then allowed = true
-    if left(endpoint,41) = "https://subtitles.website/strapi/uploads/" then allowed = true
-    if left(endpoint,29) = "https://api.subdl.com/api/v1/" then allowed = true
-    if left(endpoint,30) = "https://dl.subdl.com/subtitle/" then allowed = true
-    if CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com|([a-z0-9-]+\.)?arianathankspecial\.com)/","i").isMatch(endpoint) and (instr(1,lcase(endpoint),".vtt") > 0 or instr(1,lcase(endpoint),".srt") > 0 or instr(1,lcase(endpoint),".m3u8") > 0) then allowed = true
-    if not allowed then return invalid
+    if not subtitleUrlAllowed(endpoint) then return invalid
     m.subtitleHttpStatus = 0
     port = CreateObject("roMessagePort")
     transfer.setMessagePort(port)
@@ -446,7 +453,16 @@ function subtitleGet(transfer as object, endpoint as string) as dynamic
     if type(event) = "roUrlEvent"
         if event.getSourceIdentity() = transfer.getIdentity() and event.getInt() = 1
             m.subtitleHttpStatus = event.getResponseCode()
-            if m.subtitleHttpStatus = 200 then return event.getString()
+            if m.subtitleHttpStatus = 200
+                ' Roku follows HTTP redirects internally. Re-check the effective
+                ' URL so an allowlisted source cannot redirect to an arbitrary host.
+                finalUrl = transfer.getUrl()
+                if not subtitleUrlAllowed(finalUrl)
+                    print "[RokuPlus subtitles-online] rejected_redirect"
+                    return invalid
+                end if
+                return event.getString()
+            end if
         end if
     end if
     transfer.asyncCancel()
