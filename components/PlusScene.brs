@@ -107,6 +107,11 @@ sub init()
     m.hero = 0
     m.heroFeature = 0
     m.cover = 0
+    m.detailHomeZone = "hero"
+    m.detailHomeCover = 0
+    m.detailHomeListCover = 0
+    m.detailHomeSeriesCover = 0
+    m.detailHomeDiscoveryOffset = 0
     m.seriesCover = 0
     m.images = []
     m.focusItems = []
@@ -813,6 +818,13 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
     m.detail.voeBlocked = blockKey <> "" and m.voeBlockedSession.doesExist(blockKey)
     m.detailOrigin = origin
     m.detailHomeHeroValid = origin = "home" and m.zone = "hero"
+    if origin = "home"
+        m.detailHomeZone = m.zone
+        m.detailHomeCover = m.cover
+        m.detailHomeListCover = m.listCover
+        m.detailHomeSeriesCover = m.seriesCover
+        m.detailHomeDiscoveryOffset = m.discoveryOffset
+    end if
     if m.detailHomeHeroValid then m.detailHomeHero = m.hero
     m.autoplay = playNow
     m.action = 0
@@ -2369,9 +2381,37 @@ sub goHome(restoreHomeHero = false as boolean)
     m.nav = 0
     m.zone = "hero"
     m.hero = 0
-    if restoreHomeHero and m.detailHomeHeroValid and m.features.count() > 0
-        m.hero = m.detailHomeHero
-        if m.hero < 0 or m.hero > 1 then m.hero = 0
+    if restoreHomeHero
+        m.discoveryOffset = m.detailHomeDiscoveryOffset
+        if m.discoveryOffset < 0 then m.discoveryOffset = 0
+        if m.features.count() > 0 and m.discoveryOffset >= m.features.count() then m.discoveryOffset = m.features.count()-1
+        if m.detailHomeZone = "hero" and m.features.count() > 0
+            m.zone = "hero"
+            m.hero = m.detailHomeHero
+            if m.hero < 0 or m.hero > 1 then m.hero = 0
+        else if m.detailHomeZone = "continue" and m.continueItems.count() > 0
+            m.zone = "continue"
+            m.cover = m.detailHomeCover
+            if m.cover < 0 then m.cover = 0
+            if m.cover >= m.continueItems.count() then m.cover = m.continueItems.count()-1
+        else if m.detailHomeZone = "covers" and m.features.count() > 0
+            m.zone = "covers"
+            m.cover = m.detailHomeCover
+            if m.cover < 0 then m.cover = 0
+            if m.cover > 5 then m.cover = 5
+            if m.discoveryOffset + m.cover >= m.features.count() then m.cover = m.features.count()-1-m.discoveryOffset
+            if m.cover < 0 then m.cover = 0
+        else if m.detailHomeZone = "home-list" and m.homeListItems.count() > 0
+            m.zone = "home-list"
+            m.listCover = m.detailHomeListCover
+            if m.listCover < 0 then m.listCover = 0
+            if m.listCover >= m.homeListItems.count() then m.listCover = m.homeListItems.count()-1
+        else if m.detailHomeZone = "home-series" and m.homeSeries.count() > 0
+            m.zone = "home-series"
+            m.seriesCover = m.detailHomeSeriesCover
+            if m.seriesCover < 0 then m.seriesCover = 0
+            if m.seriesCover >= m.homeSeries.count() then m.seriesCover = m.homeSeries.count()-1
+        end if
     end if
     m.detailHomeHeroValid = false
     drawScreen()
