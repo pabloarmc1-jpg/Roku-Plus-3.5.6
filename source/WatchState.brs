@@ -51,8 +51,13 @@ function rpWatchParse(raw as dynamic) as dynamic
         for each coordinateField in ["season", "episode"]
             if entry.doesExist(coordinateField)
                 minimum = 0
-                if coordinateField = "episode" then minimum = 1
-                if not rpWatchStoredIntegerValid(entry[coordinateField],minimum,9999) then return invalid
+                maximum = 999
+                if coordinateField = "episode"
+                    minimum = 1
+                    maximum = 9999
+                end if
+                if not rpWatchStoredIntegerValid(entry[coordinateField],minimum,maximum) then return invalid
+                entry[coordinateField] = int(entry[coordinateField])
             end if
         end for
         if entry.doesExist("seriesSeasonNumbers")
