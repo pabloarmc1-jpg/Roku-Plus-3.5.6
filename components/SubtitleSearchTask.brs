@@ -442,29 +442,58 @@ function subtitleUrlAllowed(endpoint as string) as boolean
     return instr(1,lowerUrl,".vtt") > 0 or instr(1,lowerUrl,".srt") > 0 or instr(1,lowerUrl,".m3u8") > 0
 end function
 
+function subtitleFileSize(stat as dynamic) as integer
+    if type(stat) <> "roAssociativeArray" or not stat.doesExist("size") then return -1
+    size = stat.size
+    numeric = GetInterface(size,"ifInt") <> invalid or GetInterface(size,"ifLongInt") <> invalid or GetInterface(size,"ifFloat") <> invalid or GetInterface(size,"ifDouble") <> invalid
+    if not numeric or size < 0 then return -1
+    if size > 2097152 then return 2097153
+    return int(size)
+end function
+
 function subtitleGet(transfer as object, endpoint as string) as dynamic
     if not subtitleUrlAllowed(endpoint) then return invalid
     m.subtitleHttpStatus = 0
     port = CreateObject("roMessagePort")
     transfer.setMessagePort(port)
     transfer.setUrl(endpoint)
-    if not transfer.asyncGetToString() then return invalid
-    event = wait(12000,port)
-    if type(event) = "roUrlEvent"
-        if event.getSourceIdentity() = transfer.getIdentity() and event.getInt() = 1
-            m.subtitleHttpStatus = event.getResponseCode()
-            if m.subtitleHttpStatus = 200
-                ' Roku follows HTTP redirects internally. Re-check the effective
-                ' URL so an allowlisted source cannot redirect to an arbitrary host.
-                finalUrl = transfer.getUrl()
-                if not subtitleUrlAllowed(finalUrl)
-                    print "[RokuPlus subtitles-online] rejected_redirect"
-                    return invalid
-                end if
-                return event.getString()
+    files = CreateObject("roFileSystem")
+    filename = "tmp:/rokuplus-subtitle-" + CreateObject("roDeviceInfo").getRandomUUID() + ".txt"
+    if not transfer.asyncGetToFile(filename)
+        files.delete(filename)
+        return invalid
+    end if
+    clock = CreateObject("roTimespan")
+    clock.mark()
+    finished = false
+    while clock.totalMilliseconds() < 12000
+        size = subtitleFileSize(files.stat(filename))
+        if size > 2097152 then exit while
+        remaining = 12000 - clock.totalMilliseconds()
+        if remaining <= 0 then exit while
+        if remaining > 50 then remaining = 50
+        event = wait(remaining,port)
+        if type(event) = "roUrlEvent"
+            if event.getSourceIdentity() = transfer.getIdentity() and event.getInt() = 1
+                m.subtitleHttpStatus = event.getResponseCode()
+                finished = true
+                exit while
             end if
         end if
+    end while
+    if not finished then transfer.asyncCancel()
+    finalUrl = transfer.getUrl()
+    if finalUrl = "" then finalUrl = endpoint
+    size = subtitleFileSize(files.stat(filename))
+    if finished and m.subtitleHttpStatus = 200 and subtitleUrlAllowed(finalUrl) and size > 0 and size <= 2097152
+        body = ReadAsciiFile(filename)
+        files.delete(filename)
+        if len(body) > 0 and len(body) <= 2097152 then return body
+        return invalid
     end if
-    transfer.asyncCancel()
+    if finished and not subtitleUrlAllowed(finalUrl)
+        print "[RokuPlus subtitles-online] rejected_redirect"
+    end if
+    files.delete(filename)
     return invalid
 end function
