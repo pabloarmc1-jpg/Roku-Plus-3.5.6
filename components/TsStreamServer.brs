@@ -644,25 +644,16 @@ sub rpTsRelaySendBytes(connection as object, value as object, server as object, 
     end if
 end sub
 
-' Detect both socket errors and an orderly peer FIN. A readable socket with
-' no remaining input returns an empty string after the peer has closed.
+' Do not use an empty non-blocking read as proof of peer closure: it can mean
+' that no bytes are currently available (EAGAIN). Detect hard socket errors
+' here; an orderly FIN is detected when the next response write fails.
 function rpTsRelayClientClosed(connection as object) as boolean
-    ' Log the exact condition that makes the relay classify this client as closed.
-    ' isException() reports out-of-band readability, not a general socket error.
     reset = connection.eConnReset()
     aborted = connection.eConnAborted()
     notConnected = connection.eNotConn()
     if reset or aborted or notConnected
         print "[RokuPlus ts-relay] client_close_detected reason=socket_flags status="; connection.status(); " reset="; reset; " aborted="; aborted; " notConnected="; notConnected
         return true
-    end if
-    ' A readable socket returning no bytes indicates an orderly peer close.
-    if connection.isReadable()
-        probe = connection.receiveStr(1)
-        if probe = ""
-            print "[RokuPlus ts-relay] client_close_detected reason=empty_read status="; connection.status(); " reset="; connection.eConnReset(); " aborted="; connection.eConnAborted(); " notConnected="; connection.eNotConn()
-            return true
-        end if
     end if
     return false
 end function
