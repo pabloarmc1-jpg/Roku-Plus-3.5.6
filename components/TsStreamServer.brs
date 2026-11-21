@@ -569,14 +569,24 @@ function rpTsRelayAuditPayload(payload as object) as object
                     adaptationFlags = payload[offset+5]
                     if adaptationFlags >= 128 then discontinuity = true
                     if adaptationLength >= 7 and (adaptationFlags mod 32) >= 16
-                        pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \ 128)
+                        pcrReserved = (payload[offset+10] mod 128) \ 2
                         pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
-                        pcrValue = pcrBase + pcrExtension / 300.0
-                        if result.pcrCount = 0 then result.firstPcr = pcrValue
-                        result.lastPcr = pcrValue
-                        result.pcrCount++
+                        if pcrReserved = 63 and pcrExtension <= 299
+                            pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \ 128)
+                            pcrValue = pcrBase + pcrExtension / 300.0
+                            if result.pcrCount = 0 then result.firstPcr = pcrValue
+                            result.lastPcr = pcrValue
+                            result.pcrCount++
+                        end if
                     end if
                 end if
+            end if
+            key = pid.toStr()
+            if discontinuity and pid <> 8191 and haveCounters.doesExist(key)
+                ' A discontinuity indicator resets the PID baseline even on
+                ' adaptation-only packets, which do not carry payload bytes.
+                haveCounters.Delete(key)
+                lastCounters.Delete(key)
             end if
             if hasPayload and pid <> 8191
                 key = pid.toStr()
