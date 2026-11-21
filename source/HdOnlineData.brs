@@ -331,7 +331,7 @@ function rpHdOnlineEpisodes(raw as dynamic, provider as string, parent as dynami
                         parentSeasonNumbers = parent.seasonNumbers
                     end if
                     item = {
-                        id:id, imdbId:"", kind:"episode", library:"hd-online", provider:provider, providerId:number
+                        id:id, imdbId:"", seriesImdbId:orbitImdb(parent.imdbId), kind:"episode", library:"hd-online", provider:provider, providerId:number
                         providerSlug:"", title:title, seriesTitle:parent.title, seriesId:parent.id
                         seriesProviderId:parent.providerId, seriesProviderSlug:parent.providerSlug
                         seriesProviderTmdbId:orbitText(parent.providerTmdbId,40), seriesProviderKind:orbitText(parent.providerKind,16)
