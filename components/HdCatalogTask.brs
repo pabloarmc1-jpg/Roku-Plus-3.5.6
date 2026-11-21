@@ -3336,6 +3336,11 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         answer.message = "La fuente redirigió a un dominio no permitido."
         print "[RokuPlus http] role=embed redirect_rejected=1 finalHost="; rpHdTaskSafeHost(answer.httpFinalUrl)
     end if
+    if (role = "media" or role = "sample" or role = "audio-sample" or role = "sample-tail" or role = "sample-full") and rpHdOnlineCdn(answer.httpFinalUrl) = ""
+        redirectAllowed = false
+        answer.message = "El CDN multimedia redirigió a un dominio no permitido."
+        print "[RokuPlus http] role=media redirect_rejected=1 finalHost="; rpHdTaskSafeHost(answer.httpFinalUrl)
+    end if
     successCode = code = 200 and redirectAllowed
     if role = "sample" or role = "audio-sample" or role = "sample-tail" then successCode = code = 206
     if finished and successCode and not m.top.cancelRequested
