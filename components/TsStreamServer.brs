@@ -970,6 +970,7 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                             end for
                             state.pesBuffers[key] = pesBuffer
                             if pesBuffer.count() >= 9
+                                headerComplete = true
                                 if pesBuffer[0] = 0 and pesBuffer[1] = 0 and pesBuffer[2] = 1
                                     pesFlags = (pesBuffer[7] \\ 64) mod 4
                                     pesHeaderLength = pesBuffer[8]
@@ -979,7 +980,9 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                                     else if pesFlags = 3 and pesHeaderLength >= 10
                                         requiredBytes = 19
                                     end if
-                                    if requiredBytes > 9 and pesBuffer.count() >= requiredBytes
+                                    if requiredBytes > 9 and pesBuffer.count() < requiredBytes
+                                        headerComplete = false
+                                    else if requiredBytes > 9
                                         ptsPrefix = 2
                                         if pesFlags = 3 then ptsPrefix = 3
                                         pts = rpTsRelayReadPtsArray(pesBuffer,9,ptsPrefix)
@@ -1011,8 +1014,10 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                                         end if
                                         result.pesHeaders++
                                     end if
+                                else
+                                    headerComplete = true
                                 end if
-                                state.pesBuffers.Delete(key)
+                                if headerComplete then state.pesBuffers.Delete(key)
                             end if
                         end if
                     end if
