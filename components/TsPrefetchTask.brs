@@ -14,6 +14,24 @@ sub runTsPrefetch()
     nextToSchedule = 0
     m.top.readyFiles = ready
     m.top.status = "running"
+
+    ' Remove only abandoned Fastream segment files from a previous app session.
+    ' This worker starts before scheduling any new transfer, so no live prefetch
+    ' file can be removed by this startup sweep.
+    fileSystem = CreateObject("roFileSystem")
+    tempEntries = fileSystem.GetDirectoryListing("tmp:/")
+    staleCount = 0
+    if type(tempEntries) = "roArray"
+        for each tempEntry in tempEntries
+            if GetInterface(tempEntry, "ifString") <> invalid and left(tempEntry, 12) = "rp_fastream_"
+                stalePath = "tmp:/" + tempEntry
+                if DeleteFile(stalePath) then staleCount++
+            end if
+        end for
+    end if
+    if staleCount > 0
+        print "[RokuPlus ts-prefetch] startup_cleanup removed="; staleCount
+    end if
     print "[RokuPlus ts-prefetch] worker_started concurrency=2"
 
     while not m.top.stopRequested
