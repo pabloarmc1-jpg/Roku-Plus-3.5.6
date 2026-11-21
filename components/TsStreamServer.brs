@@ -308,7 +308,12 @@ sub rpTsRelayServe(connection as object, server as object)
             prefetchPath = ""
             prefetchKey = segmentIndex.toStr()
             generationChanged = false
+            clientDisconnected = false
             while prefetchTimer.TotalMilliseconds() < 35000 and not server.stopRequested and connectionGeneration = server.generation
+                if connection.isException()
+                    clientDisconnected = true
+                    exit while
+                end if
                 if prefetchTask.stopRequested or prefetchTask.generation <> prefetchGeneration
                     generationChanged = true
                     exit while
@@ -323,6 +328,10 @@ sub rpTsRelayServe(connection as object, server as object)
                 end if
                 wait(200, connectionPort)
             end while
+            if clientDisconnected
+                print "[RokuPlus ts-relay] client_disconnected stage=prefetch_wait segment="; segmentIndex
+                exit for
+            end if
             if generationChanged
                 print "[RokuPlus ts-relay] prefetch_generation_changed_wait segment="; segmentIndex
                 exit for
