@@ -1344,6 +1344,22 @@ function rpTsRelayPmtContentSignature(sections as object) as string
     return byteCount.toStr() + ":" + hashA.toStr() + ":" + hashB.toStr()
 end function
 
+' Validate a descriptor loop without reading beyond its declared bounds.
+function rpTsRelayDescriptorLoopValid(section as object, first as integer, length as integer) as boolean
+    if type(section) <> "roArray" or first < 0 or length < 0 then return false
+    finish = first + length
+    if finish > section.count() then return false
+    cursor = first
+    while cursor < finish
+        if cursor + 2 > finish then return false
+        descriptorLength = section[cursor+1]
+        cursor += 2
+        if cursor + descriptorLength > finish then return false
+        cursor += descriptorLength
+    end while
+    return cursor = finish
+end function
+
 sub rpTsRelayApplyPmtSections(state as object, sections as object)
     pmtSignature = rpTsRelayPmtContentSignature(sections)
     if pmtSignature = "" then return
@@ -1352,6 +1368,7 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
     selectedAudioPids = []
     selectedAudioSeen = {}
     selectedStreamTypes = {}
+    programInfoSignature = invalid
     for section in sections
         total = section.count()
         if total < 16 then return
@@ -1366,18 +1383,28 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
         programInfoLength = (section[10] mod 16) * 256 + section[11]
         entry = 12 + programInfoLength
         if entry > total - 4 then return
+        if not rpTsRelayDescriptorLoopValid(section,12,programInfoLength) then return
+        currentProgramInfo = ""
+        for descriptorIndex = 12 to entry - 1
+            currentProgramInfo = currentProgramInfo + section[descriptorIndex].toStr() + ","
+        end for
+        if programInfoSignature = invalid
+            programInfoSignature = currentProgramInfo
+        else if programInfoSignature <> currentProgramInfo
+            ' Program-level descriptors must agree across all PMT sections.
+            return
+        end if
         while entry + 5 <= total - 4
             streamType = section[entry]
             elementaryPid = (section[entry+1] mod 32) * 256 + section[entry+2]
             esInfoLength = (section[entry+3] mod 16) * 256 + section[entry+4]
             if elementaryPid < 16 or elementaryPid > 8190 then return
             if entry + 5 + esInfoLength > total - 4 then return
+            if not rpTsRelayDescriptorLoopValid(section,entry+5,esInfoLength) then return
             streamKey = elementaryPid.toStr()
-            if selectedStreamTypes.doesExist(streamKey)
-                if selectedStreamTypes[streamKey] <> streamType then return
-            else
-                selectedStreamTypes[streamKey] = streamType
-            end if
+            ' An elementary PID may appear only once in the complete PMT.
+            if selectedStreamTypes.doesExist(streamKey) then return
+            selectedStreamTypes[streamKey] = streamType
             if streamType = 27
                 ' The relay clock inspector tracks one H.264 PID. Choose it
                 ' deterministically if a PMT advertises multiple video streams.
