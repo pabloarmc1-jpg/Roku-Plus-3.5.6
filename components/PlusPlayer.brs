@@ -81,6 +81,7 @@ sub init()
     m.endCountdownActive = false
     m.endCountdownRemaining = 0
     m.endCountdownLastAt = 0
+    m.endSelectionSent = false
     m.playbackFinished = false
     m.endScreenHeading = m.top.findNode("endScreenHeading")
     m.endScreenMessage = m.top.findNode("endScreenMessage")
@@ -672,9 +673,13 @@ sub movePlaybackEndSelection(direction as integer)
 end sub
 
 sub selectPlaybackEndItem()
+    if m.endSelectionSent then return
     if m.endScreenItems.count() = 0 then return
     if m.endScreenIndex < 0 or m.endScreenIndex >= m.endScreenItems.count() then return
     selected = m.endScreenItems[m.endScreenIndex]
+    ' One end-screen selection is allowed per playback request. This prevents
+    ' a simultaneous OK press and countdown tick from opening two episodes.
+    m.endSelectionSent = true
     m.endCountdownActive = false
     m.endCountdownRemaining = 0
     m.pulse.control = "stop"
@@ -699,6 +704,10 @@ sub openRequest()
     if m.tsPrefetchTask <> invalid then m.tsPrefetchTask.stopRequested = true
     m.endScreenOpen = false
     m.endScreenItems = []
+    m.endCountdownActive = false
+    m.endCountdownRemaining = 0
+    m.endSelectionSent = false
+    m.playbackFinished = false
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
     m.pulse.control = "stop"
     if m.startupTimer <> invalid then m.startupTimer.control = "stop"
