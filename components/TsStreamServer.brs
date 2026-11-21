@@ -185,17 +185,7 @@ sub rpTsRelayServe(connection as object, server as object)
         if type(segmentDiscontinuities) = "roArray" and segmentDiscontinuities.count() = segments.count()
             if segmentDiscontinuities[segmentIndex] = true
                 print "[RokuPlus ts-clock] hls_discontinuity segment="; segmentIndex; " reset=clock_and_continuity_baselines"
-                tsClockState.lastPcr = {}
-                tsClockState.havePcr = {}
-                tsClockState.lastDts = {}
-                tsClockState.haveDts = {}
-                tsClockState.lastPts = {}
-                tsClockState.havePts = {}
-                tsClockState.psiBuffers = {}
-                tsClockState.psiTables = {}
-                tsClockState.pesBuffers = {}
-                tsClockState.headerLastCounters = {}
-                tsClockState.headerHaveCounters = {}
+                rpTsRelayResetProgramState(tsClockState)
                 tsContinuityState.lastCounters = {}
                 tsContinuityState.haveCounters = {}
             end if
@@ -316,17 +306,7 @@ sub rpTsRelayServe(connection as object, server as object)
             ' A malformed segment breaks the observation window; do not compare
             ' counters across bytes whose packet boundaries could not be trusted.
             tsContinuityState = {lastCounters:{},haveCounters:{},errors:tsContinuityState.errors,duplicates:tsContinuityState.duplicates,checked:tsContinuityState.checked}
-            tsClockState.lastPcr = {}
-            tsClockState.havePcr = {}
-            tsClockState.lastDts = {}
-            tsClockState.haveDts = {}
-            tsClockState.lastPts = {}
-            tsClockState.havePts = {}
-            tsClockState.psiBuffers = {}
-                tsClockState.psiTables = {}
-            tsClockState.pesBuffers = {}
-            tsClockState.headerLastCounters = {}
-            tsClockState.headerHaveCounters = {}
+            rpTsRelayResetProgramState(tsClockState)
         end if
         if not quickAudit.aligned or quickAudit.syncErrors > 0 or quickAudit.headerErrors > 0
             print "[RokuPlus ts-audit] structural_warning segment="; segmentIndex; " bytes="; payloadSize; " packets="; quickAudit.packetCount; " aligned="; quickAudit.aligned; " syncErrors="; quickAudit.syncErrors; " headerErrors="; quickAudit.headerErrors; " firstBad="; quickAudit.firstBadOffset
@@ -1236,6 +1216,25 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
         rpTsRelayResetPesClockState(state)
         print "[RokuPlus ts-audit] pat_pmt_pid_changed old="; previousPmtPid; " new="; selectedPmtPid; " elementary_state_reset=true"
     end if
+end sub
+
+' Reset program/clock parser state at HLS discontinuities and malformed segment boundaries.
+' The next valid PAT and PMT must establish fresh table and elementary PID identities.
+sub rpTsRelayResetProgramState(state as object)
+    state.lastPcr = {}
+    state.havePcr = {}
+    state.lastDts = {}
+    state.haveDts = {}
+    state.lastPts = {}
+    state.havePts = {}
+    state.psiBuffers = {}
+    state.psiTables = {}
+    state.pesBuffers = {}
+    state.headerLastCounters = {}
+    state.headerHaveCounters = {}
+    state.pmtPid = -1
+    state.videoPid = -1
+    state.audioPids = []
 end sub
 
 ' Clear fragmented PES and timestamp baselines whenever the PMT changes stream PID assignments.
