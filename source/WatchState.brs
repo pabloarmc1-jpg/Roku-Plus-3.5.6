@@ -95,8 +95,62 @@ function rpWatchMigrateIdentity(items as object, oldItem as object, newItem as o
     end if
     oldIndex = rpWatchIndex(items,oldId)
     if oldIndex < 0 then return items
-    if rpWatchIndex(items,newId) >= 0 then return items
+    newIndex = rpWatchIndex(items,newId)
     record = items[oldIndex]
+    if newIndex >= 0
+        ' Both IDs identify the same IMDb episode. Keep the current-ID record,
+        ' but merge the old progress and flags before removing the obsolete ID.
+        currentRecord = items[newIndex]
+        oldPosition = 0
+        oldDuration = 0
+        currentPosition = 0
+        currentDuration = 0
+        if record.doesExist("position") then oldPosition = rpWatchNumber(record.position)
+        if record.doesExist("duration") then oldDuration = rpWatchNumber(record.duration)
+        if currentRecord.doesExist("position") then currentPosition = rpWatchNumber(currentRecord.position)
+        if currentRecord.doesExist("duration") then currentDuration = rpWatchNumber(currentRecord.duration)
+        useOldProgress = false
+        if oldDuration > 0 and currentDuration > 0
+            if oldPosition / oldDuration > currentPosition / currentDuration then useOldProgress = true
+        else if oldDuration > 0 and currentDuration <= 0
+            useOldProgress = true
+        else if oldDuration <= 0 and currentDuration <= 0
+            if oldPosition > currentPosition then useOldProgress = true
+        end if
+        if useOldProgress
+            currentRecord.position = oldPosition
+            currentRecord.duration = oldDuration
+        end if
+        oldWatched = false
+        currentWatched = false
+        if record.doesExist("watched")
+            if record.watched = true then oldWatched = true
+        end if
+        if currentRecord.doesExist("watched")
+            if currentRecord.watched = true then currentWatched = true
+        end if
+        currentRecord.watched = oldWatched or currentWatched
+        oldListed = false
+        currentListed = false
+        if record.doesExist("listed")
+            if record.listed = true then oldListed = true
+        end if
+        if currentRecord.doesExist("listed")
+            if currentRecord.listed = true then currentListed = true
+        end if
+        currentRecord.listed = oldListed or currentListed
+        oldUpdated = 0
+        currentUpdated = 0
+        if record.doesExist("updated") then oldUpdated = rpWatchNumber(record.updated)
+        if currentRecord.doesExist("updated") then currentUpdated = rpWatchNumber(currentRecord.updated)
+        if oldUpdated > currentUpdated then currentRecord.updated = oldUpdated
+        if oldIndex < newIndex then newIndex = newIndex - 1
+        items.delete(oldIndex)
+        items.delete(newIndex)
+        record = currentRecord
+    else
+        items.delete(oldIndex)
+    end if
     record.id = newId
     ' Accept refreshed source identifiers only when the new metadata supplied them.
     identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers", "imdbId"]
@@ -116,7 +170,6 @@ function rpWatchMigrateIdentity(items as object, oldItem as object, newItem as o
     if orbitText(newItem.poster,2048) <> "" then record.poster = orbitText(newItem.poster,2048)
     if orbitText(newItem.background,2048) <> "" then record.background = orbitText(newItem.background,2048)
     if orbitText(newItem.year,20) <> "" then record.year = orbitText(newItem.year,20)
-    items.delete(oldIndex)
     items.unshift(record)
     return items
 end function
