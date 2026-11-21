@@ -1352,6 +1352,15 @@ sub playerProgress(event as object)
         return
     end if
     if sample.failed = true and orbitText(playbackItem.kind,16) = "episode" and rpHdOnlineProvider(playbackItem.provider) <> "" and playbackItem.hdFallbackTried <> true
+        ' Preserve the decoder's final valid clock before closing for fallback.
+        ' Ignore empty, out-of-range or non-finite failure samples.
+        finalPosition = rpWatchNumber(sample.position)
+        finalDuration = rpWatchNumber(sample.duration)
+        if finalPosition > 15 and finalDuration > 15 and finalPosition <= finalDuration
+            m.lastPlaybackProgress = sample
+            m.watchState = rpWatchUpdate(m.watchState,playbackItem,finalPosition,finalDuration)
+            print "[RokuPlus watch] fallback-final-progress position="; finalPosition; " duration="; finalDuration
+        end if
         playbackItem.hdFallbackTried = true
         m.pendingEpisodeFallback = {item:playbackItem,origin:m.activePlaybackOrigin}
         m.recovering = false
