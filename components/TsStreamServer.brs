@@ -1164,6 +1164,26 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     tablePrefix = tableIdentity + ":"
     activeVersions = state.psiActiveVersions
     if type(activeVersions) <> "roAssociativeArray" then activeVersions = {}
+    if tableKind = "pat" and not activeVersions.doesExist(tableIdentity)
+        ' A transport stream has one active PAT transport_stream_id. Do not
+        ' retain partial tables/version keys for old IDs after a stream switch.
+        patPrefix = pid.toStr() + ":pat:"
+        stalePatTables = []
+        for existingKey in state.psiTables
+            if left(existingKey,len(patPrefix)) = patPrefix then stalePatTables.push(existingKey)
+        end for
+        for staleKey in stalePatTables
+            state.psiTables.Delete(staleKey)
+        end for
+        stalePatVersions = []
+        for existingKey in activeVersions
+            if left(existingKey,len(patPrefix)) = patPrefix then stalePatVersions.push(existingKey)
+        end for
+        for staleKey in stalePatVersions
+            activeVersions.Delete(staleKey)
+        end for
+        state.psiActiveVersions = activeVersions
+    end if
     if activeVersions.doesExist(tableIdentity)
         activeVersion = activeVersions[tableIdentity]
         versionDelta = (versionNumber - activeVersion + 32) mod 32
