@@ -165,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     ' Keep PID continuity baselines across every HLS segment in this relay response.
     tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
-    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},psiActiveVersions:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,programNumber:-1,videoPid:-1,audioPids:[]}
+    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},psiActiveVersions:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,programNumber:-1,pcrPid:-1,videoPid:-1,audioPids:[]}
     segmentDiscontinuities = server.segmentDiscontinuities
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
@@ -1294,6 +1294,7 @@ sub rpTsRelayResetProgramState(state as object)
     state.headerHaveCounters = {}
     state.pmtPid = -1
     state.programNumber = -1
+    state.pcrPid = -1
     state.videoPid = -1
     state.audioPids = []
 end sub
@@ -1318,12 +1319,21 @@ end function
 
 sub rpTsRelayApplyPmtSections(state as object, sections as object)
     selectedVideoPid = -1
+    selectedPcrPid = -1
     selectedAudioPids = []
     selectedAudioSeen = {}
     selectedStreamTypes = {}
     for section in sections
         total = section.count()
         if total < 16 then return
+        if (section[8] \ 32) <> 7 then return
+        sectionPcrPid = (section[8] mod 32) * 256 + section[9]
+        if sectionPcrPid <> 8191 and (sectionPcrPid < 16 or sectionPcrPid > 8190) then return
+        if selectedPcrPid < 0
+            selectedPcrPid = sectionPcrPid
+        else if selectedPcrPid <> sectionPcrPid
+            return
+        end if
         programInfoLength = (section[10] mod 16) * 256 + section[11]
         entry = 12 + programInfoLength
         if entry > total - 4 then return
@@ -1367,13 +1377,20 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
         end for
     end for
     previousVideoPid = state.videoPid
+    previousPcrPid = state.pcrPid
     previousAudioPids = state.audioPids
     if type(previousAudioPids) <> "roArray" then previousAudioPids = []
     audioPidsChanged = not rpTsRelayPidArraysEqual(previousAudioPids,selectedAudioPids)
-    if previousVideoPid <> selectedVideoPid or audioPidsChanged
+    pcrPidChanged = previousPcrPid <> selectedPcrPid
+    if previousVideoPid <> selectedVideoPid or audioPidsChanged or pcrPidChanged
         rpTsRelayResetPesClockState(state)
-        print "[RokuPlus ts-audit] pmt_stream_pids_changed videoOld="; previousVideoPid; " videoNew="; selectedVideoPid; " audioOld="; previousAudioPids; " audioNew="; selectedAudioPids; " pes_clock_state_reset=true"
+        if pcrPidChanged
+            state.lastPcr = {}
+            state.havePcr = {}
+        end if
+        print "[RokuPlus ts-audit] pmt_stream_pids_changed videoOld="; previousVideoPid; " videoNew="; selectedVideoPid; " audioOld="; previousAudioPids; " audioNew="; selectedAudioPids; " pcrOld="; previousPcrPid; " pcrNew="; selectedPcrPid; " pes_clock_state_reset=true"
     end if
+    state.pcrPid = selectedPcrPid
     state.videoPid = selectedVideoPid
     state.audioPids = selectedAudioPids
 end sub
