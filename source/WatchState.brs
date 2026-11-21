@@ -175,11 +175,34 @@ function rpWatchSave(items as object, profileId = "p1" as string) as boolean
     if type(rpWatchParse(payload)) <> "roArray" then return false
     section = rpWatchSection(profileId)
     if GetInterface(section, "ifRegistrySection") = invalid then return false
+    previousPrimary = section.read("stateV1")
     if section.write("stateV1", payload) <> true then return false
-    if section.flush() <> true then return false
+    if section.flush() <> true
+        ' A failed flush may leave the new value staged in this RegistrySection.
+        ' Restore the last known primary so a later read cannot mistake it for
+        ' a durable save; the backup remains untouched.
+        if previousPrimary = "" then
+            section.delete("stateV1")
+        else
+            section.write("stateV1",previousPrimary)
+        end if
+        section.flush()
+        return false
+    end if
     ' Save the backup only after the new primary state has been flushed.
-    ' A failed backup write does not invalidate the successfully saved primary.
-    if section.write("stateV1Backup",payload) = true then section.flush()
+    ' If backup flush fails, restore its previous staged value. The primary
+    ' is already durable, so this does not turn a successful save into failure.
+    previousBackup = section.read("stateV1Backup")
+    if section.write("stateV1Backup",payload) = true
+        if section.flush() <> true
+            if previousBackup = "" then
+                section.delete("stateV1Backup")
+            else
+                section.write("stateV1Backup",previousBackup)
+            end if
+            section.flush()
+        end if
+    end if
     return true
 end function
 
