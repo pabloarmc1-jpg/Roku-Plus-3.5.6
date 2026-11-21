@@ -876,6 +876,36 @@ end function
 
 ' Assemble PSI sections and PES timestamp headers across TS packet boundaries.
 ' This is a read-only diagnostic pass; it never changes or drops stream bytes.
+' Clear PSI byte/table assembly for one PID. Keep version ordering after a
+' continuity gap; forget it only after an explicit transport discontinuity.
+sub rpTsRelayResetPsiPidState(state as object, pid as integer, clearVersions as boolean)
+    key = pid.toStr()
+    if type(state.psiBuffers) = "roAssociativeArray" and state.psiBuffers.doesExist(key)
+        state.psiBuffers.Delete(key)
+    end if
+    tablePrefix = key + ":"
+    staleTables = []
+    if type(state.psiTables) = "roAssociativeArray"
+        for tableKey in state.psiTables
+            if left(tableKey,len(tablePrefix)) = tablePrefix then staleTables.push(tableKey)
+        end for
+        for tableKey in staleTables
+            state.psiTables.Delete(tableKey)
+        end for
+    end if
+    if clearVersions
+        staleVersions = []
+        if type(state.psiActiveVersions) = "roAssociativeArray"
+            for versionKey in state.psiActiveVersions
+                if left(versionKey,len(tablePrefix)) = tablePrefix then staleVersions.push(versionKey)
+            end for
+            for versionKey in staleVersions
+                state.psiActiveVersions.Delete(versionKey)
+            end for
+        end if
+    end if
+end sub
+
 function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as object
     result = {psiSections:0,pesHeaders:0,ptsWraps:0,dtsWraps:0,dtsRegressions:0,headerGaps:0,headerDuplicates:0}
     if type(payload) <> "roByteArray" or type(state) <> "roAssociativeArray" then return result
@@ -893,7 +923,7 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                     if payload[offset+5] >= 128
                         discontinuity = true
                         key = pid.toStr()
-                        if state.psiBuffers.doesExist(key) then state.psiBuffers.Delete(key)
+                        rpTsRelayResetPsiPidState(state,pid,true)
                         if state.pesBuffers.doesExist(key) then state.pesBuffers.Delete(key)
                         if state.headerHaveCounters.doesExist(key) then state.headerHaveCounters.Delete(key)
                         if state.headerLastCounters.doesExist(key) then state.headerLastCounters.Delete(key)
@@ -917,7 +947,7 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                         result.headerDuplicates++
                     else if not discontinuity and (header mod 16) <> ((previousCounter + 1) mod 16)
                         result.headerGaps++
-                        if state.psiBuffers.doesExist(key) then state.psiBuffers.Delete(key)
+                        rpTsRelayResetPsiPidState(state,pid,false)
                         if state.pesBuffers.doesExist(key) then state.pesBuffers.Delete(key)
                     end if
                 end if
