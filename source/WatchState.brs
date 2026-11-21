@@ -218,10 +218,12 @@ function rpWatchMigrateIdentity(items as object, oldItem as object, newItem as o
     if oldId = "" or newId = "" or oldId = newId then return items
     oldImdb = lcase(orbitText(oldItem.imdbId,180))
     newImdb = lcase(orbitText(newItem.imdbId,180))
-    if oldImdb = "" or newImdb = "" or oldImdb <> newImdb then return items
     oldKind = lcase(orbitText(oldItem.kind,20))
     newKind = lcase(orbitText(newItem.kind,20))
     if oldKind = "" or oldKind <> newKind then return items
+    if oldKind <> "episode"
+        if oldImdb = "" or newImdb = "" or oldImdb <> newImdb then return items
+    end if
     if oldKind = "episode"
         oldSeriesImdb = orbitImdb(oldItem.seriesImdbId)
         newSeriesImdb = orbitImdb(newItem.seriesImdbId)
