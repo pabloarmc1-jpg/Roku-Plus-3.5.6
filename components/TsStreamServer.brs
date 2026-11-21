@@ -77,17 +77,20 @@ sub runTsStreamServer()
             listener.close()
             m.top.status = "restarting"
             listener = invalid
-            for listenerAttempt = 1 to 5
-                wait(500,port)
+            listenerAttempt = 0
+            while listener = invalid
+                if m.top.stopRequested
+                    wait(2000,port)
+                else
+                    wait(1000,port)
+                end if
+                listenerAttempt++
                 listener = rpTsRelayCreateListener(port)
-                if listener <> invalid then exit for
-                print "[RokuPlus ts-relay] listener_retry attempt="; listenerAttempt
-            end for
-            if listener = invalid
-                m.top.status = "listen_error"
-                print "[RokuPlus ts-relay] server_failed stage=listener_recovery"
-                return
-            end if
+                if listener = invalid
+                    m.top.status = "restarting"
+                    print "[RokuPlus ts-relay] listener_retry attempt="; listenerAttempt
+                end if
+            end while
             m.top.status = "listening"
             print "[RokuPlus ts-relay] listener_recovered port=49322"
         end if
@@ -178,17 +181,29 @@ sub rpTsRelayServe(connection as object, server as object)
     end if
     suppliedKey = ""
     requestedSegment = ""
+    seenKey = false
+    seenSegment = false
     queryValid = true
     if query <> ""
         for each parameter in query.split("&")
             pair = parameter.split("=")
-            if pair.count() <> 2
+            if pair.count() <> 2 or pair[1] = ""
                 queryValid = false
                 exit for
             end if
             if pair[0] = "key"
+                if seenKey
+                    queryValid = false
+                    exit for
+                end if
+                seenKey = true
                 suppliedKey = pair[1]
             else if pair[0] = "segment"
+                if seenSegment
+                    queryValid = false
+                    exit for
+                end if
+                seenSegment = true
                 requestedSegment = pair[1]
             else
                 queryValid = false
@@ -198,6 +213,7 @@ sub rpTsRelayServe(connection as object, server as object)
     else
         queryValid = false
     end if
+    if not seenKey then queryValid = false
     if GetInterface(accessKey,"ifString") = invalid or len(accessKey) < 16 or pathOnly <> "/stream.ts" or suppliedKey <> accessKey or not queryValid
         rpTsRelaySendString(connection,"HTTP/1.1 403 Forbidden"+chr(13)+chr(10)+"Connection: close"+chr(13)+chr(10)+chr(13)+chr(10),server,connectionPort)
         connection.close()
