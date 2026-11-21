@@ -603,7 +603,7 @@ function rpTsRelayAuditPayload(payload as object) as object
                 end if
                 if payloadStart < offset + 188 and payloadStart < total
                     ' PSI pointer_field is valid only when PUSI marks a new section.
-                    if (payload[offset+1] mod 128) >= 64 and (payload[offset+1] mod 128) < 128
+                    if payload[offset+1] >= 64 and payload[offset+1] < 128
                         pointer = payload[payloadStart]
                         if pointer <= offset + 187 - payloadStart
                             sectionStart = payloadStart + 1 + pointer
@@ -632,34 +632,34 @@ function rpTsRelayAuditPayload(payload as object) as object
                                         sectionEnd = sectionStart + 3 + sectionLength
                                         if sectionLength >= 13 and sectionLength <= 1021 and sectionEnd <= offset + 188
                                             result.pmtPackets++
-                                        programInfoLength = (payload[sectionStart+10] mod 16) * 256 + payload[sectionStart+11]
-                                        entry = sectionStart + 12 + programInfoLength
-                                        if entry <= sectionEnd - 4
-                                            while entry + 5 <= sectionEnd - 4
-                                                streamType = payload[entry]
-                                                elementaryPid = (payload[entry+1] mod 32) * 256 + payload[entry+2]
-                                                esInfoLength = (payload[entry+3] mod 16) * 256 + payload[entry+4]
-                                                if entry + 5 + esInfoLength > sectionEnd - 4 then exit while
-                                                if streamType = 27
-                                                    result.h264 = true
-                                                    result.videoPid = elementaryPid
-                                                else if streamType = 15 or streamType = 17
-                                                    result.aac = true
-                                                    if result.audioPid < 0 then result.audioPid = elementaryPid
-                                                    audioKey = elementaryPid.toStr()
-                                                    if not audioPidSeen.doesExist(audioKey)
-                                                        audioPidSeen[audioKey] = true
-                                                        result.audioPidCount++
-                                                        if result.audioPidCount <= maxAudioPidList
-                                                            if result.audioPidList <> "" then result.audioPidList += ","
-                                                            result.audioPidList += audioKey
+                                            programInfoLength = (payload[sectionStart+10] mod 16) * 256 + payload[sectionStart+11]
+                                            entry = sectionStart + 12 + programInfoLength
+                                            if entry <= sectionEnd - 4
+                                                while entry + 5 <= sectionEnd - 4
+                                                    streamType = payload[entry]
+                                                    elementaryPid = (payload[entry+1] mod 32) * 256 + payload[entry+2]
+                                                    esInfoLength = (payload[entry+3] mod 16) * 256 + payload[entry+4]
+                                                    if entry + 5 + esInfoLength > sectionEnd - 4 then exit while
+                                                    if streamType = 27
+                                                        result.h264 = true
+                                                        result.videoPid = elementaryPid
+                                                    else if streamType = 15 or streamType = 17
+                                                        result.aac = true
+                                                        if result.audioPid < 0 then result.audioPid = elementaryPid
+                                                        audioKey = elementaryPid.toStr()
+                                                        if not audioPidSeen.doesExist(audioKey)
+                                                            audioPidSeen[audioKey] = true
+                                                            result.audioPidCount++
+                                                            if result.audioPidCount <= maxAudioPidList
+                                                                if result.audioPidList <> "" then result.audioPidList += ","
+                                                                result.audioPidList += audioKey
+                                                            end if
                                                         end if
                                                     end if
-                                                end if
-                                                entry += 5 + esInfoLength
-                                            end while
+                                                    entry += 5 + esInfoLength
+                                                end while
+                                            end if
                                         end if
-                                    end if
                                     end if
                                 end if
                             end if
