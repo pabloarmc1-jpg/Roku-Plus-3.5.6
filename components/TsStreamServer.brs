@@ -1198,6 +1198,7 @@ end sub
 sub rpTsRelayApplyPatSections(state as object, sections as object)
     selectedPmtPid = -1
     selectedProgramNumber = -1
+    programPids = {}
     for section in sections
         total = section.count()
         if total < 12 then return
@@ -1205,9 +1206,22 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
         entry = 8
         while entry + 4 <= total - 4
             programNumber = section[entry] * 256 + section[entry+1]
-            if programNumber > 0 and selectedPmtPid < 0
-                selectedProgramNumber = programNumber
-                selectedPmtPid = (section[entry+2] mod 32) * 256 + section[entry+3]
+            pmtPid = (section[entry+2] mod 32) * 256 + section[entry+3]
+            if programNumber > 0
+                ' PMT PIDs must be in the usable elementary/program range.
+                if pmtPid < 16 or pmtPid > 8190 then return
+                programKey = programNumber.toStr()
+                if programPids.doesExist(programKey)
+                    if programPids[programKey] <> pmtPid then return
+                else
+                    programPids[programKey] = pmtPid
+                end if
+                ' Select deterministically across all PAT sections, rather than
+                ' whichever program happens to appear first in section order.
+                if selectedProgramNumber < 0 or programNumber < selectedProgramNumber
+                    selectedProgramNumber = programNumber
+                    selectedPmtPid = pmtPid
+                end if
             end if
             entry += 4
         end while
