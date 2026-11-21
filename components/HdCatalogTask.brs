@@ -3342,7 +3342,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         print "[RokuPlus http] role=media redirect_rejected=1 finalHost="; rpHdTaskSafeHost(answer.httpFinalUrl)
     end if
     successCode = code = 200 and redirectAllowed
-    if role = "sample" or role = "audio-sample" or role = "sample-tail" then successCode = code = 206
+    if role = "sample" or role = "audio-sample" or role = "sample-tail" then successCode = code = 206 and redirectAllowed
     if finished and successCode and not m.top.cancelRequested
         bytes = rpHdTaskFileSize(files.stat(filename))
         if bytes > 0 and bytes <= limit
