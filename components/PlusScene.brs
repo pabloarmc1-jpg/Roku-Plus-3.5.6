@@ -1563,6 +1563,9 @@ sub playerClosed(event as object)
     ' Return the alias to the untouched standard instance after host playback.
     m.player = m.standardPlayer
     m.view = m.viewBeforePlayer
+    ' Returning from playback to a series must restore the episode list,
+    ' not leave focus on the season selector with episodes hidden.
+    if m.view = "episodes" then m.zone = "episodes"
     if type(m.pendingEpisodeFallback) = "roAssociativeArray"
         fallback = m.pendingEpisodeFallback
         m.pendingEpisodeFallback = invalid
