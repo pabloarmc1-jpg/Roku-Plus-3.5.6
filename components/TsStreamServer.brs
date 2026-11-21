@@ -661,7 +661,7 @@ function rpTsRelayAuditPayload(payload as object) as object
                     if payload[offset+1] >= 64 and payload[offset+1] < 128
                         if payloadStart + 9 < offset + 188
                             if payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
-                                pesFlags = (payload[payloadStart+7] \\ 64) mod 4
+                                pesFlags = (payload[payloadStart+7] \ 64) mod 4
                                 pesHeaderLength = payload[payloadStart+8]
                                 if (pesFlags = 2 or pesFlags = 3) and pesHeaderLength >= 5
                                     if payloadStart + 14 <= offset + 188
@@ -700,7 +700,7 @@ function rpTsRelayAuditPayload(payload as object) as object
                                 end if
                                 if nalType = 5
                                     result.idrCount++
-                                    if result.firstIdrPacket < 0 then result.firstIdrPacket = offset \\ 188
+                                    if result.firstIdrPacket < 0 then result.firstIdrPacket = offset \ 188
                                 else if nalType = 7
                                     result.sps = true
                                 else if nalType = 8
