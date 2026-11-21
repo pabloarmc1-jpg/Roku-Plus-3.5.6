@@ -48,8 +48,22 @@ function rpWatchParse(raw as dynamic) as dynamic
                 if GetInterface(value,"ifString") = invalid and not rpWatchStoredNumberValid(value) then return invalid
             end if
         end for
+        for each coordinateField in ["season", "episode"]
+            if entry.doesExist(coordinateField)
+                minimum = 0
+                if coordinateField = "episode" then minimum = 1
+                if not rpWatchStoredIntegerValid(entry[coordinateField],minimum,9999) then return invalid
+            end if
+        end for
         if entry.doesExist("seriesSeasonNumbers")
-            if type(entry.seriesSeasonNumbers) <> "roArray" then return invalid
+            if type(entry.seriesSeasonNumbers) <> "roArray" or entry.seriesSeasonNumbers.count() > 100 then return invalid
+            seenSeasons = {}
+            for each seasonValue in entry.seriesSeasonNumbers
+                if not rpWatchStoredIntegerValid(seasonValue,0,999) then return invalid
+                seasonKey = int(seasonValue).toStr()
+                if seenSeasons.doesExist(seasonKey) then return invalid
+                seenSeasons[seasonKey] = true
+            end for
         end if
 
         if not seenIds.doesExist(safeId)
@@ -65,6 +79,17 @@ function rpWatchParse(raw as dynamic) as dynamic
         end if
     end for
     return unique
+end function
+
+function rpWatchStoredIntegerValid(value as dynamic, minimum as integer, maximum as integer) as boolean
+    if GetInterface(value,"ifString") <> invalid
+        if len(value) = 0 or not CreateObject("roRegex","^[0-9]{1,4}$","").isMatch(value) then return false
+        value = value.toInt()
+    end if
+    numeric = GetInterface(value,"ifInt") <> invalid or GetInterface(value,"ifLongInt") <> invalid or GetInterface(value,"ifFloat") <> invalid or GetInterface(value,"ifDouble") <> invalid
+    if not numeric or value <> value or value < minimum or value > maximum then return false
+    if value <> int(value) then return false
+    return true
 end function
 
 function rpWatchStoredNumberValid(value as dynamic) as boolean
@@ -241,11 +266,12 @@ function rpWatchMigrateIdentity(items as object, oldItem as object, newItem as o
             end if
             if not sameSeriesIdentity then return items
         end if
-        oldSeason = orbitInteger(oldItem.season,999,-1)
-        newSeason = orbitInteger(newItem.season,999,-1)
-        oldEpisode = orbitInteger(oldItem.episode,9999,-1)
-        newEpisode = orbitInteger(newItem.episode,9999,-1)
-        if oldSeason < 0 or newSeason < 0 or oldEpisode < 1 or newEpisode < 1 then return items
+        if not oldItem.doesExist("season") or not newItem.doesExist("season") or not oldItem.doesExist("episode") or not newItem.doesExist("episode") then return items
+        if not rpWatchStoredIntegerValid(oldItem.season,0,999) or not rpWatchStoredIntegerValid(newItem.season,0,999) or not rpWatchStoredIntegerValid(oldItem.episode,1,9999) or not rpWatchStoredIntegerValid(newItem.episode,1,9999) then return items
+        oldSeason = int(oldItem.season)
+        newSeason = int(newItem.season)
+        oldEpisode = int(oldItem.episode)
+        newEpisode = int(newItem.episode)
         if oldSeason <> newSeason or oldEpisode <> newEpisode then return items
     else
         if oldImdb = "" or newImdb = "" or oldImdb <> newImdb then return items
@@ -370,8 +396,8 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
     ' its resolver request after Continue Watching restores a saved record.
     if item.doesExist("providerTmdbId") then record.providerTmdbId = orbitText(item.providerTmdbId,40)
     if item.doesExist("providerKind") then record.providerKind = orbitText(item.providerKind,16)
-    if item.doesExist("season") then record.season = item.season
-    if item.doesExist("episode") then record.episode = item.episode
+    if item.doesExist("season") and rpWatchStoredIntegerValid(item.season,0,999) then record.season = int(item.season)
+    if item.doesExist("episode") and rpWatchStoredIntegerValid(item.episode,1,9999) then record.episode = int(item.episode)
     if item.doesExist("seriesTitle") then record.seriesTitle = orbitText(item.seriesTitle,180)
     if item.doesExist("seriesId") then record.seriesId = orbitText(item.seriesId,180)
     if item.doesExist("seriesImdbId") then record.seriesImdbId = orbitImdb(item.seriesImdbId)
@@ -379,7 +405,22 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
     if item.doesExist("seriesProviderSlug") then record.seriesProviderSlug = orbitText(item.seriesProviderSlug,200)
     if item.doesExist("seriesProviderTmdbId") then record.seriesProviderTmdbId = orbitText(item.seriesProviderTmdbId,40)
     if item.doesExist("seriesProviderKind") then record.seriesProviderKind = orbitText(item.seriesProviderKind,16)
-    if item.doesExist("seriesSeasonNumbers") and type(item.seriesSeasonNumbers) = "roArray" then record.seriesSeasonNumbers = item.seriesSeasonNumbers
+    if item.doesExist("seriesSeasonNumbers") and type(item.seriesSeasonNumbers) = "roArray"
+        cleanSeasons = []
+        seenSeasons = {}
+        for each seasonValue in item.seriesSeasonNumbers
+            if cleanSeasons.count() >= 100 then exit for
+            if rpWatchStoredIntegerValid(seasonValue,0,999)
+                seasonNumber = int(seasonValue)
+                seasonKey = seasonNumber.toStr()
+                if not seenSeasons.doesExist(seasonKey)
+                    seenSeasons[seasonKey] = true
+                    cleanSeasons.push(seasonNumber)
+                end if
+            end if
+        end for
+        record.seriesSeasonNumbers = cleanSeasons
+    end if
     return record
 end function
 
