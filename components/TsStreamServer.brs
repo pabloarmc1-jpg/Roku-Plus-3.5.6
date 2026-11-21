@@ -163,6 +163,8 @@ sub rpTsRelayServe(connection as object, server as object)
     headers = server.mediaHeaders
     sentSegments = 0
     sentBytes = 0
+    ' Keep PID continuity baselines across every HLS segment in this relay response.
+    tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
     if requestedIndex >= 0 then startIndex = requestedIndex
@@ -277,6 +279,12 @@ sub rpTsRelayServe(connection as object, server as object)
         ' Check packet framing and critical TS header fields on every segment.
         ' The full PSI/clock/continuity inspection remains sampled to bound CPU cost.
         quickAudit = rpTsRelayQuickAuditPayload(payload)
+        if quickAudit.aligned and quickAudit.syncErrors = 0 and quickAudit.headerErrors = 0
+            boundaryAudit = rpTsRelayAuditContinuity(payload,tsContinuityState)
+            if boundaryAudit.errors > 0 or boundaryAudit.duplicates > 0
+                print "[RokuPlus ts-audit] continuity segment="; segmentIndex; " checked="; boundaryAudit.checked; " errors="; boundaryAudit.errors; " duplicates="; boundaryAudit.duplicates; " totalErrors="; boundaryAudit.totalErrors; " totalDuplicates="; boundaryAudit.totalDuplicates
+            end if
+        end if
         if not quickAudit.aligned or quickAudit.syncErrors > 0 or quickAudit.headerErrors > 0
             print "[RokuPlus ts-audit] structural_warning segment="; segmentIndex; " bytes="; payloadSize; " packets="; quickAudit.packetCount; " aligned="; quickAudit.aligned; " syncErrors="; quickAudit.syncErrors; " headerErrors="; quickAudit.headerErrors; " firstBad="; quickAudit.firstBadOffset
         end if
@@ -503,7 +511,6 @@ function rpTsRelayQuickAuditPayload(payload as object) as object
     return result
 end function
 
-' Read-only MPEG-TS packet audit. The payload is forwarded unchanged.
 ' Read-only MPEG-TS packet audit. The payload is forwarded unchanged.
 ' PSI inspection is intentionally limited to sections contained in one TS packet.
 function rpTsRelayAuditPayload(payload as object) as object
@@ -791,6 +798,65 @@ function rpTsRelayAuditPayload(payload as object) as object
             end if
         end if
     end for
+    return result
+end function
+
+' Tracks payload continuity counters across segment boundaries. This scan is
+' deliberately lightweight and read-only; it never changes or filters stream bytes.
+function rpTsRelayAuditContinuity(payload as object, state as object) as object
+    result = {checked:0,errors:0,duplicates:0,totalErrors:0,totalDuplicates:0}
+    if type(payload) <> "roByteArray" then return result
+    total = payload.Count()
+    if total <= 0 or (total mod 188) <> 0 then return result
+    if type(state) <> "roAssociativeArray" then return result
+    lastCounters = state.lastCounters
+    haveCounters = state.haveCounters
+    if type(lastCounters) <> "roAssociativeArray" or type(haveCounters) <> "roAssociativeArray" then return result
+    for offset = 0 to total - 188 step 188
+        if payload[offset] = &H47
+            pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
+            header = payload[offset+3]
+            adaptationControl = (header \\ 16) mod 4
+            hasPayload = adaptationControl = 1 or adaptationControl = 3
+            discontinuity = false
+            if (adaptationControl = 2 or adaptationControl = 3) and adaptationControl <> 0
+                adaptationLength = payload[offset+4]
+                if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
+                    adaptationFlags = payload[offset+5]
+                    if adaptationFlags >= 128 then discontinuity = true
+                end if
+            end if
+            if pid <> 8191
+                key = pid.toStr()
+                if discontinuity
+                    if haveCounters.doesExist(key) then haveCounters.Delete(key)
+                    if lastCounters.doesExist(key) then lastCounters.Delete(key)
+                end if
+                if hasPayload
+                    if haveCounters.doesExist(key)
+                        result.checked++
+                        expected = (lastCounters[key] + 1) mod 16
+                        if discontinuity
+                            ' The declared discontinuity resets this PID baseline.
+                        else if header mod 16 = lastCounters[key]
+                            result.duplicates++
+                        else if header mod 16 <> expected
+                            result.errors++
+                        end if
+                    end if
+                    lastCounters[key] = header mod 16
+                    haveCounters[key] = true
+                end if
+            end if
+        end if
+    end for
+    state.lastCounters = lastCounters
+    state.haveCounters = haveCounters
+    state.checked = state.checked + result.checked
+    state.errors = state.errors + result.errors
+    state.duplicates = state.duplicates + result.duplicates
+    result.totalErrors = state.errors
+    result.totalDuplicates = state.duplicates
     return result
 end function
 
