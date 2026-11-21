@@ -711,7 +711,9 @@ sub openRequest()
     m.endScreenOpen = false
     m.endScreenItems = []
     m.endCountdownActive = false
+    m.endCountdownManual = false
     m.endCountdownRemaining = 0
+    m.endCountdownLastAt = 0
     m.endSelectionSent = false
     m.playbackFinished = false
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
@@ -1117,6 +1119,13 @@ sub closePlayback()
     m.panel.visible = false
     m.decoder.visible = false
     m.endScreenOpen = false
+    m.endScreenItems = []
+    m.endCountdownActive = false
+    m.endCountdownManual = false
+    m.endCountdownRemaining = 0
+    m.endCountdownLastAt = 0
+    m.endSelectionSent = false
+    m.playbackFinished = false
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
     m.displayMenuOpen = false
     if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
