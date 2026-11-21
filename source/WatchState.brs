@@ -28,6 +28,8 @@ function rpWatchParse(raw as dynamic) as dynamic
             if not rpWatchStoredNumberValid(entry.duration) then return invalid
             duration = entry.duration
         end if
+        ' Repair a semantically invalid saved clock before accepting the snapshot.
+        if duration > 0 and position > duration then position = duration
         if entry.doesExist("watched")
             if type(entry.watched) <> "Boolean" then return invalid
         end if
