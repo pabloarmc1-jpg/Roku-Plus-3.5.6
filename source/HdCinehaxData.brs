@@ -196,8 +196,10 @@ function rpHdCinehaxEpisodes(raw as dynamic, parent as object, requested as inte
                     episodePoster = episodeStill
                     if episodePoster = "" then episodePoster = parent.poster
                     item = {
-                        id:id, imdbId:"", kind:"episode", library:"hd-online",provider:"cinehax"
+                        id:id, imdbId:"", seriesImdbId:orbitImdb(parent.imdbId), kind:"episode", library:"hd-online",provider:"cinehax"
                         providerId:parent.providerId,providerTmdbId:parent.providerTmdbId,providerKind:parent.providerKind,providerSlug:parent.providerSlug
+                        seriesId:parent.id,seriesProviderId:parent.providerId,seriesProviderSlug:parent.providerSlug
+                        seriesProviderTmdbId:orbitText(parent.providerTmdbId,40),seriesProviderKind:orbitText(parent.providerKind,16)
                         title:title,seriesTitle:parent.title,season:season,episode:number
                         poster:episodePoster,background:episodeStill
                         description:orbitText(row.overview),year:parent.year,runtime:orbitInteger(row.runtime,1440)*60,language:"",seasons:[]
