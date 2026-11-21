@@ -1354,6 +1354,8 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 print "[RokuPlus audio-mode] format=ts reason=native-multiaudio-not-safe validatedTracks="; audioAudit.tracks.count(); " spanishVerified="; spanishVerified
                                 answer.segmentUrls = relaySegments
                                 answer.tsRelayEnabled = true
+                                answer.segmentDiscontinuities = rpHdTaskSegmentDiscontinuities(child.body,relaySegments.count())
+                                print "[RokuPlus ts-relay] discontinuity_metadata segments="; answer.segmentDiscontinuities.count()
                                 segmentDurations = rpHdTaskSegmentDurations(child.body,relaySegments.count())
                                 if segmentDurations.count() = relaySegments.count()
                                     answer.segmentDurations = segmentDurations
@@ -3074,6 +3076,25 @@ function rpHdTaskExternalAudio(master as object, variant as object) as boolean
         if track.group = variant.audioGroup and track.url <> "" then return true
     end for
     return false
+end function
+
+' Preserve playlist-level discontinuity markers alongside the resolved segment list.
+function rpHdTaskSegmentDiscontinuities(body as string, expectedCount as integer) as object
+    flags = []
+    text = orbitText(body,2097153)
+    if len(text) > 2097152 or expectedCount < 1 then return flags
+    pendingDiscontinuity = false
+    for each rawLine in text.split(chr(10))
+        line = rawLine.trim()
+        if line = "#EXT-X-DISCONTINUITY"
+            pendingDiscontinuity = true
+        else if line <> "" and left(line,1) <> "#"
+            flags.push(pendingDiscontinuity)
+            pendingDiscontinuity = false
+        end if
+    end for
+    if flags.count() <> expectedCount then return []
+    return flags
 end function
 
 function rpHdTaskSegmentDurations(body as string, expectedCount as integer) as object
