@@ -1320,6 +1320,7 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
     selectedVideoPid = -1
     selectedAudioPids = []
     selectedAudioSeen = {}
+    selectedStreamTypes = {}
     for section in sections
         total = section.count()
         if total < 16 then return
@@ -1330,19 +1331,40 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
             streamType = section[entry]
             elementaryPid = (section[entry+1] mod 32) * 256 + section[entry+2]
             esInfoLength = (section[entry+3] mod 16) * 256 + section[entry+4]
+            if elementaryPid < 16 or elementaryPid > 8190 then return
             if entry + 5 + esInfoLength > total - 4 then return
+            streamKey = elementaryPid.toStr()
+            if selectedStreamTypes.doesExist(streamKey)
+                if selectedStreamTypes[streamKey] <> streamType then return
+            else
+                selectedStreamTypes[streamKey] = streamType
+            end if
             if streamType = 27
-                selectedVideoPid = elementaryPid
+                ' The relay clock inspector tracks one H.264 PID. Choose it
+                ' deterministically if a PMT advertises multiple video streams.
+                if selectedVideoPid < 0 or elementaryPid < selectedVideoPid
+                    selectedVideoPid = elementaryPid
+                end if
             else if streamType = 3 or streamType = 4 or streamType = 15 or streamType = 17 or streamType = 129 or streamType = 135
-                audioKey = elementaryPid.toStr()
-                if not selectedAudioSeen.doesExist(audioKey)
-                    selectedAudioSeen[audioKey] = true
+                if not selectedAudioSeen.doesExist(streamKey)
+                    selectedAudioSeen[streamKey] = true
                     selectedAudioPids.push(elementaryPid)
                 end if
             end if
             entry += 5 + esInfoLength
         end while
         if entry <> total - 4 then return
+    end for
+    ' Stable ordering prevents a reordered multi-section PMT from looking like
+    ' a changed audio PID set and unnecessarily clearing clock/PES baselines.
+    for i = 0 to selectedAudioPids.count() - 2
+        for j = i + 1 to selectedAudioPids.count() - 1
+            if selectedAudioPids[j] < selectedAudioPids[i]
+                swapPid = selectedAudioPids[i]
+                selectedAudioPids[i] = selectedAudioPids[j]
+                selectedAudioPids[j] = swapPid
+            end if
+        end for
     end for
     previousVideoPid = state.videoPid
     previousAudioPids = state.audioPids
