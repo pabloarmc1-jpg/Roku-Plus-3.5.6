@@ -722,7 +722,12 @@ sub fetched(event as object)
             if type(m.watchState) = "roArray"
                 m.watchState = rpWatchMigrateIdentity(m.watchState,context.item,answer.item)
                 if orbitText(context.item.id,180) <> orbitText(answer.item.id,180)
-                    rpWatchSave(m.watchState,m.profileId)
+                    if not rpWatchSave(m.watchState,m.profileId)
+                        m.watchState = rpWatchLoad(m.profileId)
+                        m.continueItems = rpWatchContinue(m.watchState)
+                        refreshHomeListItems()
+                        m.note = "No se pudo guardar la actualización del historial."
+                    end if
                 end if
             end if
         end if
@@ -1419,11 +1424,13 @@ sub playerProgress(event as object)
         m.watchSaveClock.mark()
         refreshWatchLists = true
         print "[RokuPlus watch] save-first="; saved; " records="; m.watchState.count(); " id="; detailId; " position="; sample.position; " duration="; sample.duration
+        if not saved then print "[RokuPlus watch] WARNING: first progress save failed; playback continues."
     else if m.watchSaveClock.totalMilliseconds() >= 5000
         saved = rpWatchSave(m.watchState,m.profileId)
         m.watchSaveClock.mark()
         refreshWatchLists = true
         print "[RokuPlus watch] save-periodic="; saved; " records="; m.watchState.count(); " id="; detailId; " position="; sample.position; " duration="; sample.duration
+        if not saved then print "[RokuPlus watch] WARNING: periodic progress save failed; playback continues."
     end if
     if record <> invalid and m.watchDiagCount <= 8 then print "[RokuPlus watch] record id="; detailId; " position="; record.position; " duration="; record.duration; " provider="; orbitText(record.provider,32); " slug="; orbitText(record.providerSlug,200)
     ' Rebuild the derived lists only at the save cadence or on completion.
@@ -1442,7 +1449,14 @@ sub toggleWatchItem(item as object, field as string)
     if type(item) <> "roAssociativeArray" then return
     if not item.doesExist("id") then return
     m.watchState = rpWatchToggle(m.watchState,item,field)
-    rpWatchSave(m.watchState,m.profileId)
+    if not rpWatchSave(m.watchState,m.profileId)
+        m.watchState = rpWatchLoad(m.profileId)
+        m.continueItems = rpWatchContinue(m.watchState)
+        refreshHomeListItems()
+        m.note = "No se pudo guardar el cambio. Se restauró el último historial guardado."
+        drawScreen()
+        return
+    end if
     m.continueItems = rpWatchContinue(m.watchState)
     refreshHomeListItems()
     record = rpWatchGet(m.watchState,item.id)
@@ -2912,7 +2926,15 @@ sub removeLibraryItem()
     selected = m.libraryItems[m.libraryCursor]
     idx = rpWatchIndex(m.watchState,selected.id)
     if idx >= 0 then m.watchState.delete(idx)
-    rpWatchSave(m.watchState,m.profileId)
+    if not rpWatchSave(m.watchState,m.profileId)
+        m.watchState = rpWatchLoad(m.profileId)
+        m.continueItems = rpWatchContinue(m.watchState)
+        refreshHomeListItems()
+        openLibrary(m.libraryMode)
+        m.note = "No se pudo eliminar el título. Se conservó el último historial guardado."
+        drawScreen()
+        return
+    end if
     m.continueItems = rpWatchContinue(m.watchState)
     refreshHomeListItems()
     openLibrary(m.libraryMode)
