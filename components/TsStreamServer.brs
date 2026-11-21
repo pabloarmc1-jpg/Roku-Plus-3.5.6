@@ -165,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     ' Keep PID continuity baselines across every HLS segment in this relay response.
     tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
-    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,videoPid:-1,audioPids:[]}
+    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,programNumber:-1,videoPid:-1,audioPids:[]
     segmentDiscontinuities = server.segmentDiscontinuities
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
@@ -1125,6 +1125,9 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
         return
     end if
     tableExtension = section[3] * 256 + section[4]
+    if tableKind = "pmt"
+        if state.programNumber < 0 or tableExtension <> state.programNumber then return
+    end if
     versionNumber = (section[5] \\ 2) mod 32
     tableKey = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":" + versionNumber.toStr()
     if not state.psiTables.doesExist(tableKey)
@@ -1183,6 +1186,7 @@ end sub
 
 sub rpTsRelayApplyPatSections(state as object, sections as object)
     selectedPmtPid = -1
+    selectedProgramNumber = -1
     for section in sections
         total = section.count()
         if total < 12 then return
@@ -1191,14 +1195,17 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
         while entry + 4 <= total - 4
             programNumber = section[entry] * 256 + section[entry+1]
             if programNumber > 0 and selectedPmtPid < 0
+                selectedProgramNumber = programNumber
                 selectedPmtPid = (section[entry+2] mod 32) * 256 + section[entry+3]
             end if
             entry += 4
         end while
     end for
     previousPmtPid = state.pmtPid
+    previousProgramNumber = state.programNumber
     state.pmtPid = selectedPmtPid
-    if previousPmtPid <> selectedPmtPid
+    state.programNumber = selectedProgramNumber
+    if previousPmtPid <> selectedPmtPid or previousProgramNumber <> selectedProgramNumber
         if previousPmtPid >= 0
             oldPmtKey = previousPmtPid.toStr()
             if state.psiBuffers.doesExist(oldPmtKey) then state.psiBuffers.Delete(oldPmtKey)
@@ -1211,10 +1218,22 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
                 state.psiTables.Delete(staleKey)
             end for
         end if
+        if selectedPmtPid >= 0
+            newPmtKey = selectedPmtPid.toStr()
+            if state.psiBuffers.doesExist(newPmtKey) then state.psiBuffers.Delete(newPmtKey)
+            staleKeys = []
+            newTablePrefix = newPmtKey + ":pmt:"
+            for existingKey in state.psiTables
+                if left(existingKey,len(newTablePrefix)) = newTablePrefix then staleKeys.push(existingKey)
+            end for
+            for staleKey in staleKeys
+                state.psiTables.Delete(staleKey)
+            end for
+        end if
         state.videoPid = -1
         state.audioPids = []
         rpTsRelayResetPesClockState(state)
-        print "[RokuPlus ts-audit] pat_pmt_pid_changed old="; previousPmtPid; " new="; selectedPmtPid; " elementary_state_reset=true"
+        print "[RokuPlus ts-audit] pat_program_changed pmtOld="; previousPmtPid; " pmtNew="; selectedPmtPid; " programOld="; previousProgramNumber; " programNew="; selectedProgramNumber; " elementary_state_reset=true"
     end if
 end sub
 
@@ -1233,6 +1252,7 @@ sub rpTsRelayResetProgramState(state as object)
     state.headerLastCounters = {}
     state.headerHaveCounters = {}
     state.pmtPid = -1
+    state.programNumber = -1
     state.videoPid = -1
     state.audioPids = []
 end sub
