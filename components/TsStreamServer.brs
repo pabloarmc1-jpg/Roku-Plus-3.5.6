@@ -608,27 +608,30 @@ function rpTsRelayAuditPayload(payload as object) as object
                         if pointer <= offset + 187 - payloadStart
                             sectionStart = payloadStart + 1 + pointer
                             if pid = 0
-                                if sectionStart + 12 <= offset + 188 and payload[sectionStart] = 0
-                                    sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
-                                    sectionEnd = sectionStart + 3 + sectionLength
-                                    if sectionLength >= 9 and sectionLength <= 1021 and sectionEnd <= offset + 188
-                                        entry = sectionStart + 8
-                                        while entry + 4 <= sectionEnd - 4
-                                            programNumber = payload[entry] * 256 + payload[entry+1]
-                                            if programNumber > 0
-                                                result.pmtPid = (payload[entry+2] mod 32) * 256 + payload[entry+3]
-                                                exit while
-                                            end if
-                                            entry += 4
-                                        end while
+                                if sectionStart + 12 <= offset + 188
+                                    if payload[sectionStart] = 0
+                                        sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
+                                        sectionEnd = sectionStart + 3 + sectionLength
+                                        if sectionLength >= 9 and sectionLength <= 1021 and sectionEnd <= offset + 188
+                                            entry = sectionStart + 8
+                                            while entry + 4 <= sectionEnd - 4
+                                                programNumber = payload[entry] * 256 + payload[entry+1]
+                                                if programNumber > 0
+                                                    result.pmtPid = (payload[entry+2] mod 32) * 256 + payload[entry+3]
+                                                    exit while
+                                                end if
+                                                entry += 4
+                                            end while
+                                        end if
                                     end if
                                 end if
                             else if pid = result.pmtPid
-                                if sectionStart + 12 <= offset + 188 and payload[sectionStart] = 2
-                                    sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
-                                    sectionEnd = sectionStart + 3 + sectionLength
-                                    if sectionLength >= 13 and sectionLength <= 1021 and sectionEnd <= offset + 188
-                                        result.pmtPackets++
+                                if sectionStart + 12 <= offset + 188
+                                    if payload[sectionStart] = 2
+                                        sectionLength = (payload[sectionStart+1] mod 16) * 256 + payload[sectionStart+2]
+                                        sectionEnd = sectionStart + 3 + sectionLength
+                                        if sectionLength >= 13 and sectionLength <= 1021 and sectionEnd <= offset + 188
+                                            result.pmtPackets++
                                         programInfoLength = (payload[sectionStart+10] mod 16) * 256 + payload[sectionStart+11]
                                         entry = sectionStart + 12 + programInfoLength
                                         if entry <= sectionEnd - 4
@@ -656,6 +659,7 @@ function rpTsRelayAuditPayload(payload as object) as object
                                                 entry += 5 + esInfoLength
                                             end while
                                         end if
+                                    end if
                                     end if
                                 end if
                             end if
