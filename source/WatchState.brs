@@ -53,14 +53,15 @@ function rpWatchParse(raw as dynamic) as dynamic
         end if
 
         if not seenIds.doesExist(safeId)
-            entry.id = safeId
-            entry.position = position
-            entry.duration = duration
-            if not entry.doesExist("watched") then entry.watched = false
-            if not entry.doesExist("listed") then entry.listed = false
             seenIds[safeId] = true
-            unique.push(entry)
-            if unique.count() >= 60 then exit for
+            if unique.count() < 60
+                entry.id = safeId
+                entry.position = position
+                entry.duration = duration
+                if not entry.doesExist("watched") then entry.watched = false
+                if not entry.doesExist("listed") then entry.listed = false
+                unique.push(entry)
+            end if
         end if
     end for
     return unique
