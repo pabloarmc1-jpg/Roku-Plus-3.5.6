@@ -2850,6 +2850,26 @@ sub onPulse()
         end if
     end if
     if not m.mediaOpen then return
+    ' A previous Fastream worker may finish its shutdown just after a new
+    ' playback request has started. Restart it once the Task reports stopped.
+    if m.tsRelayMode and m.tsFastreamPrefetchEligible and m.tsPrefetchTask <> invalid
+        if m.tsPrefetchTask.status = "stopped" or m.tsPrefetchTask.status = "idle"
+            restartIndex = m.tsStreamServer.nextSegmentIndex
+            if GetInterface(restartIndex,"ifInt") = invalid or restartIndex < 0 then restartIndex = 0
+            if type(m.tsRelaySegments) = "roArray" and restartIndex < m.tsRelaySegments.count()
+                m.tsPrefetchTask.segments = m.tsRelaySegments
+                m.tsPrefetchTask.mediaHeaders = m.current.mediaHeaders
+                m.tsPrefetchTask.requestIndex = restartIndex
+                m.tsPrefetchTask.generation = m.tsPrefetchTask.generation + 1
+                m.tsPrefetchTask.readyFiles = {}
+                m.tsPrefetchTask.stopRequested = false
+                m.tsPrefetchTask.status = "starting"
+                m.tsPrefetchTask.control = "RUN"
+                m.tsStreamServer.prefetchTask = m.tsPrefetchTask
+                print "[RokuPlus ts-prefetch] worker_restarted segment="; restartIndex
+            end if
+        end if
+    end if
     if m.tsRelayPending
         relayStatus = m.tsStreamServer.status
         nowRelay = m.monotonic.totalMilliseconds()
