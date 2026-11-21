@@ -241,6 +241,22 @@ sub rpTsRelayServe(connection as object, server as object)
             DeleteFile(filePath)
             exit for
         end if
+        ' Reject oversized or missing segment files before allocating a byte array.
+        ' 16 MiB is above ordinary HLS TS segment sizes while bounding relay RAM.
+        fileSystem = CreateObject("roFileSystem")
+        diskSize = fileSystem.GetFileSize(filePath)
+        if diskSize <= 0 or diskSize > 16777216
+            print "[RokuPlus ts-relay] segment_rejected index="; segmentIndex; " bytes="; diskSize; " limit=16777216"
+            DeleteFile(filePath)
+            if prefetched
+                readyMap = prefetchTask.readyFiles
+                if type(readyMap) = "roAssociativeArray" and readyMap.doesExist(segmentIndex.toStr())
+                    readyMap.Delete(segmentIndex.toStr())
+                    prefetchTask.readyFiles = readyMap
+                end if
+            end if
+            exit for
+        end if
         payload = CreateObject("roByteArray")
         if not payload.ReadFile(filePath)
             print "[RokuPlus ts-relay] file_read_failed index="; sentSegments+1
