@@ -278,7 +278,7 @@ function subtitleVttPlaylist(body as string, playlistUrl as string) as dynamic
             commaAt = instr(1,durationText,",")
             if commaAt > 0 then durationText = left(durationText,commaAt-1)
             pendingDuration = val(durationText)
-        else if left(line,12) = "#EXT-X-KEY:"
+        else if left(line,11) = "#EXT-X-KEY:"
             attrs = rpHdOnlineAttributes(line)
             if lcase(orbitText(attrs.METHOD,20)) <> "none" then return invalid
         else if line <> "" and left(line,1) <> "#"
