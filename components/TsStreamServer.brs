@@ -302,8 +302,8 @@ sub rpTsRelayServe(connection as object, server as object)
             if fragmentedAudit.pesHeaders > 0 or fragmentedAudit.psiSections > 0
                 print "[RokuPlus ts-audit] fragmented_headers segment="; segmentIndex; " psiSections="; fragmentedAudit.psiSections; " pesHeaders="; fragmentedAudit.pesHeaders; " videoPid="; tsClockState.videoPid; " pmtPid="; tsClockState.pmtPid
             end if
-            if clockAudit.pcrWraps > 0 or clockAudit.pcrRegressions > 0 or clockAudit.dtsWraps > 0 or clockAudit.dtsRegressions > 0 or clockAudit.ptsWraps > 0
-                print "[RokuPlus ts-clock] segment="; segmentIndex; " pcrWraps="; clockAudit.pcrWraps; " pcrRegressions="; clockAudit.pcrRegressions; " dtsWraps="; clockAudit.dtsWraps; " dtsRegressions="; clockAudit.dtsRegressions; " ptsWraps="; clockAudit.ptsWraps
+            if clockAudit.pcrWraps > 0 or clockAudit.pcrRegressions > 0 or fragmentedAudit.ptsWraps > 0 or fragmentedAudit.dtsWraps > 0 or fragmentedAudit.dtsRegressions > 0
+                print "[RokuPlus ts-clock] segment="; segmentIndex; " pcrWraps="; clockAudit.pcrWraps; " pcrRegressions="; clockAudit.pcrRegressions; " ptsWraps="; fragmentedAudit.ptsWraps; " dtsWraps="; fragmentedAudit.dtsWraps; " dtsRegressions="; fragmentedAudit.dtsRegressions
             end if
             boundaryAudit = rpTsRelayAuditContinuity(payload,tsContinuityState)
             if boundaryAudit.errors > 0 or boundaryAudit.duplicates > 0
@@ -891,7 +891,7 @@ end function
 ' Assemble PSI sections and PES timestamp headers across TS packet boundaries.
 ' This is a read-only diagnostic pass; it never changes or drops stream bytes.
 function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as object
-    result = {psiSections:0,pesHeaders:0}
+    result = {psiSections:0,pesHeaders:0,ptsWraps:0,dtsWraps:0,dtsRegressions:0}
     if type(payload) <> "roByteArray" or type(state) <> "roAssociativeArray" then return result
     total = payload.Count()
     if total <= 0 or (total mod 188) <> 0 then return result
@@ -900,6 +900,22 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
             pid = (payload[offset+1] mod 32) * 256 + payload[offset+2]
             header = payload[offset+3]
             adaptationControl = (header \\ 16) mod 4
+            if adaptationControl = 2
+                adaptationLength = payload[offset+4]
+                if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
+                    if payload[offset+5] >= 128
+                        key = pid.toStr()
+                        if state.psiBuffers.doesExist(key) then state.psiBuffers.Delete(key)
+                        if state.pesBuffers.doesExist(key) then state.pesBuffers.Delete(key)
+                        if state.havePcr.doesExist(key) then state.havePcr.Delete(key)
+                        if state.lastPcr.doesExist(key) then state.lastPcr.Delete(key)
+                        if state.haveDts.doesExist(key) then state.haveDts.Delete(key)
+                        if state.lastDts.doesExist(key) then state.lastDts.Delete(key)
+                        if state.havePts.doesExist(key) then state.havePts.Delete(key)
+                        if state.lastPts.doesExist(key) then state.lastPts.Delete(key)
+                    end if
+                end if
+            end if
             if adaptationControl = 1 or adaptationControl = 3
                 payloadStart = offset + 4
                 if adaptationControl = 3
@@ -971,6 +987,7 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                                             if state.havePts.doesExist(key)
                                                 if state.lastPts[key] - pts > 4294967296
                                                     state.ptsWraps++
+                                                    result.ptsWraps++
                                                 end if
                                             end if
                                             state.lastPts[key] = pts
@@ -982,8 +999,10 @@ function rpTsRelayAuditFragmentedHeaders(payload as object, state as object) as 
                                                 if state.haveDts.doesExist(key)
                                                     if state.lastDts[key] - dts > 4294967296
                                                         state.dtsWraps++
+                                                        result.dtsWraps++
                                                     else if dts < state.lastDts[key]
                                                         state.dtsRegressions++
+                                                        result.dtsRegressions++
                                                     end if
                                                 end if
                                                 state.lastDts[key] = dts
@@ -1041,7 +1060,7 @@ function rpTsRelayPsiFeed(state as object, pid as integer, payload as object, fi
     return parsed
 end function
 
-function rpTsRelayParsePsiSection(state as object, pid as integer, section as object) as void
+sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     total = section.count()
     if total < 12 then return
     sectionLength = (section[1] mod 16) * 256 + section[2]
@@ -1057,6 +1076,7 @@ function rpTsRelayParsePsiSection(state as object, pid as integer, section as ob
             entry += 4
         end while
     else if pid = state.pmtPid and section[0] = 2 and total >= 16
+        state.videoPid = -1
         programInfoLength = (section[10] mod 16) * 256 + section[11]
         entry = 12 + programInfoLength
         while entry + 5 <= total - 4
@@ -1068,7 +1088,7 @@ function rpTsRelayParsePsiSection(state as object, pid as integer, section as ob
             entry += 5 + esInfoLength
         end while
     end if
-end function
+end sub
 
 function rpTsRelayReadPtsArray(bytes as object, offset as integer, expectedPrefix as integer) as dynamic
     if type(bytes) <> "roArray" or offset < 0 or offset + 4 >= bytes.count() then return -1
