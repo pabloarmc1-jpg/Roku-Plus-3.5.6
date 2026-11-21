@@ -94,6 +94,7 @@ sub init()
     m.introDbSegments = invalid
     m.watchSaveClock = CreateObject("roTimespan")
     m.watchSaveClock.mark()
+    m.watchSaveRetryDelayMs = 5000
     m.continueItems = rpWatchContinue(m.watchState)
     m.homeListItems = []
     refreshHomeListItems()
@@ -1324,6 +1325,13 @@ sub playbackStallWatchTick()
     end if
 end sub
 
+function rpWatchNextSaveRetryDelay(saved as boolean, currentDelay as integer) as integer
+    if saved then return 5000
+    if currentDelay < 1000 then return 2000
+    if currentDelay < 8000 then return currentDelay * 2
+    return 15000
+end function
+
 sub playerProgress(event as object)
     sample = event.getData()
     if m.watchDiagCount = invalid then m.watchDiagCount = 0
@@ -1422,15 +1430,21 @@ sub playerProgress(event as object)
         saved = rpWatchSave(m.watchState,m.profileId)
         m.watchSaveClock = CreateObject("roTimespan")
         m.watchSaveClock.mark()
+        m.watchSaveRetryDelayMs = rpWatchNextSaveRetryDelay(saved,m.watchSaveRetryDelayMs)
         refreshWatchLists = true
-        print "[RokuPlus watch] save-first="; saved; " records="; m.watchState.count(); " id="; detailId; " position="; sample.position; " duration="; sample.duration
+        print "[RokuPlus watch] save-first="; saved; " nextRetryMs="; m.watchSaveRetryDelayMs; " records="; m.watchState.count(); " id="; detailId; " position="; sample.position; " duration="; sample.duration
         if not saved then print "[RokuPlus watch] WARNING: first progress save failed; playback continues."
-    else if m.watchSaveClock.totalMilliseconds() >= 5000
-        saved = rpWatchSave(m.watchState,m.profileId)
-        m.watchSaveClock.mark()
-        refreshWatchLists = true
-        print "[RokuPlus watch] save-periodic="; saved; " records="; m.watchState.count(); " id="; detailId; " position="; sample.position; " duration="; sample.duration
-        if not saved then print "[RokuPlus watch] WARNING: periodic progress save failed; playback continues."
+    else
+        retryDelay = m.watchSaveRetryDelayMs
+        if retryDelay < 1000 then retryDelay = 5000
+        if m.watchSaveClock.totalMilliseconds() >= retryDelay
+            saved = rpWatchSave(m.watchState,m.profileId)
+            m.watchSaveClock.mark()
+            m.watchSaveRetryDelayMs = rpWatchNextSaveRetryDelay(saved,retryDelay)
+            refreshWatchLists = true
+            print "[RokuPlus watch] save-periodic="; saved; " nextRetryMs="; m.watchSaveRetryDelayMs; " records="; m.watchState.count(); " id="; detailId; " position="; sample.position; " duration="; sample.duration
+            if not saved then print "[RokuPlus watch] WARNING: periodic progress save failed; playback continues."
+        end if
     end if
     if record <> invalid and m.watchDiagCount <= 8 then print "[RokuPlus watch] record id="; detailId; " position="; record.position; " duration="; record.duration; " provider="; orbitText(record.provider,32); " slug="; orbitText(record.providerSlug,200)
     ' Rebuild the derived lists only at the save cadence or on completion.
@@ -1517,7 +1531,8 @@ sub playerClosed(event as object)
         m.pendingEngineSwitch = invalid
         ' Persist the previous title before changing decoder instances.
         if m.activePlaybackProfileId = m.profileId
-            rpWatchSave(m.watchState,m.profileId)
+            switchSaved = rpWatchSave(m.watchState,m.profileId)
+            if not switchSaved then print "[RokuPlus watch] WARNING: engine-switch save failed."
             if m.watchSaveClock <> invalid then m.watchSaveClock.mark()
         else
             print "[RokuPlus watch] engine-switch-save-skipped=profile-mismatch"
@@ -1539,6 +1554,7 @@ sub playerClosed(event as object)
     closeSaved = false
     if m.activePlaybackProfileId = m.profileId
         closeSaved = rpWatchSave(m.watchState,m.profileId)
+        if not closeSaved then print "[RokuPlus watch] WARNING: close save failed."
     else
         print "[RokuPlus watch] close-save-skipped=profile-mismatch session="; orbitText(m.activePlaybackProfileId,8); " active="; orbitText(m.profileId,8)
     end if
