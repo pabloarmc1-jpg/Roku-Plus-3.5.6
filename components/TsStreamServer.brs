@@ -1129,7 +1129,9 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     sectionLength = (section[1] mod 16) * 256 + section[2]
     if sectionLength + 3 <> total then return
     if sectionLength < 9 or sectionLength > 1021 then return
-    if section[1] < 192 then return
+    ' Long-syntax PAT/PMT sections use the 0xB? section-header nibble.
+    if (section[1] \\ 16) <> 11 then return
+    if section[5] mod 2 <> 1 then return
     if not rpTsRelayPsiCrcValid(section) then return
     sectionNumber = section[6]
     lastSectionNumber = section[7]
