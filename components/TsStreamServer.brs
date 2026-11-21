@@ -1165,9 +1165,17 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
         state.psiTables[tableKey] = {lastSection:lastSectionNumber,sections:sections}
     end if
     tableState = state.psiTables[tableKey]
-    ' A table version has one fixed last_section_number. Do not let a
-    ' conflicting section reset or mix with the current partial table.
-    if tableState.lastSection <> lastSectionNumber then return
+    ' A retransmission may expose a previously incomplete/corrupt accumulator
+    ' with a conflicting last_section_number. Discard that partial assembly and
+    ' restart from this CRC-valid section instead of wedging this version forever.
+    if tableState.lastSection <> lastSectionNumber
+        print "[RokuPlus ts-audit] psi_table_restart pid="; pid; " kind="; tableKind; " version="; versionNumber; " oldLast="; tableState.lastSection; " newLast="; lastSectionNumber
+        sections = []
+        while sections.count() <= lastSectionNumber
+            sections.push(invalid)
+        end while
+        tableState = {lastSection:lastSectionNumber,sections:sections}
+    end if
     sections = tableState.sections
     sections[sectionNumber] = section
     tableState.sections = sections
