@@ -1148,6 +1148,17 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     versionNumber = (section[5] \\ 2) mod 32
     tableKey = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":" + versionNumber.toStr()
     if not state.psiTables.doesExist(tableKey)
+        ' A new version supersedes incomplete accumulators for the same table identity.
+        tablePrefix = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":"
+        staleKeys = []
+        for existingKey in state.psiTables
+            if left(existingKey,len(tablePrefix)) = tablePrefix and existingKey <> tableKey
+                staleKeys.push(existingKey)
+            end if
+        end for
+        for staleKey in staleKeys
+            state.psiTables.Delete(staleKey)
+        end for
         sections = []
         while sections.count() <= lastSectionNumber
             sections.push(invalid)
