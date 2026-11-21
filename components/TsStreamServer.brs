@@ -165,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     ' Keep PID continuity baselines across every HLS segment in this relay response.
     tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
-    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,programNumber:-1,videoPid:-1,audioPids:[]
+    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,programNumber:-1,videoPid:-1,audioPids:[]}
     segmentDiscontinuities = server.segmentDiscontinuities
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
