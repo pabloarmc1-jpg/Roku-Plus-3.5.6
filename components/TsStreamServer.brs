@@ -20,24 +20,10 @@ sub runTsStreamServer()
         print "[RokuPlus ts-relay] startup_cleanup removed="; relayStaleCount
     end if
     port = CreateObject("roMessagePort")
-    listener = CreateObject("roStreamSocket")
-    listener.setMessagePort(port)
-    address = CreateObject("roSocketAddress")
-    if not address.setPort(49322)
-        m.top.status = "address_error"
-        print "[RokuPlus ts-relay] server_failed stage=address"
-        return
-    end if
-    if not listener.setAddress(address)
-        m.top.status = "bind_error"
-        print "[RokuPlus ts-relay] server_failed stage=bind"
-        return
-    end if
-    listener.notifyReadable(true)
-    if not listener.listen(2)
+    listener = rpTsRelayCreateListener(port)
+    if listener = invalid
         m.top.status = "listen_error"
-        print "[RokuPlus ts-relay] server_failed stage=listen"
-        listener.close()
+        print "[RokuPlus ts-relay] server_failed stage=initial_listen"
         return
     end if
     m.top.status = "listening"
@@ -67,8 +53,11 @@ sub runTsStreamServer()
             end if
             relayCleanupTimer.Mark()
         end if
-        if type(event) = "roSocketEvent"
-            if event.getSocketID() = listener.getID() and listener.isReadable()
+        listenerFailed = listener.isException()
+        if type(event) = "roSocketEvent" and event.getSocketID() = listener.getID()
+            if listener.isException()
+                listenerFailed = true
+            else if listener.isReadable()
                 connection = listener.accept()
                 if connection <> invalid
                     if m.top.stopRequested
@@ -76,11 +65,58 @@ sub runTsStreamServer()
                     else
                         rpTsRelayServe(connection,m.top)
                     end if
+                else if listener.isException()
+                    listenerFailed = true
+                else
+                    print "[RokuPlus ts-relay] accept_empty retry=next_event"
                 end if
             end if
         end if
+        if listenerFailed
+            print "[RokuPlus ts-relay] listener_lost reason=socket_exception"
+            listener.close()
+            m.top.status = "restarting"
+            listener = invalid
+            for listenerAttempt = 1 to 5
+                wait(500,port)
+                listener = rpTsRelayCreateListener(port)
+                if listener <> invalid then exit for
+                print "[RokuPlus ts-relay] listener_retry attempt="; listenerAttempt
+            end for
+            if listener = invalid
+                m.top.status = "listen_error"
+                print "[RokuPlus ts-relay] server_failed stage=listener_recovery"
+                return
+            end if
+            m.top.status = "listening"
+            print "[RokuPlus ts-relay] listener_recovered port=49322"
+        end if
     end while
 end sub
+
+function rpTsRelayCreateListener(port as object) as dynamic
+    listener = CreateObject("roStreamSocket")
+    listener.setMessagePort(port)
+    address = CreateObject("roSocketAddress")
+    if not address.setPort(49322)
+        print "[RokuPlus ts-relay] listener_create_failed stage=address"
+        listener.close()
+        return invalid
+    end if
+    if not listener.setAddress(address)
+        print "[RokuPlus ts-relay] listener_create_failed stage=bind"
+        listener.close()
+        return invalid
+    end if
+    listener.notifyReadable(true)
+    listener.notifyException(true)
+    if not listener.listen(2)
+        print "[RokuPlus ts-relay] listener_create_failed stage=listen"
+        listener.close()
+        return invalid
+    end if
+    return listener
+end function
 
 sub rpTsRelayServe(connection as object, server as object)
     connectionGeneration = server.generation
