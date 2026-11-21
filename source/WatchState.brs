@@ -76,6 +76,49 @@ function rpWatchIndex(items as object, itemId as string) as integer
     return -1
 end function
 
+' Migrate a saved watch record only when IMDb identity and episode coordinates
+' prove that the replacement catalog ID refers to the same playable content.
+function rpWatchMigrateIdentity(items as object, oldItem as object, newItem as object) as object
+    if type(items) <> "roArray" or type(oldItem) <> "roAssociativeArray" or type(newItem) <> "roAssociativeArray" then return items
+    oldId = orbitText(oldItem.id,180)
+    newId = orbitText(newItem.id,180)
+    if oldId = "" or newId = "" or oldId = newId then return items
+    oldImdb = lcase(orbitText(oldItem.imdbId,180))
+    newImdb = lcase(orbitText(newItem.imdbId,180))
+    if oldImdb = "" or newImdb = "" or oldImdb <> newImdb then return items
+    oldKind = lcase(orbitText(oldItem.kind,20))
+    newKind = lcase(orbitText(newItem.kind,20))
+    if oldKind = "" or oldKind <> newKind then return items
+    if oldKind = "episode"
+        if orbitInteger(oldItem.season,999) <> orbitInteger(newItem.season,999) then return items
+        if orbitInteger(oldItem.episode,9999) <> orbitInteger(newItem.episode,9999) then return items
+    end if
+    oldIndex = rpWatchIndex(items,oldId)
+    if oldIndex < 0 then return items
+    if rpWatchIndex(items,newId) >= 0 then return items
+    record = items[oldIndex]
+    record.id = newId
+    ' Accept refreshed source identifiers only when the new metadata supplied them.
+    identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers", "imdbId"]
+    for each field in identityFields
+        if newItem.doesExist(field)
+            newValue = newItem[field]
+            if newValue <> invalid
+                useValue = true
+                if GetInterface(newValue,"ifString") <> invalid and newValue = "" then useValue = false
+                if useValue then record[field] = newValue
+            end if
+        end if
+    end for
+    if orbitText(newItem.title,180) <> "" then record.title = orbitText(newItem.title,180)
+    if orbitText(newItem.poster,2048) <> "" then record.poster = orbitText(newItem.poster,2048)
+    if orbitText(newItem.background,2048) <> "" then record.background = orbitText(newItem.background,2048)
+    if orbitText(newItem.year,20) <> "" then record.year = orbitText(newItem.year,20)
+    items.delete(oldIndex)
+    items.unshift(record)
+    return items
+end function
+
 function rpWatchNumber(value as dynamic) as dynamic
     numeric = GetInterface(value,"ifInt") <> invalid or GetInterface(value,"ifLongInt") <> invalid or GetInterface(value,"ifFloat") <> invalid or GetInterface(value,"ifDouble") <> invalid
     if not numeric then return 0
