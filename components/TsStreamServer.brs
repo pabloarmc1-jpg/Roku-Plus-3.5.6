@@ -165,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     ' Keep PID continuity baselines across every HLS segment in this relay response.
     tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
-    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,videoPid:-1}
+    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,videoPid:-1,audioPids:[]}
     segmentDiscontinuities = server.segmentDiscontinuities
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
@@ -1216,12 +1216,50 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
             entry += 4
         end while
     end for
+    previousPmtPid = state.pmtPid
     state.pmtPid = selectedPmtPid
-    state.videoPid = -1
+    if previousPmtPid <> selectedPmtPid
+        if previousPmtPid >= 0
+            oldPmtKey = previousPmtPid.toStr()
+            if state.psiBuffers.doesExist(oldPmtKey) then state.psiBuffers.Delete(oldPmtKey)
+            staleKeys = []
+            oldTablePrefix = oldPmtKey + ":pmt:"
+            for existingKey in state.psiTables
+                if left(existingKey,len(oldTablePrefix)) = oldTablePrefix then staleKeys.push(existingKey)
+            end for
+            for staleKey in staleKeys
+                state.psiTables.Delete(staleKey)
+            end for
+        end if
+        state.videoPid = -1
+        state.audioPids = []
+        rpTsRelayResetPesClockState(state)
+        print "[RokuPlus ts-audit] pat_pmt_pid_changed old="; previousPmtPid; " new="; selectedPmtPid; " elementary_state_reset=true"
+    end if
 end sub
+
+' Clear fragmented PES and timestamp baselines whenever the PMT changes stream PID assignments.
+sub rpTsRelayResetPesClockState(state as object)
+    state.pesBuffers = {}
+    state.havePts = {}
+    state.lastPts = {}
+    state.haveDts = {}
+    state.lastDts = {}
+end sub
+
+function rpTsRelayPidArraysEqual(leftPids as object, rightPids as object) as boolean
+    if type(leftPids) <> "roArray" or type(rightPids) <> "roArray" then return false
+    if leftPids.count() <> rightPids.count() then return false
+    for index = 0 to leftPids.count() - 1
+        if leftPids[index] <> rightPids[index] then return false
+    end for
+    return true
+end function
 
 sub rpTsRelayApplyPmtSections(state as object, sections as object)
     selectedVideoPid = -1
+    selectedAudioPids = []
+    selectedAudioSeen = {}
     for section in sections
         total = section.count()
         if total < 16 then return
@@ -1233,12 +1271,29 @@ sub rpTsRelayApplyPmtSections(state as object, sections as object)
             elementaryPid = (section[entry+1] mod 32) * 256 + section[entry+2]
             esInfoLength = (section[entry+3] mod 16) * 256 + section[entry+4]
             if entry + 5 + esInfoLength > total - 4 then return
-            if streamType = 27 then selectedVideoPid = elementaryPid
+            if streamType = 27
+                selectedVideoPid = elementaryPid
+            else if streamType = 3 or streamType = 4 or streamType = 15 or streamType = 17 or streamType = 129 or streamType = 135
+                audioKey = elementaryPid.toStr()
+                if not selectedAudioSeen.doesExist(audioKey)
+                    selectedAudioSeen[audioKey] = true
+                    selectedAudioPids.push(elementaryPid)
+                end if
+            end if
             entry += 5 + esInfoLength
         end while
         if entry <> total - 4 then return
     end for
+    previousVideoPid = state.videoPid
+    previousAudioPids = state.audioPids
+    if type(previousAudioPids) <> "roArray" then previousAudioPids = []
+    audioPidsChanged = not rpTsRelayPidArraysEqual(previousAudioPids,selectedAudioPids)
+    if previousVideoPid <> selectedVideoPid or audioPidsChanged
+        rpTsRelayResetPesClockState(state)
+        print "[RokuPlus ts-audit] pmt_stream_pids_changed videoOld="; previousVideoPid; " videoNew="; selectedVideoPid; " audioOld="; previousAudioPids; " audioNew="; selectedAudioPids; " pes_clock_state_reset=true"
+    end if
     state.videoPid = selectedVideoPid
+    state.audioPids = selectedAudioPids
 end sub
 
 function rpTsRelayReadPtsArray(bytes as object, offset as integer, expectedPrefix as integer) as dynamic
