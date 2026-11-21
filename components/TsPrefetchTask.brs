@@ -144,6 +144,22 @@ sub runTsPrefetch()
             ' Fill at most two transfer slots. Keep the scheduling horizon close
             ' to the segment the relay is currently waiting to consume.
             requestIndex = m.top.requestIndex
+            ' A relay may invalidate a prefetched file after a read/size failure.
+            ' Rewind the scheduler to that requested segment unless it is already
+            ' represented by a ready result or an in-flight transfer.
+            if GetInterface(requestIndex, "ifInt") <> invalid and requestIndex >= 0 and requestIndex < segments.count() and requestIndex < nextToSchedule
+                requestKey = requestIndex.toStr()
+                requestPending = false
+                for each pendingKey in pending
+                    if pending[pendingKey].index = requestIndex
+                        requestPending = true
+                        exit for
+                    end if
+                end for
+                if not ready.doesExist(requestKey) and not requestPending
+                    nextToSchedule = requestIndex
+                end if
+            end if
             lastAllowed = requestIndex + 2
             if lastAllowed >= segments.count() then lastAllowed = segments.count() - 1
             while pending.count() < 2 and staleTransfers.count() < 8 and nextToSchedule <= lastAllowed and nextToSchedule < segments.count()
