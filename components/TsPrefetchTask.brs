@@ -194,7 +194,7 @@ sub runTsPrefetch()
         pendingIds.push(pendingId)
     end for
     for each pendingId in pendingIds
-        staleTransfers[pendingId] = pending[pendingId].filePath
+        staleTransfers[pendingId] = {filePath:pending[pendingId].filePath,xfer:pending[pendingId].xfer}
         pending[pendingId].xfer.AsyncCancel()
     end for
     cancelTimer = CreateObject("roTimespan")
@@ -208,7 +208,7 @@ sub runTsPrefetch()
                 pending.Delete(cancelId)
                 if staleTransfers.doesExist(cancelId) then staleTransfers.Delete(cancelId)
             else if staleTransfers.doesExist(cancelId)
-                DeleteFile(staleTransfers[cancelId])
+                DeleteFile(staleTransfers[cancelId].filePath)
                 staleTransfers.Delete(cancelId)
             end if
         end if
@@ -229,7 +229,7 @@ sub runTsPrefetch()
         end if
     end while
     for each staleId in staleTransfers
-        DeleteFile(staleTransfers[staleId])
+        DeleteFile(staleTransfers[staleId].filePath)
     end for
     for each key in ready
         readyPath = ready[key]
