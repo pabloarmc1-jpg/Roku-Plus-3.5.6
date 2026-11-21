@@ -1046,46 +1046,97 @@ end function
 ' Feed PSI bytes into a bounded per-PID section buffer and parse complete PAT/PMT sections.
 function rpTsRelayPsiFeed(state as object, pid as integer, payload as object, first as integer, afterLast as integer) as integer
     if first < 0 or afterLast <= first then return 0
+    if afterLast > payload.Count() then return 0
     key = pid.toStr()
     buffer = []
     if state.psiBuffers.doesExist(key) then buffer = state.psiBuffers[key]
-    for i = first to afterLast - 1
-        if buffer.count() < 1024 then buffer.push(payload[i])
-    end for
     parsed = 0
-    keepReading = true
-    while keepReading and buffer.count() >= 3
-        sectionLength = (buffer[1] mod 16) * 256 + buffer[2]
-        sectionTotal = 3 + sectionLength
-        if sectionLength < 9 or sectionLength > 1021
-            buffer = []
-            keepReading = false
-        else if buffer.count() < sectionTotal
-            keepReading = false
+    for i = first to afterLast - 1
+        value = payload[i]
+        if buffer.count() = 0 and value = 255 then
+            ' PSI stuffing bytes are not the beginning of another section.
         else
-            section = []
-            for i = 0 to sectionTotal - 1
-                section.push(buffer[i])
-            end for
-            rpTsRelayParsePsiSection(state,pid,section)
-            parsed++
-            remainder = []
-            for i = sectionTotal to buffer.count() - 1
-                remainder.push(buffer[i])
-            end for
-            buffer = remainder
+            if buffer.count() < 1024 then buffer.push(value)
         end if
-    end while
+        keepReading = true
+        while keepReading and buffer.count() >= 3
+            sectionLength = (buffer[1] mod 16) * 256 + buffer[2]
+            sectionTotal = 3 + sectionLength
+            if sectionLength < 9 or sectionLength > 1021
+                buffer = []
+                keepReading = false
+            else if buffer.count() < sectionTotal
+                keepReading = false
+            else
+                section = []
+                for sectionIndex = 0 to sectionTotal - 1
+                    section.push(buffer[sectionIndex])
+                end for
+                rpTsRelayParsePsiSection(state,pid,section)
+                parsed++
+                remainder = []
+                for remainderIndex = sectionTotal to buffer.count() - 1
+                    remainder.push(buffer[remainderIndex])
+                end for
+                buffer = remainder
+            end if
+        end while
+    end for
     state.psiBuffers[key] = buffer
     return parsed
 end function
 
+' MPEG-2 PSI CRC-32: polynomial 0x04C11DB7, initial value 0xFFFFFFFF,
+' no reflection and no final XOR. A valid complete section has remainder zero.
+function rpTsRelayCrcXor(leftValue as dynamic, rightValue as dynamic) as dynamic
+    result = 0
+    place = 1
+    a = leftValue
+    b = rightValue
+    for bitIndex = 0 to 31
+        aBit = a mod 2
+        bBit = b mod 2
+        if aBit <> bBit then result = result + place
+        a = a \ 2
+        b = b \ 2
+        place = place * 2
+    end for
+    return result
+end function
+
+function rpTsRelayPsiCrcValid(section as object) as boolean
+    if type(section) <> "roArray" then return false
+    total = section.count()
+    if total < 12 or total > 1024 then return false
+    crc = 4294967295
+    for byteIndex = 0 to total - 1
+        crc = rpTsRelayCrcXor(crc,section[byteIndex] * 16777216)
+        for bitIndex = 0 to 7
+            if crc >= 2147483648
+                shifted = (crc * 2) mod 4294967296
+                crc = rpTsRelayCrcXor(shifted,79764919)
+            else
+                crc = (crc * 2) mod 4294967296
+            end if
+        end for
+    end for
+    return crc = 0
+end function
+
 sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     total = section.count()
-    if total < 12 then return
+    if total < 12 or total > 1024 then return
     sectionLength = (section[1] mod 16) * 256 + section[2]
     if sectionLength + 3 <> total then return
+    if sectionLength < 9 or sectionLength > 1021 then return
+    if section[1] < 192 then return
+    if not rpTsRelayPsiCrcValid(section) then return
+    sectionNumber = section[6]
+    lastSectionNumber = section[7]
+    if sectionNumber > lastSectionNumber then return
     if pid = 0 and section[0] = 0
+        ' PAT program loop starts at byte 8 and ends before the four-byte CRC.
+        if sectionLength < 9 or ((total - 12) mod 4) <> 0 then return
         entry = 8
         while entry + 4 <= total - 4
             programNumber = section[entry] * 256 + section[entry+1]
@@ -1095,18 +1146,21 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
             end if
             entry += 4
         end while
-    else if pid = state.pmtPid and section[0] = 2 and total >= 16
+    else if pid = state.pmtPid and section[0] = 2
+        if sectionLength < 13 or total < 16 then return
         state.videoPid = -1
         programInfoLength = (section[10] mod 16) * 256 + section[11]
         entry = 12 + programInfoLength
+        if entry > total - 4 then return
         while entry + 5 <= total - 4
             streamType = section[entry]
             elementaryPid = (section[entry+1] mod 32) * 256 + section[entry+2]
             esInfoLength = (section[entry+3] mod 16) * 256 + section[entry+4]
-            if entry + 5 + esInfoLength > total - 4 then exit while
+            if entry + 5 + esInfoLength > total - 4 then return
             if streamType = 27 then state.videoPid = elementaryPid
             entry += 5 + esInfoLength
         end while
+        if entry <> total - 4 then return
     end if
 end sub
 
