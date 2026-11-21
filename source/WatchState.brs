@@ -36,7 +36,7 @@ function rpWatchParse(raw as dynamic) as dynamic
         end if
 
         ' Validate optional display/source strings before accepting the record.
-        stringFields = ["title", "kind", "poster", "background", "year", "provider", "imdbId", "providerSlug", "providerTmdbId", "providerKind", "seriesTitle", "seriesId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind"]
+        stringFields = ["title", "kind", "poster", "background", "year", "provider", "imdbId", "providerSlug", "providerTmdbId", "providerKind", "seriesTitle", "seriesId", "seriesImdbId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind"]
         for each field in stringFields
             if entry.doesExist(field)
                 if GetInterface(entry[field],"ifString") = invalid then return invalid
@@ -223,8 +223,21 @@ function rpWatchMigrateIdentity(items as object, oldItem as object, newItem as o
     newKind = lcase(orbitText(newItem.kind,20))
     if oldKind = "" or oldKind <> newKind then return items
     if oldKind = "episode"
-        if orbitInteger(oldItem.season,999) <> orbitInteger(newItem.season,999) then return items
-        if orbitInteger(oldItem.episode,9999) <> orbitInteger(newItem.episode,9999) then return items
+        oldSeriesImdb = orbitImdb(oldItem.seriesImdbId)
+        newSeriesImdb = orbitImdb(newItem.seriesImdbId)
+        if oldImdb <> "" and newImdb <> ""
+            if oldImdb <> newImdb then return items
+        else
+            if oldSeriesImdb = "" or newSeriesImdb = "" or oldSeriesImdb <> newSeriesImdb then return items
+        end if
+        oldSeason = orbitInteger(oldItem.season,999,-1)
+        newSeason = orbitInteger(newItem.season,999,-1)
+        oldEpisode = orbitInteger(oldItem.episode,9999,-1)
+        newEpisode = orbitInteger(newItem.episode,9999,-1)
+        if oldSeason < 0 or newSeason < 0 or oldEpisode < 1 or newEpisode < 1 then return items
+        if oldSeason <> newSeason or oldEpisode <> newEpisode then return items
+    else
+        if oldImdb = "" or newImdb = "" or oldImdb <> newImdb then return items
     end if
     oldIndex = rpWatchIndex(items,oldId)
     if oldIndex < 0 then return items
@@ -286,7 +299,7 @@ function rpWatchMigrateIdentity(items as object, oldItem as object, newItem as o
     end if
     record.id = newId
     ' Accept refreshed source identifiers only when the new metadata supplied them.
-    identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers", "imdbId"]
+    identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesImdbId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers", "imdbId"]
     for each field in identityFields
         if newItem.doesExist(field)
             newValue = newItem[field]
@@ -350,6 +363,7 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
     if item.doesExist("episode") then record.episode = item.episode
     if item.doesExist("seriesTitle") then record.seriesTitle = orbitText(item.seriesTitle,180)
     if item.doesExist("seriesId") then record.seriesId = orbitText(item.seriesId,180)
+    if item.doesExist("seriesImdbId") then record.seriesImdbId = orbitImdb(item.seriesImdbId)
     if item.doesExist("seriesProviderId") then record.seriesProviderId = item.seriesProviderId
     if item.doesExist("seriesProviderSlug") then record.seriesProviderSlug = orbitText(item.seriesProviderSlug,200)
     if item.doesExist("seriesProviderTmdbId") then record.seriesProviderTmdbId = orbitText(item.seriesProviderTmdbId,40)
@@ -377,7 +391,7 @@ function rpWatchUpdate(items as object, item as object, position as dynamic, dur
         end if
         ' Progress events may carry a reduced item object. Never let an
         ' incomplete event erase provider identity needed by Continue Watching.
-        identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers", "imdbId"]
+        identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesImdbId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers", "imdbId"]
         for each field in identityFields
             keepOld = false
             if old.doesExist(field)
