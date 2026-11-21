@@ -1084,7 +1084,9 @@ sub launchVideo(item as object, url as string, format as string)
     if m.playbackMode <> "compatible" or item.kind = "live" then m.activeJobId = ""
     eraseScreen()
     m.canvas.visible = false
-    if m.view <> "player" and m.view <> "source-resolving" then m.viewBeforePlayer = m.view
+    preserveEpisodeReturn = item.kind = "episode" and m.detailOrigin = "episodes" and type(m.series) = "roAssociativeArray"
+    if m.view <> "player" and m.view <> "source-resolving" and not preserveEpisodeReturn then m.viewBeforePlayer = m.view
+    if preserveEpisodeReturn then m.viewBeforePlayer = "episodes"
     m.view = "player"
     syncHomeRotationTimers()
     loadingTitleNode = m.player.findNode("loadingTitle")
