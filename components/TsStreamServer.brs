@@ -126,6 +126,7 @@ sub rpTsRelayServe(connection as object, server as object)
     server.connectionGeneration = connectionGeneration
     request = ""
     complete = false
+    headerTooLarge = false
     connectionPort = CreateObject("roMessagePort")
     connection.setMessagePort(connectionPort)
     connection.notifyReadable(true)
@@ -139,7 +140,14 @@ sub rpTsRelayServe(connection as object, server as object)
             part = connection.receiveStr(2048)
             if part = "" then exit while
             request += part
-            if instr(1,request,chr(13)+chr(10)+chr(13)+chr(10)) > 0 then complete = true
+            headerEnd = instr(1,request,chr(13)+chr(10)+chr(13)+chr(10))
+            if headerEnd > 0
+                if headerEnd + 3 > 8192
+                    headerTooLarge = true
+                    exit while
+                end if
+                complete = true
+            end if
         else
             requestEvent = wait(100,connectionPort)
             if type(requestEvent) = "roSocketEvent"
@@ -154,7 +162,7 @@ sub rpTsRelayServe(connection as object, server as object)
     if not complete
         if requestTimer.TotalMilliseconds() >= 5000
             print "[RokuPlus ts-relay] rejected_incomplete_request reason=timeout"
-        else if len(request) >= 8192
+        else if headerTooLarge or len(request) >= 8192
             print "[RokuPlus ts-relay] rejected_incomplete_request reason=header_limit"
         else
             print "[RokuPlus ts-relay] rejected_incomplete_request reason=closed_or_exception"
