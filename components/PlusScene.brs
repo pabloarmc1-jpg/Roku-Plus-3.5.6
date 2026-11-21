@@ -1755,7 +1755,7 @@ sub playerEndSelection(event as object)
     m.detail = item
     m.detail.hdAttempt = 0
     m.lastPlaybackProgress = invalid
-    m.endScreenRequestId = invalid
+    ' Keep the current request end-screen identity until launchVideo installs the next request.
     if item.kind = "episode"
         m.detailOrigin = "episodes"
         m.autoplay = false
