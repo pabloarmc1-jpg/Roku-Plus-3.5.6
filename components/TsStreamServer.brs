@@ -845,7 +845,16 @@ function rpTsRelayAuditClocks(payload as object, state as object) as object
                 adaptationLength = payload[offset+4]
                 if adaptationLength > 0 and adaptationLength <= 183 and offset + 5 + adaptationLength <= offset + 188
                     adaptationFlags = payload[offset+5]
-                    if adaptationFlags >= 128 then discontinuity = true
+                    if adaptationFlags >= 128
+                        discontinuity = true
+                        key = pid.toStr()
+                        if state.havePcr.doesExist(key) then state.havePcr.Delete(key)
+                        if state.lastPcr.doesExist(key) then state.lastPcr.Delete(key)
+                        if state.haveDts.doesExist(key) then state.haveDts.Delete(key)
+                        if state.lastDts.doesExist(key) then state.lastDts.Delete(key)
+                        if state.havePts.doesExist(key) then state.havePts.Delete(key)
+                        if state.lastPts.doesExist(key) then state.lastPts.Delete(key)
+                    end if
                     if (adaptationFlags mod 32) >= 16
                         if adaptationLength >= 7
                             pcrReserved = (payload[offset+10] mod 128) \ 2
@@ -872,14 +881,6 @@ function rpTsRelayAuditClocks(payload as object, state as object) as object
                 payloadStart = offset + 5 + adaptationLength
             end if
             key = pid.toStr()
-            if discontinuity
-                if state.havePcr.doesExist(key) then state.havePcr.Delete(key)
-                if state.lastPcr.doesExist(key) then state.lastPcr.Delete(key)
-                if state.haveDts.doesExist(key) then state.haveDts.Delete(key)
-                if state.lastDts.doesExist(key) then state.lastDts.Delete(key)
-                if state.havePts.doesExist(key) then state.havePts.Delete(key)
-                if state.lastPts.doesExist(key) then state.lastPts.Delete(key)
-            end if
             if payloadPresent and payloadStart + 9 < offset + 188 and payloadStart < offset + 188
                 if payload[offset+1] >= 64 and payload[offset+1] < 128
                     if payload[payloadStart] = 0 and payload[payloadStart+1] = 0 and payload[payloadStart+2] = 1
