@@ -165,7 +165,7 @@ sub rpTsRelayServe(connection as object, server as object)
     sentBytes = 0
     ' Keep PID continuity baselines across every HLS segment in this relay response.
     tsContinuityState = {lastCounters:{},haveCounters:{},errors:0,duplicates:0,checked:0}
-    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,videoPid:-1}
+    tsClockState = {lastPcr:{},havePcr:{},lastDts:{},haveDts:{},lastPts:{},havePts:{},pcrWraps:0,pcrRegressions:0,dtsWraps:0,dtsRegressions:0,ptsWraps:0,psiBuffers:{},psiTables:{},pesBuffers:{},headerLastCounters:{},headerHaveCounters:{},pmtPid:-1,videoPid:-1}
     segmentDiscontinuities = server.segmentDiscontinuities
     startIndex = server.nextSegmentIndex
     if GetInterface(startIndex,"ifInt") = invalid or startIndex < 0 then startIndex = 0
@@ -192,6 +192,7 @@ sub rpTsRelayServe(connection as object, server as object)
                 tsClockState.lastPts = {}
                 tsClockState.havePts = {}
                 tsClockState.psiBuffers = {}
+                tsClockState.psiTables = {}
                 tsClockState.pesBuffers = {}
                 tsClockState.headerLastCounters = {}
                 tsClockState.headerHaveCounters = {}
@@ -322,6 +323,7 @@ sub rpTsRelayServe(connection as object, server as object)
             tsClockState.lastPts = {}
             tsClockState.havePts = {}
             tsClockState.psiBuffers = {}
+                tsClockState.psiTables = {}
             tsClockState.pesBuffers = {}
             tsClockState.headerLastCounters = {}
             tsClockState.headerHaveCounters = {}
@@ -1129,7 +1131,6 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     sectionLength = (section[1] mod 16) * 256 + section[2]
     if sectionLength + 3 <> total then return
     if sectionLength < 9 or sectionLength > 1021 then return
-    ' Long-syntax PAT/PMT sections use the 0xB? section-header nibble.
     if (section[1] \\ 16) <> 11 then return
     if section[5] mod 2 <> 1 then return
     if not rpTsRelayPsiCrcValid(section) then return
@@ -1137,20 +1138,82 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
     lastSectionNumber = section[7]
     if sectionNumber > lastSectionNumber then return
     if pid = 0 and section[0] = 0
-        ' PAT program loop starts at byte 8 and ends before the four-byte CRC.
-        if sectionLength < 9 or ((total - 12) mod 4) <> 0 then return
+        tableKind = "pat"
+    else if pid = state.pmtPid and section[0] = 2
+        tableKind = "pmt"
+    else
+        return
+    end if
+    tableExtension = section[3] * 256 + section[4]
+    versionNumber = (section[5] \\ 2) mod 32
+    tableKey = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":" + versionNumber.toStr()
+    if not state.psiTables.doesExist(tableKey)
+        sections = []
+        while sections.count() <= lastSectionNumber
+            sections.push(invalid)
+        end while
+        state.psiTables[tableKey] = {lastSection:lastSectionNumber,sections:sections}
+    end if
+    tableState = state.psiTables[tableKey]
+    if tableState.lastSection <> lastSectionNumber
+        sections = []
+        while sections.count() <= lastSectionNumber
+            sections.push(invalid)
+        end while
+        tableState = {lastSection:lastSectionNumber,sections:sections}
+        state.psiTables[tableKey] = tableState
+    end if
+    sections = tableState.sections
+    sections[sectionNumber] = section
+    tableState.sections = sections
+    state.psiTables[tableKey] = tableState
+    complete = true
+    for index = 0 to tableState.lastSection
+        if tableState.sections[index] = invalid then complete = false
+    end for
+    if complete
+        if tableKind = "pat"
+            rpTsRelayApplyPatSections(state,tableState.sections)
+        else
+            rpTsRelayApplyPmtSections(state,tableState.sections)
+        end if
+        ' Retain only the active version's accumulator for this PID/table/extension.
+        staleKeys = []
+        for existingKey in state.psiTables
+            if left(existingKey,len(pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":")) = pid.toStr() + ":" + tableKind + ":" + tableExtension.toStr() + ":" and existingKey <> tableKey
+                staleKeys.push(existingKey)
+            end if
+        end for
+        for staleKey in staleKeys
+            state.psiTables.Delete(staleKey)
+        end for
+    end if
+end sub
+
+sub rpTsRelayApplyPatSections(state as object, sections as object)
+    selectedPmtPid = -1
+    for section in sections
+        total = section.count()
+        if total < 12 then return
+        if ((total - 12) mod 4) <> 0 then return
         entry = 8
         while entry + 4 <= total - 4
             programNumber = section[entry] * 256 + section[entry+1]
-            if programNumber > 0
-                state.pmtPid = (section[entry+2] mod 32) * 256 + section[entry+3]
-                exit while
+            if programNumber > 0 and selectedPmtPid < 0
+                selectedPmtPid = (section[entry+2] mod 32) * 256 + section[entry+3]
             end if
             entry += 4
         end while
-    else if pid = state.pmtPid and section[0] = 2
-        if sectionLength < 13 or total < 16 then return
-        state.videoPid = -1
+    end for
+    state.pmtPid = selectedPmtPid
+    state.videoPid = -1
+end sub
+
+sub rpTsRelayApplyPmtSections(state as object, sections as object)
+    selectedVideoPid = -1
+    for section in sections
+        total = section.count()
+        if total < 16 then return
         programInfoLength = (section[10] mod 16) * 256 + section[11]
         entry = 12 + programInfoLength
         if entry > total - 4 then return
@@ -1159,11 +1222,12 @@ sub rpTsRelayParsePsiSection(state as object, pid as integer, section as object)
             elementaryPid = (section[entry+1] mod 32) * 256 + section[entry+2]
             esInfoLength = (section[entry+3] mod 16) * 256 + section[entry+4]
             if entry + 5 + esInfoLength > total - 4 then return
-            if streamType = 27 then state.videoPid = elementaryPid
+            if streamType = 27 then selectedVideoPid = elementaryPid
             entry += 5 + esInfoLength
         end while
         if entry <> total - 4 then return
-    end if
+    end for
+    state.videoPid = selectedVideoPid
 end sub
 
 function rpTsRelayReadPtsArray(bytes as object, offset as integer, expectedPrefix as integer) as dynamic
