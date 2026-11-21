@@ -3728,6 +3728,17 @@ sub loadEpisodeSeason()
     if not usesOnlineHd() and not rpIsOnlineHdItem(m.series) then return
     if m.season < 0 or m.season >= m.series.seasons.count() then return
     season = m.series.seasons[m.season]
+    ' A request for another season must not remain active when the newly
+    ' selected season is already cached; otherwise its late result can reset
+    ' the episode cursor after the user has moved on.
+    if type(m.pending) = "roAssociativeArray" and m.pending.operation = "episodes"
+        pendingSeason = -1
+        if m.pending.doesExist("season") then pendingSeason = orbitInteger(m.pending.season,999,-1)
+        pendingSeriesId = ""
+        if type(m.pending.item) = "roAssociativeArray" then pendingSeriesId = orbitText(m.pending.item.id,180)
+        currentSeriesId = orbitText(m.series.id,180)
+        if pendingSeriesId = currentSeriesId and pendingSeason <> season.number then cancelRequest()
+    end if
     if season.loaded = true then return
     fetch({operation:"episodes",item:m.series,season:season.number})
 end sub
