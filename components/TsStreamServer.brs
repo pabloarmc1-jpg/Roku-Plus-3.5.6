@@ -1233,6 +1233,7 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
             for staleKey in staleKeys
                 state.psiTables.Delete(staleKey)
             end for
+            rpTsRelayClearPmtVersionState(state,previousPmtPid)
         end if
         if selectedPmtPid >= 0
             newPmtKey = selectedPmtPid.toStr()
@@ -1245,21 +1246,26 @@ sub rpTsRelayApplyPatSections(state as object, sections as object)
             for staleKey in staleKeys
                 state.psiTables.Delete(staleKey)
             end for
-            activeVersionKeys = []
-            for activeKey in state.psiActiveVersions
-                if left(activeKey,len(newTablePrefix)-1) = left(newTablePrefix,len(newTablePrefix)-1)
-                    activeVersionKeys.push(activeKey)
-                end if
-            end for
-            for activeKey in activeVersionKeys
-                state.psiActiveVersions.Delete(activeKey)
-            end for
+            rpTsRelayClearPmtVersionState(state,selectedPmtPid)
         end if
         state.videoPid = -1
         state.audioPids = []
         rpTsRelayResetPesClockState(state)
         print "[RokuPlus ts-audit] pat_program_changed pmtOld="; previousPmtPid; " pmtNew="; selectedPmtPid; " programOld="; previousProgramNumber; " programNew="; selectedProgramNumber; " elementary_state_reset=true"
     end if
+end sub
+
+' Forget PMT version ordering when its PID is reassigned or selected again.
+sub rpTsRelayClearPmtVersionState(state as object, pid as integer)
+    if pid < 0 then return
+    prefix = pid.toStr() + ":pmt:"
+    keys = []
+    for activeKey in state.psiActiveVersions
+        if left(activeKey,len(prefix)) = prefix then keys.push(activeKey)
+    end for
+    for activeKey in keys
+        state.psiActiveVersions.Delete(activeKey)
+    end for
 end sub
 
 ' Reset program/clock parser state at HLS discontinuities and malformed segment boundaries.
