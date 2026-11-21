@@ -3204,6 +3204,12 @@ sub advanceTsRelayRestart(now as integer)
     m.mediaNode = relayMedia
     m.decoder.contentIsPlaylist = false
     m.decoder.content = relayMedia
+    ' Replacing Video.content can restore seekMode to its default. Reapply
+    ' accurate mode for every TS relay restart before issuing the local seek.
+    if m.decoder.hasField("seekMode")
+        m.decoder.seekMode = "accurate"
+        m.accuracyMode = m.decoder.seekMode
+    end if
     m.decoder.autoplayAfterSeek = not m.wantPaused
     m.decoder.control = "play"
     print "[RokuPlus ts-relay] seek_restart segment="; m.tsRelayRestartSegment; " landingOffset="; relayOffset; " requestedTarget="; requestedTarget; " localTarget="; localTarget
