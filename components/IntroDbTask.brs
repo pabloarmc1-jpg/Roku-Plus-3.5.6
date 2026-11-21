@@ -14,7 +14,7 @@ sub runIntroDbLookup()
         title = m.top.title.trim()
         if title = ""
             answer.message = "Falta el título para buscarlo en Cinemeta."
-            m.top.result = answer
+            if not m.top.cancelRequested then m.top.result = answer
             return
         end if
         imdbId = introDbResolveCinemetaId(title,m.top.year,isMovie,season,episode)
@@ -51,7 +51,7 @@ sub runIntroDbLookup()
     if m.top.cancelRequested then return
     if type(parsed) <> "roAssociativeArray"
         answer.message = "IntroDB no respondió con datos válidos."
-        m.top.result = answer
+        if not m.top.cancelRequested then m.top.result = answer
         return
     end if
 
