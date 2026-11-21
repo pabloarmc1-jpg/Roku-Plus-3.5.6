@@ -11,8 +11,6 @@ sub init()
     ' TS relay, seek and close handling are shared without changing the main player.
     m.player = m.standardPlayer
     m.pendingEngineSwitch = invalid
-    m.invidiousPlayer = m.top.findNode("invidiousPlayer")
-    m.invidiousPlayer.observeField("closed","invidiousPlayerClosed")
     m.deadline = m.top.findNode("catalogDeadline")
     m.deadline.observeField("fire","catalogTimedOut")
     m.lease = m.top.findNode("playbackLease")
@@ -226,9 +224,6 @@ sub init()
     m.homeCache = {}
     m.homeLoading = false
     m.settingsCursor = 0
-    m.invidiousItems = []
-    m.invidiousCursor = 0
-    m.invidiousQuery = ""
     m.creditsPage = 0
     m.creditsPages = []
     m.plusInitialized = false
@@ -587,23 +582,7 @@ sub fetched(event as object)
         m.sourceAlternativeAttemptIndex = -1
         m.sourceAlternativeStatus = ""
     end if
-    if context.operation = "invidious-search"
-        m.invidiousItems = answer.items
-        m.invidiousCursor = 0
-        m.view = "invidious"
-        m.zone = "invidious"
-        if m.invidiousItems.count() = 0 then m.note = "No se encontraron videos en Invidious."
-    else if context.operation = "invidious-resolve"
-        if answer.ok
-            m.playbackMode = "direct"
-            m.detail = context.item
-            m.detailOrigin = "invidious"
-            launchInvidiousVideo(context.item,answer.url,answer.streamFormat,answer.bitrate)
-            return
-        else
-            m.note = answer.message
-        end if
-    else if context.operation = "find-source" and type(answer.item) = "roAssociativeArray" and answer.item.kind = "series"
+    if context.operation = "find-source" and type(answer.item) = "roAssociativeArray" and answer.item.kind = "series"
         m.sourceLaunchPending = false
         m.detail = answer.item
         m.detailOrigin = orbitText(context.origin,24)
@@ -1017,28 +996,6 @@ sub streamXImagesLoaded(event as object)
     hasBanner = imageResult.background <> ""
     print "[RokuPlus StreamX] preload-complete logo="; hasLogo; " banner="; hasBanner
     if m.view = "source-resolving" and m.streamXImageKey = cacheKey then drawScreen()
-end sub
-
-sub launchInvidiousVideo(item as object, url as string, format as string, bitrate as dynamic)
-    ' Dedicated decoder: Invidious playback never enters PlusPlayer or its TS/seek pipeline.
-    stopLivePreview()
-    m.viewBeforeInvidiousPlayer = "invidious"
-    m.view = "invidious-player"
-    syncHomeRotationTimers()
-    m.canvas.visible = false
-    eraseScreen()
-    m.invidiousPlayer.visible = true
-    m.invidiousPlayer.request = {title:orbitText(item.title,180),url:url,streamFormat:format,bitrate:bitrate}
-    m.invidiousPlayer.setFocus(true)
-end sub
-
-sub invidiousPlayerClosed(event as object)
-    if event.getData() <> true then return
-    m.invidiousPlayer.visible = false
-    m.view = m.viewBeforeInvidiousPlayer
-    m.invidiousPlayer.active = false
-    drawScreen()
-    m.top.setFocus(true)
 end sub
 
 sub launchVideo(item as object, url as string, format as string)
@@ -3003,86 +2960,6 @@ sub removeLibraryItem()
 end sub
 
 
-sub openInvidiousSearch()
-    dialog = CreateObject("roSGNode","StandardKeyboardDialog")
-    if dialog = invalid then return
-    dialog.title = "Buscar en YouTube · Invidious"
-    dialog.text = m.invidiousQuery
-    dialog.buttons = ["Buscar","Cancelar"]
-    dialog.observeField("buttonSelected","invidiousSearchChosen")
-    dialog.observeField("wasClosed","invidiousSearchDismissed")
-    m.dialogBox = dialog
-    m.dialogPurpose = "invidious-search"
-    m.top.dialog = dialog
-end sub
-
-sub invidiousSearchChosen(event as object)
-    if m.dialogBox = invalid then return
-    if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
-    query = left(m.dialogBox.text.trim(),100)
-    choice = event.getData()
-    releaseDialog()
-    if choice <> 0 or query = ""
-        if m.view = "settings" then drawScreen()
-        m.top.setFocus(true)
-        scheduleDialogFocusRestore()
-        return
-    end if
-    m.invidiousQuery = query
-    m.invidiousItems = []
-    m.invidiousCursor = 0
-    m.view = "invidious"
-    m.zone = "invidious"
-    m.note = ""
-    m.request = CreateObject("roDeviceInfo").getRandomUUID()
-    task = CreateObject("roSGNode","InvidiousTask")
-    task.operation = "search"
-    task.query = query
-    task.requestId = m.request
-    task.observeField("result","fetched")
-    task.observeField("state","catalogState")
-    m.job = task
-    m.pending = {operation:"invidious-search"}
-    m.busy = true
-    m.deadline.duration = 45
-    m.deadlineMs = 45000
-    m.deadlineStart = CreateObject("roTimespan")
-    m.deadlineStart.mark()
-    drawScreen()
-    m.deadline.control = "start"
-    task.control = "RUN"
-end sub
-
-sub invidiousSearchDismissed(event as object)
-    if m.dialogBox = invalid then return
-    if not m.dialogBox.isSameNode(event.getRoSGNode()) then return
-    releaseDialog(true)
-    if m.view = "settings" then drawScreen()
-    scheduleDialogFocusRestore()
-end sub
-
-sub startInvidiousResolve(item as object)
-    if type(item) <> "roAssociativeArray" then return
-    m.request = CreateObject("roDeviceInfo").getRandomUUID()
-    task = CreateObject("roSGNode","InvidiousTask")
-    task.operation = "resolve"
-    task.videoId = item.id
-    task.requestId = m.request
-    task.observeField("result","fetched")
-    task.observeField("state","catalogState")
-    m.job = task
-    m.pending = {operation:"invidious-resolve",item:item}
-    m.busy = true
-    m.note = ""
-    m.deadline.duration = 45
-    m.deadlineMs = 45000
-    m.deadlineStart = CreateObject("roTimespan")
-    m.deadlineStart.mark()
-    drawScreen()
-    m.deadline.control = "start"
-    task.control = "RUN"
-end sub
-
 sub openSettings()
     cancelRequest()
     m.view = "settings"
@@ -4010,7 +3887,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
         return true
     end if
-    if m.view = "player" or m.view = "invidious-player" then return false
+    if m.view = "player" then return false
     if m.view = "source-resolving" and not m.busy and type(m.sourceAlternatives) = "roArray" and m.sourceAlternatives.count() > 0
         if key = "left" and m.sourceAlternativeCursor > 0
             m.sourceAlternativeCursor--
@@ -4112,17 +3989,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
             closeSearchKeyboard()
             return true
         end if
-        ' Handle Invidious before the generic busy/back path so BACK always
-        ' returns to Settings, including while a search or resolve is running.
-        if m.view = "invidious"
-            if m.busy then cancelRequest()
-            m.view = "settings"
-            m.zone = "settings"
-            m.settingsCursor = 10
-            drawScreen()
-            m.top.setFocus(true)
-            return true
-        end if
         if m.busy
             pendingContext = m.pending
             cancelRequest()
@@ -4146,25 +4012,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
         if key = "down" and m.creditsPage+1 < m.creditsPages.count() then m.creditsPage++
         if key = "up" and m.creditsPage > 0 then m.creditsPage--
         drawScreen()
-        return true
-    end if
-    if m.view = "invidious"
-        previousCursor = m.invidiousCursor
-        if key = "up" and m.invidiousCursor > 0 then m.invidiousCursor--
-        if key = "down" and m.invidiousCursor+1 < m.invidiousItems.count() then m.invidiousCursor++
-        if key = "OK" and m.invidiousItems.count() > 0
-            if not m.busy
-                selected = m.invidiousItems[m.invidiousCursor]
-                startInvidiousResolve(selected)
-            end if
-            return true
-        end if
-        ' Invidious rows are drawn directly, not registered in m.focusItems.
-        ' Redraw the view so the selected-row highlight follows the cursor.
-        if previousCursor <> m.invidiousCursor
-            drawScreen()
-            m.top.setFocus(true)
-        end if
         return true
     end if
     if m.view = "appearance"
@@ -4362,7 +4209,7 @@ if m.view = "profiles"
     else if m.view = "settings"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up" and m.settingsCursor > 0 then m.settingsCursor--
-        if key = "down" and m.settingsCursor < 10 then m.settingsCursor++
+        if key = "down" and m.settingsCursor < 9 then m.settingsCursor++
         if key = "OK"
             if m.settingsCursor = 0 then beginSetup(true,false)
             if m.settingsCursor = 1 then beginSetup(true,true)
@@ -4373,7 +4220,6 @@ if m.view = "profiles"
             if m.settingsCursor = 6 then openCompatSettings()
             if m.settingsCursor = 7 then openApiKeySettings("tmdb")
             if m.settingsCursor = 8 then openApiKeySettings("subtitle")
-            if m.settingsCursor = 10 then openInvidiousSearch()
             return true
         end if
         paintFocus()
