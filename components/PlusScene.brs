@@ -1025,7 +1025,14 @@ sub launchVideo(item as object, url as string, format as string)
     ' catalog item arrives with its slug but without providerId.
     itemProvider = lcase(orbitText(item.provider,32))
     if item.kind = "episode"
-        parentSlug = orbitText(item.seriesProviderSlug,200)
+        ' When playback starts from the open season browser, keep its fully
+        ' loaded parent series. Rebuilding it from episode metadata would
+        ' replace every season's episode list with empty arrays.
+        preserveEpisodeBrowser = m.viewBeforePlayer = "episodes" and m.detailOrigin = "episodes" and type(m.series) = "roAssociativeArray"
+        if preserveEpisodeBrowser
+            print "[RokuPlus series] preserve-episode-browser id="; orbitText(m.series.id,180); " seasonIndex="; m.season
+        else
+            parentSlug = orbitText(item.seriesProviderSlug,200)
         parentId = orbitText(item.seriesId,180)
         if parentId = "" and itemProvider = "seriesmetro" then parentId = "hdo-seriesmetro-"+orbitInteger(item.providerId,999999999).toStr()
         parentProviderId = item.providerId
@@ -1052,6 +1059,7 @@ sub launchVideo(item as object, url as string, format as string)
                 m.seriesOrigin = "home"
                 print "[RokuPlus series] restored-parent provider="; itemProvider; " id="; parentId; " season="; seasonNumber
             end if
+        end if
         end if
     end if
     if itemProvider = "lamovie"
