@@ -79,6 +79,8 @@ sub init()
     m.watchState = rpWatchLoad(m.profileId)
     m.profileCursor = 0
     m.lastPlaybackProgress = invalid
+    m.activePlaybackItem = invalid
+    m.activePlaybackOrigin = invalid
     m.endScreenRequestId = invalid
     m.endScreenNextEpisodePending = false
     m.endScreenWatchedRequestId = invalid
@@ -1171,6 +1173,8 @@ sub launchVideo(item as object, url as string, format as string)
     descriptor.requestId = CreateObject("roDeviceInfo").getRandomUUID()
     m.activePlaybackRequestId = descriptor.requestId
     m.activePlaybackProfileId = m.profileId
+    m.activePlaybackItem = item
+    m.activePlaybackOrigin = m.detailOrigin
     m.lastPlaybackProgress = invalid
     m.endScreenRequestId = invalid
     m.endScreenWatchedRequestId = invalid
@@ -1336,8 +1340,9 @@ sub playerProgress(event as object)
     sample = event.getData()
     if m.watchDiagCount = invalid then m.watchDiagCount = 0
     m.watchDiagCount = m.watchDiagCount + 1
+    playbackItem = m.activePlaybackItem
     detailId = ""
-    if type(m.detail) = "roAssociativeArray" and m.detail.doesExist("id") then detailId = orbitText(m.detail.id,180)
+    if type(playbackItem) = "roAssociativeArray" and playbackItem.doesExist("id") then detailId = orbitText(playbackItem.id,180)
     sampleId = ""
     if type(sample) = "roAssociativeArray" and sample.doesExist("itemId") then sampleId = orbitText(sample.itemId,180)
     if m.watchDiagCount <= 8
@@ -1370,24 +1375,24 @@ sub playerProgress(event as object)
         if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=presentation"
         return
     end if
-    if type(m.detail) <> "roAssociativeArray"
-        if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=detail-missing"
+    if type(playbackItem) <> "roAssociativeArray"
+        if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=playback-item-missing"
         return
     end if
-    if sample.itemId <> m.detail.id
+    if sample.itemId <> playbackItem.id
         if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=id-mismatch sample="; sampleId; " detail="; detailId
         return
     end if
-    if sample.failed = true and orbitText(m.detail.kind,16) = "episode" and rpHdOnlineProvider(m.detail.provider) <> "" and m.detail.hdFallbackTried <> true
-        m.detail.hdFallbackTried = true
-        m.pendingEpisodeFallback = {item:m.detail,origin:m.detailOrigin}
+    if sample.failed = true and orbitText(playbackItem.kind,16) = "episode" and rpHdOnlineProvider(playbackItem.provider) <> "" and playbackItem.hdFallbackTried <> true
+        playbackItem.hdFallbackTried = true
+        m.pendingEpisodeFallback = {item:playbackItem,origin:m.activePlaybackOrigin}
         m.recovering = false
-        print "[RokuPlus source-fallback] trigger=automatic-playback-failure provider="; orbitText(m.detail.provider,32); " season="; orbitInteger(m.detail.season,999); " episode="; orbitInteger(m.detail.episode,9999)
+        print "[RokuPlus source-fallback] trigger=automatic-playback-failure provider="; orbitText(playbackItem.provider,32); " season="; orbitInteger(playbackItem.season,999); " episode="; orbitInteger(playbackItem.episode,9999)
         m.player.callFunc("closePlayback")
         return
     end if
     m.lastPlaybackProgress = sample
-    m.watchState = rpWatchUpdate(m.watchState,m.detail,sample.position,sample.duration)
+    m.watchState = rpWatchUpdate(m.watchState,playbackItem,sample.position,sample.duration)
     ' Show the end card only when IntroDB gives a real credits marker.
     ' Without a confirmed marker, wait for the decoder's finished event.
     creditsStart = -1.0
@@ -1413,9 +1418,9 @@ sub playerProgress(event as object)
         end if
         if not watchedRequest
             m.endScreenWatchedRequestId = sample.requestId
-            watchedAtEnd = rpWatchGet(m.watchState,m.detail.id)
+            watchedAtEnd = rpWatchGet(m.watchState,playbackItem.id)
             if watchedAtEnd = invalid or watchedAtEnd.watched <> true
-                m.watchState = rpWatchToggle(m.watchState,m.detail,"watched")
+                m.watchState = rpWatchToggle(m.watchState,playbackItem,"watched")
                 rpWatchSave(m.watchState,m.profileId)
             end if
         end if
@@ -1424,7 +1429,7 @@ sub playerProgress(event as object)
             preparePlaybackEndScreen()
         end if
     end if
-    record = rpWatchGet(m.watchState,m.detail.id)
+    record = rpWatchGet(m.watchState,playbackItem.id)
     refreshWatchLists = sample.state = "finished"
     if m.watchSaveClock = invalid
         saved = rpWatchSave(m.watchState,m.profileId)
@@ -1559,7 +1564,7 @@ sub playerClosed(event as object)
         print "[RokuPlus watch] close-save-skipped=profile-mismatch session="; orbitText(m.activePlaybackProfileId,8); " active="; orbitText(m.profileId,8)
     end if
     closeRecord = invalid
-    if type(m.detail) = "roAssociativeArray" and m.detail.doesExist("id") then closeRecord = rpWatchGet(m.watchState,m.detail.id)
+    if type(m.activePlaybackItem) = "roAssociativeArray" and m.activePlaybackItem.doesExist("id") then closeRecord = rpWatchGet(m.watchState,m.activePlaybackItem.id)
     if closeRecord <> invalid
         print "[RokuPlus watch] close-save="; closeSaved; " id="; orbitText(closeRecord.id,180); " position="; closeRecord.position; " duration="; closeRecord.duration; " provider="; orbitText(closeRecord.provider,32)
     else
@@ -1595,13 +1600,15 @@ sub playerClosed(event as object)
     end if
     finishedNaturally = false
     if type(m.lastPlaybackProgress) = "roAssociativeArray" then finishedNaturally = m.lastPlaybackProgress.state = "finished"
-    if finishedNaturally and m.detail <> invalid and m.activePlaybackProfileId = m.profileId
-        watchedRecord = rpWatchGet(m.watchState,m.detail.id)
-        if watchedRecord = invalid or watchedRecord.watched <> true then m.watchState = rpWatchToggle(m.watchState,m.detail,"watched")
+    if finishedNaturally and type(m.activePlaybackItem) = "roAssociativeArray" and m.activePlaybackProfileId = m.profileId
+        watchedRecord = rpWatchGet(m.watchState,m.activePlaybackItem.id)
+        if watchedRecord = invalid or watchedRecord.watched <> true then m.watchState = rpWatchToggle(m.watchState,m.activePlaybackItem,"watched")
         rpWatchSave(m.watchState,m.profileId)
     end if
     m.lastPlaybackProgress = invalid
     m.activePlaybackProfileId = invalid
+    m.activePlaybackItem = invalid
+    m.activePlaybackOrigin = invalid
     m.continueItems = rpWatchContinue(m.watchState)
     m.note = ""
     drawScreen()
