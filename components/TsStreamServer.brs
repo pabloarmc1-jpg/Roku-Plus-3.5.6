@@ -533,6 +533,7 @@ function rpTsRelayAuditPayload(payload as object) as object
     result.firstPts = -1
     result.lastPts = -1
     result.pcrCount = 0
+    result.pcrErrors = 0
     result.firstPcr = -1
     result.lastPcr = -1
     result.dtsCount = 0
@@ -568,15 +569,21 @@ function rpTsRelayAuditPayload(payload as object) as object
                 if adaptationLength > 0 and offset + 5 < total
                     adaptationFlags = payload[offset+5]
                     if adaptationFlags >= 128 then discontinuity = true
-                    if adaptationLength >= 7 and (adaptationFlags mod 32) >= 16
-                        pcrReserved = (payload[offset+10] mod 128) \ 2
-                        pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
-                        if pcrReserved = 63 and pcrExtension <= 299
-                            pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \ 128)
-                            pcrValue = pcrBase + pcrExtension / 300.0
-                            if result.pcrCount = 0 then result.firstPcr = pcrValue
-                            result.lastPcr = pcrValue
-                            result.pcrCount++
+                    if (adaptationFlags mod 32) >= 16
+                        if adaptationLength >= 7
+                            pcrReserved = (payload[offset+10] mod 128) \ 2
+                            pcrExtension = (payload[offset+10] mod 2) * 256 + payload[offset+11]
+                            if pcrReserved = 63 and pcrExtension <= 299
+                                pcrBase = payload[offset+6] * 33554432 + payload[offset+7] * 131072 + payload[offset+8] * 512 + payload[offset+9] * 2 + (payload[offset+10] \ 128)
+                                pcrValue = pcrBase + pcrExtension / 300.0
+                                if result.pcrCount = 0 then result.firstPcr = pcrValue
+                                result.lastPcr = pcrValue
+                                result.pcrCount++
+                            else
+                                result.pcrErrors++
+                            end if
+                        else
+                            result.pcrErrors++
                         end if
                     end if
                 end if
