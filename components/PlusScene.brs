@@ -3711,13 +3711,13 @@ function rpWatchLastEpisodeForSeries(series as object) as dynamic
                 savedTitle = lcase(orbitText(saved.seriesTitle,180))
                 savedProvider = lcase(orbitText(saved.provider,32))
                 savedYear = left(orbitText(saved.year,12),4)
-                if seriesImdbId <> "" and savedSeriesImdb = seriesImdbId then matches = true
-                if not matches and seriesTmdbId <> "" and savedSeriesTmdb = seriesTmdbId then matches = true
-                if not matches and seriesId <> "" and savedSeriesId = seriesId then matches = true
+                idsConflict = (seriesId <> "" and savedSeriesId <> "" and seriesId <> savedSeriesId)
+                imdbConflict = (seriesImdbId <> "" and savedSeriesImdb <> "" and seriesImdbId <> savedSeriesImdb)
+                tmdbConflict = (seriesTmdbId <> "" and savedSeriesTmdb <> "" and seriesTmdbId <> savedSeriesTmdb)
+                if not imdbConflict and seriesImdbId <> "" and savedSeriesImdb = seriesImdbId then matches = true
+                if not matches and not imdbConflict and not tmdbConflict and seriesTmdbId <> "" and savedSeriesTmdb = seriesTmdbId then matches = true
+                if not matches and not imdbConflict and not tmdbConflict and not idsConflict and seriesId <> "" and savedSeriesId = seriesId then matches = true
                 if not matches and seriesTitle <> "" and savedTitle = seriesTitle
-                    idsConflict = (seriesId <> "" and savedSeriesId <> "" and seriesId <> savedSeriesId)
-                    imdbConflict = (seriesImdbId <> "" and savedSeriesImdb <> "" and seriesImdbId <> savedSeriesImdb)
-                    tmdbConflict = (seriesTmdbId <> "" and savedSeriesTmdb <> "" and seriesTmdbId <> savedSeriesTmdb)
                     sameYear = (seriesYear = "" or savedYear = "" or seriesYear = savedYear)
                     if not idsConflict and not imdbConflict and not tmdbConflict and savedProvider = seriesProvider and seriesProvider <> "" and sameYear
                         matches = true
