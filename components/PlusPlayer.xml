@@ -9,6 +9,7 @@
     <field id="progress" type="assocarray" alwaysNotify="true" />
     <field id="retryRequested" type="assocarray" alwaysNotify="true" />
     <field id="endScreenData" type="assocarray" onChange="onEndScreenDataChanged" alwaysNotify="true" />
+    <field id="nextEpisodePrefetchReady" type="boolean" value="true" onChange="onNextEpisodePrefetchReadyChanged" alwaysNotify="true" />
     <field id="introDbData" type="assocarray" onChange="onIntroDbDataChanged" alwaysNotify="true" />
     <field id="endSelection" type="assocarray" alwaysNotify="true" />
     <field id="presentation" type="string" value="fullscreen" onChange="onPresentationChanged" />
