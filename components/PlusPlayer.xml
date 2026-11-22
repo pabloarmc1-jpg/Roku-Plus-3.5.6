@@ -82,7 +82,7 @@
       <Label id="noticeText" translation="[112,0]" width="1696" height="32" font="font:SmallSystemFont" color="0xFFFFFFFF" />
 
       <!-- Track and zoom menus are children of transport: they stay anchored to their buttons and hide with the controls. -->
-    <Group id="displayMenu" translation="[1336,-20]" visible="false">
+    <Group id="displayMenu" translation="[1336,38]" visible="false">
       <Rectangle width="360" height="184" color="0x080A0F66" />
       <Rectangle translation="[0,0]" width="360" height="2" color="0xE50914CC" />
       <Label id="displayMenuTitle" translation="[16,7]" width="328" height="30" font="font:SmallBoldSystemFont" color="0xE50914FF" />
@@ -94,7 +94,7 @@
       <ScrollingLabel id="displayMenuRow4" translation="[18,148]" maxWidth="324" height="28" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
       <Label id="displayMenuItems" translation="[0,0]" width="1" height="1" visible="false" />
     </Group>
-    <Group id="audioMenu" translation="[1088,12]" visible="false">
+    <Group id="audioMenu" translation="[1088,66]" visible="false">
       <Rectangle width="416" height="156" color="0x080A0F66" />
       <Rectangle translation="[0,0]" width="416" height="2" color="0xE50914CC" />
       <Label id="audioMenuTitle" translation="[16,7]" width="384" height="30" font="font:SmallBoldSystemFont" color="0xE50914FF" />
@@ -105,7 +105,7 @@
       <ScrollingLabel id="audioMenuRow3" translation="[18,120]" maxWidth="380" height="28" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
       <Label id="audioMenuItems" translation="[0,0]" width="1" height="1" visible="false" />
     </Group>
-    <Group id="subtitleMenu" translation="[1166,-20]" visible="false">
+    <Group id="subtitleMenu" translation="[1166,38]" visible="false">
       <Rectangle width="480" height="184" color="0x080A0F66" />
       <Rectangle translation="[0,0]" width="480" height="2" color="0xE50914CC" />
       <Label id="subtitleMenuTitle" translation="[16,7]" width="448" height="30" font="font:SmallBoldSystemFont" color="0xE50914FF" />
