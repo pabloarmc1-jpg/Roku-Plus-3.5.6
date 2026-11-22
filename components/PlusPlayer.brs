@@ -4218,7 +4218,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
             commitSeekScrub()
         else if key = "down"
             cancelSeekScrub()
-            moveTransportFocus(0)
         else if key = "back"
             cancelSeekScrub()
         else if key = "play"
@@ -4243,7 +4242,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     else if key = "up"
         beginSeekScrub()
     else if key = "down"
-        moveTransportFocus(1)
+        revealTransport()
     else if key = "OK"
         if m.panel.visible
             activateTransportFocus()
@@ -4255,14 +4254,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
             moveTransportFocus(-1)
         else
             revealTransport()
-            if not m.segmentMode then shiftTen(true)
         end if
     else if key = "right"
         if m.panel.visible
             moveTransportFocus(1)
         else
             revealTransport()
-            if not m.segmentMode then shiftTen(false)
         end if
     else if key = "rewind" or key = "replay"
         if not m.segmentMode then shiftTen(true)
