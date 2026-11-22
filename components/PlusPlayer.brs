@@ -2563,6 +2563,10 @@ sub onSubtitleSearchTaskResult()
     m.subtitleOnlineBusy = false
     m.subtitleOnlineOperation = ""
     if type(result) <> "roAssociativeArray"
+        if m.subtitleRestoreOnlinePending
+            m.subtitleRestoreOnlinePending = false
+            m.subtitlePreferenceRestorePending = false
+        end if
         m.notice = "La búsqueda de subtítulos devolvió una respuesta inválida."
         m.noticeUntil = m.monotonic.totalMilliseconds() + 5500
         drawSubtitleMenu()
@@ -2571,6 +2575,10 @@ sub onSubtitleSearchTaskResult()
         return
     end if
     if result.ok <> true
+        if result.operation = "search" and m.subtitleRestoreOnlinePending
+            m.subtitleRestoreOnlinePending = false
+            m.subtitlePreferenceRestorePending = false
+        end if
         message = "No se pudo obtener subtítulos en línea."
         if result.operation = "source" then message = "No se pudo cargar la pista de subtítulos de esta fuente."
         if GetInterface(result.message,"ifString") <> invalid and result.message <> "" then message = result.message
