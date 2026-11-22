@@ -1715,7 +1715,9 @@ sub restorePreferredAudioTrack()
         if not matches and len(preferred) >= 2 and len(language) >= 2 then matches = left(language,2) = left(preferred,2)
         if matches
             m.audioPreferenceRestorePending = false
-            if m.decoder.currentAudioTrack <> track.id
+            currentTrack = ""
+            if m.decoder.hasField("currentAudioTrack") then currentTrack = m.decoder.currentAudioTrack
+            if currentTrack <> track.id
                 m.decoder.audioTrack = track.id
                 print "[RokuPlus audio] preference_restore language="; language; " label="; track.label
             else
@@ -1820,6 +1822,7 @@ sub selectAudioTrack()
     chosen = m.audioTracks[m.audioTrackIndex]
     beforeTrack = m.decoder.currentAudioTrack
     if beforeTrack = chosen.id
+        if type(m.current) = "roAssociativeArray" and chosen.language <> "" then m.current.preferredAudioLanguage = left(chosen.language,32)
         closeAudioMenu()
         m.notice = "El audio ya está en " + chosen.label
         m.noticeUntil = m.monotonic.totalMilliseconds() + 3500
@@ -1828,9 +1831,8 @@ sub selectAudioTrack()
         return
     end if
     print "[RokuPlus audio] select_request label="; chosen.label; " language="; chosen.language; " id="; chosen.id; " currentBefore="; beforeTrack
-    m.audioSelectionPending = {id:chosen.id,label:chosen.label,requestedAt:m.monotonic.totalMilliseconds()}
+    m.audioSelectionPending = {id:chosen.id,label:chosen.label,language:chosen.language,requestedAt:m.monotonic.totalMilliseconds()}
     m.decoder.audioTrack = chosen.id
-    if type(m.current) = "roAssociativeArray" and chosen.language <> "" then m.current.preferredAudioLanguage = left(chosen.language,32)
     afterTrack = m.decoder.currentAudioTrack
     requestedTrack = m.decoder.audioTrack
     print "[RokuPlus audio] select_write requested="; requestedTrack; " currentImmediatelyAfter="; afterTrack
@@ -1844,6 +1846,8 @@ sub verifyAudioTrackSelection()
     if m.decoder.hasField("currentAudioTrack") then current = m.decoder.currentAudioTrack
     if GetInterface(current,"ifString") <> invalid and current = m.audioSelectionPending.id
         label = m.audioSelectionPending.label
+        language = plusPlayerText(m.audioSelectionPending.language,32)
+        if type(m.current) = "roAssociativeArray" and language <> "" then m.current.preferredAudioLanguage = language
         print "[RokuPlus audio] select_confirmed id="; current; " label="; label
         m.audioSelectionPending = invalid
         closeAudioMenu()
