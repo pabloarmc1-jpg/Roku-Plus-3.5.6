@@ -1751,17 +1751,16 @@ sub drawAudioMenu()
         m.audioMenuRows[row].color = "0xFFFFFFFF"
         if index = m.audioTrackIndex then m.audioMenuRows[row].color = "0xE50914FF"
     end for
+    if total = 0 and visibleRows > 0
+        m.audioMenuRows[0].text = "No hay pistas alternas en esta fuente"
+        m.audioMenuRows[0].visible = true
+        m.audioMenuRows[0].color = "0xAAB0BAFF"
+    end if
     if m.audioMenuFocus <> invalid
         m.audioMenuFocus.visible = total > 0
         if total > 0 then m.audioMenuFocus.translation = [8,36 + ((m.audioTrackIndex-first) * 28)]
     end if
-    if total = 0
-        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = ""
-    else if m.audioSelectionPending <> invalid
-        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = ""
-    else
-        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = ""
-    end if
+    if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = ""
 end sub
 
 sub closeAudioMenu()
@@ -1900,7 +1899,8 @@ end sub
 
 sub drawSubtitleMenu()
     if m.subtitleMenuItems = invalid then return
-    total = 1 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count()
+    searchIndex = 1 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count()
+    total = searchIndex + 1 + m.subtitleOnlineResults.count()
     visibleRows = m.subtitleMenuRows.count()
     first = plusPlayerWindowStart(m.subtitleTrackIndex,total,visibleRows)
     if m.subtitleMenuTitle <> invalid then m.subtitleMenuTitle.text = "SUBTÍTULOS"
@@ -1918,12 +1918,22 @@ sub drawSubtitleMenu()
                 if label = "" then label = "Pista externa"
                 if track.language <> "" then detail = "  (" + track.language + ")"
                 if track.default = true then detail += "  · Predeterminado"
-            else
+            else if index < searchIndex
                 nativeIndex = index - 1 - m.sourceSubtitleTracks.count()
                 track = m.subtitleTracks[nativeIndex]
                 label = plusPlayerText(track.label,220)
                 if label = "" then label = "Subtítulos"
                 if track.language <> "" then detail = "  (" + track.language + ")"
+            else if index = searchIndex
+                label = "Buscar subtítulos en línea"
+                if m.subtitleOnlineBusy and m.subtitleOnlineOperation = "search" then label = "Buscando subtítulos..."
+            else
+                resultIndex = index - searchIndex - 1
+                onlineTrack = m.subtitleOnlineResults[resultIndex]
+                label = plusPlayerText(onlineTrack.label,220)
+                if label = "" then label = "Subtítulo en español"
+                if onlineTrack.language <> "" then detail = "  (" + onlineTrack.language + ")"
+                if m.subtitleOnlineBusy and m.subtitleOnlineOperation = "download" and index = m.subtitleTrackIndex then label += "  · Descargando"
             end if
             label += detail
         end if
@@ -1948,7 +1958,7 @@ sub closeSubtitleMenu()
 end sub
 
 sub moveSubtitleMenuSelection(direction as integer)
-    count = 1 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count()
+    count = 2 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count() + m.subtitleOnlineResults.count()
     m.subtitleTrackIndex = m.subtitleTrackIndex + direction
     if m.subtitleTrackIndex < 0 then m.subtitleTrackIndex = count - 1
     if m.subtitleTrackIndex >= count then m.subtitleTrackIndex = 0
@@ -1957,6 +1967,8 @@ end sub
 
 sub selectSubtitleTrack()
     if m.subtitleOnlineBusy then return
+    nativeStart = 1 + m.sourceSubtitleTracks.count()
+    searchIndex = nativeStart + m.subtitleTracks.count()
     if m.subtitleTrackIndex = 0
         if m.decoder.hasField("subtitleTrack") then m.decoder.subtitleTrack = ""
         if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "Off"
@@ -1978,8 +1990,8 @@ sub selectSubtitleTrack()
         drawSubtitleMenu()
         startSourceSubtitleTask(chosenSource.url)
         return
-    else
-        nativeIndex = m.subtitleTrackIndex - 1 - m.sourceSubtitleTracks.count()
+    else if m.subtitleTrackIndex < searchIndex
+        nativeIndex = m.subtitleTrackIndex - nativeStart
         if nativeIndex < 0 or nativeIndex >= m.subtitleTracks.count() then return
         chosen = m.subtitleTracks[nativeIndex]
         if not m.decoder.hasField("subtitleTrack")
@@ -1996,6 +2008,23 @@ sub selectSubtitleTrack()
             print "[RokuPlus subtitles] selected="; chosen.label; " language="; chosen.language
         end if
         closeSubtitleMenu()
+    else if m.subtitleTrackIndex = searchIndex
+        m.subtitleOnlinePendingLabel = "subtítulos en español"
+        m.subtitleOnlineBusy = true
+        m.subtitleOnlineOperation = "search"
+        drawSubtitleMenu()
+        startSubtitleSearchTask("search","")
+        return
+    else
+        resultIndex = m.subtitleTrackIndex - searchIndex - 1
+        if resultIndex < 0 or resultIndex >= m.subtitleOnlineResults.count() then return
+        onlineTrack = m.subtitleOnlineResults[resultIndex]
+        m.subtitleOnlinePendingLabel = plusPlayerText(onlineTrack.label,100)
+        m.subtitleOnlineBusy = true
+        m.subtitleOnlineOperation = "download"
+        drawSubtitleMenu()
+        startSubtitleSearchTask("download",onlineTrack.id)
+        return
     end if
     m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
     revealTransport()
@@ -2357,6 +2386,7 @@ sub startSubtitleSearchTask(operation as string, subtitleId as string)
     task.subdlApiKey = subdlApiKeyLoad()
     if type(m.current) = "roAssociativeArray"
         if m.current.doesExist("kind") then task.kind = m.current.kind
+        if task.kind = "episode" then task.kind = "series"
         if m.current.doesExist("season")
             if GetInterface(m.current.season,"ifString") <> invalid then task.seasonNumber = m.current.season
             if GetInterface(m.current.season,"ifInt") <> invalid then task.seasonNumber = m.current.season.toStr()
@@ -2413,12 +2443,14 @@ sub onSubtitleSearchTaskResult()
         return
     end if
     if result.operation = "search"
-        m.subtitleOnlineResults = result.items
+        m.subtitleOnlineResults = []
+        if type(result.items) = "roArray" then m.subtitleOnlineResults = result.items
+        searchIndex = 1 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count()
         if m.subtitleOnlineResults.count() > 0
-            m.subtitleTrackIndex = 3
+            m.subtitleTrackIndex = searchIndex + 1
             m.notice = "Subtítulos encontrados: " + m.subtitleOnlineResults.count().toStr()
         else
-            m.subtitleTrackIndex = 3
+            m.subtitleTrackIndex = searchIndex
             m.notice = result.message
         end if
         m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
