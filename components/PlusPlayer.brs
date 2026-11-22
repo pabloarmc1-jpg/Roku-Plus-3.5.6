@@ -4239,11 +4239,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
             revealTransport()
         end if
     else if key = "left"
-        if not m.segmentMode then beginSeekScrub(-1)
-        else revealTransport()
+        if not m.segmentMode
+            beginSeekScrub(-1)
+        else
+            revealTransport()
+        end if
     else if key = "right"
-        if not m.segmentMode then beginSeekScrub(1)
-        else revealTransport()
+        if not m.segmentMode
+            beginSeekScrub(1)
+        else
+            revealTransport()
+        end if
     else if key = "rewind" or key = "replay"
         if not m.segmentMode then shiftTen(true)
         revealTransport()
