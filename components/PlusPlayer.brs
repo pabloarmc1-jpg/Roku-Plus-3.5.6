@@ -1900,7 +1900,10 @@ end sub
 sub drawSubtitleMenu()
     if m.subtitleMenuItems = invalid then return
     searchIndex = 1 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count()
-    total = searchIndex + 1 + m.subtitleOnlineResults.count()
+    onlineResultEnd = searchIndex + m.subtitleOnlineResults.count()
+    subtitleKeyIndex = onlineResultEnd + 1
+    subdlKeyIndex = onlineResultEnd + 2
+    total = subdlKeyIndex + 1
     visibleRows = m.subtitleMenuRows.count()
     first = plusPlayerWindowStart(m.subtitleTrackIndex,total,visibleRows)
     if m.subtitleMenuTitle <> invalid then m.subtitleMenuTitle.text = "SUBTÍTULOS"
@@ -1927,13 +1930,17 @@ sub drawSubtitleMenu()
             else if index = searchIndex
                 label = "Buscar subtítulos en línea"
                 if m.subtitleOnlineBusy and m.subtitleOnlineOperation = "search" then label = "Buscando subtítulos..."
-            else
+            else if index <= onlineResultEnd
                 resultIndex = index - searchIndex - 1
                 onlineTrack = m.subtitleOnlineResults[resultIndex]
                 label = plusPlayerText(onlineTrack.label,220)
                 if label = "" then label = "Subtítulo en español"
                 if onlineTrack.language <> "" then detail = "  (" + onlineTrack.language + ")"
                 if m.subtitleOnlineBusy and m.subtitleOnlineOperation = "download" and index = m.subtitleTrackIndex then label += "  · Descargando"
+            else if index = subtitleKeyIndex
+                label = "Configurar API Key · Subtitle Search"
+            else
+                label = "Configurar API Key · SubDL"
             end if
             label += detail
         end if
@@ -1958,7 +1965,7 @@ sub closeSubtitleMenu()
 end sub
 
 sub moveSubtitleMenuSelection(direction as integer)
-    count = 2 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count() + m.subtitleOnlineResults.count()
+    count = 4 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count() + m.subtitleOnlineResults.count()
     m.subtitleTrackIndex = m.subtitleTrackIndex + direction
     if m.subtitleTrackIndex < 0 then m.subtitleTrackIndex = count - 1
     if m.subtitleTrackIndex >= count then m.subtitleTrackIndex = 0
@@ -2015,7 +2022,7 @@ sub selectSubtitleTrack()
         drawSubtitleMenu()
         startSubtitleSearchTask("search","")
         return
-    else
+    else if m.subtitleTrackIndex <= searchIndex + m.subtitleOnlineResults.count()
         resultIndex = m.subtitleTrackIndex - searchIndex - 1
         if resultIndex < 0 or resultIndex >= m.subtitleOnlineResults.count() then return
         onlineTrack = m.subtitleOnlineResults[resultIndex]
@@ -2024,6 +2031,12 @@ sub selectSubtitleTrack()
         m.subtitleOnlineOperation = "download"
         drawSubtitleMenu()
         startSubtitleSearchTask("download",onlineTrack.id)
+        return
+    else if m.subtitleTrackIndex = searchIndex + m.subtitleOnlineResults.count() + 1
+        openSubtitleApiKeyDialog()
+        return
+    else if m.subtitleTrackIndex = searchIndex + m.subtitleOnlineResults.count() + 2
+        openSubDlApiKeyDialog()
         return
     end if
     m.noticeUntil = m.monotonic.totalMilliseconds() + 4500
