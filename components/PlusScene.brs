@@ -3743,7 +3743,7 @@ function rpWatchLastEpisodeForSeries(series as object) as dynamic
                 matches = false
                 savedSeriesId = orbitText(saved.seriesId,180)
                 savedSeriesImdb = orbitImdb(saved.seriesImdbId)
-                savedSeriesTmdb = orbitText(saved.seriesProviderTmdbId,40)
+                savedSeriesTmdb = orbitText(saved["seriesProviderTmdbId"],40)
                 savedTitle = lcase(orbitText(saved.seriesTitle,180))
                 savedProvider = lcase(orbitText(saved.provider,32))
                 savedYear = left(orbitText(saved.year,12),4)
@@ -4390,14 +4390,14 @@ if m.view = "profiles"
                 if saved.doesExist("provider") then resumeItem.provider = lcase(orbitText(saved.provider,32))
                 if saved.doesExist("providerId")
                     if resumeItem.provider = "cinecalidad"
-                        resumeItem.providerId = orbitText(saved.providerId,200)
+                        resumeItem.providerId = orbitText(saved["providerId"],200)
                     else
-                        resumeItem.providerId = orbitInteger(saved.providerId,999999999)
+                        resumeItem.providerId = orbitInteger(saved["providerId"],999999999)
                     end if
                 end if
-                if saved.doesExist("providerSlug") then resumeItem.providerSlug = orbitText(saved.providerSlug,200)
-                if saved.doesExist("providerTmdbId") then resumeItem.providerTmdbId = orbitText(saved.providerTmdbId,40)
-                if saved.doesExist("providerKind") then resumeItem.providerKind = orbitText(saved.providerKind,16)
+                if saved.doesExist("providerSlug") then resumeItem.providerSlug = orbitText(saved["providerSlug"],200)
+                if saved.doesExist("providerTmdbId") then resumeItem.providerTmdbId = orbitText(saved["providerTmdbId"],40)
+                if saved.doesExist("providerKind") then resumeItem.providerKind = orbitText(saved["providerKind"],16)
                 ' Older records may contain provider="all" or no provider at all.
                 ' The canonical HD id is the reliable source for the original provider.
                 idProviders = ["lamovie","allcalidad","cinehax","seriesmetro","cinecalidad"]
@@ -4447,10 +4447,10 @@ if m.view = "profiles"
                 if saved.doesExist("seriesTitle") then resumeItem.seriesTitle = orbitText(saved.seriesTitle,180)
                 if saved.doesExist("seriesId") then resumeItem.seriesId = orbitText(saved.seriesId,180)
                 if saved.doesExist("seriesImdbId") then resumeItem.seriesImdbId = orbitImdb(saved.seriesImdbId)
-                if saved.doesExist("seriesProviderId") then resumeItem.seriesProviderId = saved.seriesProviderId
-                if saved.doesExist("seriesProviderSlug") then resumeItem.seriesProviderSlug = orbitText(saved.seriesProviderSlug,200)
-                if saved.doesExist("seriesProviderTmdbId") then resumeItem.seriesProviderTmdbId = orbitText(saved.seriesProviderTmdbId,40)
-                if saved.doesExist("seriesProviderKind") then resumeItem.seriesProviderKind = orbitText(saved.seriesProviderKind,16)
+                if saved.doesExist("seriesProviderId") then resumeItem.seriesProviderId = saved["seriesProviderId"]
+                if saved.doesExist("seriesProviderSlug") then resumeItem.seriesProviderSlug = orbitText(saved["seriesProviderSlug"],200)
+                if saved.doesExist("seriesProviderTmdbId") then resumeItem.seriesProviderTmdbId = orbitText(saved["seriesProviderTmdbId"],40)
+                if saved.doesExist("seriesProviderKind") then resumeItem.seriesProviderKind = orbitText(saved["seriesProviderKind"],16)
                 if saved.doesExist("seriesSeasonNumbers") and type(saved.seriesSeasonNumbers) = "roArray" then resumeItem.seriesSeasonNumbers = saved.seriesSeasonNumbers
                 if resumeItem.kind = "episode" and (not resumeItem.doesExist("season") or not resumeItem.doesExist("episode") or resumeItem.episode < 1)
                     m.note = "Faltan los datos del episodio para reanudarlo."
