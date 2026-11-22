@@ -2182,6 +2182,7 @@ function rpMarvelTitleNorm(value as dynamic) as string
     title = lcase(orbitText(value,240).trim())
     title = CreateObject("roRegex","[^a-z0-9 ]","").replace(title," ")
     title = CreateObject("roRegex","[ ]+","").replace(title," ").trim()
+    title = CreateObject("roRegex"," [12][0-9]{3}$","").replace(title,"")
     return title
 end function
 
@@ -2205,21 +2206,14 @@ function rpMarvelOrderIndex(item as dynamic) as integer
         "guardians of the galaxy",
         "guardians of the galaxy vol 2|guardians of the galaxy volume 2",
         "i am groot",
-        "daredevil season 1|daredevil",
-        "jessica jones season 1|jessica jones",
         "avengers age of ultron",
         "ant man",
-        "daredevil season 2",
-        "luke cage season 1|luke cage",
-        "iron fist season 1|iron fist",
+        "daredevil",
+        "jessica jones",
+        "luke cage",
+        "iron fist",
         "the defenders|defenders",
-        "the punisher season 1|the punisher|punisher",
-        "jessica jones season 2",
-        "luke cage season 2",
-        "iron fist season 2",
-        "daredevil season 3",
-        "the punisher season 2",
-        "jessica jones season 3",
+        "the punisher|punisher",
         "thor ragnarok",
         "black panther",
         "avengers infinity war",
@@ -2227,10 +2221,12 @@ function rpMarvelOrderIndex(item as dynamic) as integer
         "avengers endgame",
         "wandavision",
         "the falcon and the winter soldier|falcon and winter soldier",
-        "loki season 1|loki",
+        "loki",
         "what if",
         "shang chi and the legend of the ten rings|shang chi",
-        "eternals",
+        "the eternals|eternals",
+        "spider man far from home",
+        "spider man no way home",
         "hawkeye",
         "moon knight",
         "doctor strange in the multiverse of madness|doctor strange multiverse of madness",
@@ -2250,9 +2246,6 @@ function rpMarvelOrderIndex(item as dynamic) as integer
         "captain america brave new world",
         "thunderbolts",
         "fantastic four first steps",
-        "spider man",
-        "spider man 2",
-        "spider man 3",
         "x men",
         "x2",
         "x men the last stand",
@@ -2263,6 +2256,9 @@ function rpMarvelOrderIndex(item as dynamic) as integer
         "logan",
         "dark phoenix",
         "the new mutants",
+        "spider man",
+        "spider man 2",
+        "spider man 3",
         "the amazing spider man",
         "the amazing spider man 2",
         "venom",
@@ -2270,8 +2266,7 @@ function rpMarvelOrderIndex(item as dynamic) as integer
         "morbius",
         "madame web",
         "venom the last dance",
-        "kraven the hunter",
-        "spider man no way home"
+        "kraven the hunter"
     ]
     for index = 0 to order.count()-1
         for each alias in order[index].tokenize("|")
@@ -2308,13 +2303,22 @@ function rpFindMarvelNextProduction(current as dynamic) as dynamic
     best = invalid
     bestIndex = 9999
     currentId = orbitText(current.id,180)
+    branchStart = 0
+    branchEnd = 54
+    if currentIndex >= 55 and currentIndex <= 63
+        branchStart = 55
+        branchEnd = 63
+    else if currentIndex >= 64
+        branchStart = 64
+        branchEnd = 999
+    end if
     for each candidate in rpMarvelCatalogCandidates()
         if type(candidate) = "roAssociativeArray"
             candidateId = orbitText(candidate.id,180)
             candidateKind = orbitText(candidate.kind,16)
             candidateIndex = rpMarvelOrderIndex(candidate)
             if candidateId <> "" and candidateId <> currentId and (candidateKind = "movie" or candidateKind = "series")
-                if candidateIndex > currentIndex and candidateIndex < bestIndex
+                if candidateIndex >= branchStart and candidateIndex <= branchEnd and candidateIndex > currentIndex and candidateIndex < bestIndex
                     best = candidate
                     bestIndex = candidateIndex
                 end if
