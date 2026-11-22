@@ -25,6 +25,9 @@
   <script type="text/brightscript" uri="PlusPlayer.brs" />
   <children>
     <Rectangle id="backdrop" width="1920" height="1080" color="0x000000FF" />
+    <!-- Low-resolution title artwork provides an ambient fill without opening a second video decoder. -->
+    <Poster id="ambientBackdrop" width="1920" height="1080" loadWidth="320" loadHeight="180" loadDisplayMode="scaleToFill" opacity="0.42" visible="false" />
+    <Rectangle id="ambientBackdropShade" width="1920" height="1080" color="0x00000070" visible="false" />
     <Group id="videoViewport" clippingRect="[0,0,1920,1080]">
       <Video id="decoder" width="1920" height="1080" enableUI="false" enableTrickPlay="false" />
     </Group>
