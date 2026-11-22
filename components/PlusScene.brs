@@ -930,7 +930,11 @@ sub preloadStreamXImages(item as dynamic)
         mediaType = "series"
     else if orbitText(item.kind,20) = "episode"
         mediaType = "series"
-        if type(m.series) = "roAssociativeArray" and orbitText(m.series.id,180) = orbitText(item.seriesId,180)
+        useParentSeries = false
+        if type(m.series) = "roAssociativeArray"
+            if orbitText(m.series.id,180) = orbitText(item.seriesId,180) then useParentSeries = true
+        end if
+        if useParentSeries
             lookupItem = m.series
         else
             ' A Continue Watching episode is a partial record. StreamX/Cinemeta
@@ -1056,7 +1060,15 @@ sub launchVideo(item as object, url as string, format as string)
             ' not required for AllCalidad/LaMovie season retrieval.
             if parentId = "" and parentProviderId > 0 then parentId = "hdo-"+itemProvider+"-"+parentProviderId.toStr()
             if parentProviderId > 0 and parentId <> ""
-                if m.series = invalid or m.series.id <> parentId or type(m.series.seasons) <> "roArray" or m.series.seasons.count() = 0
+                needsParentRestore = true
+                if m.series <> invalid
+                    if orbitText(m.series.id,180) = parentId
+                        if type(m.series.seasons) = "roArray"
+                            if m.series.seasons.count() > 0 then needsParentRestore = false
+                        end if
+                    end if
+                end if
+                if needsParentRestore
                     seasonNumber = orbitInteger(item.season,999,0)
                     parentSeasons = []
                     if type(item.seriesSeasonNumbers) = "roArray"
