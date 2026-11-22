@@ -527,7 +527,7 @@ sub updateSkipSegmentPrompt()
             if postStart < 0 and post.start_ms <> invalid then postStart = post.start_ms / 1000.0
             if postStart > position + 1
                 target = postStart
-                label = "OK - IR A ESCENA POSTCRÉDITOS"
+                label = "OK - SALTAR CRÉDITOS"
             end if
         end if
     end if
