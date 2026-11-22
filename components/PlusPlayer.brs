@@ -581,6 +581,7 @@ sub onEndScreenDataChanged(event as object)
     m.endCountdownManual = false
     m.endCountdownRemaining = 0
     m.endCountdownLastAt = 0
+    m.endCountdownExpired = false
     if type(data.items) = "roArray" then m.endScreenItems = data.items else m.endScreenItems = []
     m.endScreenIndex = 0
     ' SceneGraph marks this data when the credits/post-credit threshold is reached.
@@ -773,6 +774,7 @@ sub selectPlaybackEndItem()
     m.endScreenOpen = false
     m.endCountdownManual = false
     m.endCountdownLastAt = 0
+    m.endCountdownExpired = false
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
     if m.endEpisodePoster <> invalid
         m.endEpisodePoster.uri = ""
@@ -803,6 +805,7 @@ sub openRequest()
     m.endCountdownManual = false
     m.endCountdownRemaining = 0
     m.endCountdownLastAt = 0
+    m.endCountdownExpired = false
     m.endSelectionSent = false
     m.playbackFinished = false
     m.endScreenAtMarker = false
@@ -1236,6 +1239,7 @@ sub closePlayback()
     m.endCountdownManual = false
     m.endCountdownRemaining = 0
     m.endCountdownLastAt = 0
+    m.endCountdownExpired = false
     m.endSelectionSent = false
     m.playbackFinished = false
     m.endScreenAtMarker = false
