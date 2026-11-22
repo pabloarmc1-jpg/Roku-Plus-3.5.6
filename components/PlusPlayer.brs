@@ -27,6 +27,8 @@ sub init()
     end if
     m.previewMask = m.top.findNode("previewMask")
     m.backdrop = m.top.findNode("backdrop")
+    m.ambientBackdrop = m.top.findNode("ambientBackdrop")
+    m.ambientBackdropShade = m.top.findNode("ambientBackdropShade")
     m.panel = m.top.findNode("transport")
     m.centerSurface = m.top.findNode("centerSurface")
     m.titleText = m.top.findNode("titleText")
@@ -116,8 +118,8 @@ sub init()
     m.playerOptionsMenuIndex = 0
     m.playerOptionsLabels = ["Zoom / Imagen", "Subtítulos", "Audio", "Retroceder 10 segundos", "Adelantar 10 segundos", "Play / Pause"]
     m.zoomIndex = 0
-    m.zoomLevels = [1.0, 1.10, 1.20, 1.33, 1.0]
-    m.zoomLabels = ["Original", "Zoom suave (1.10x)", "Zoom medio (1.20x)", "Zoom completo (1.33x)", "Llenar 16:9 (recorta)"]
+    m.zoomLevels = [1.0, 1.10, 1.20, 1.33, 1.0, 1.0]
+    m.zoomLabels = ["Original", "Zoom suave (1.10x)", "Zoom medio (1.20x)", "Zoom completo (1.33x)", "Llenar 16:9 (recorta)", "Ajustar con fondo ambiental"]
     m.videoSourceWidth = 0
     m.videoSourceHeight = 0
     m.subtitleTracks = []
@@ -361,6 +363,18 @@ end sub
 sub applyVideoZoom()
     if m.decoder = invalid then return
     zoom = 1.0
+    ambientUri = ""
+    if m.zoomIndex = 5 and type(m.current) = "roAssociativeArray"
+        ambientUri = plusPlayerText(m.current.background,2048)
+        if ambientUri = "" then ambientUri = plusPlayerText(m.current.poster,2048)
+    end if
+    if m.ambientBackdrop <> invalid
+        if m.ambientBackdrop.uri <> ambientUri then m.ambientBackdrop.uri = ambientUri
+        m.ambientBackdrop.visible = m.zoomIndex = 5 and ambientUri <> "" and not isPreviewPresentation()
+    end if
+    if m.ambientBackdropShade <> invalid
+        m.ambientBackdropShade.visible = m.zoomIndex = 5 and ambientUri <> "" and not isPreviewPresentation()
+    end if
     if m.zoomIndex = 4
         if m.videoSourceWidth > 0 and m.videoSourceHeight > 0
             sourceAspect = m.videoSourceWidth / m.videoSourceHeight
@@ -1508,7 +1522,7 @@ sub updateVideoSourceDimensions()
         m.videoSourceHeight = height
         if changed
             print "[RokuPlus display] source_dimensions="; width; "x"; height
-            if m.zoomIndex = 4 then applyVideoZoom()
+            if m.zoomIndex = 4 or m.zoomIndex = 5 then applyVideoZoom()
         end if
     end if
 end sub
