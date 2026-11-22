@@ -1726,7 +1726,18 @@ sub preparePlaybackEndScreen()
             heading = "SIGUIENTE EPISODIO"
             startNextEpisodePrefetch(nextItem)
         end if
-        if nextItem = invalid and m.series <> invalid and (usesOnlineHd() or rpIsOnlineHdItem(m.series))
+        if nextItem = invalid and (usesOnlineHd() or rpIsOnlineHdItem(m.detail))
+            if m.series = invalid or type(m.series.seasons) <> "roArray" or m.series.seasons.count() = 0
+                ' Missing parent metadata is not proof that the series has ended.
+                heading = "NO SE PUDO RECUPERAR LA SERIE"
+                m.player.endScreenData = {
+                    kind:"episode",heading:heading
+                    message:"No se pudo recuperar la lista de capítulos. Vuelve a abrir la serie desde el catálogo."
+                    items:[]
+                }
+                print "[RokuPlus series] next-episode-unavailable reason=parent-metadata-missing item="; orbitText(m.detail.id,180)
+                return
+            end if
             ' Continue Watching may restore an episode without its parent season cache.
             ' Load the current season once before declaring the series finished.
             for each currentSeasonEntry in m.series.seasons
@@ -1734,6 +1745,7 @@ sub preparePlaybackEndScreen()
                     if currentSeasonEntry.loaded <> true and not m.endScreenNextEpisodePending
                         m.endScreenNextEpisodePending = true
                         m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[]}
+                        print "[RokuPlus series] next-episode-load current-season="; currentSeasonEntry.number
                         fetch({operation:"episodes",item:m.series,season:currentSeasonEntry.number})
                         return
                     end if
@@ -1742,17 +1754,19 @@ sub preparePlaybackEndScreen()
             if m.series.seasons.count() > 1
                 for seasonIndex = 0 to m.series.seasons.count()-2
                     currentSeason = m.series.seasons[seasonIndex]
-                if currentSeason.number = m.detail.season
-                    followingSeason = m.series.seasons[seasonIndex+1]
-                    if followingSeason.loaded <> true and not m.endScreenNextEpisodePending
-                        m.endScreenNextEpisodePending = true
-                        m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[]}
-                        fetch({operation:"episodes",item:m.series,season:followingSeason.number})
-                        return
+                    if currentSeason.number = m.detail.season
+                        followingSeason = m.series.seasons[seasonIndex+1]
+                        if followingSeason.loaded <> true and not m.endScreenNextEpisodePending
+                            m.endScreenNextEpisodePending = true
+                            m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[]}
+                            print "[RokuPlus series] next-episode-load following-season="; followingSeason.number
+                            fetch({operation:"episodes",item:m.series,season:followingSeason.number})
+                            return
+                        end if
                     end if
-                end if
                 end for
             end if
+            print "[RokuPlus series] next-episode-search complete parent="; orbitText(m.series.id,180); " seasons="; m.series.seasons.count(); " result=none"
         end if
         m.player.endScreenData = {kind:"episode",heading:heading,items:items}
     else if m.detail.kind = "movie"
