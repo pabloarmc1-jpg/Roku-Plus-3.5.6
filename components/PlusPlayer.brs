@@ -562,6 +562,16 @@ sub skipToDetectedSegment()
     drawTransport()
 end sub
 
+sub onNextEpisodePrefetchReadyChanged(event as object)
+    if event.getData() <> true then return
+    if not m.endScreenOpen or m.endCountdownManual then return
+    if m.endCountdownRemaining > 0 then return
+    if type(m.endScreenItems) <> "roArray" or m.endScreenItems.count() = 0 then return
+    if m.endSelectionSent then return
+    print "[RokuPlus next-episode-prefetch] countdown-wait-complete=1"
+    selectPlaybackEndItem()
+end sub
+
 sub onEndScreenDataChanged(event as object)
     data = event.getData()
     if type(data) <> "roAssociativeArray" then return
@@ -3004,7 +3014,11 @@ sub onPulse()
                 if m.endCountdownRemaining <= 0
                     m.endCountdownRemaining = 0
                     m.endCountdownActive = false
-                    selectPlaybackEndItem()
+                    if m.top.nextEpisodePrefetchReady = true
+                        selectPlaybackEndItem()
+                    else
+                        print "[RokuPlus next-episode-prefetch] countdown-finished waiting-for-source=1"
+                    end if
                     return
                 end if
                 updateEndCountdownVisual()
