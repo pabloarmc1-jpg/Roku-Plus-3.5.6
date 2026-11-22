@@ -132,7 +132,10 @@ sub rpWatchLogCinehax(items as dynamic, stage as string, profileId as string, st
             if tmdbPresent then tmdbText = orbitText(record.providerTmdbId,40)
             if kindPresent then kindText = orbitText(record.providerKind,16)
             if slugPresent then slugText = orbitText(record.providerSlug,200)
-            print "[RokuPlus watch-persist] stage="; stage; " profile="; profileId; " key="; storageKey; " id="; orbitText(record.id,180); " providerIdPresent="; providerIdPresent; " providerId="; providerIdText; " tmdbPresent="; tmdbPresent; " tmdb="; tmdbText; " kindPresent="; kindPresent; " kind="; kindText; " slugPresent="; slugPresent; " slug="; slugText
+            print "[RokuPlus watch-persist] stage="; stage; " profile="; profileId; " key="; storageKey;
+            print "[RokuPlus watch-persist] id="; orbitText(record.id,180); " providerIdPresent="; providerIdPresent; " providerId="; providerIdText;
+            print "[RokuPlus watch-persist] tmdbPresent="; tmdbPresent; " tmdb="; tmdbText; " kindPresent="; kindPresent; " kind="; kindText;
+            print "[RokuPlus watch-persist] slugPresent="; slugPresent; " slug="; slugText
         end if
     end for
 end sub
