@@ -678,6 +678,33 @@ sub fetched(event as object)
         if m.zone <> "categories" then m.zone = "grid"
         if answer.partial = true then m.note = "Una fuente no respondió. Se muestran las opciones disponibles."
     else if context.operation = "meta"
+        if context.doesExist("restoreBrowser") and context.restoreBrowser = true
+            if m.view <> "episodes" or type(m.series) <> "roAssociativeArray" then return
+            if type(answer.item) <> "roAssociativeArray" then return
+            if orbitText(answer.item.id,180) <> orbitText(m.series.id,180) then return
+            restoredSeries = answer.item
+            if type(restoredSeries.seasons) <> "roArray" or restoredSeries.seasons.count() = 0
+                print "[RokuPlus series] restore-browser-metadata failed=empty-season-index"
+                m.note = "No se pudo recuperar la lista completa de temporadas."
+                drawScreen()
+                return
+            end if
+            m.series = restoredSeries
+            restoredSeasonNumber = orbitInteger(context.season,999,-1)
+            m.season = 0
+            for restoredIndex = 0 to m.series.seasons.count()-1
+                if m.series.seasons[restoredIndex].number = restoredSeasonNumber
+                    m.season = restoredIndex
+                    exit for
+                end if
+            end for
+            m.episode = 0
+            m.zone = "episodes"
+            print "[RokuPlus series] restore-browser-metadata ready seasons="; m.series.seasons.count(); " selectedSeason="; restoredSeasonNumber
+            drawScreen()
+            loadEpisodeSeason()
+            return
+        end if
         ' Keep the original catalog identity when a provider metadata adapter
         ' returns a reduced item. Continue Watching needs these source fields.
         if type(answer.item) = "roAssociativeArray" and context.doesExist("item") and type(context.item) = "roAssociativeArray"
@@ -1163,7 +1190,9 @@ sub launchVideo(item as object, url as string, format as string)
     ' Reuse the restored parent series and return to its episode list after playback.
     if item.kind = "episode" and type(m.series) = "roAssociativeArray"
         m.viewBeforePlayer = "episodes"
-        m.seriesOrigin = m.detailOrigin
+        ' An end-screen episode has detailOrigin="episodes". Do not replace the
+        ' original Home/Browse origin when autoplaying the next chapter.
+        if m.detailOrigin <> "episodes" then m.seriesOrigin = m.detailOrigin
         targetSeasonNumber = orbitInteger(item.season,999,-1)
         for restoredSeasonIndex = 0 to m.series.seasons.count()-1
             if m.series.seasons[restoredSeasonIndex].number = targetSeasonNumber
@@ -1783,7 +1812,15 @@ sub playerClosed(event as object)
                 end if
             end for
             m.episode = 0
-            loadEpisodeSeason()
+            ' A Continue Watching record may only know the active season.
+            ' CineHax metadata contains the complete season index; restore it
+            ' before requesting the selected season's episode list.
+            if lcase(orbitText(m.series.provider,32)) = "cinehax"
+                print "[RokuPlus series] restore-browser-metadata id="; orbitText(m.series.id,180); " season="; returnSeasonNumber
+                fetch({operation:"meta",item:m.series,restoreBrowser:true,season:returnSeasonNumber})
+            else
+                loadEpisodeSeason()
+            end if
         end if
     end if
     if type(m.pendingEpisodeFallback) = "roAssociativeArray"
