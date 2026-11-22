@@ -132,9 +132,9 @@ sub rpWatchLogCinehax(items as dynamic, stage as string, profileId as string, st
             if tmdbPresent then tmdbText = orbitText(record.providerTmdbId,40)
             if kindPresent then kindText = orbitText(record.providerKind,16)
             if slugPresent then slugText = orbitText(record.providerSlug,200)
-            print "[RokuPlus watch-persist] stage="; stage; " profile="; profileId; " key="; storageKey;
-            print "[RokuPlus watch-persist] id="; orbitText(record.id,180); " providerIdPresent="; providerIdPresent; " providerId="; providerIdText;
-            print "[RokuPlus watch-persist] tmdbPresent="; tmdbPresent; " tmdb="; tmdbText; " kindPresent="; kindPresent; " kind="; kindText;
+            print "[RokuPlus watch-persist] stage="; stage; " profile="; profileId; " key="; storageKey
+            print "[RokuPlus watch-persist] id="; orbitText(record.id,180); " providerIdPresent="; providerIdPresent; " providerId="; providerIdText
+            print "[RokuPlus watch-persist] tmdbPresent="; tmdbPresent; " tmdb="; tmdbText; " kindPresent="; kindPresent; " kind="; kindText
             print "[RokuPlus watch-persist] slugPresent="; slugPresent; " slug="; slugText
         end if
     end for
@@ -213,9 +213,12 @@ end function
 function rpWatchSave(items as object, profileId = "p1" as string) as boolean
     if rpNormalizeProfileId(profileId) <> profileId then return false
     if type(items) <> "roArray" then return false
+    ' Inspect the live array before serialization and the JSON round-trip copy.
+    rpWatchLogCinehax(items,"save-input",profileId,"memory")
     ' Work on a JSON round-trip copy: compaction and size trimming must never
     ' mutate the live in-memory history before persistence is confirmed.
     copied = ParseJson(FormatJson(items))
+    rpWatchLogCinehax(copied,"save-roundtrip",profileId,"json-copy")
     if type(copied) <> "roArray" then return false
     saveItems = copied
     while saveItems.count() > 60
