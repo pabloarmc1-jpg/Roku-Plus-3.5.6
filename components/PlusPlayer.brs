@@ -2997,6 +2997,7 @@ sub onBifNearestFrameChanged(event as object)
     m.seekPreviewImage.loadHeight = 180
     m.seekPreviewImage.translation = [0,0]
     if m.seekPreviewImage.uri <> frameUri then m.seekPreviewImage.uri = frameUri
+    if m.seekPreviewTime <> invalid and m.seekScrubActive then m.seekPreviewTime.text = plusClockText(m.seekScrubTarget)
     if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = true
     print "[RokuPlus thumbnails-bif] frame=ready"
 end sub
@@ -3497,7 +3498,6 @@ sub beginSeekScrub(direction as integer)
     origin = playerPosition()
     duration = playerDuration()
     if origin = invalid or duration = invalid or duration <= 0 then return
-    cancelPendingResumeForUserSeek()
     m.seekScrubActive = true
     m.seekScrubOrigin = origin
     m.seekScrubTarget = origin
@@ -3523,6 +3523,7 @@ end sub
 sub commitSeekScrub()
     if not m.seekScrubActive or m.seekScrubTarget = invalid then return
     target = m.seekScrubTarget
+    cancelPendingResumeForUserSeek()
     m.seekScrubActive = false
     m.seekScrubOrigin = invalid
     m.seekScrubTarget = invalid
