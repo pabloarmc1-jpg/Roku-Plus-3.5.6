@@ -3365,6 +3365,10 @@ sub beginHlsSoftRestart(now as integer)
         return
     end if
     m.hlsRetryCount++
+    if type(m.current) = "roAssociativeArray" and GetInterface(m.current.preferredAudioLanguage,"ifString") <> invalid and m.current.preferredAudioLanguage <> ""
+        m.audioPreferenceRestorePending = true
+        print "[RokuPlus audio] preference_restore_armed reason=hls_soft_restart language="; m.current.preferredAudioLanguage
+    end if
     m.hlsRestartStage = 1
     m.hlsRestartAt = now
     m.watch = plusWatchdogCreate(now)
@@ -3616,7 +3620,7 @@ sub onPulse()
             emitDiagnostic("native_poll")
         end if
     end if
-    if m.resumePending <> invalid and now - m.resumeStartedAt >= 15000
+    if m.resumePending <> invalid and now - m.resumeStartedAt >= 45000
         m.resumePending = invalid
         m.resumeFailed = true
         m.resumeFailedPosition = playerPosition()
