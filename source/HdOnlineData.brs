@@ -323,12 +323,14 @@ function rpHdOnlineEpisodes(raw as dynamic, provider as string, parent as dynami
                     episodeDescription = orbitText(ep.overview,1200)
                     if episodeDescription = "" then episodeDescription = orbitText(ep.description,1200)
                     parentSeasonNumbers = []
-                    if type(parent.seasons) = "roArray"
+                    ' seasonNumbers contains the provider's complete season index;
+                    ' seasons may contain only the currently loaded season.
+                    if type(parent.seasonNumbers) = "roArray" and parent.seasonNumbers.count() > 0
+                        parentSeasonNumbers = parent.seasonNumbers
+                    else if type(parent.seasons) = "roArray"
                         for each parentSeason in parent.seasons
                             parentSeasonNumbers.push(parentSeason.number)
                         end for
-                    else if type(parent.seasonNumbers) = "roArray"
-                        parentSeasonNumbers = parent.seasonNumbers
                     end if
                     item = {
                         id:id, imdbId:"", seriesImdbId:orbitImdb(parent.imdbId), kind:"episode", library:"hd-online", provider:provider, providerId:number
