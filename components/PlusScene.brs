@@ -2042,7 +2042,7 @@ sub preparePlaybackEndScreen()
             orderedMovies = [continuation]
             for each similarMovie in similar
                 if orbitText(similarMovie.id,180) <> orbitText(continuation.id,180)
-                    orderedMovies.push(similarMovie)
+                    if orderedMovies.count() < 6 then orderedMovies.push(similarMovie)
                 end if
             end for
             similar = orderedMovies
@@ -2124,8 +2124,10 @@ sub playerEndSelection(event as object)
             m.pendingSegmentDurations = prefetched.segmentDurations
             m.pendingFallbackSegmentUrls = prefetched.fallbackSegmentUrls
             m.pendingFallbackSegmentDurations = prefetched.fallbackSegmentDurations
-            m.pendingFallbackTsRelay = prefetched.fallbackTsRelayEnabled = true
-            m.pendingTsRelay = prefetched.tsRelayEnabled = true
+            m.pendingFallbackTsRelay = false
+            if prefetched.fallbackTsRelayEnabled = true then m.pendingFallbackTsRelay = true
+            m.pendingTsRelay = false
+            if prefetched.tsRelayEnabled = true then m.pendingTsRelay = true
             m.nextEpisodePrefetchAnswer = invalid
             launchVideo(m.detail,prefetched.url,prefetched.streamFormat)
         else
