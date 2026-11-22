@@ -2875,7 +2875,7 @@ sub onSeekPreviewImageLoadStatusChanged(event as object)
     if m.seekPreviewGroup = invalid then return
     loaded = event.getData()
     activeRequest = m.seekScrubActive or m.pendingSeek <> invalid or m.ticket <> invalid
-    m.seekPreviewGroup.visible = loaded = true and activeRequest
+    m.seekPreviewGroup.visible = loaded = "ready" and activeRequest
 end sub
 
 sub hideSeekThumbnail()
@@ -2970,7 +2970,7 @@ function renderSeekThumbnail(position as dynamic) as boolean
     m.seekPreviewGroup.visible = false
     if m.seekPreviewImage.uri <> spriteUri then m.seekPreviewImage.uri = spriteUri
     if m.seekPreviewTime <> invalid then m.seekPreviewTime.text = plusClockText(target)
-    if m.seekPreviewImage.hasField("loadStatus") and m.seekPreviewImage.loadStatus = true
+    if m.seekPreviewImage.hasField("loadStatus") and m.seekPreviewImage.loadStatus = "ready"
         m.seekPreviewGroup.visible = true
     end if
     return true
@@ -3015,7 +3015,7 @@ sub onBifNearestFrameChanged(event as object)
     if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = false
     if m.seekPreviewImage.uri <> frameUri then m.seekPreviewImage.uri = frameUri
     if m.seekPreviewTime <> invalid and m.seekScrubActive then m.seekPreviewTime.text = plusClockText(m.seekScrubTarget)
-    if m.seekPreviewImage.hasField("loadStatus") and m.seekPreviewImage.loadStatus = true
+    if m.seekPreviewImage.hasField("loadStatus") and m.seekPreviewImage.loadStatus = "ready"
         if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = true
     end if
     print "[RokuPlus thumbnails-bif] frame=ready"
