@@ -2969,7 +2969,7 @@ sub applyBifMetadata(content as object, supplied as object)
         value = supplied[entry.source]
         if GetInterface(value, "ifString") <> invalid and len(value) <= 4096
             if left(value,8) = "https://" or left(value,7) = "http://"
-                content[entry.target] = value
+                content.setField(entry.target, value)
                 applied++
             end if
         end if
