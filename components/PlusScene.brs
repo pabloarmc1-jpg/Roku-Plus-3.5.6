@@ -2305,11 +2305,11 @@ function rpFindMarvelNextProduction(current as dynamic) as dynamic
     currentId = orbitText(current.id,180)
     branchStart = 0
     branchEnd = 54
-    if currentIndex >= 55 and currentIndex <= 63
+    if currentIndex >= 55 and currentIndex <= 64
         branchStart = 55
-        branchEnd = 63
-    else if currentIndex >= 64
-        branchStart = 64
+        branchEnd = 64
+    else if currentIndex >= 65
+        branchStart = 65
         branchEnd = 999
     end if
     for each candidate in rpMarvelCatalogCandidates()
