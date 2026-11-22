@@ -1656,14 +1656,25 @@ sub playerProgress(event as object)
         return
     end if
     m.lastPlaybackProgress = sample
+    preferenceChanged = false
     for each preferenceField in ["preferredAudioLanguage", "preferredSubtitleMode", "preferredSubtitleLanguage", "preferredSubtitleLabel"]
         if sample.doesExist(preferenceField)
             preferenceValue = orbitText(sample[preferenceField],120)
-            if preferenceValue <> "" then playbackItem[preferenceField] = preferenceValue
+            if preferenceValue <> ""
+                if not playbackItem.doesExist(preferenceField) or playbackItem[preferenceField] <> preferenceValue then preferenceChanged = true
+                playbackItem[preferenceField] = preferenceValue
+            end if
         end if
     end for
     prefetchNextEpisodeAtNinetyPercent(sample,playbackItem)
     m.watchState = rpWatchUpdate(m.watchState,playbackItem,sample.position,sample.duration)
+    if preferenceChanged
+        savedPreferences = rpWatchSave(m.watchState,m.profileId)
+        if m.watchSaveClock = invalid then m.watchSaveClock = CreateObject("roTimespan")
+        m.watchSaveClock.mark()
+        m.watchSaveRetryDelayMs = rpWatchNextSaveRetryDelay(savedPreferences,m.watchSaveRetryDelayMs)
+        print "[RokuPlus watch] preferences-save="; savedPreferences; " itemId="; detailId
+    end if
     updatePlaybackEndScreenAtMarker(sample,playbackItem)
     record = rpWatchGet(m.watchState,playbackItem.id)
     refreshWatchLists = sample.state = "finished"
