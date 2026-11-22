@@ -81,6 +81,7 @@ sub init()
     m.activePlaybackItem = invalid
     m.activePlaybackOrigin = invalid
     m.endScreenRequestId = invalid
+    m.endScreenDiagRequestId = invalid
     m.endScreenNextEpisodePending = false
     m.endScreenWatchedRequestId = invalid
     m.nextEpisodePrefetchTask = invalid
@@ -1198,6 +1199,7 @@ sub launchVideo(item as object, url as string, format as string)
     m.activePlaybackOrigin = m.detailOrigin
     m.lastPlaybackProgress = invalid
     m.endScreenRequestId = invalid
+    m.endScreenDiagRequestId = invalid
     m.endScreenWatchedRequestId = invalid
     m.endScreenNextEpisodePending = false
     m.introDbSegments = invalid
@@ -1458,6 +1460,10 @@ sub playerProgress(event as object)
     if postCreditsPresent
         endScreenThreshold = -1.0
         if postCreditsEnd >= 0 then endScreenThreshold = postCreditsEnd
+    end if
+    if m.endScreenDiagRequestId <> sample.requestId
+        m.endScreenDiagRequestId = sample.requestId
+        print "[RokuPlus end-screen-diag] request="; orbitText(sample.requestId,80); " position="; sample.position; " duration="; sample.duration; " state="; orbitText(sample.state,20); " introdb="; type(m.introDbSegments); " creditsStart="; creditsStart; " postCredits="; postCreditsPresent; " postCreditsEnd="; postCreditsEnd; " threshold="; endScreenThreshold
     end if
     if endScreenThreshold >= 0 and sample.state <> "finished" and sample.duration > 0 and sample.position >= endScreenThreshold
         if m.endScreenRequestId <> sample.requestId
