@@ -409,6 +409,9 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
     ' its resolver request after Continue Watching restores a saved record.
     if item.doesExist("providerTmdbId") then record.providerTmdbId = orbitText(item.providerTmdbId,40)
     if item.doesExist("providerKind") then record.providerKind = orbitText(item.providerKind,16)
+    if record.provider = "cinehax"
+        print "[RokuPlus identity] watch-record provider=cinehax id="; record.id; " providerId="; orbitText(record.providerId,40); " tmdb="; orbitText(record.providerTmdbId,40); " kind="; orbitText(record.providerKind,16); " slug="; orbitText(record.providerSlug,200)
+    end if
     if item.doesExist("season") and rpWatchStoredIntegerValid(item.season,0,999) then record.season = int(item.season)
     if item.doesExist("episode") and rpWatchStoredIntegerValid(item.episode,1,9999) then record.episode = int(item.episode)
     if item.doesExist("seriesTitle") then record.seriesTitle = orbitText(item.seriesTitle,180)
