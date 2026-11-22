@@ -89,6 +89,8 @@ sub init()
     m.nextEpisodePrefetchParentRequestId = ""
     m.nextEpisodePrefetchParentItemId = ""
     m.nextEpisodePrefetchItemId = ""
+    m.nextEpisodePrefetch90ParentRequestId = ""
+    m.nextEpisodePrefetch90ParentItemId = ""
     m.nextEpisodePrefetchAnswer = invalid
     m.introDbTask = invalid
     m.introDbCache = {}
@@ -1774,6 +1776,8 @@ sub cancelNextEpisodePrefetch()
     m.nextEpisodePrefetchParentRequestId = ""
     m.nextEpisodePrefetchParentItemId = ""
     m.nextEpisodePrefetchItemId = ""
+    m.nextEpisodePrefetch90ParentRequestId = ""
+    m.nextEpisodePrefetch90ParentItemId = ""
     m.nextEpisodePrefetchAnswer = invalid
 end sub
 
@@ -1788,6 +1792,12 @@ sub prefetchNextEpisodeAtNinetyPercent(sample as object, playbackItem as object)
     if orbitText(m.detail.id,180) <> orbitText(playbackItem.id,180) then return
     nextItem = rpFindNextEpisode()
     if type(nextItem) <> "roAssociativeArray" then return
+    parentRequestId = orbitText(m.activePlaybackRequestId,80)
+    parentItemId = orbitText(playbackItem.id,180)
+    if parentRequestId = "" or parentItemId = "" then return
+    if m.nextEpisodePrefetch90ParentRequestId = parentRequestId and m.nextEpisodePrefetch90ParentItemId = parentItemId then return
+    m.nextEpisodePrefetch90ParentRequestId = parentRequestId
+    m.nextEpisodePrefetch90ParentItemId = parentItemId
     print "[RokuPlus next-episode-prefetch] trigger=90-percent position="; position; " duration="; duration
     startNextEpisodePrefetch(nextItem)
 end sub
