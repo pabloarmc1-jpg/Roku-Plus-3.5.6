@@ -80,6 +80,46 @@
 
       <Label id="pauseText" translation="[1000,316]" width="808" height="30" font="font:SmallSystemFont" color="0xD7D9E0FF" horizAlign="right" />
       <Label id="noticeText" translation="[112,0]" width="1696" height="32" font="font:SmallSystemFont" color="0xFFFFFFFF" />
+
+      <!-- Track and zoom menus are children of transport: they stay anchored to their buttons and hide with the controls. -->
+    <Group id="displayMenu" translation="[1336,-20]" visible="false">
+      <Rectangle width="360" height="242" color="0x080A0F66" />
+      <Rectangle translation="[0,0]" width="360" height="2" color="0xE50914CC" />
+      <Label id="displayMenuTitle" translation="[16,7]" width="328" height="30" font="font:SmallBoldSystemFont" color="0xE50914FF" />
+      <Rectangle id="displayMenuFocus" translation="[8,42]" width="344" height="32" color="0xE5091448" />
+      <ScrollingLabel id="displayMenuRow0" translation="[18,42]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="displayMenuRow1" translation="[18,74]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="displayMenuRow2" translation="[18,106]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="displayMenuRow3" translation="[18,138]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="displayMenuRow4" translation="[18,170]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <Label id="displayMenuFooter" translation="[12,210]" width="336" height="26" font="font:SmallSystemFont" color="0xD7D9E0FF" />
+      <Label id="displayMenuItems" translation="[0,0]" width="1" height="1" visible="false" />
+    </Group>
+    <Group id="audioMenu" translation="[1088,12]" visible="false">
+      <Rectangle width="416" height="210" color="0x080A0F66" />
+      <Rectangle translation="[0,0]" width="416" height="2" color="0xE50914CC" />
+      <Label id="audioMenuTitle" translation="[16,7]" width="384" height="30" font="font:SmallBoldSystemFont" color="0xE50914FF" />
+      <Rectangle id="audioMenuFocus" translation="[8,42]" width="400" height="32" color="0xE5091448" />
+      <ScrollingLabel id="audioMenuRow0" translation="[18,42]" maxWidth="380" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="audioMenuRow1" translation="[18,74]" maxWidth="380" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="audioMenuRow2" translation="[18,106]" maxWidth="380" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="audioMenuRow3" translation="[18,138]" maxWidth="380" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <Label id="audioMenuFooter" translation="[12,178]" width="392" height="26" font="font:SmallSystemFont" color="0xD7D9E0FF" />
+      <Label id="audioMenuItems" translation="[0,0]" width="1" height="1" visible="false" />
+    </Group>
+    <Group id="subtitleMenu" translation="[1166,-20]" visible="false">
+      <Rectangle width="480" height="242" color="0x080A0F66" />
+      <Rectangle translation="[0,0]" width="480" height="2" color="0xE50914CC" />
+      <Label id="subtitleMenuTitle" translation="[16,7]" width="448" height="30" font="font:SmallBoldSystemFont" color="0xE50914FF" />
+      <Rectangle id="subtitleMenuFocus" translation="[8,42]" width="464" height="32" color="0xE5091448" />
+      <ScrollingLabel id="subtitleMenuRow0" translation="[18,42]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="subtitleMenuRow1" translation="[18,74]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="subtitleMenuRow2" translation="[18,106]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="subtitleMenuRow3" translation="[18,138]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <ScrollingLabel id="subtitleMenuRow4" translation="[18,170]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
+      <Label id="subtitleMenuFooter" translation="[12,210]" width="456" height="26" font="font:SmallSystemFont" color="0xD7D9E0FF" />
+      <Label id="subtitleMenuItems" translation="[0,0]" width="1" height="1" visible="false" />
+    </Group>
     </Group>
 
     <Group id="playerOptionsMenu" translation="[460,210]" visible="false">
@@ -131,44 +171,9 @@
       <Label id="skipSegmentText" translation="[14,7]" width="404" height="44" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
     </Group>
     <!-- Menus are positioned immediately above their matching transport buttons. -->
-    <Group id="displayMenu" translation="[1336,684]" visible="false">
-      <Rectangle width="360" height="242" color="0x080A0F66" />
-      <Rectangle translation="[0,0]" width="360" height="2" color="0xE50914CC" />
-      <Label id="displayMenuTitle" translation="[16,7]" width="328" height="30" font="font:SmallBoldSystemFont" color="0xE50914FF" />
-      <Rectangle id="displayMenuFocus" translation="[8,42]" width="344" height="32" color="0xE5091448" />
-      <ScrollingLabel id="displayMenuRow0" translation="[18,42]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="displayMenuRow1" translation="[18,74]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="displayMenuRow2" translation="[18,106]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="displayMenuRow3" translation="[18,138]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="displayMenuRow4" translation="[18,170]" maxWidth="324" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <Label id="displayMenuFooter" translation="[12,210]" width="336" height="26" font="font:SmallSystemFont" color="0xD7D9E0FF" />
-      <Label id="displayMenuItems" translation="[0,0]" width="1" height="1" visible="false" />
-    </Group>
-    <Group id="audioMenu" translation="[1088,716]" visible="false">
-      <Rectangle width="416" height="210" color="0x080A0F66" />
-      <Rectangle translation="[0,0]" width="416" height="2" color="0xE50914CC" />
-      <Label id="audioMenuTitle" translation="[16,7]" width="384" height="30" font="font:SmallBoldSystemFont" color="0xE50914FF" />
-      <Rectangle id="audioMenuFocus" translation="[8,42]" width="400" height="32" color="0xE5091448" />
-      <ScrollingLabel id="audioMenuRow0" translation="[18,42]" maxWidth="380" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="audioMenuRow1" translation="[18,74]" maxWidth="380" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="audioMenuRow2" translation="[18,106]" maxWidth="380" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="audioMenuRow3" translation="[18,138]" maxWidth="380" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <Label id="audioMenuFooter" translation="[12,178]" width="392" height="26" font="font:SmallSystemFont" color="0xD7D9E0FF" />
-      <Label id="audioMenuItems" translation="[0,0]" width="1" height="1" visible="false" />
-    </Group>
-    <Group id="subtitleMenu" translation="[1166,684]" visible="false">
-      <Rectangle width="480" height="242" color="0x080A0F66" />
-      <Rectangle translation="[0,0]" width="480" height="2" color="0xE50914CC" />
-      <Label id="subtitleMenuTitle" translation="[16,7]" width="448" height="30" font="font:SmallBoldSystemFont" color="0xE50914FF" />
-      <Rectangle id="subtitleMenuFocus" translation="[8,42]" width="464" height="32" color="0xE5091448" />
-      <ScrollingLabel id="subtitleMenuRow0" translation="[18,42]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="subtitleMenuRow1" translation="[18,74]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="subtitleMenuRow2" translation="[18,106]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="subtitleMenuRow3" translation="[18,138]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <ScrollingLabel id="subtitleMenuRow4" translation="[18,170]" maxWidth="444" height="30" font="font:SmallSystemFont" color="0xFFFFFFFF" scrollSpeed="70" repeatCount="-1" vertAlign="center" visible="false" />
-      <Label id="subtitleMenuFooter" translation="[12,210]" width="456" height="26" font="font:SmallSystemFont" color="0xD7D9E0FF" />
-      <Label id="subtitleMenuItems" translation="[0,0]" width="1" height="1" visible="false" />
-    </Group>
+
+
+
 undefined
 undefined
     <Group id="externalSubtitleOverlay" translation="[160,750]" visible="false">
