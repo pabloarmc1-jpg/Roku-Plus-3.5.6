@@ -1823,6 +1823,7 @@ sub selectAudioTrack()
     beforeTrack = m.decoder.currentAudioTrack
     if beforeTrack = chosen.id
         if type(m.current) = "roAssociativeArray" and chosen.language <> "" then m.current.preferredAudioLanguage = left(chosen.language,32)
+        if m.mediaOpen then publishProgress(true)
         closeAudioMenu()
         m.notice = "El audio ya está en " + chosen.label
         m.noticeUntil = m.monotonic.totalMilliseconds() + 3500
@@ -1848,6 +1849,7 @@ sub verifyAudioTrackSelection()
         label = m.audioSelectionPending.label
         language = plusPlayerText(m.audioSelectionPending.language,32)
         if type(m.current) = "roAssociativeArray" and language <> "" then m.current.preferredAudioLanguage = language
+        if m.mediaOpen then publishProgress(true)
         print "[RokuPlus audio] select_confirmed id="; current; " label="; label
         m.audioSelectionPending = invalid
         closeAudioMenu()
@@ -1934,6 +1936,7 @@ sub saveSubtitlePreference(mode as string, language as string, label as string)
     m.current.preferredSubtitleLanguage = left(plusPlayerText(language,32),32)
     m.current.preferredSubtitleLabel = left(plusPlayerText(label,120),120)
     m.subtitlePreferenceRestorePending = false
+    if m.mediaOpen then publishProgress(true)
     m.subtitleRestoreOnlinePending = false
 end sub
 
@@ -1957,6 +1960,7 @@ sub restorePreferredSubtitle()
             language = lcase(plusPlayerText(track.language,32))
             label = lcase(plusPlayerText(track.name,120))
             matches = preferredLanguage <> "" and language = preferredLanguage
+            if not matches and preferredLanguage <> "" and len(preferredLanguage) >= 2 and len(language) >= 2 then matches = left(language,2) = left(preferredLanguage,2)
             if not matches and preferredLabel <> "" then matches = label = preferredLabel
             if matches
                 m.subtitleTrackIndex = i + 1
@@ -1978,6 +1982,7 @@ sub restorePreferredSubtitle()
             language = lcase(plusPlayerText(track.language,32))
             label = lcase(plusPlayerText(track.label,120))
             matches = preferredLanguage <> "" and language = preferredLanguage
+            if not matches and preferredLanguage <> "" and len(preferredLanguage) >= 2 and len(language) >= 2 then matches = left(language,2) = left(preferredLanguage,2)
             if not matches and preferredLabel <> "" then matches = label = preferredLabel
             if matches and m.decoder.hasField("subtitleTrack")
                 m.decoder.subtitleTrack = track.id
@@ -2587,7 +2592,9 @@ sub onSubtitleSearchTaskResult()
             for each onlineResult in m.subtitleOnlineResults
                 resultLanguage = lcase(plusPlayerText(onlineResult.language,32))
                 resultLabel = lcase(plusPlayerText(onlineResult.label,120))
-                if (preferredLanguage <> "" and resultLanguage = preferredLanguage) or (preferredLabel <> "" and resultLabel = preferredLabel)
+                languageMatches = preferredLanguage <> "" and resultLanguage = preferredLanguage
+                if not languageMatches and preferredLanguage <> "" and len(preferredLanguage) >= 2 and len(resultLanguage) >= 2 then languageMatches = left(resultLanguage,2) = left(preferredLanguage,2)
+                if languageMatches or (preferredLabel <> "" and resultLabel = preferredLabel)
                     matchedResult = onlineResult
                     exit for
                 end if
