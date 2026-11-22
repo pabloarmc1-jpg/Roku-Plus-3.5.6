@@ -1804,8 +1804,11 @@ sub startNextEpisodePrefetch(item as object)
     parentRequestId = m.activePlaybackRequestId
     parentItemId = orbitText(m.detail.id,180)
     nextItemId = orbitText(item.id,180)
-    if m.nextEpisodePrefetchParentRequestId = parentRequestId and m.nextEpisodePrefetchParentItemId = parentItemId and m.nextEpisodePrefetchItemId = nextItemId
-        if m.nextEpisodePrefetchTask <> invalid or type(m.nextEpisodePrefetchAnswer) = "roAssociativeArray" then return
+    if m.nextEpisodePrefetchParentRequestId = parentRequestId and m.nextEpisodePrefetchParentItemId = parentItemId
+        if m.nextEpisodePrefetchTask <> invalid then return
+        if type(m.nextEpisodePrefetchAnswer) = "roAssociativeArray"
+            if m.nextEpisodePrefetchAnswer.itemId = nextItemId then return
+        end if
     end if
     cancelNextEpisodePrefetch()
     requestId = CreateObject("roDeviceInfo").getRandomUUID()
