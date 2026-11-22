@@ -578,6 +578,7 @@ sub onEndScreenDataChanged(event as object)
     m.endCountdownActive = false
     m.endCountdownManual = false
     m.endCountdownRemaining = 0
+    m.endCountdownLastAt = 0
     if type(data.items) = "roArray" then m.endScreenItems = data.items else m.endScreenItems = []
     m.endScreenIndex = 0
     ' SceneGraph marks this data when the credits/post-credit threshold is reached.
@@ -725,6 +726,7 @@ end sub
 
 sub startPlaybackEndCountdownIfReady()
     if not m.endScreenOpen or m.endCountdownActive or m.endCountdownManual then return
+    if m.endCountdownLastAt > 0 and m.endCountdownRemaining <= 0 then return
     if type(m.endScreenItems) <> "roArray" or m.endScreenItems.count() = 0 then return
 
     ' The scene supplies this flag only after the correct threshold:
