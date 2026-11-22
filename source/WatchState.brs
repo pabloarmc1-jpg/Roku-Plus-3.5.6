@@ -443,10 +443,11 @@ function rpWatchNumber(value as dynamic) as dynamic
 end function
 
 function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as dynamic) as object
-    record = {id:orbitText(item.id,180), title:orbitText(item.title,180), kind:orbitText(item.kind,20), poster:orbitText(item.poster,2048), background:orbitText(item.background,2048), year:orbitText(item.year,20), provider:orbitText(item.provider,32), imdbId:orbitText(item.imdbId,180), position:0, duration:0, watched:false, listed:false, updated:0}
+    record = {id:orbitText(item.id,180), title:orbitText(item.title,180), kind:orbitText(item.kind,20), poster:orbitText(item.poster,2048), background:orbitText(item.background,2048), year:orbitText(item.year,20), provider:orbitText(item.provider,32), position:0, duration:0, watched:false, listed:false, updated:0}
     ' JSON parsing is case-sensitive. Preserve canonical camel-case identity keys
     ' instead of letting dot assignments serialize them in lowercase.
     record.SetModeCaseSensitive()
+    record["imdbId"] = orbitText(item.imdbId,180)
     ' Normalize untrusted playback clocks before they enter persistent history.
     ' Invalid, negative, NaN or implausibly large values become zero.
     record.position = rpWatchNumber(position)
