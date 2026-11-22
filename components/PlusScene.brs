@@ -1239,6 +1239,7 @@ sub launchVideo(item as object, url as string, format as string)
     end if
     if cacheKey <> "" and m.introDbCache.doesExist(cacheKey)
         cachedSegments = m.introDbCache[cacheKey]
+        rpApplyKnownSeriesPostCredits(cachedSegments,item)
         m.introDbSegments = cachedSegments
         m.player.introDbData = {ok:true,requestId:descriptor.requestId,intro:cachedSegments.intro,recap:cachedSegments.recap,outro:cachedSegments.outro,post_credits:cachedSegments.post_credits,no_intro:cachedSegments.no_intro,no_recap:cachedSegments.no_recap,no_outro:cachedSegments.no_outro}
         print "[RokuPlus introdb] cache_hit imdb="; imdbId
@@ -1278,6 +1279,41 @@ sub renewPlaybackLease()
     task.control = "RUN"
 end sub
 
+' Curated TV post-credit registry. Keys use the Cinemeta series IMDb ID and
+' the exact season/episode pair; never infer a scene from leftover runtime alone.
+' IntroDB documents post_credits for movies, so known TV scenes are supplemented here.
+sub rpApplyKnownSeriesPostCredits(segments as object, item as object)
+    if type(segments) <> "roAssociativeArray" or type(item) <> "roAssociativeArray" then return
+    if type(segments.post_credits) = "roAssociativeArray"
+        existingStart = segments.post_credits.start_sec
+        if existingStart <> invalid and existingStart >= 0 then return
+        existingStartMs = segments.post_credits.start_ms
+        if existingStartMs <> invalid and existingStartMs >= 0 then return
+    end if
+    seriesImdb = lcase(orbitImdb(item.seriesImdbId))
+    seasonNumber = orbitInteger(item.season,999,-1)
+    episodeNumber = orbitInteger(item.episode,9999,-1)
+    registryKey = seriesImdb + "|s" + seasonNumber.toStr() + "e" + episodeNumber.toStr()
+    postStart = -1.0
+    if registryKey = "tt2861424|s1e11"
+        ' Rick and Morty S1E11 - Ricksy Business.
+        ' The community marker ends the credits at approximately 1341s;
+        ' the remaining final footage is the known post-credit scene.
+        if type(segments.outro) = "roAssociativeArray"
+            outroEnd = segments.outro.end_sec
+            if GetInterface(outroEnd,"ifFloat") <> invalid or GetInterface(outroEnd,"ifDouble") <> invalid or GetInterface(outroEnd,"ifInt") <> invalid or GetInterface(outroEnd,"ifLongInt") <> invalid
+                postStart = outroEnd
+            else if segments.outro.end_ms <> invalid
+                postStart = segments.outro.end_ms / 1000.0
+            end if
+        end if
+    end if
+    if postStart >= 0
+        segments.post_credits = {start_sec:postStart,end_sec:-1.0,source:"rokuplus-curated"}
+        print "[RokuPlus post-credits] registry_hit key="; registryKey; " start="; postStart
+    end if
+end sub
+
 sub introDbResult(event as object)
     if m.introDbTask = invalid then return
     if not m.introDbTask.isSameNode(event.getRoSGNode()) then return
@@ -1291,6 +1327,7 @@ sub introDbResult(event as object)
         if cacheKey <> "" then rpStoreBoundedCache(m.introDbCache,m.introDbCacheOrder,cacheKey,cachedData,80)
         resolvedCacheKey = orbitText(answer.cacheKey,100)
         if resolvedCacheKey <> "" then rpStoreBoundedCache(m.introDbCache,m.introDbCacheOrder,resolvedCacheKey,cachedData,80)
+        rpApplyKnownSeriesPostCredits(answer,m.activePlaybackItem)
         m.introDbSegments = answer
         m.player.introDbData = answer
         outroStartLog = invalid
