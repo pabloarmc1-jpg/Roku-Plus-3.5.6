@@ -153,6 +153,7 @@ sub init()
     m.seekScrubTarget = invalid
     m.seekScrubLastMoveAt = 0
     m.bifDisplay = invalid
+    m.bifMetadataAvailable = false
     m.bifPreviewLastTarget = -1
     m.bifPreviewLastRequestAt = 0
     if m.decoder.hasField("bifDisplay") then m.bifDisplay = m.decoder.bifDisplay
@@ -2982,6 +2983,7 @@ sub applyBifMetadata(content as object, supplied as object)
         end if
     end for
     if applied > 0
+        m.bifMetadataAvailable = true
         print "[RokuPlus thumbnails-bif] metadata=attached count="; applied; " format="; m.effectiveStreamFormat
     end if
 end sub
@@ -2990,6 +2992,7 @@ sub onBifNearestFrameChanged(event as object)
     if not m.mediaOpen or m.closing then return
     frameUri = event.getData()
     if GetInterface(frameUri, "ifString") = invalid or frameUri = "" then return
+    print "[RokuPlus thumbnails-bif] frame_uri=received"
     if m.seekPreviewImage = invalid then return
     m.seekPreviewImage.width = 320
     m.seekPreviewImage.height = 180
@@ -3003,6 +3006,10 @@ sub onBifNearestFrameChanged(event as object)
 end sub
 
 function renderBifSeekThumbnail(position as dynamic) as boolean
+    if not m.bifMetadataAvailable
+        hideSeekThumbnail()
+        return false
+    end if
     if m.bifDisplay = invalid or m.seekPreviewImage = invalid
         hideSeekThumbnail()
         return false
@@ -3485,7 +3492,7 @@ sub skipIntro()
     drawTransport()
 end sub
 
-sub beginSeekScrub(direction as integer)
+sub beginSeekScrub()
     if m.live or m.failed then return
     state = m.decoder.state
     if state <> "playing" and state <> "paused"
@@ -3503,8 +3510,10 @@ sub beginSeekScrub(direction as integer)
     m.seekScrubTarget = origin
     m.seekScrubLastMoveAt = m.monotonic.totalMilliseconds()
     m.panelUntil = 2147483647
+    m.transportFocusIndex = 1
     revealTransport()
-    moveSeekScrub(direction)
+    print "[RokuPlus seek-scrub] action=begin origin="; origin
+    drawTransport()
 end sub
 
 sub moveSeekScrub(direction as integer)
@@ -4207,6 +4216,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
             moveSeekScrub(1)
         else if key = "OK"
             commitSeekScrub()
+        else if key = "down"
+            cancelSeekScrub()
+            moveTransportFocus(0)
         else if key = "back"
             cancelSeekScrub()
         else if key = "play"
@@ -4229,7 +4241,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     else if key = "options"
         openPlayerOptionsMenu()
     else if key = "up"
-        moveTransportFocus(-1)
+        beginSeekScrub()
     else if key = "down"
         moveTransportFocus(1)
     else if key = "OK"
@@ -4239,16 +4251,18 @@ function onKeyEvent(key as string, press as boolean) as boolean
             revealTransport()
         end if
     else if key = "left"
-        if not m.segmentMode
-            beginSeekScrub(-1)
+        if m.panel.visible
+            moveTransportFocus(-1)
         else
             revealTransport()
+            if not m.segmentMode then shiftTen(true)
         end if
     else if key = "right"
-        if not m.segmentMode
-            beginSeekScrub(1)
+        if m.panel.visible
+            moveTransportFocus(1)
         else
             revealTransport()
+            if not m.segmentMode then shiftTen(false)
         end if
     else if key = "rewind" or key = "replay"
         if not m.segmentMode then shiftTen(true)
