@@ -1727,7 +1727,13 @@ sub preparePlaybackEndScreen()
             startNextEpisodePrefetch(nextItem)
         end if
         if nextItem = invalid and (usesOnlineHd() or rpIsOnlineHdItem(m.detail))
-            if m.series = invalid or type(m.series.seasons) <> "roArray" or m.series.seasons.count() = 0
+            parentSeasonsReady = false
+            if m.series <> invalid
+                if type(m.series.seasons) = "roArray"
+                    if m.series.seasons.count() > 0 then parentSeasonsReady = true
+                end if
+            end if
+            if not parentSeasonsReady
                 ' Missing parent metadata is not proof that the series has ended.
                 heading = "NO SE PUDO RECUPERAR LA SERIE"
                 m.player.endScreenData = {
