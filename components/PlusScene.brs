@@ -765,14 +765,44 @@ sub fetched(event as object)
         return
     else if context.operation = "episodes"
         if m.series = invalid or context.item.id <> m.series.id then return
+        ' The provider response can reveal seasons missing from an older
+        ' Continue Watching record. Add placeholders before merging episodes.
+        if type(answer.seasonNumbers) = "roArray"
+            for each declaredSeasonNumber in answer.seasonNumbers
+                declaredNumber = orbitInteger(declaredSeasonNumber,999,-1)
+                if declaredNumber >= 0
+                    seasonExists = false
+                    for each existingSeason in m.series.seasons
+                        if existingSeason.number = declaredNumber then seasonExists = true
+                    end for
+                    if not seasonExists then m.series.seasons.push({number:declaredNumber,episodes:[],loaded:false})
+                end if
+            end for
+            m.series.seasons.sortBy("number")
+        end if
         for each incoming in answer.seasons
             incoming.loaded = true
+            seasonReplaced = false
             for i = 0 to m.series.seasons.count()-1
-                if m.series.seasons[i].number = incoming.number then m.series.seasons[i] = incoming
+                if m.series.seasons[i].number = incoming.number
+                    m.series.seasons[i] = incoming
+                    seasonReplaced = true
+                end if
             end for
+            if not seasonReplaced then m.series.seasons.push(incoming)
         end for
+        m.series.seasons.sortBy("number")
         if m.view = "episodes"
             currentSeasonNumber = -999
+            if context.doesExist("season")
+                requestedSeasonNumber = orbitInteger(context.season,-998)
+                for currentSeasonIndex = 0 to m.series.seasons.count()-1
+                    if m.series.seasons[currentSeasonIndex].number = requestedSeasonNumber
+                        m.season = currentSeasonIndex
+                        exit for
+                    end if
+                end for
+            end if
             if type(m.series.seasons) = "roArray" and m.season >= 0 and m.season < m.series.seasons.count()
                 currentSeasonNumber = orbitInteger(m.series.seasons[m.season].number,-999)
             end if
@@ -1129,6 +1159,22 @@ sub launchVideo(item as object, url as string, format as string)
     preserveEpisodeReturn = item.kind = "episode" and m.detailOrigin = "episodes" and type(m.series) = "roAssociativeArray"
     if m.view <> "player" and m.view <> "source-resolving" and not preserveEpisodeReturn then m.viewBeforePlayer = m.view
     if preserveEpisodeReturn then m.viewBeforePlayer = "episodes"
+    ' Continue Watching opens an episode without the in-memory season browser.
+    ' Reuse the restored parent series and return to its episode list after playback.
+    if item.kind = "episode" and type(m.series) = "roAssociativeArray"
+        m.viewBeforePlayer = "episodes"
+        m.seriesOrigin = m.detailOrigin
+        targetSeasonNumber = orbitInteger(item.season,999,-1)
+        for restoredSeasonIndex = 0 to m.series.seasons.count()-1
+            if m.series.seasons[restoredSeasonIndex].number = targetSeasonNumber
+                m.season = restoredSeasonIndex
+                exit for
+            end if
+        end for
+        m.episode = 0
+        m.zone = "episodes"
+        print "[RokuPlus series] continue-return-browser id="; orbitText(m.series.id,180); " season="; targetSeasonNumber
+    end if
     m.view = "player"
     syncHomeRotationTimers()
     loadingTitleNode = m.player.findNode("loadingTitle")
@@ -1723,9 +1769,23 @@ sub playerClosed(event as object)
     ' Return the alias to the untouched standard instance after host playback.
     m.player = m.standardPlayer
     m.view = m.viewBeforePlayer
-    ' Returning from playback to a series must restore the episode list,
-    ' not leave focus on the season selector with episodes hidden.
-    if m.view = "episodes" then m.zone = "episodes"
+    ' Returning from playback to a series must restore the selected season's
+    ' episodes. Continue Watching may have only a partial parent-season cache;
+    ' reload the selected season so the task can also restore all season numbers.
+    if m.view = "episodes"
+        m.zone = "episodes"
+        if type(m.series) = "roAssociativeArray" and type(m.activePlaybackItem) = "roAssociativeArray"
+            returnSeasonNumber = orbitInteger(m.activePlaybackItem.season,999,-1)
+            for returnSeasonIndex = 0 to m.series.seasons.count()-1
+                if m.series.seasons[returnSeasonIndex].number = returnSeasonNumber
+                    m.season = returnSeasonIndex
+                    exit for
+                end if
+            end for
+            m.episode = 0
+            loadEpisodeSeason()
+        end if
+    end if
     if type(m.pendingEpisodeFallback) = "roAssociativeArray"
         fallback = m.pendingEpisodeFallback
         m.pendingEpisodeFallback = invalid
