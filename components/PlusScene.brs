@@ -1796,6 +1796,7 @@ sub startNextEpisodePrefetch(item as object)
     task.attempt = orbitInteger(item.hdAttempt,99)
     task.requestId = requestId
     task.observeField("result","nextEpisodePrefetchResult")
+    m.player.nextEpisodePrefetchReady = false
     m.nextEpisodePrefetchTask = task
     m.nextEpisodePrefetchRequestId = requestId
     m.nextEpisodePrefetchParentRequestId = m.activePlaybackRequestId
@@ -1823,6 +1824,7 @@ sub nextEpisodePrefetchResult(event as object)
     end if
     m.nextEpisodePrefetchRequestId = ""
     m.nextEpisodePrefetchItemId = ""
+    m.player.nextEpisodePrefetchReady = true
 end sub
 
 sub preparePlaybackEndScreen()
