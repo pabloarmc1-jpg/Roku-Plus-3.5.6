@@ -148,6 +148,10 @@ sub init()
     m.seekPreviewImage = m.top.findNode("seekPreviewImage")
     m.seekPreviewTime = m.top.findNode("seekPreviewTime")
     m.thumbnailData = invalid
+    m.seekScrubActive = false
+    m.seekScrubOrigin = invalid
+    m.seekScrubTarget = invalid
+    m.seekScrubLastMoveAt = 0
     m.bifDisplay = invalid
     m.bifPreviewLastTarget = -1
     m.bifPreviewLastRequestAt = 0
@@ -1245,6 +1249,9 @@ sub closePlayback()
     cancelStreamXArtworkTask()
     m.ticket = invalid
     m.pendingSeek = invalid
+    m.seekScrubActive = false
+    m.seekScrubOrigin = invalid
+    m.seekScrubTarget = invalid
     m.tsRelayLocalSeekPending = invalid
     m.watch = invalid
     m.panel.visible = false
@@ -3031,7 +3038,11 @@ sub drawTransport()
     ' Show the last requested destination while a command is queued; this is
     ' a preview only and is never substituted for the decoder's media clock.
     seekPreviewTarget = invalid
-    if m.pendingSeek <> invalid
+    if m.seekScrubActive and m.seekScrubTarget <> invalid
+        clock = plusClockText(m.seekScrubTarget)
+        seekPreviewTarget = plusClockValue(m.seekScrubTarget)
+        mode = "Buscar · OK confirmar · BACK cancelar"
+    else if m.pendingSeek <> invalid
         clock = plusClockText(m.pendingSeek.target)
         isResumePreview = false
         if m.pendingSeek.doesExist("isResume") then isResumePreview = m.pendingSeek.isResume = true
@@ -3042,7 +3053,9 @@ sub drawTransport()
         if m.ticket.doesExist("isResume") then isResumePreview = m.ticket.isResume = true
         if not isResumePreview then seekPreviewTarget = plusClockValue(m.ticket.target)
     end if
-    if seekPreviewTarget <> invalid and p <> invalid and abs(seekPreviewTarget-p) > 1 and not m.live
+    if m.seekScrubActive and seekPreviewTarget <> invalid
+        renderSeekThumbnail(seekPreviewTarget)
+    else if seekPreviewTarget <> invalid and p <> invalid and abs(seekPreviewTarget-p) > 1 and not m.live
         renderSeekThumbnail(seekPreviewTarget)
     else
         hideSeekThumbnail()
@@ -3053,7 +3066,9 @@ sub drawTransport()
     m.fill.visible = showBar and not m.live
     m.thumb.visible = showBar and not m.live
     if showBar
-        fraction = p / d
+        visualPosition = p
+        if m.seekScrubActive and m.seekScrubTarget <> invalid then visualPosition = m.seekScrubTarget
+        fraction = visualPosition / d
         if fraction < 0 then fraction = 0
         if fraction > 1 then fraction = 1
         m.fill.width = fraction * 1348
@@ -3065,6 +3080,7 @@ sub drawTransport()
     m.durationText.text = ""
     if showBar and not m.live then m.durationText.text = plusClockText(d)
     m.pauseText.text = "OK · Seleccionar"
+    if m.seekScrubActive then m.pauseText.text = "◀ ▶ Mover · OK Confirmar · BACK Cancelar"
     if m.wantPaused then m.pauseText.text = "OK · Seleccionar"
     if m.failed then m.pauseText.text = "OK · Reintentar"
     m.playGlyph.visible = m.wantPaused or m.failed
@@ -3416,7 +3432,7 @@ sub onPulse()
             end if
         end if
     end if
-    if not m.failed and m.ticket = invalid and m.pendingSeek = invalid and m.decoder.state = "playing" and now >= m.panelUntil
+    if not m.failed and not m.seekScrubActive and m.ticket = invalid and m.pendingSeek = invalid and m.decoder.state = "playing" and now >= m.panelUntil
         ' Menus live inside the transport group; clear their state as the controls fade.
         if m.audioMenuOpen then closeAudioMenu()
         if m.subtitleMenuOpen then closeSubtitleMenu()
@@ -3465,6 +3481,70 @@ sub skipIntro()
     m.notice = "Saltando introducción…"
     m.noticeUntil = m.monotonic.totalMilliseconds()+4000
     revealTransport()
+    drawTransport()
+end sub
+
+sub beginSeekScrub(direction as integer)
+    if m.live or m.failed then return
+    state = m.decoder.state
+    if state <> "playing" and state <> "paused"
+        m.notice = "Espera a que termine de cargar."
+        m.noticeUntil = m.monotonic.totalMilliseconds() + 3500
+        revealTransport()
+        drawTransport()
+        return
+    end if
+    origin = playerPosition()
+    duration = playerDuration()
+    if origin = invalid or duration = invalid or duration <= 0 then return
+    cancelPendingResumeForUserSeek()
+    m.seekScrubActive = true
+    m.seekScrubOrigin = origin
+    m.seekScrubTarget = origin
+    m.seekScrubLastMoveAt = m.monotonic.totalMilliseconds()
+    m.panelUntil = 2147483647
+    revealTransport()
+    moveSeekScrub(direction)
+end sub
+
+sub moveSeekScrub(direction as integer)
+    if not m.seekScrubActive or m.seekScrubTarget = invalid then return
+    duration = playerDuration()
+    if duration = invalid or duration <= 0 then return
+    target = plusShiftDestination(m.seekScrubTarget,duration,direction < 0)
+    if target = invalid then return
+    m.seekScrubTarget = target
+    m.seekScrubLastMoveAt = m.monotonic.totalMilliseconds()
+    m.notice = "Destino: " + plusClockText(target)
+    m.noticeUntil = m.seekScrubLastMoveAt + 6000
+    drawTransport()
+end sub
+
+sub commitSeekScrub()
+    if not m.seekScrubActive or m.seekScrubTarget = invalid then return
+    target = m.seekScrubTarget
+    m.seekScrubActive = false
+    m.seekScrubOrigin = invalid
+    m.seekScrubTarget = invalid
+    m.pendingSeek = {target:target,dueAt:m.monotonic.totalMilliseconds()+100}
+    m.notice = "Saltando a " + plusClockText(target) + "…"
+    m.noticeUntil = m.monotonic.totalMilliseconds() + 5000
+    m.panelUntil = m.monotonic.totalMilliseconds() + 6000
+    print "[RokuPlus seek-scrub] action=commit target="; target
+    drawTransport()
+end sub
+
+sub cancelSeekScrub()
+    if not m.seekScrubActive then return
+    origin = m.seekScrubOrigin
+    m.seekScrubActive = false
+    m.seekScrubOrigin = invalid
+    m.seekScrubTarget = invalid
+    m.notice = "Búsqueda cancelada"
+    m.noticeUntil = m.monotonic.totalMilliseconds() + 2200
+    m.panelUntil = m.monotonic.totalMilliseconds() + 6000
+    print "[RokuPlus seek-scrub] action=cancel position="; origin
+    hideSeekThumbnail()
     drawTransport()
 end sub
 
@@ -4119,6 +4199,21 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
         return true
     end if
+    if m.seekScrubActive
+        if key = "left" or key = "rewind"
+            moveSeekScrub(-1)
+        else if key = "right" or key = "fastforward"
+            moveSeekScrub(1)
+        else if key = "OK"
+            commitSeekScrub()
+        else if key = "back"
+            cancelSeekScrub()
+        else if key = "play"
+            cancelSeekScrub()
+            togglePause()
+        end if
+        return true
+    end if
     if key = "back"
         if m.live and m.top.allowPreviewReturn = true
             m.top.presentation = "preview"
@@ -4132,8 +4227,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
         togglePause()
     else if key = "options"
         openPlayerOptionsMenu()
-    else if key = "up" or key = "down"
-        revealTransport()
+    else if key = "up"
+        moveTransportFocus(-1)
+    else if key = "down"
+        moveTransportFocus(1)
     else if key = "OK"
         if m.panel.visible
             activateTransportFocus()
@@ -4141,17 +4238,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
             revealTransport()
         end if
     else if key = "left"
-        if m.panel.visible
-            moveTransportFocus(-1)
-        else
-            revealTransport()
-        end if
+        if not m.segmentMode then beginSeekScrub(-1)
+        else revealTransport()
     else if key = "right"
-        if m.panel.visible
-            moveTransportFocus(1)
-        else
-            revealTransport()
-        end if
+        if not m.segmentMode then beginSeekScrub(1)
+        else revealTransport()
     else if key = "rewind" or key = "replay"
         if not m.segmentMode then shiftTen(true)
         revealTransport()
