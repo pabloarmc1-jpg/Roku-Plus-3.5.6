@@ -190,6 +190,27 @@ function rpHdOnlineMetadataAliases(raw as object) as object
     return values
 end function
 
+' Preserve optional Roku BIF sidecar URLs supplied by HD catalog providers.
+sub rpHdOnlineBifMetadata(raw as dynamic, item as object)
+    if type(raw) <> "roAssociativeArray" or item = invalid then return
+    aliases = [
+        {target:"sdBifUrl", keys:["sdBifUrl","sdbifurl","SDbifUrl"]},
+        {target:"hdBifUrl", keys:["hdBifUrl","hdbifurl","HDbifUrl"]},
+        {target:"fhdBifUrl", keys:["fhdBifUrl","fhdbifurl","FHDbifUrl"]}
+    ]
+    for each alias in aliases
+        for each key in alias.keys
+            if raw.doesExist(key)
+                value = orbitText(raw[key],4096)
+                if value <> "" and (left(value,8) = "https://" or left(value,7) = "http://")
+                    item[alias.target] = value
+                    exit for
+                end if
+            end if
+        end for
+    end for
+end sub
+
 function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as dynamic
     provider = rpHdOnlineProvider(provider)
     if provider = "" or provider = "all" or provider = "cinehax" or provider = "seriesmetro" or provider = "cinecalidad" or type(raw) <> "roAssociativeArray" then return invalid
@@ -207,7 +228,7 @@ function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as d
     imdbId = orbitImdb(raw.imdb_id)
     if imdbId = "" then imdbId = orbitImdb(raw.imdbId)
     if imdbId = "" then imdbId = orbitImdb(raw.imdb)
-    return {
+    item = {
         id: "hdo-"+provider+"-"+number.toStr(), imdbId: imdbId, kind: kind
         provider: provider, providerId: number, providerSlug: orbitText(raw.slug,200)
         library: "hd-online", title: title, description: orbitText(raw.overview)
@@ -215,6 +236,8 @@ function rpHdOnlineItem(raw as dynamic, provider as string, kind as string) as d
         year: left(orbitText(raw.release_date,32),4), runtime: int(runtime*60)
         genres: rpHdOnlineGenres(raw,kind), metadataAliases:rpHdOnlineMetadataAliases(raw), language: "", seasons: []
     }
+    rpHdOnlineBifMetadata(raw,item)
+    return item
 end function
 
 function rpHdOnlineCatalog(raw as dynamic, provider as string, kind as string, page as integer) as object
@@ -342,6 +365,7 @@ function rpHdOnlineEpisodes(raw as dynamic, provider as string, parent as dynami
                         year:parent.year, runtime:orbitInteger(ep.runtime,86400), language:"", seasons:[]
                     }
                     if item.description = "" then item.description = parent.description
+                    rpHdOnlineBifMetadata(ep,item)
                     key = seasonNumber.toStr()
                     if not seasonMap.doesExist(key) then seasonMap[key] = {number:seasonNumber,episodes:[]}
                     seasonMap[key].episodes.push(item)
