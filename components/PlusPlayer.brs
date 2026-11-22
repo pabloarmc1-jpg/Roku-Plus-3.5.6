@@ -116,8 +116,10 @@ sub init()
     m.playerOptionsMenuIndex = 0
     m.playerOptionsLabels = ["Zoom / Imagen", "Subtítulos", "Audio", "Retroceder 10 segundos", "Adelantar 10 segundos", "Play / Pause"]
     m.zoomIndex = 0
-    m.zoomLevels = [1.0, 1.10, 1.20, 1.33]
-    m.zoomLabels = ["Original", "Zoom suave (1.10x)", "Zoom medio (1.20x)", "Zoom completo (1.33x)"]
+    m.zoomLevels = [1.0, 1.10, 1.20, 1.33, 1.0]
+    m.zoomLabels = ["Original", "Zoom suave (1.10x)", "Zoom medio (1.20x)", "Zoom completo (1.33x)", "Llenar 16:9 (recorta)"]
+    m.videoSourceWidth = 0
+    m.videoSourceHeight = 0
     m.subtitleTracks = []
     m.sourceSubtitleTracks = []
     m.subtitleTrackIndex = 0
@@ -185,6 +187,8 @@ sub init()
     m.hlsStartupIsolation = false
     m.hlsPrebufferPending = false
     m.mediaNode = invalid
+    m.videoSourceWidth = 0
+    m.videoSourceHeight = 0
     m.hlsRetryCount = 0
     m.hlsRestartStage = 0
     m.hlsRestartAt = 0
@@ -357,7 +361,21 @@ end sub
 sub applyVideoZoom()
     if m.decoder = invalid then return
     zoom = 1.0
-    if m.zoomLevels <> invalid and m.zoomIndex >= 0 and m.zoomIndex < m.zoomLevels.count()
+    if m.zoomIndex = 4
+        if m.videoSourceWidth > 0 and m.videoSourceHeight > 0
+            sourceAspect = m.videoSourceWidth / m.videoSourceHeight
+            targetAspect = 1920.0 / 1080.0
+            if sourceAspect > targetAspect
+                zoom = sourceAspect / targetAspect
+            else
+                zoom = targetAspect / sourceAspect
+            end if
+        else
+            ' Unknown dimensions: keep the original frame rather than applying
+            ' a guessed crop that could hide important picture content.
+            zoom = 1.0
+        end if
+    else if m.zoomLevels <> invalid and m.zoomIndex >= 0 and m.zoomIndex < m.zoomLevels.count()
         zoom = m.zoomLevels[m.zoomIndex]
     end if
     width = m.decoder.width
@@ -365,7 +383,7 @@ sub applyVideoZoom()
     if width <= 0 or height <= 0 then return
     m.decoder.scaleRotateCenter = [width/2,height/2]
     m.decoder.scale = [zoom,zoom]
-    print "[RokuPlus display] zoom="; zoom
+    print "[RokuPlus display] zoom="; zoom; " mode="; m.zoomIndex; " source="; m.videoSourceWidth; "x"; m.videoSourceHeight
 end sub
 
 ' Bounds are in the scene's 1920x1080 design coordinates, independent of the
@@ -1458,7 +1476,39 @@ end sub
 ' Keep this event compact and never print segment URLs or query tokens.
 sub onNativeStreamDetails()
     if not m.mediaOpen or m.closing then return
+    updateVideoSourceDimensions()
     emitDiagnostic("native_stream_details")
+end sub
+
+' Read the encoded frame dimensions exposed by Roku for the active segment.
+' These dimensions let the optional 16:9 cover mode calculate a uniform zoom.
+sub updateVideoSourceDimensions()
+    if m.decoder = invalid then return
+    width = 0
+    height = 0
+    if m.decoder.hasField("streamingSegment")
+        segment = m.decoder.streamingSegment
+        if type(segment) = "roAssociativeArray"
+            if segment["width"] <> invalid then width = segment["width"]
+            if segment["height"] <> invalid then height = segment["height"]
+        end if
+    end if
+    if (width <= 0 or height <= 0) and m.decoder.hasField("downloadedSegment")
+        segment = m.decoder.downloadedSegment
+        if type(segment) = "roAssociativeArray"
+            if segment["Width"] <> invalid then width = segment["Width"]
+            if segment["Height"] <> invalid then height = segment["Height"]
+        end if
+    end if
+    if width > 0 and height > 0
+        changed = width <> m.videoSourceWidth or height <> m.videoSourceHeight
+        m.videoSourceWidth = width
+        m.videoSourceHeight = height
+        if changed
+            print "[RokuPlus display] source_dimensions="; width; "x"; height
+            if m.zoomIndex = 4 then applyVideoZoom()
+        end if
+    end if
 end sub
 
 sub onNativeDecoderStats()
