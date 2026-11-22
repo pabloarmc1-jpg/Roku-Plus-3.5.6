@@ -57,6 +57,14 @@
       <Rectangle id="timeTrack" translation="[286,185]" width="1348" height="4" color="0xFFFFFF66" visible="false" />
       <Rectangle id="timeFill" translation="[286,185]" width="0" height="4" color="0xE50914FF" visible="false" />
       <Poster id="timeThumb" translation="[280,178]" width="18" height="18" uri="pkg:/images/newplayer-thumb.png" visible="false" />
+      <Group id="seekPreviewGroup" translation="[800,-282]" visible="false">
+        <Rectangle width="320" height="180" color="0x080A0FFF" />
+        <Group id="seekPreviewViewport" clippingRect="[0,0,320,180]">
+          <Poster id="seekPreviewImage" loadDisplayMode="scaleToFill" />
+        </Group>
+        <Rectangle translation="[0,180]" width="320" height="38" color="0x080A0FFF" />
+        <Label id="seekPreviewTime" translation="[0,183]" width="320" height="32" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
+      </Group>
 
       <Group id="rewindControl" translation="[730,222]">
         <Poster id="rewindSurface" width="72" height="72" uri="pkg:/images/newplayer-control.png" />
