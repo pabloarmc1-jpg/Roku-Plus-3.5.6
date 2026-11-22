@@ -138,6 +138,10 @@ sub init()
     m.externalSubtitleIndex = 0
     m.externalSubtitleLastPosition = -1
     m.externalSubtitleSelectedIndex = 0
+    m.audioPreferenceRestorePending = false
+    m.subtitlePreferenceRestorePending = false
+    m.subtitleRestoreOnlinePending = false
+    m.pendingSubtitlePreference = invalid
     m.externalSubtitleGroup = m.top.findNode("externalSubtitleOverlay")
     m.externalSubtitleLabel = m.top.findNode("externalSubtitleText")
     m.track = m.top.findNode("timeTrack")
@@ -842,6 +846,10 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    m.audioPreferenceRestorePending = GetInterface(supplied.preferredAudioLanguage,"ifString") <> invalid and supplied.preferredAudioLanguage <> ""
+    m.subtitlePreferenceRestorePending = GetInterface(supplied.preferredSubtitleMode,"ifString") <> invalid and supplied.preferredSubtitleMode <> ""
+    m.subtitleRestoreOnlinePending = false
+    m.pendingSubtitlePreference = invalid
     m.thumbnailData = invalid
     m.bifPreviewLastTarget = -1
     m.bifPreviewLastRequestAt = 0
@@ -1224,6 +1232,7 @@ sub openRequest()
     else
         m.decoder.control = "play"
     end if
+    restorePreferredSubtitle()
     m.pulse.control = "start"
     startStartupTitleAnimation()
     emitDiagnostic("open")
@@ -1688,8 +1697,37 @@ sub refreshAudioTracks()
     else
         m.audioTrackIndex = 0
     end if
+    restorePreferredAudioTrack()
     if m.audioMenuOpen then drawAudioMenu()
     verifyAudioTrackSelection()
+end sub
+
+sub restorePreferredAudioTrack()
+    if not m.audioPreferenceRestorePending or type(m.current) <> "roAssociativeArray" then return
+    preferred = lcase(plusPlayerText(m.current.preferredAudioLanguage,32))
+    if preferred = ""
+        m.audioPreferenceRestorePending = false
+        return
+    end if
+    for each track in m.audioTracks
+        language = lcase(plusPlayerText(track.language,32))
+        matches = language = preferred
+        if not matches and len(preferred) >= 2 and len(language) >= 2 then matches = left(language,2) = left(preferred,2)
+        if matches
+            m.audioPreferenceRestorePending = false
+            if m.decoder.currentAudioTrack <> track.id
+                m.decoder.audioTrack = track.id
+                print "[RokuPlus audio] preference_restore language="; language; " label="; track.label
+            else
+                print "[RokuPlus audio] preference_restore already_selected language="; language
+            end if
+            return
+        end if
+    end for
+    if m.audioTracks.count() > 0
+        m.audioPreferenceRestorePending = false
+        print "[RokuPlus audio] preference_restore unavailable language="; preferred
+    end if
 end sub
 
 function plusAudioLanguageName(code as string) as string
@@ -1792,6 +1830,7 @@ sub selectAudioTrack()
     print "[RokuPlus audio] select_request label="; chosen.label; " language="; chosen.language; " id="; chosen.id; " currentBefore="; beforeTrack
     m.audioSelectionPending = {id:chosen.id,label:chosen.label,requestedAt:m.monotonic.totalMilliseconds()}
     m.decoder.audioTrack = chosen.id
+    if type(m.current) = "roAssociativeArray" and chosen.language <> "" then m.current.preferredAudioLanguage = left(chosen.language,32)
     afterTrack = m.decoder.currentAudioTrack
     requestedTrack = m.decoder.audioTrack
     print "[RokuPlus audio] select_write requested="; requestedTrack; " currentImmediatelyAfter="; afterTrack
@@ -1881,7 +1920,81 @@ sub refreshSubtitleTracks()
             m.subtitleTrackIndex = 0
         end if
     end if
+    restorePreferredSubtitle()
     if m.subtitleMenuOpen then drawSubtitleMenu()
+end sub
+
+sub saveSubtitlePreference(mode as string, language as string, label as string)
+    if type(m.current) <> "roAssociativeArray" then return
+    m.current.preferredSubtitleMode = mode
+    m.current.preferredSubtitleLanguage = left(plusPlayerText(language,32),32)
+    m.current.preferredSubtitleLabel = left(plusPlayerText(label,120),120)
+    m.subtitlePreferenceRestorePending = false
+    m.subtitleRestoreOnlinePending = false
+end sub
+
+sub restorePreferredSubtitle()
+    if not m.subtitlePreferenceRestorePending or type(m.current) <> "roAssociativeArray" then return
+    mode = plusPlayerText(m.current.preferredSubtitleMode,16)
+    preferredLanguage = lcase(plusPlayerText(m.current.preferredSubtitleLanguage,32))
+    preferredLabel = lcase(plusPlayerText(m.current.preferredSubtitleLabel,120))
+    if mode = "off"
+        if m.decoder.hasField("subtitleTrack") then m.decoder.subtitleTrack = ""
+        if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "Off"
+        m.externalSubtitleCues = []
+        if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
+        m.subtitlePreferenceRestorePending = false
+        print "[RokuPlus subtitles] preference_restore mode=off"
+        return
+    end if
+    if mode = "source"
+        for i = 0 to m.sourceSubtitleTracks.count()-1
+            track = m.sourceSubtitleTracks[i]
+            language = lcase(plusPlayerText(track.language,32))
+            label = lcase(plusPlayerText(track.name,120))
+            matches = preferredLanguage <> "" and language = preferredLanguage
+            if not matches and preferredLabel <> "" then matches = label = preferredLabel
+            if matches
+                m.subtitleTrackIndex = i + 1
+                m.subtitleOnlinePendingLabel = plusPlayerText(track.name,80)
+                m.pendingSubtitlePreference = {mode:"source",language:plusPlayerText(track.language,32),label:plusPlayerText(track.name,120)}
+                m.subtitlePreferenceRestorePending = false
+                startSourceSubtitleTask(track.url)
+                print "[RokuPlus subtitles] preference_restore mode=source language="; language
+                return
+            end if
+        end for
+        if m.sourceSubtitleTracks.count() > 0
+            m.subtitlePreferenceRestorePending = false
+            print "[RokuPlus subtitles] preference_restore source_unavailable=1"
+        end if
+    else if mode = "native"
+        for i = 0 to m.subtitleTracks.count()-1
+            track = m.subtitleTracks[i]
+            language = lcase(plusPlayerText(track.language,32))
+            label = lcase(plusPlayerText(track.label,120))
+            matches = preferredLanguage <> "" and language = preferredLanguage
+            if not matches and preferredLabel <> "" then matches = label = preferredLabel
+            if matches and m.decoder.hasField("subtitleTrack")
+                m.decoder.subtitleTrack = track.id
+                if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "On"
+                m.subtitlePreferenceRestorePending = false
+                print "[RokuPlus subtitles] preference_restore mode=native language="; language
+                return
+            end if
+        end for
+        if m.subtitleTracks.count() > 0
+            m.subtitlePreferenceRestorePending = false
+            print "[RokuPlus subtitles] preference_restore native_unavailable=1"
+        end if
+    else if mode = "online" and not m.subtitleRestoreOnlinePending
+        m.subtitleRestoreOnlinePending = true
+        m.subtitleOnlinePendingLabel = plusPlayerText(m.current.preferredSubtitleLabel,100)
+        startSubtitleSearchTask("search","")
+        print "[RokuPlus subtitles] preference_restore mode=online search=1"
+    else if mode <> "online"
+        m.subtitlePreferenceRestorePending = false
+    end if
 end sub
 
 sub openSubtitleMenu()
@@ -1984,6 +2097,7 @@ sub selectSubtitleTrack()
         m.externalSubtitleLastPosition = -1
         m.externalSubtitleSelectedIndex = 0
         if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
+        saveSubtitlePreference("off","","")
         closeSubtitleMenu()
         m.notice = "Subtítulos desactivados."
         print "[RokuPlus subtitles] selected=off"
@@ -1992,6 +2106,7 @@ sub selectSubtitleTrack()
         if sourceIndex < 0 or sourceIndex >= m.sourceSubtitleTracks.count() then return
         chosenSource = m.sourceSubtitleTracks[sourceIndex]
         m.subtitleOnlinePendingLabel = plusPlayerText(chosenSource.name,80)
+        m.pendingSubtitlePreference = {mode:"source",language:plusPlayerText(chosenSource.language,32),label:plusPlayerText(chosenSource.name,120)}
         m.subtitleOnlineBusy = true
         m.subtitleOnlineOperation = "source"
         drawSubtitleMenu()
@@ -2012,6 +2127,7 @@ sub selectSubtitleTrack()
             m.externalSubtitleSelectedIndex = 0
             if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
             m.notice = "Subtítulos: " + chosen.label
+            saveSubtitlePreference("native",chosen.language,chosen.label)
             print "[RokuPlus subtitles] selected="; chosen.label; " language="; chosen.language
         end if
         closeSubtitleMenu()
@@ -2027,6 +2143,7 @@ sub selectSubtitleTrack()
         if resultIndex < 0 or resultIndex >= m.subtitleOnlineResults.count() then return
         onlineTrack = m.subtitleOnlineResults[resultIndex]
         m.subtitleOnlinePendingLabel = plusPlayerText(onlineTrack.label,100)
+        m.pendingSubtitlePreference = {mode:"online",language:plusPlayerText(onlineTrack.language,32),label:plusPlayerText(onlineTrack.label,120)}
         m.subtitleOnlineBusy = true
         m.subtitleOnlineOperation = "download"
         drawSubtitleMenu()
@@ -2459,6 +2576,30 @@ sub onSubtitleSearchTaskResult()
         m.subtitleOnlineResults = []
         if type(result.items) = "roArray" then m.subtitleOnlineResults = result.items
         searchIndex = 1 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count()
+        if m.subtitleRestoreOnlinePending
+            matchedResult = invalid
+            preferredLanguage = lcase(plusPlayerText(m.current.preferredSubtitleLanguage,32))
+            preferredLabel = lcase(plusPlayerText(m.current.preferredSubtitleLabel,120))
+            for each onlineResult in m.subtitleOnlineResults
+                resultLanguage = lcase(plusPlayerText(onlineResult.language,32))
+                resultLabel = lcase(plusPlayerText(onlineResult.label,120))
+                if (preferredLanguage <> "" and resultLanguage = preferredLanguage) or (preferredLabel <> "" and resultLabel = preferredLabel)
+                    matchedResult = onlineResult
+                    exit for
+                end if
+            end for
+            if matchedResult <> invalid
+                m.subtitleRestoreOnlinePending = false
+                m.subtitlePreferenceRestorePending = false
+                m.subtitleOnlinePendingLabel = plusPlayerText(matchedResult.label,100)
+                startSubtitleSearchTask("download",matchedResult.id)
+                print "[RokuPlus subtitles] preference_restore online_match=1"
+                return
+            end if
+            m.subtitleRestoreOnlinePending = false
+            m.subtitlePreferenceRestorePending = false
+            print "[RokuPlus subtitles] preference_restore online_match=0"
+        end if
         if m.subtitleOnlineResults.count() > 0
             m.subtitleTrackIndex = searchIndex + 1
             m.notice = "Subtítulos encontrados: " + m.subtitleOnlineResults.count().toStr()
@@ -2484,6 +2625,7 @@ sub onSubtitleSearchTaskResult()
             if m.decoder.hasField("subtitleTrack") then m.decoder.subtitleTrack = ""
             if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "Off"
             m.notice = "Subtítulos de la fuente activados: " + m.subtitleOnlinePendingLabel
+            if m.pendingSubtitlePreference <> invalid then saveSubtitlePreference(m.pendingSubtitlePreference.mode,m.pendingSubtitlePreference.language,m.pendingSubtitlePreference.label)
             print "[RokuPlus subtitles-hls] active cues="; cues.count()
             closeSubtitleMenu()
             updateExternalSubtitle()
@@ -2505,6 +2647,7 @@ sub onSubtitleSearchTaskResult()
             if m.decoder.hasField("subtitleTrack") then m.decoder.subtitleTrack = ""
             if m.decoder.hasField("globalCaptionMode") then m.decoder.globalCaptionMode = "Off"
             m.notice = "Subtítulos en español activados: " + m.subtitleOnlinePendingLabel
+            if m.pendingSubtitlePreference <> invalid then saveSubtitlePreference(m.pendingSubtitlePreference.mode,m.pendingSubtitlePreference.language,m.pendingSubtitlePreference.label)
             print "[RokuPlus subtitles-online] active cues="; cues.count()
             closeSubtitleMenu()
             updateExternalSubtitle()
@@ -2862,6 +3005,12 @@ sub publishProgress(force = false as boolean)
     if position <> invalid then progress.position = position
     if duration <> invalid then progress.duration = duration
     if type(m.current) = "roAssociativeArray"
+        for each preferenceField in ["preferredAudioLanguage", "preferredSubtitleMode", "preferredSubtitleLanguage", "preferredSubtitleLabel"]
+            if m.current.doesExist(preferenceField)
+                preferenceValue = plusPlayerText(m.current[preferenceField],120)
+                if preferenceValue <> "" then progress[preferenceField] = preferenceValue
+            end if
+        end for
         if GetInterface(m.current.itemId,"ifString") <> invalid then progress.itemId = m.current.itemId
         if GetInterface(m.current.provider,"ifString") <> invalid then progress.provider = m.current.provider
         if GetInterface(m.current.requestId,"ifString") <> invalid then progress.requestId = m.current.requestId
