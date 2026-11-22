@@ -569,10 +569,11 @@ sub onEndScreenDataChanged(event as object)
     m.endCountdownRemaining = 0
     if type(data.items) = "roArray" then m.endScreenItems = data.items else m.endScreenItems = []
     m.endScreenIndex = 0
-    ' Show the recommendation card over the live video; do not pause or stop
-    ' the decoder, so the credits continue underneath the translucent panel.
-    m.endScreenOpen = true
-    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
+    ' Keep the recommendation hidden until the decoder reports the actual
+    ' end of the episode. This preserves any post-credit scene instead of
+    ' placing the next-episode artwork over it.
+    m.endScreenOpen = m.playbackFinished
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = m.playbackFinished
     drawPlaybackEndScreen()
 end sub
 
