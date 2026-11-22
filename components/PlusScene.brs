@@ -1912,7 +1912,8 @@ end sub
 
 sub startNextEpisodePrefetch(item as object)
     if m.view <> "player" or type(item) <> "roAssociativeArray" then return
-    if orbitText(item.kind,16) <> "episode" then return
+    itemKind = orbitText(item.kind,16)
+    if itemKind <> "episode" and itemKind <> "movie" then return
     provider = rpHdOnlineProvider(item.provider)
     if provider = "" then return
     if orbitText(item.providerId,120) = "" and orbitText(item.providerSlug,200) = "" and orbitText(item.providerTmdbId,120) = ""
@@ -1933,7 +1934,7 @@ sub startNextEpisodePrefetch(item as object)
     task = CreateObject("roSGNode","HdCatalogTask")
     if task = invalid then return
     task.operation = "resolve"
-    task.kind = "episode"
+    task.kind = itemKind
     task.provider = provider
     task.item = item
     task.attempt = orbitInteger(item.hdAttempt,99)
@@ -2034,10 +2035,22 @@ sub preparePlaybackEndScreen()
         m.player.endScreenData = {kind:"episode",heading:heading,items:items,showAtMarker:showAtMarker}
     else if m.detail.kind = "movie"
         similar = rpSimilarMovies(m.detail)
-        heading = "PELÍCULAS SIMILARES"
-        if similar.count() = 0
-            similar = rpFallbackMovies(m.detail)
-            heading = "MÁS PELÍCULAS PARA VER"
+        if similar.count() = 0 then similar = rpFallbackMovies(m.detail)
+        continuation = rpFindMovieContinuation(m.detail,similar)
+        if continuation <> invalid
+            ' Put the verified sequel first and prefetch only this item.
+            orderedMovies = [continuation]
+            for each similarMovie in similar
+                if orbitText(similarMovie.id,180) <> orbitText(continuation.id,180)
+                    orderedMovies.push(similarMovie)
+                end if
+            end for
+            similar = orderedMovies
+            startNextEpisodePrefetch(continuation)
+            heading = "CONTINÚA CON LA SIGUIENTE PELÍCULA"
+            print "[RokuPlus movie-continuation] found title="; orbitText(continuation.title,160); " after="; orbitText(m.detail.title,160)
+        else
+            heading = "PELÍCULAS SIMILARES"
         end if
         m.player.endScreenData = {kind:"movie",heading:heading,items:similar}
     end if
@@ -2091,12 +2104,39 @@ sub playerEndSelection(event as object)
         end if
     else if item.kind = "movie"
         m.detailOrigin = "home"
-        if usesOnlineHd() or rpIsOnlineHdItem(item)
-            m.autoplay = true
-            fetch({operation:"meta",item:item})
+        prefetched = invalid
+        if type(m.nextEpisodePrefetchAnswer) = "roAssociativeArray"
+            if m.nextEpisodePrefetchParentRequestId = selection.requestId and m.nextEpisodePrefetchAnswer.itemId = item.id
+                prefetched = m.nextEpisodePrefetchAnswer.answer
+            end if
+        end if
+        if type(prefetched) = "roAssociativeArray" and prefetched.ok = true
+            print "[RokuPlus movie-continuation-prefetch] reuse=1 title="; orbitText(item.title,140)
+            m.detail.hdAutoRetry = 0
+            if type(prefetched.mediaHeaders) = "roAssociativeArray" then m.detail.mediaHeaders = prefetched.mediaHeaders
+            m.detail.playbackEngine = "standard"
+            if prefetched.doesExist("playbackEngine") and prefetched.playbackEngine = "host" then m.detail.playbackEngine = "host"
+            m.detail.hdAttempt = orbitInteger(prefetched.attemptUsed,99)
+            m.pendingSubtitleTracks = prefetched.subtitleTracks
+            m.pendingSelectedSubtitleGroup = orbitText(prefetched.selectedSubtitleGroup,100)
+            m.pendingSourceHost = orbitText(prefetched.sourceHost,24)
+            m.pendingSegmentUrls = prefetched.segmentUrls
+            m.pendingSegmentDurations = prefetched.segmentDurations
+            m.pendingFallbackSegmentUrls = prefetched.fallbackSegmentUrls
+            m.pendingFallbackSegmentDurations = prefetched.fallbackSegmentDurations
+            m.pendingFallbackTsRelay = prefetched.fallbackTsRelayEnabled = true
+            m.pendingTsRelay = prefetched.tsRelayEnabled = true
+            m.nextEpisodePrefetchAnswer = invalid
+            launchVideo(m.detail,prefetched.url,prefetched.streamFormat)
         else
-            m.autoplay = false
-            playDetail()
+            cancelNextEpisodePrefetch()
+            if usesOnlineHd() or rpIsOnlineHdItem(item)
+                m.autoplay = true
+                fetch({operation:"meta",item:item})
+            else
+                m.autoplay = false
+                playDetail()
+            end if
         end if
     end if
 end sub
@@ -2176,6 +2216,58 @@ function rpSimilarMovies(current as object) as object
     end for
     print "[RokuPlus end-screen] similar-movies="; results.count()
     return results
+end function
+
+function rpMovieTitleKey(value as dynamic) as string
+    title = lcase(orbitText(value,240).trim())
+    title = CreateObject("roRegex","\\s*[\\(\\[]((19|20)[0-9]{2})[\\)\\]]\\s*$","").replace(title,"").trim()
+    return title
+end function
+
+function rpMovieYear(item as dynamic) as integer
+    if type(item) <> "roAssociativeArray" then return 0
+    yearText = orbitText(item.year,8)
+    if len(yearText) >= 4
+        yearValue = val(left(yearText,4))
+        if yearValue >= 1888 and yearValue <= 2200 then return yearValue
+    end if
+    return 0
+end function
+
+function rpFindMovieContinuation(current as object, candidates as object) as dynamic
+    if type(current) <> "roAssociativeArray" or type(candidates) <> "roArray" then return invalid
+    baseTitle = rpMovieTitleKey(current.title)
+    if baseTitle = "" then return invalid
+    currentYear = rpMovieYear(current)
+    best = invalid
+    bestYear = 9999
+    for each candidate in candidates
+        if type(candidate) = "roAssociativeArray" and orbitText(candidate.kind,16) = "movie"
+            if orbitText(candidate.id,180) <> orbitText(current.id,180)
+                candidateTitle = rpMovieTitleKey(candidate.title)
+                if len(candidateTitle) > len(baseTitle) and left(candidateTitle,len(baseTitle)) = baseTitle
+                    suffix = right(candidateTitle,len(candidateTitle)-len(baseTitle)).trim()
+                    sequelMarker = false
+                    if len(suffix) > 0
+                        firstChar = left(suffix,1)
+                        if firstChar >= "2" and firstChar <= "9" then sequelMarker = true
+                        if left(suffix,2) = "ii" or left(suffix,3) = "iii" then sequelMarker = true
+                        if left(suffix,5) = "part " or left(suffix,8) = "chapter " then sequelMarker = true
+                    end if
+                    candidateYear = rpMovieYear(candidate)
+                    laterRelease = currentYear = 0 or candidateYear = 0 or candidateYear > currentYear
+                    if sequelMarker and laterRelease
+                        if candidateYear = 0 then candidateYear = 9998
+                        if candidateYear < bestYear
+                            best = candidate
+                            bestYear = candidateYear
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end for
+    return best
 end function
 
 function rpFallbackMovies(current as object) as object
