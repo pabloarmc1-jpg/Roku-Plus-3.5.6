@@ -110,6 +110,33 @@ function rpWatchStoredNumberValid(value as dynamic) as boolean
     return true
 end function
 
+sub rpWatchLogCinehax(items as dynamic, stage as string, profileId as string, storageKey as string)
+    if type(items) <> "roArray" then return
+    for each record in items
+        if type(record) = "roAssociativeArray" and orbitText(record.provider,32) = "cinehax"
+            providerIdText = ""
+            tmdbText = ""
+            kindText = ""
+            slugText = ""
+            providerIdPresent = record.doesExist("providerId")
+            tmdbPresent = record.doesExist("providerTmdbId")
+            kindPresent = record.doesExist("providerKind")
+            slugPresent = record.doesExist("providerSlug")
+            if providerIdPresent
+                if GetInterface(record.providerId,"ifString") <> invalid
+                    providerIdText = orbitText(record.providerId,200)
+                else if GetInterface(record.providerId,"ifInt") <> invalid or GetInterface(record.providerId,"ifLongInt") <> invalid
+                    providerIdText = record.providerId.toStr()
+                end if
+            end if
+            if tmdbPresent then tmdbText = orbitText(record.providerTmdbId,40)
+            if kindPresent then kindText = orbitText(record.providerKind,16)
+            if slugPresent then slugText = orbitText(record.providerSlug,200)
+            print "[RokuPlus watch-persist] stage="; stage; " profile="; profileId; " key="; storageKey; " id="; orbitText(record.id,180); " providerIdPresent="; providerIdPresent; " providerId="; providerIdText; " tmdbPresent="; tmdbPresent; " tmdb="; tmdbText; " kindPresent="; kindPresent; " kind="; kindText; " slugPresent="; slugPresent; " slug="; slugText
+        end if
+    end for
+end sub
+
 function rpWatchLoad(profileId = "p1" as string) as object
     if rpNormalizeProfileId(profileId) <> profileId then return []
     section = rpWatchSection(profileId)
@@ -117,6 +144,7 @@ function rpWatchLoad(profileId = "p1" as string) as object
     raw = section.read("stateV1")
     loaded = rpWatchParse(raw)
     if type(loaded) = "roArray"
+        rpWatchLogCinehax(loaded,"load-primary",profileId,"stateV1")
         ' Refresh the backup only from a successfully parsed primary state.
         backupCurrent = section.read("stateV1Backup")
         if GetInterface(backupCurrent,"ifString") = invalid
@@ -130,6 +158,7 @@ function rpWatchLoad(profileId = "p1" as string) as object
     backupRaw = section.read("stateV1Backup")
     recovered = rpWatchParse(backupRaw)
     if type(recovered) = "roArray"
+        rpWatchLogCinehax(recovered,"load-backup",profileId,"stateV1Backup")
         restored = FormatJson(recovered)
         if GetInterface(restored,"ifString") <> invalid and len(restored) <= 65536
             if section.write("stateV1",restored) = true then section.flush()
@@ -143,6 +172,7 @@ function rpWatchLoad(profileId = "p1" as string) as object
             legacyRaw = legacy.read("stateV1")
             legacyItems = rpWatchParse(legacyRaw)
             if type(legacyItems) = "roArray"
+                rpWatchLogCinehax(legacyItems,"load-legacy",profileId,"RokuPlusWatch/stateV1")
                 ' Migrate only validated legacy JSON; never copy corrupt data.
                 if section.write("stateV1",legacyRaw) = true then section.flush()
                 if section.write("stateV1Backup",legacyRaw) = true then section.flush()
@@ -202,6 +232,7 @@ function rpWatchSave(items as object, profileId = "p1" as string) as boolean
     end while
     if GetInterface(payload, "ifString") = invalid or len(payload) > 65536 then return false
     if type(rpWatchParse(payload)) <> "roArray" then return false
+    rpWatchLogCinehax(saveItems,"save-payload",profileId,"stateV1")
     section = rpWatchSection(profileId)
     if GetInterface(section, "ifRegistrySection") = invalid then return false
     previousPrimary = section.read("stateV1")
@@ -218,6 +249,8 @@ function rpWatchSave(items as object, profileId = "p1" as string) as boolean
         section.flush()
         return false
     end if
+    verifyItems = rpWatchParse(section.read("stateV1"))
+    rpWatchLogCinehax(verifyItems,"save-readback",profileId,"stateV1")
     ' Save the backup only after the new primary state has been flushed.
     ' If backup flush fails, restore its previous staged value. The primary
     ' is already durable, so this does not turn a successful save into failure.
