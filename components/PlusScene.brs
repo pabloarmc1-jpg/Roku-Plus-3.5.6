@@ -1235,6 +1235,10 @@ sub launchVideo(item as object, url as string, format as string)
     if item.doesExist("introEnd") then descriptor.introEnd = item.introEnd
     savedProgress = rpWatchGet(m.watchState,item.id)
     if savedProgress <> invalid
+        if savedProgress.doesExist("preferredAudioLanguage") then descriptor.preferredAudioLanguage = orbitText(savedProgress.preferredAudioLanguage,32)
+        if savedProgress.doesExist("preferredSubtitleMode") then descriptor.preferredSubtitleMode = orbitText(savedProgress.preferredSubtitleMode,16)
+        if savedProgress.doesExist("preferredSubtitleLanguage") then descriptor.preferredSubtitleLanguage = orbitText(savedProgress.preferredSubtitleLanguage,32)
+        if savedProgress.doesExist("preferredSubtitleLabel") then descriptor.preferredSubtitleLabel = orbitText(savedProgress.preferredSubtitleLabel,120)
         print "[RokuPlus resume] bookmark itemId="; orbitText(item.id,180); " position="; savedProgress.position; " watched="; savedProgress.watched
         if savedProgress.position > 15 and savedProgress.watched <> true
             descriptor.resumePosition = savedProgress.position
@@ -1652,6 +1656,12 @@ sub playerProgress(event as object)
         return
     end if
     m.lastPlaybackProgress = sample
+    for each preferenceField in ["preferredAudioLanguage", "preferredSubtitleMode", "preferredSubtitleLanguage", "preferredSubtitleLabel"]
+        if sample.doesExist(preferenceField)
+            preferenceValue = orbitText(sample[preferenceField],120)
+            if preferenceValue <> "" then playbackItem[preferenceField] = preferenceValue
+        end if
+    end for
     prefetchNextEpisodeAtNinetyPercent(sample,playbackItem)
     m.watchState = rpWatchUpdate(m.watchState,playbackItem,sample.position,sample.duration)
     updatePlaybackEndScreenAtMarker(sample,playbackItem)
