@@ -213,14 +213,29 @@ end function
 function rpWatchSave(items as object, profileId = "p1" as string) as boolean
     if rpNormalizeProfileId(profileId) <> profileId then return false
     if type(items) <> "roArray" then return false
-    ' Inspect the live array before serialization and the JSON round-trip copy.
+    ' Inspect the live history before making an isolated save copy.
     rpWatchLogCinehax(items,"save-input",profileId,"memory")
-    ' Work on a JSON round-trip copy: compaction and size trimming must never
-    ' mutate the live in-memory history before persistence is confirmed.
-    copied = ParseJson(FormatJson(items))
-    rpWatchLogCinehax(copied,"save-roundtrip",profileId,"json-copy")
-    if type(copied) <> "roArray" then return false
-    saveItems = copied
+    ' Do not round-trip through ParseJson here: retain every provider identity
+    ' field by copying each associative-array entry directly.
+    saveItems = []
+    for each sourceRecord in items
+        if type(sourceRecord) <> "roAssociativeArray" then return false
+        saveRecord = CreateObject("roAssociativeArray")
+        for each field in sourceRecord
+            fieldValue = sourceRecord[field]
+            if type(fieldValue) = "roArray"
+                copiedArray = []
+                for each arrayValue in fieldValue
+                    copiedArray.push(arrayValue)
+                end for
+                saveRecord[field] = copiedArray
+            else
+                saveRecord[field] = fieldValue
+            end if
+        end for
+        saveItems.push(saveRecord)
+    end for
+    rpWatchLogCinehax(saveItems,"save-copy",profileId,"memory-copy")
     while saveItems.count() > 60
         saveItems.delete(saveItems.count()-1)
     end while
