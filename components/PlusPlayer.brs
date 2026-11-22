@@ -147,6 +147,9 @@ sub init()
     m.seekPreviewViewport = m.top.findNode("seekPreviewViewport")
     m.seekPreviewImage = m.top.findNode("seekPreviewImage")
     m.seekPreviewTime = m.top.findNode("seekPreviewTime")
+    if m.seekPreviewImage <> invalid and m.seekPreviewImage.hasField("loadStatus")
+        m.seekPreviewImage.observeField("loadStatus", "onSeekPreviewImageLoadStatusChanged")
+    end if
     m.thumbnailData = invalid
     m.seekScrubActive = false
     m.seekScrubOrigin = invalid
@@ -2868,6 +2871,13 @@ sub onThumbnailTilesChanged(event as object)
     if m.mediaOpen then drawTransport()
 end sub
 
+sub onSeekPreviewImageLoadStatusChanged(event as object)
+    if m.seekPreviewGroup = invalid then return
+    loaded = event.getData()
+    activeRequest = m.seekScrubActive or m.pendingSeek <> invalid or m.ticket <> invalid
+    m.seekPreviewGroup.visible = loaded = true and activeRequest
+end sub
+
 sub hideSeekThumbnail()
     if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = false
 end sub
@@ -2957,9 +2967,12 @@ function renderSeekThumbnail(position as dynamic) as boolean
     m.seekPreviewImage.loadWidth = sheetWidth
     m.seekPreviewImage.loadHeight = sheetHeight
     m.seekPreviewImage.translation = [-(columnIndex*tileWidth),-(rowIndex*tileHeight)]
+    m.seekPreviewGroup.visible = false
     if m.seekPreviewImage.uri <> spriteUri then m.seekPreviewImage.uri = spriteUri
     if m.seekPreviewTime <> invalid then m.seekPreviewTime.text = plusClockText(target)
-    m.seekPreviewGroup.visible = true
+    if m.seekPreviewImage.hasField("loadStatus") and m.seekPreviewImage.loadStatus = true
+        m.seekPreviewGroup.visible = true
+    end if
     return true
 end function
 
@@ -2999,9 +3012,12 @@ sub onBifNearestFrameChanged(event as object)
     m.seekPreviewImage.loadWidth = 320
     m.seekPreviewImage.loadHeight = 180
     m.seekPreviewImage.translation = [0,0]
+    if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = false
     if m.seekPreviewImage.uri <> frameUri then m.seekPreviewImage.uri = frameUri
     if m.seekPreviewTime <> invalid and m.seekScrubActive then m.seekPreviewTime.text = plusClockText(m.seekScrubTarget)
-    if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = true
+    if m.seekPreviewImage.hasField("loadStatus") and m.seekPreviewImage.loadStatus = true
+        if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = true
+    end if
     print "[RokuPlus thumbnails-bif] frame=ready"
 end sub
 
