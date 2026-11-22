@@ -4462,6 +4462,9 @@ if m.view = "profiles"
                 ' before resolve. Directly calling playDetail with this partial
                 ' watch-history record can leave the resolver with incomplete data.
                 print "[RokuPlus continue] accepted id="; resumeItem.id; " provider="; resumeItem.provider; " providerIdPresent="; resumeItem.doesExist("providerId"); " slugPresent="; resumeItem.doesExist("providerSlug")
+                if resumeItem.provider = "cinehax"
+                    print "[RokuPlus continue-identity] provider=cinehax providerId="; orbitText(resumeItem.providerId,40); " tmdb="; orbitText(resumeItem.providerTmdbId,40); " kind="; orbitText(resumeItem.providerKind,16); " slug="; orbitText(resumeItem.providerSlug,200)
+                end if
                 openDetails(resumeItem,"home",true)
                 return true
             end if
