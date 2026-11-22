@@ -1586,6 +1586,8 @@ sub drawAudioMenu()
         end if
         m.audioMenuRows[row].text = label
         m.audioMenuRows[row].visible = label <> ""
+        m.audioMenuRows[row].color = "0xFFFFFFFF"
+        if index = m.audioTrackIndex then m.audioMenuRows[row].color = "0xE50914FF"
     end for
     if m.audioMenuFocus <> invalid
         m.audioMenuFocus.visible = total > 0
@@ -1765,6 +1767,8 @@ sub drawSubtitleMenu()
         end if
         m.subtitleMenuRows[row].text = label
         m.subtitleMenuRows[row].visible = label <> ""
+        m.subtitleMenuRows[row].color = "0xFFFFFFFF"
+        if index = m.subtitleTrackIndex then m.subtitleMenuRows[row].color = "0xE50914FF"
     end for
     if m.subtitleMenuFocus <> invalid
         m.subtitleMenuFocus.visible = true
@@ -1951,6 +1955,8 @@ sub drawDisplayMenu()
         end if
         m.displayMenuRows[row].text = label
         m.displayMenuRows[row].visible = label <> ""
+        m.displayMenuRows[row].color = "0xFFFFFFFF"
+        if index = m.displayMenuIndex then m.displayMenuRows[row].color = "0xE50914FF"
     end for
     if m.displayMenuFocus <> invalid
         m.displayMenuFocus.visible = true
@@ -3046,7 +3052,14 @@ sub onPulse()
             end if
         end if
     end if
-    if not m.failed and m.ticket = invalid and m.pendingSeek = invalid and m.decoder.state = "playing" and now >= m.panelUntil then m.panel.visible = false
+    if not m.failed and m.ticket = invalid and m.pendingSeek = invalid and m.decoder.state = "playing" and now >= m.panelUntil
+        ' Menus live inside the transport group; clear their state as the controls fade.
+        if m.audioMenuOpen then closeAudioMenu()
+        if m.subtitleMenuOpen then closeSubtitleMenu()
+        if m.displayMenuOpen then closeDisplayMenu()
+        if m.playerOptionsMenuOpen then closePlayerOptionsMenu()
+        m.panel.visible = false
+    end if
     ' During initial buffering, avoid redrawing the full transport at 4 Hz.
     if not m.hlsStartupIsolation
         if m.decoder.state <> "buffering" or now - m.lastTransportDrawAt >= 1000 then drawTransport()
