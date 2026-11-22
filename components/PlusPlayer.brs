@@ -572,7 +572,10 @@ sub onEndScreenDataChanged(event as object)
     m.endScreenIndex = 0
     ' SceneGraph marks this data when the credits/post-credit threshold is reached.
     ' Ordinary errors and unrelated recommendations remain hidden until finished.
-    m.endScreenAtMarker = data.showAtMarker = true
+    m.endScreenAtMarker = false
+    if data.doesExist("showAtMarker")
+        if data.showAtMarker = true then m.endScreenAtMarker = true
+    end if
     m.endScreenOpen = m.playbackFinished or m.endScreenAtMarker
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = m.endScreenOpen
     print "[RokuPlus player-end-screen] marker="; m.endScreenAtMarker; " finished="; m.playbackFinished; " visible="; m.endScreenOpen; " items="; m.endScreenItems.count()
