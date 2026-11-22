@@ -1583,7 +1583,7 @@ sub drawAudioMenu()
     end if
     if m.audioMenuFocus <> invalid
         m.audioMenuFocus.visible = true
-        m.audioMenuFocus.translation = [10,58 + ((m.audioTrackIndex-first) * 44)]
+        m.audioMenuFocus.translation = [10,88 + ((m.audioTrackIndex-first) * 44)]
     end if
     m.audioMenuItems.text = output
 end sub
@@ -1759,7 +1759,7 @@ sub drawSubtitleMenu()
         output += chr(10) + "Esta fuente no anuncia pistas seleccionables."
     end if
     if m.subtitleMenuFocus <> invalid
-        m.subtitleMenuFocus.translation = [10,58 + ((m.subtitleTrackIndex-first) * 44)]
+        m.subtitleMenuFocus.translation = [10,88 + ((m.subtitleTrackIndex-first) * 44)]
     end if
     m.subtitleMenuItems.text = output
 end sub
@@ -1944,7 +1944,7 @@ sub drawDisplayMenu()
     end for
     if total > visibleRows then output += chr(10) + "Mostrando " + str(first+1).trim() + "–" + str(last+1).trim() + " de " + str(total).trim()
     output += chr(10) + "▲ / ▼ Elegir     OK Aplicar     BACK Cerrar"
-    if m.displayMenuFocus <> invalid then m.displayMenuFocus.translation = [10,58 + ((m.displayMenuIndex-first) * 44)]
+    if m.displayMenuFocus <> invalid then m.displayMenuFocus.translation = [10,88 + ((m.displayMenuIndex-first) * 44)]
     m.displayMenuItems.text = output
 end sub
 
