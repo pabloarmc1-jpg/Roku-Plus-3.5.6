@@ -1591,14 +1591,14 @@ sub drawAudioMenu()
     end for
     if m.audioMenuFocus <> invalid
         m.audioMenuFocus.visible = total > 0
-        if total > 0 then m.audioMenuFocus.translation = [8,42 + ((m.audioTrackIndex-first) * 32)]
+        if total > 0 then m.audioMenuFocus.translation = [8,36 + ((m.audioTrackIndex-first) * 28)]
     end if
     if total = 0
-        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = "Sin pistas seleccionables · BACK cerrar"
+        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = ""
     else if m.audioSelectionPending <> invalid
-        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = "Aplicando: " + plusPlayerText(m.audioSelectionPending.label,80)
+        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = ""
     else
-        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = "↑ ↓  Mover     OK  Elegir     BACK  Cerrar"
+        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = ""
     end if
 end sub
 
@@ -1772,9 +1772,9 @@ sub drawSubtitleMenu()
     end for
     if m.subtitleMenuFocus <> invalid
         m.subtitleMenuFocus.visible = true
-        m.subtitleMenuFocus.translation = [8,42 + ((m.subtitleTrackIndex-first) * 32)]
+        m.subtitleMenuFocus.translation = [8,36 + ((m.subtitleTrackIndex-first) * 28)]
     end if
-    if m.subtitleMenuFooter <> invalid then m.subtitleMenuFooter.text = "↑ ↓  Mover     OK  Elegir     BACK  Cerrar"
+    if m.subtitleMenuFooter <> invalid then m.subtitleMenuFooter.text = ""
 end sub
 
 sub closeSubtitleMenu()
@@ -1960,9 +1960,9 @@ sub drawDisplayMenu()
     end for
     if m.displayMenuFocus <> invalid
         m.displayMenuFocus.visible = true
-        m.displayMenuFocus.translation = [8,42 + ((m.displayMenuIndex-first) * 32)]
+        m.displayMenuFocus.translation = [8,36 + ((m.displayMenuIndex-first) * 28)]
     end if
-    if m.displayMenuFooter <> invalid then m.displayMenuFooter.text = "↑ ↓  Mover     OK  Elegir     BACK  Cerrar"
+    if m.displayMenuFooter <> invalid then m.displayMenuFooter.text = ""
 end sub
 
 sub closeDisplayMenu()
