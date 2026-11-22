@@ -424,7 +424,7 @@ sub applyVideoZoom()
     if m.zoomIndex = 5
         print "[RokuPlus display] ambient uriPresent="; ambientUri <> ""; " videoRect="; width; "x"; height; " offset="; m.decoder.translation[0]; ","; m.decoder.translation[1]
     end if
-end subb
+end sub
 
 ' Bounds are in the scene's 1920x1080 design coordinates, independent of the
 ' panel's physical resolution. Malformed rectangles fall back to the live card.
