@@ -444,6 +444,9 @@ end function
 
 function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as dynamic) as object
     record = {id:orbitText(item.id,180), title:orbitText(item.title,180), kind:orbitText(item.kind,20), poster:orbitText(item.poster,2048), background:orbitText(item.background,2048), year:orbitText(item.year,20), provider:orbitText(item.provider,32), imdbId:orbitText(item.imdbId,180), position:0, duration:0, watched:false, listed:false, updated:0}
+    ' JSON parsing is case-sensitive. Preserve canonical camel-case identity keys
+    ' instead of letting dot assignments serialize them in lowercase.
+    record.SetModeCaseSensitive()
     ' Normalize untrusted playback clocks before they enter persistent history.
     ' Invalid, negative, NaN or implausibly large values become zero.
     record.position = rpWatchNumber(position)
@@ -453,14 +456,14 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
     ' The public item id alone is not sufficient for every provider operation.
     if item.doesExist("providerId")
         if GetInterface(item.providerId,"ifInt") <> invalid or GetInterface(item.providerId,"ifLongInt") <> invalid
-            if item.providerId > 0 then record.providerId = item.providerId
+            if item.providerId > 0 then record["providerId"] = item.providerId
         else if GetInterface(item.providerId,"ifString") <> invalid
             ' CineCalidad uses a canonical slug as its provider identifier.
             providerIdText = orbitText(item.providerId,200)
-            if providerIdText <> "" then record.providerId = providerIdText
+            if providerIdText <> "" then record["providerId"] = providerIdText
         end if
     end if
-    if item.doesExist("providerSlug") then record.providerSlug = orbitText(item.providerSlug,200)
+    if item.doesExist("providerSlug") then record["providerSlug"] = orbitText(item.providerSlug,200)
     if record.provider = "lamovie"
         slugPresent = false
         slugValue = ""
@@ -472,8 +475,8 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
     end if
     ' CineHax requires these two source-specific identity fields to rebuild
     ' its resolver request after Continue Watching restores a saved record.
-    if item.doesExist("providerTmdbId") then record.providerTmdbId = orbitText(item.providerTmdbId,40)
-    if item.doesExist("providerKind") then record.providerKind = orbitText(item.providerKind,16)
+    if item.doesExist("providerTmdbId") then record["providerTmdbId"] = orbitText(item.providerTmdbId,40)
+    if item.doesExist("providerKind") then record["providerKind"] = orbitText(item.providerKind,16)
     if record.provider = "cinehax"
         print "[RokuPlus identity] watch-record provider=cinehax id="; record.id; " providerId="; orbitText(record.providerId,40); " tmdb="; orbitText(record.providerTmdbId,40); " kind="; orbitText(record.providerKind,16); " slug="; orbitText(record.providerSlug,200)
     end if
@@ -481,11 +484,11 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
     if item.doesExist("episode") and rpWatchStoredIntegerValid(item.episode,1,9999) then record.episode = int(item.episode)
     if item.doesExist("seriesTitle") then record.seriesTitle = orbitText(item.seriesTitle,180)
     if item.doesExist("seriesId") then record.seriesId = orbitText(item.seriesId,180)
-    if item.doesExist("seriesImdbId") then record.seriesImdbId = orbitImdb(item.seriesImdbId)
-    if item.doesExist("seriesProviderId") then record.seriesProviderId = item.seriesProviderId
-    if item.doesExist("seriesProviderSlug") then record.seriesProviderSlug = orbitText(item.seriesProviderSlug,200)
-    if item.doesExist("seriesProviderTmdbId") then record.seriesProviderTmdbId = orbitText(item.seriesProviderTmdbId,40)
-    if item.doesExist("seriesProviderKind") then record.seriesProviderKind = orbitText(item.seriesProviderKind,16)
+    if item.doesExist("seriesImdbId") then record["seriesImdbId"] = orbitImdb(item.seriesImdbId)
+    if item.doesExist("seriesProviderId") then record["seriesProviderId"] = item.seriesProviderId
+    if item.doesExist("seriesProviderSlug") then record["seriesProviderSlug"] = orbitText(item.seriesProviderSlug,200)
+    if item.doesExist("seriesProviderTmdbId") then record["seriesProviderTmdbId"] = orbitText(item.seriesProviderTmdbId,40)
+    if item.doesExist("seriesProviderKind") then record["seriesProviderKind"] = orbitText(item.seriesProviderKind,16)
     if item.doesExist("seriesSeasonNumbers") and type(item.seriesSeasonNumbers) = "roArray"
         cleanSeasons = []
         seenSeasons = {}
