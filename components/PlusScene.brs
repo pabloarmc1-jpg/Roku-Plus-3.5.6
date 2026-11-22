@@ -4406,17 +4406,22 @@ if m.view = "profiles"
                     if left(savedId,len(candidatePrefix)) = candidatePrefix
                         resumeItem.provider = candidateProvider
                         candidateId = mid(savedId,len(candidatePrefix)+1)
-                        if candidateProvider = "seriesmetro"
-                            seriesMarker = instr(1,candidateId,"-s")
-                            if seriesMarker > 1 then candidateId = left(candidateId,seriesMarker-1)
-                        end if
                         if candidateProvider = "cinecalidad"
+                            ' CineCalidad identifiers are slugs, not numeric IDs.
                             if candidateId <> "" then resumeItem.providerId = candidateId
                             if candidateId <> "" then resumeItem.providerSlug = candidateId
                         else
-                            candidateNumber = orbitInteger(candidateId,999999999)
-                            if candidateNumber > 0 and candidateNumber.toStr() = candidateId
-                                resumeItem.providerId = candidateNumber
+                            ' Episode watch IDs append a season/episode suffix
+                            ' (for example: 19792-s1-e9). Recover the leading
+                            ' numeric provider ID instead of rejecting the whole
+                            ' suffix-bearing string as a non-numeric identifier.
+                            numericMatch = CreateObject("roRegex","^[0-9]+","").match(candidateId)
+                            if numericMatch.count() > 0
+                                candidateNumberText = numericMatch[0]
+                                candidateNumber = orbitInteger(candidateNumberText,999999999)
+                                if candidateNumber > 0
+                                    resumeItem.providerId = candidateNumber
+                                end if
                             end if
                         end if
                         exit for
