@@ -78,6 +78,28 @@ function rpHdCinehaxArt(value as dynamic, backdrop = false as boolean) as string
     return "https://image.tmdb.org/t/p/"+size+path
 end function
 
+' Preserve optional Roku BIF URLs from CineHax catalog/detail/episode metadata.
+' MPEG-TS does not carry preview frames itself; these are sidecar assets.
+sub rpHdCinehaxBifMetadata(raw as dynamic, item as object)
+    if type(raw) <> "roAssociativeArray" or item = invalid then return
+    aliases = [
+        {target:"sdBifUrl", keys:["sdBifUrl","sdbifurl","SDbifUrl"]},
+        {target:"hdBifUrl", keys:["hdBifUrl","hdbifurl","HDbifUrl"]},
+        {target:"fhdBifUrl", keys:["fhdBifUrl","fhdbifurl","FHDbifUrl"]}
+    ]
+    for each alias in aliases
+        for each key in alias.keys
+            if raw.doesExist(key)
+                value = orbitText(raw[key],4096)
+                if value <> "" and (left(value,8) = "https://" or left(value,7) = "http://")
+                    item[alias.target] = value
+                    exit for
+                end if
+            end if
+        end for
+    end for
+end sub
+
 function rpHdCinehaxItem(raw as dynamic, kind as string) as dynamic
     if type(raw) <> "roAssociativeArray" then return invalid
     sourceKind = orbitText(raw.kind,16)
@@ -97,7 +119,7 @@ function rpHdCinehaxItem(raw as dynamic, kind as string) as dynamic
     year = orbitInteger(raw.year,2199)
     yearText = ""
     if year >= 1880 then yearText = year.toStr()
-    return {
+    item = {
         id:"hdo-cinehax-"+id, imdbId:orbitImdb(raw.imdb_id), kind:kind
         provider:"cinehax", providerId:id, providerTmdbId:tmdb, providerKind:sourceKind, providerSlug:slug
         library:"hd-online", title:title, description:orbitText(raw.overview)
@@ -105,6 +127,8 @@ function rpHdCinehaxItem(raw as dynamic, kind as string) as dynamic
         year:yearText, runtime:orbitInteger(raw.runtime,1440)*60
         genres:rpHdOnlineGenres(raw,kind), language:"", seasons:[]
     }
+    rpHdCinehaxBifMetadata(raw,item)
+    return item
 end function
 
 function rpHdCinehaxCatalog(raw as dynamic, kind as string, page as integer) as object
@@ -206,6 +230,7 @@ function rpHdCinehaxEpisodes(raw as dynamic, parent as object, requested as inte
                     }
                     if item.background = "" then item.background = parent.background
                     if item.description = "" then item.description = parent.description
+                    rpHdCinehaxBifMetadata(row,item)
                     entries.push(item)
                     seen[id] = true
                 end if
