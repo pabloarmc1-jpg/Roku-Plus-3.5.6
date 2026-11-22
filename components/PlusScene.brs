@@ -2036,7 +2036,7 @@ sub preparePlaybackEndScreen()
     else if m.detail.kind = "movie"
         similar = rpSimilarMovies(m.detail)
         if similar.count() = 0 then similar = rpFallbackMovies(m.detail)
-        continuation = rpFindMovieContinuation(m.detail,similar)
+        continuation = rpFindMovieContinuation(m.detail,rpMovieCandidates(m.detail))
         if continuation <> invalid
             ' Put the verified sequel first and prefetch only this item.
             orderedMovies = [continuation]
@@ -2232,6 +2232,20 @@ function rpMovieYear(item as dynamic) as integer
         if yearValue >= 1888 and yearValue <= 2200 then return yearValue
     end if
     return 0
+end function
+
+function rpMovieCandidates(current as object) as object
+    candidates = []
+    for each source in [m.features,m.pageTitles,m.titles]
+        if type(source) = "roArray"
+            for each candidate in source
+                if type(candidate) = "roAssociativeArray" and orbitText(candidate.kind,16) = "movie"
+                    if orbitText(candidate.id,180) <> orbitText(current.id,180) then candidates.push(candidate)
+                end if
+            end for
+        end if
+    end for
+    return orbitUniqueCatalogItems(candidates)
 end function
 
 function rpFindMovieContinuation(current as object, candidates as object) as dynamic
