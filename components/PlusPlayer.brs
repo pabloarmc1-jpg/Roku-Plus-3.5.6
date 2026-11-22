@@ -95,6 +95,7 @@ sub init()
     m.endCountdownLastAt = 0
     m.endSelectionSent = false
     m.playbackFinished = false
+    m.endScreenAtMarker = false
     m.endScreenHeading = m.top.findNode("endScreenHeading")
     m.endScreenMessage = m.top.findNode("endScreenMessage")
     m.endMovieLayout = m.top.findNode("endMovieLayout")
@@ -569,11 +570,11 @@ sub onEndScreenDataChanged(event as object)
     m.endCountdownRemaining = 0
     if type(data.items) = "roArray" then m.endScreenItems = data.items else m.endScreenItems = []
     m.endScreenIndex = 0
-    ' Keep the recommendation hidden until the decoder reports the actual
-    ' end of the episode. This preserves any post-credit scene instead of
-    ' placing the next-episode artwork over it.
-    m.endScreenOpen = m.playbackFinished
-    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = m.playbackFinished
+    ' SceneGraph marks this data when the credits/post-credit threshold is reached.
+    ' Ordinary errors and unrelated recommendations remain hidden until finished.
+    m.endScreenAtMarker = data.showAtMarker = true
+    m.endScreenOpen = m.playbackFinished or m.endScreenAtMarker
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = m.endScreenOpen
     drawPlaybackEndScreen()
 end sub
 
@@ -712,12 +713,9 @@ sub startPlaybackEndCountdownIfReady()
     if not m.endScreenOpen or m.endCountdownActive or m.endCountdownManual then return
     if type(m.endScreenItems) <> "roArray" or m.endScreenItems.count() = 0 then return
 
-    ' IntroDB outro.start_sec marks the beginning of credits, not the end of
-    ' the episode. Some shows (for example Rick and Morty) place extra scenes
-    ' after the credits, so never start the next-episode countdown from that
-    ' marker. Wait for Roku's terminal "finished" state, which lets all encoded
-    ' credits and post-credit footage play before offering the next episode.
-    if not m.playbackFinished then return
+    ' The scene supplies this flag only after the correct threshold:
+    ' credits start when no post-credit scene exists, or post-credit end when it does.
+    if not m.playbackFinished and not m.endScreenAtMarker then return
 
     m.endCountdownRemaining = 10
     m.endCountdownLastAt = m.monotonic.totalMilliseconds()
@@ -789,6 +787,7 @@ sub openRequest()
     m.endCountdownLastAt = 0
     m.endSelectionSent = false
     m.playbackFinished = false
+    m.endScreenAtMarker = false
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
     m.pulse.control = "stop"
     if m.startupTimer <> invalid then m.startupTimer.control = "stop"
@@ -1221,6 +1220,7 @@ sub closePlayback()
     m.endCountdownLastAt = 0
     m.endSelectionSent = false
     m.playbackFinished = false
+    m.endScreenAtMarker = false
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
     m.displayMenuOpen = false
     if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
@@ -1415,8 +1415,10 @@ sub onDecoderState()
             m.playbackFinished = true
             m.endScreenOpen = true
             m.endScreenIndex = 0
-            m.endCountdownActive = false
-            m.endCountdownRemaining = 0
+            if not m.endScreenAtMarker
+                m.endCountdownActive = false
+                m.endCountdownRemaining = 0
+            end if
             if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
             drawPlaybackEndScreen()
             print "[RokuPlus playback] finished; showing in-player recommendations"
