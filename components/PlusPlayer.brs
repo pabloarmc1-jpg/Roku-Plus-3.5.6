@@ -95,6 +95,7 @@ sub init()
     m.endCountdownLastAt = 0
     m.endCountdownExpired = false
     m.endSelectionSent = false
+    m.playbackStarted = false
     m.playbackFinished = false
     m.endScreenAtMarker = false
     m.endScreenHeading = m.top.findNode("endScreenHeading")
@@ -807,6 +808,7 @@ sub openRequest()
     m.endCountdownLastAt = 0
     m.endCountdownExpired = false
     m.endSelectionSent = false
+    m.playbackStarted = false
     m.playbackFinished = false
     m.endScreenAtMarker = false
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
@@ -1241,6 +1243,7 @@ sub closePlayback()
     m.endCountdownLastAt = 0
     m.endCountdownExpired = false
     m.endSelectionSent = false
+    m.playbackStarted = false
     m.playbackFinished = false
     m.endScreenAtMarker = false
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
@@ -1334,6 +1337,15 @@ sub onDecoderState()
         else
             m.panel.visible = false
         end if
+    end if
+    ' Roku may emit a delayed "finished" when the previous decoder source is
+    ' stopped during HLS-to-TS fallback. It is not a natural end until this
+    ' playback request has actually entered the playing state.
+    if m.phase = "playing" then m.playbackStarted = true
+    if m.phase = "finished" and not m.playbackStarted
+        print "[RokuPlus playback] ignored=finished-before-first-play generation="; m.generation
+        m.phase = "opening"
+        return
     end if
     emitDiagnostic("state")
     if m.phase = "playing"
