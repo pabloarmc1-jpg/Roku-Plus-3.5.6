@@ -38,12 +38,21 @@ function rpWatchParse(raw as dynamic) as dynamic
         end if
 
         ' Validate optional display/source strings before accepting the record.
-        stringFields = ["title", "kind", "poster", "background", "year", "provider", "imdbId", "providerSlug", "providerTmdbId", "providerKind", "seriesTitle", "seriesId", "seriesImdbId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind"]
+        stringFields = ["title", "kind", "poster", "background", "year", "provider", "imdbId", "providerSlug", "providerTmdbId", "providerKind", "seriesTitle", "seriesId", "seriesImdbId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "preferredAudioLanguage", "preferredSubtitleMode", "preferredSubtitleLanguage", "preferredSubtitleLabel"]
         for each field in stringFields
             if entry.doesExist(field)
                 if GetInterface(entry[field],"ifString") = invalid then return invalid
             end if
         end for
+        if entry.doesExist("preferredSubtitleMode")
+            if not (entry.preferredSubtitleMode = "off" or entry.preferredSubtitleMode = "source" or entry.preferredSubtitleMode = "native" or entry.preferredSubtitleMode = "online") then return invalid
+        end if
+        for each field in ["preferredAudioLanguage", "preferredSubtitleLanguage"]
+            if entry.doesExist(field) and len(entry[field]) > 32 then return invalid
+        end for
+        if entry.doesExist("preferredSubtitleLabel")
+            if len(entry.preferredSubtitleLabel) > 120 then return invalid
+        end if
         for each field in ["providerId", "seriesProviderId"]
             if entry.doesExist(field)
                 value = entry[field]
@@ -448,6 +457,10 @@ function rpWatchRecord(item as object, position = 0 as dynamic, duration = 0 as 
     ' instead of letting dot assignments serialize them in lowercase.
     record.SetModeCaseSensitive()
     record["imdbId"] = orbitText(item.imdbId,180)
+    if item.doesExist("preferredAudioLanguage") then record["preferredAudioLanguage"] = left(orbitText(item.preferredAudioLanguage,32),32)
+    if item.doesExist("preferredSubtitleMode") then record["preferredSubtitleMode"] = left(orbitText(item.preferredSubtitleMode,16),16)
+    if item.doesExist("preferredSubtitleLanguage") then record["preferredSubtitleLanguage"] = left(orbitText(item.preferredSubtitleLanguage,32),32)
+    if item.doesExist("preferredSubtitleLabel") then record["preferredSubtitleLabel"] = left(orbitText(item.preferredSubtitleLabel,120),120)
     ' Normalize untrusted playback clocks before they enter persistent history.
     ' Invalid, negative, NaN or implausibly large values become zero.
     record.position = rpWatchNumber(position)
@@ -544,6 +557,9 @@ function rpWatchUpdate(items as object, item as object, position as dynamic, dur
         end for
         ' Keep artwork and descriptive metadata if a later progress sample
         ' only contains the playback identity and clocks.
+        for each field in ["preferredAudioLanguage", "preferredSubtitleMode", "preferredSubtitleLanguage", "preferredSubtitleLabel"]
+            if old.doesExist(field) and not record.doesExist(field) then record[field] = old[field]
+        end for
         displayFields = ["title", "kind", "poster", "background", "year"]
         for each field in displayFields
             if old.doesExist(field) and record.doesExist(field)
