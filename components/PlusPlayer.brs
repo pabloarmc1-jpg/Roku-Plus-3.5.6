@@ -93,6 +93,7 @@ sub init()
     m.endCountdownManual = false
     m.endCountdownRemaining = 0
     m.endCountdownLastAt = 0
+    m.endCountdownExpired = false
     m.endSelectionSent = false
     m.playbackFinished = false
     m.endScreenAtMarker = false
@@ -565,6 +566,7 @@ end sub
 sub onNextEpisodePrefetchReadyChanged(event as object)
     if event.getData() <> true then return
     if not m.endScreenOpen or m.endCountdownManual then return
+    if not m.endCountdownExpired then return
     if m.endCountdownRemaining > 0 then return
     if type(m.endScreenItems) <> "roArray" or m.endScreenItems.count() = 0 then return
     if m.endSelectionSent then return
@@ -726,7 +728,7 @@ end sub
 
 sub startPlaybackEndCountdownIfReady()
     if not m.endScreenOpen or m.endCountdownActive or m.endCountdownManual then return
-    if m.endCountdownLastAt > 0 and m.endCountdownRemaining <= 0 then return
+    if m.endCountdownExpired then return
     if type(m.endScreenItems) <> "roArray" or m.endScreenItems.count() = 0 then return
 
     ' The scene supplies this flag only after the correct threshold:
@@ -3016,6 +3018,8 @@ sub onPulse()
                 if m.endCountdownRemaining <= 0
                     m.endCountdownRemaining = 0
                     m.endCountdownActive = false
+                    m.endCountdownExpired = true
+                    updateEndCountdownVisual()
                     if m.top.nextEpisodePrefetchReady = true
                         selectPlaybackEndItem()
                     else
