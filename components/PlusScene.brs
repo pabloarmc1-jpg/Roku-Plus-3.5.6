@@ -1363,6 +1363,10 @@ sub introDbResult(event as object)
 end sub
 
 sub updatePlaybackEndScreenAtMarker(sample as object, playbackItem as object)
+    if type(sample) <> "roAssociativeArray" then return
+    sampleState = lcase(orbitText(sample.state,20))
+    if sampleState <> "playing" and sampleState <> "paused" and sampleState <> "finished" then return
+    ' Ignore stale decoder position values while a newly selected episode is opening/buffering.
     ' Without a post-credit marker, offer the next episode as soon as credits begin.
     ' When IntroDB marks a post-credit scene, keep the end card hidden until that
     ' scene ends; if its end is unavailable, the terminal finished event is the
@@ -1556,6 +1560,11 @@ sub playerProgress(event as object)
         m.recovering = false
         print "[RokuPlus source-fallback] trigger=automatic-playback-failure provider="; orbitText(playbackItem.provider,32); " season="; orbitInteger(playbackItem.season,999); " episode="; orbitInteger(playbackItem.episode,9999)
         m.player.callFunc("closePlayback")
+        return
+    end if
+    sampleState = lcase(orbitText(sample.state,20))
+    if sampleState <> "playing" and sampleState <> "paused" and sampleState <> "finished"
+        if m.watchDiagCount <= 8 then print "[RokuPlus watch] rejected=inactive-playback-state state="; sampleState; " itemId="; detailId; " position="; sample.position
         return
     end if
     m.lastPlaybackProgress = sample
@@ -1783,6 +1792,8 @@ end sub
 
 sub prefetchNextEpisodeAtNinetyPercent(sample as object, playbackItem as object)
     if type(sample) <> "roAssociativeArray" or type(playbackItem) <> "roAssociativeArray" then return
+    sampleState = lcase(orbitText(sample.state,20))
+    if sampleState <> "playing" and sampleState <> "paused" then return
     if orbitText(playbackItem.kind,16) <> "episode" then return
     duration = rpWatchNumber(sample.duration)
     position = rpWatchNumber(sample.position)
