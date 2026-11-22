@@ -362,6 +362,14 @@ end sub
 ' node to the screen, so the decoder and stream remain open and seeking is untouched.
 sub applyVideoZoom()
     if m.decoder = invalid then return
+
+    ' Restore the full-screen video surface before applying the selected mode.
+    ' In ambient mode, resize the Video node to the source aspect ratio so its
+    ' own letterbox area cannot cover the artwork behind it.
+    m.decoder.translation = [0,0]
+    m.decoder.width = 1920
+    m.decoder.height = 1080
+
     zoom = 1.0
     ambientUri = ""
     if m.zoomIndex = 5 and type(m.current) = "roAssociativeArray"
@@ -375,7 +383,21 @@ sub applyVideoZoom()
     if m.ambientBackdropShade <> invalid
         m.ambientBackdropShade.visible = m.zoomIndex = 5 and ambientUri <> "" and not isPreviewPresentation()
     end if
-    if m.zoomIndex = 4
+
+    if m.zoomIndex = 5 and m.videoSourceWidth > 0 and m.videoSourceHeight > 0
+        sourceAspect = m.videoSourceWidth / m.videoSourceHeight
+        targetAspect = 1920.0 / 1080.0
+        fitWidth = 1920.0
+        fitHeight = 1080.0
+        if sourceAspect > targetAspect
+            fitHeight = 1920.0 / sourceAspect
+        else
+            fitWidth = 1080.0 * sourceAspect
+        end if
+        m.decoder.width = fitWidth
+        m.decoder.height = fitHeight
+        m.decoder.translation = [(1920.0 - fitWidth) / 2.0, (1080.0 - fitHeight) / 2.0]
+    else if m.zoomIndex = 4
         if m.videoSourceWidth > 0 and m.videoSourceHeight > 0
             sourceAspect = m.videoSourceWidth / m.videoSourceHeight
             targetAspect = 1920.0 / 1080.0
@@ -392,13 +414,17 @@ sub applyVideoZoom()
     else if m.zoomLevels <> invalid and m.zoomIndex >= 0 and m.zoomIndex < m.zoomLevels.count()
         zoom = m.zoomLevels[m.zoomIndex]
     end if
+
     width = m.decoder.width
     height = m.decoder.height
     if width <= 0 or height <= 0 then return
     m.decoder.scaleRotateCenter = [width/2,height/2]
     m.decoder.scale = [zoom,zoom]
     print "[RokuPlus display] zoom="; zoom; " mode="; m.zoomIndex; " source="; m.videoSourceWidth; "x"; m.videoSourceHeight
-end sub
+    if m.zoomIndex = 5
+        print "[RokuPlus display] ambient uriPresent="; ambientUri <> ""; " videoRect="; width; "x"; height; " offset="; m.decoder.translation[0]; ","; m.decoder.translation[1]
+    end if
+end subb
 
 ' Bounds are in the scene's 1920x1080 design coordinates, independent of the
 ' panel's physical resolution. Malformed rectangles fall back to the live card.
