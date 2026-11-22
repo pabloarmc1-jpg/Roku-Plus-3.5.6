@@ -92,6 +92,7 @@ sub init()
     m.nextEpisodePrefetch90ParentRequestId = ""
     m.nextEpisodePrefetch90ParentItemId = ""
     m.nextEpisodePrefetchAnswer = invalid
+    m.pendingMarvelSeriesRecommendation = invalid
     m.introDbTask = invalid
     m.introDbCache = {}
     m.introDbCacheOrder = []
@@ -1853,6 +1854,16 @@ sub playerClosed(event as object)
     m.activePlaybackProfileId = invalid
     m.activePlaybackItem = invalid
     m.activePlaybackOrigin = invalid
+    if type(m.pendingMarvelSeriesRecommendation) = "roAssociativeArray"
+        nextMarvelSeries = m.pendingMarvelSeriesRecommendation
+        m.pendingMarvelSeriesRecommendation = invalid
+        m.view = "home"
+        m.viewBeforePlayer = "home"
+        m.detailOrigin = "home"
+        print "[RokuPlus Marvel-order] opening-series title="; orbitText(nextMarvelSeries.title,140)
+        openDetails(nextMarvelSeries,"home",false)
+        return
+    end if
     m.continueItems = rpWatchContinue(m.watchState)
     m.note = ""
     drawScreen()
@@ -2032,8 +2043,26 @@ sub preparePlaybackEndScreen()
             end if
             print "[RokuPlus series] next-episode-search complete parent="; orbitText(m.series.id,180); " seasons="; m.series.seasons.count(); " result=none"
         end if
+        if nextItem = invalid
+            parentProduction = m.series
+            if type(parentProduction) <> "roAssociativeArray" then parentProduction = m.detail
+            marvelNext = rpFindMarvelNextProduction(parentProduction)
+            if marvelNext <> invalid
+                items = [marvelNext]
+                heading = "SIGUIENTE PRODUCCIÓN MARVEL"
+                print "[RokuPlus Marvel-order] next="; orbitText(marvelNext.title,140); " after-series="; orbitText(parentProduction.title,140)
+            end if
+        end if
         m.player.endScreenData = {kind:"episode",heading:heading,items:items,showAtMarker:showAtMarker}
     else if m.detail.kind = "movie"
+        marvelNext = rpFindMarvelNextProduction(m.detail)
+        if marvelNext <> invalid
+            marvelItems = [marvelNext]
+            if marvelNext.kind = "movie" then startNextEpisodePrefetch(marvelNext)
+            print "[RokuPlus Marvel-order] next="; orbitText(marvelNext.title,140); " after-movie="; orbitText(m.detail.title,140)
+            m.player.endScreenData = {kind:"movie",heading:"SIGUIENTE PRODUCCIÓN MARVEL",items:marvelItems}
+            return
+        end if
         similar = rpSimilarMovies(m.detail)
         if similar.count() = 0 then similar = rpFallbackMovies(m.detail)
         continuation = rpFindMovieContinuation(m.detail,rpMovieCandidates(m.detail))
@@ -2102,6 +2131,11 @@ sub playerEndSelection(event as object)
             cancelNextEpisodePrefetch()
             playDetail()
         end if
+    else if item.kind = "series"
+        m.pendingMarvelSeriesRecommendation = item
+        m.player.closePlayback()
+        print "[RokuPlus Marvel-order] closing-player-for-series title="; orbitText(item.title,140)
+        return
     else if item.kind = "movie"
         m.detailOrigin = "home"
         prefetched = invalid
@@ -2142,6 +2176,153 @@ sub playerEndSelection(event as object)
         end if
     end if
 end sub
+
+
+function rpMarvelTitleNorm(value as dynamic) as string
+    title = lcase(orbitText(value,240).trim())
+    title = CreateObject("roRegex","[^a-z0-9 ]","").replace(title," ")
+    title = CreateObject("roRegex","[ ]+","").replace(title," ").trim()
+    return title
+end function
+
+function rpMarvelOrderIndex(item as dynamic) as integer
+    if type(item) <> "roAssociativeArray" then return -1
+    title = rpMarvelTitleNorm(item.title)
+    if title = "" then return -1
+    order = [
+        "eyes of wakanda",
+        "captain america the first avenger|captain america first avenger",
+        "agent carter",
+        "captain marvel",
+        "iron man",
+        "iron man 2",
+        "the incredible hulk|incredible hulk",
+        "thor",
+        "the avengers|avengers",
+        "thor the dark world|thor dark world",
+        "iron man 3",
+        "captain america the winter soldier|captain america winter soldier",
+        "guardians of the galaxy",
+        "guardians of the galaxy vol 2|guardians of the galaxy volume 2",
+        "i am groot",
+        "daredevil season 1|daredevil",
+        "jessica jones season 1|jessica jones",
+        "avengers age of ultron",
+        "ant man",
+        "daredevil season 2",
+        "luke cage season 1|luke cage",
+        "iron fist season 1|iron fist",
+        "the defenders|defenders",
+        "the punisher season 1|the punisher|punisher",
+        "jessica jones season 2",
+        "luke cage season 2",
+        "iron fist season 2",
+        "daredevil season 3",
+        "the punisher season 2",
+        "jessica jones season 3",
+        "thor ragnarok",
+        "black panther",
+        "avengers infinity war",
+        "ant man and the wasp",
+        "avengers endgame",
+        "wandavision",
+        "the falcon and the winter soldier|falcon and winter soldier",
+        "loki season 1|loki",
+        "what if",
+        "shang chi and the legend of the ten rings|shang chi",
+        "eternals",
+        "hawkeye",
+        "moon knight",
+        "doctor strange in the multiverse of madness|doctor strange multiverse of madness",
+        "ms marvel",
+        "she hulk attorney at law|she hulk",
+        "werewolf by night",
+        "the guardians of the galaxy holiday special|guardians of the galaxy holiday special",
+        "black panther wakanda forever|wakanda forever",
+        "ant man and the wasp quantumania|quantumania",
+        "guardians of the galaxy vol 3|guardians of the galaxy volume 3",
+        "secret invasion",
+        "the marvels",
+        "echo",
+        "agatha all along",
+        "daredevil born again",
+        "deadpool wolverine",
+        "captain america brave new world",
+        "thunderbolts",
+        "fantastic four first steps",
+        "spider man",
+        "spider man 2",
+        "spider man 3",
+        "x men",
+        "x2",
+        "x men the last stand",
+        "x men first class",
+        "the wolverine",
+        "x men days of future past",
+        "x men apocalypse",
+        "logan",
+        "dark phoenix",
+        "the new mutants",
+        "the amazing spider man",
+        "the amazing spider man 2",
+        "venom",
+        "venom let there be carnage",
+        "morbius",
+        "madame web",
+        "venom the last dance",
+        "kraven the hunter",
+        "spider man no way home"
+    ]
+    for index = 0 to order.count()-1
+        for each alias in order[index].tokenize("|")
+            if title = rpMarvelTitleNorm(alias) then return index
+        end for
+    end for
+    return -1
+end function
+
+function rpMarvelCatalogCandidates() as object
+    candidates = []
+    for each pool in [m.features,m.homeSeries,m.titles,m.pageTitles]
+        if type(pool) = "roArray"
+            for each entry in pool
+                if type(entry) = "roAssociativeArray" then candidates.push(entry)
+            end for
+        end if
+    end for
+    if type(m.hdLibrary) = "roAssociativeArray"
+        for each field in ["movies","series"]
+            if type(m.hdLibrary[field]) = "roArray"
+                for each entry in m.hdLibrary[field]
+                    if type(entry) = "roAssociativeArray" then candidates.push(entry)
+                end for
+            end if
+        end for
+    end if
+    return orbitUniqueCatalogItems(candidates)
+end function
+
+function rpFindMarvelNextProduction(current as dynamic) as dynamic
+    currentIndex = rpMarvelOrderIndex(current)
+    if currentIndex < 0 then return invalid
+    best = invalid
+    bestIndex = 9999
+    currentId = orbitText(current.id,180)
+    for each candidate in rpMarvelCatalogCandidates()
+        if type(candidate) = "roAssociativeArray"
+            candidateId = orbitText(candidate.id,180)
+            candidateKind = orbitText(candidate.kind,16)
+            candidateIndex = rpMarvelOrderIndex(candidate)
+            if candidateId <> "" and candidateId <> currentId and (candidateKind = "movie" or candidateKind = "series")
+                if candidateIndex > currentIndex and candidateIndex < bestIndex
+                    best = candidate
+                    bestIndex = candidateIndex
+                end if
+            end if
+        end if
+    end for
+    return best
+end function
 
 function rpGenreNames(item as dynamic) as object
     values = []
