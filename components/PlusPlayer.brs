@@ -758,12 +758,20 @@ sub selectPlaybackEndItem()
     m.pulse.control = "stop"
     m.endScreenItems = []
     m.endScreenIndex = 0
-    m.endScreenOpen = true
-    if m.endScreenItemsLabel <> invalid then m.endScreenItemsLabel.text = "ABRIENDO TÍTULO... " + chr(10) + "Espera un momento. BACK para salir."
-    if m.endScreenMessage <> invalid then m.endScreenMessage.text = "ABRIENDO TÍTULO...  ·  BACK para salir."
-    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = true
-    if m.endMovieLayout <> invalid then m.endMovieLayout.visible = false
-    if m.endEpisodeLayout <> invalid then m.endEpisodeLayout.visible = false
+    ' Dismiss the recommendation artwork immediately. The selected episode may
+    ' still be resolving its stream; leaving this group visible makes the old
+    ' next-episode poster appear stuck over the player during that wait.
+    m.endScreenOpen = false
+    m.endCountdownManual = false
+    m.endCountdownLastAt = 0
+    if m.endScreenGroup <> invalid then m.endScreenGroup.visible = false
+    if m.endEpisodePoster <> invalid
+        m.endEpisodePoster.uri = ""
+        m.endEpisodePoster.visible = false
+    end if
+    if m.endEpisodeTitle <> invalid then m.endEpisodeTitle.text = ""
+    if m.endEpisodeMeta <> invalid then m.endEpisodeMeta.text = ""
+    if m.endCountdownText <> invalid then m.endCountdownText.text = ""
     m.top.endSelection = {item:selected,requestId:m.current.requestId}
 end sub
 
