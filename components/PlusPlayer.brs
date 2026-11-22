@@ -54,14 +54,23 @@ sub init()
     m.audioTrackIndex = 0
     m.audioSelectionPending = invalid
     m.audioMenuFocus = m.top.findNode("audioMenuFocus")
+    m.audioMenuTitle = m.top.findNode("audioMenuTitle")
+    m.audioMenuFooter = m.top.findNode("audioMenuFooter")
+    m.audioMenuRows = [m.top.findNode("audioMenuRow0"),m.top.findNode("audioMenuRow1"),m.top.findNode("audioMenuRow2"),m.top.findNode("audioMenuRow3")]
     m.playerOptionsMenuFocus = m.top.findNode("playerOptionsMenuFocus")
     m.displayMenuFocus = m.top.findNode("displayMenuFocus")
     m.subtitleMenuFocus = m.top.findNode("subtitleMenuFocus")
     m.subtitleMenuGroup = m.top.findNode("subtitleMenu")
     m.subtitleMenuItems = m.top.findNode("subtitleMenuItems")
+    m.subtitleMenuTitle = m.top.findNode("subtitleMenuTitle")
+    m.subtitleMenuFooter = m.top.findNode("subtitleMenuFooter")
+    m.subtitleMenuRows = [m.top.findNode("subtitleMenuRow0"),m.top.findNode("subtitleMenuRow1"),m.top.findNode("subtitleMenuRow2"),m.top.findNode("subtitleMenuRow3"),m.top.findNode("subtitleMenuRow4")]
     m.subtitleMenuOpen = false
     m.displayMenuGroup = m.top.findNode("displayMenu")
     m.displayMenuItems = m.top.findNode("displayMenuItems")
+    m.displayMenuTitle = m.top.findNode("displayMenuTitle")
+    m.displayMenuFooter = m.top.findNode("displayMenuFooter")
+    m.displayMenuRows = [m.top.findNode("displayMenuRow0"),m.top.findNode("displayMenuRow1"),m.top.findNode("displayMenuRow2"),m.top.findNode("displayMenuRow3"),m.top.findNode("displayMenuRow4")]
     m.displayMenuOpen = false
     m.displayMenuIndex = 0
     m.playerOptionsMenuGroup = m.top.findNode("playerOptionsMenu")
@@ -1136,6 +1145,12 @@ sub closePlayback()
     m.tsRelayLocalSeekPending = invalid
     m.watch = invalid
     m.panel.visible = false
+    if m.audioMenuGroup <> invalid then m.audioMenuGroup.visible = false
+    if m.subtitleMenuGroup <> invalid then m.subtitleMenuGroup.visible = false
+    if m.displayMenuGroup <> invalid then m.displayMenuGroup.visible = false
+    m.audioMenuOpen = false
+    m.subtitleMenuOpen = false
+    m.displayMenuOpen = false
     m.decoder.visible = false
     m.endScreenOpen = false
     m.endScreenItems = []
@@ -1555,36 +1570,34 @@ end function
 sub drawAudioMenu()
     if m.audioMenuItems = invalid then return
     total = m.audioTracks.count()
-    if total = 0
-        if m.audioMenuFocus <> invalid then m.audioMenuFocus.visible = false
-        m.audioMenuItems.text = "AUDIO" + chr(10) + "No hay pistas seleccionables." + chr(10) + "El audio puede venir integrado." + chr(10) + "BACK  Cerrar"
-        return
-    end if
-    visibleRows = 4
+    visibleRows = m.audioMenuRows.count()
     first = plusPlayerWindowStart(m.audioTrackIndex,total,visibleRows)
-    last = first + visibleRows - 1
-    if last >= total then last = total - 1
-    output = "AUDIO / IDIOMA" + chr(10)
+    if m.audioMenuTitle <> invalid then m.audioMenuTitle.text = "AUDIO / IDIOMA"
     activeTrack = m.decoder.currentAudioTrack
-    for i = first to last
-        trackLabel = plusPlayerText(m.audioTracks[i].label,56)
-        if trackLabel = "" then trackLabel = "Pista de audio"
-        if i = m.audioTrackIndex then output += "›  " else output += "   "
-        output += trackLabel
-        if m.audioTracks[i].language <> "" then output += "  (" + m.audioTracks[i].language + ")"
-        if m.audioTracks[i].id = activeTrack then output += "  · ACTUAL"
-        if i < last then output += chr(10)
+    for row = 0 to visibleRows - 1
+        label = ""
+        index = first + row
+        if index < total
+            track = m.audioTracks[index]
+            label = plusPlayerText(track.label,220)
+            if label = "" then label = "Pista de audio"
+            if track.language <> "" then label += "  (" + track.language + ")"
+            if track.id = activeTrack then label += "  · ACTUAL"
+        end if
+        m.audioMenuRows[row].text = label
+        m.audioMenuRows[row].visible = label <> ""
     end for
-    if m.audioSelectionPending <> invalid
-        output += chr(10) + "Aplicando: " + m.audioSelectionPending.label
-    else
-        output += chr(10) + "↑ ↓ Mover     OK Elegir     BACK"
-    end if
     if m.audioMenuFocus <> invalid
-        m.audioMenuFocus.visible = true
-        m.audioMenuFocus.translation = [10,48 + ((m.audioTrackIndex-first) * 36)]
+        m.audioMenuFocus.visible = total > 0
+        if total > 0 then m.audioMenuFocus.translation = [8,42 + ((m.audioTrackIndex-first) * 32)]
     end if
-    m.audioMenuItems.text = output
+    if total = 0
+        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = "Sin pistas seleccionables · BACK cerrar"
+    else if m.audioSelectionPending <> invalid
+        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = "Aplicando: " + plusPlayerText(m.audioSelectionPending.label,80)
+    else
+        if m.audioMenuFooter <> invalid then m.audioMenuFooter.text = "↑ ↓  Mover     OK  Elegir     BACK  Cerrar"
+    end if
 end sub
 
 sub closeAudioMenu()
@@ -1724,40 +1737,40 @@ end sub
 sub drawSubtitleMenu()
     if m.subtitleMenuItems = invalid then return
     total = 1 + m.sourceSubtitleTracks.count() + m.subtitleTracks.count()
-    visibleRows = 5
+    visibleRows = m.subtitleMenuRows.count()
     first = plusPlayerWindowStart(m.subtitleTrackIndex,total,visibleRows)
-    last = first + visibleRows - 1
-    if last >= total then last = total - 1
-    output = "SUBTÍTULOS" + chr(10)
-    for i = first to last
-        trackLabel = ""
-        detail = ""
-        if i = 0
-            trackLabel = "Desactivados"
-        else if i <= m.sourceSubtitleTracks.count()
-            track = m.sourceSubtitleTracks[i-1]
-            trackLabel = plusPlayerText(track.name,52)
-            if trackLabel = "" then trackLabel = plusAudioLanguageName(plusPlayerText(track.language,16))
-            if trackLabel = "" then trackLabel = "Pista externa"
-            if track.language <> "" then detail = "  (" + track.language + ")"
-            if track.default = true then detail += "  · Predet."
-        else
-            nativeIndex = i - 1 - m.sourceSubtitleTracks.count()
-            track = m.subtitleTracks[nativeIndex]
-            trackLabel = plusPlayerText(track.label,52)
-            if trackLabel = "" then trackLabel = "Subtítulos"
-            if track.language <> "" then detail = "  (" + track.language + ")"
+    if m.subtitleMenuTitle <> invalid then m.subtitleMenuTitle.text = "SUBTÍTULOS"
+    for row = 0 to visibleRows - 1
+        label = ""
+        index = first + row
+        if index < total
+            detail = ""
+            if index = 0
+                label = "Desactivados"
+            else if index <= m.sourceSubtitleTracks.count()
+                track = m.sourceSubtitleTracks[index-1]
+                label = plusPlayerText(track.name,220)
+                if label = "" then label = plusAudioLanguageName(plusPlayerText(track.language,20))
+                if label = "" then label = "Pista externa"
+                if track.language <> "" then detail = "  (" + track.language + ")"
+                if track.default = true then detail += "  · Predeterminado"
+            else
+                nativeIndex = index - 1 - m.sourceSubtitleTracks.count()
+                track = m.subtitleTracks[nativeIndex]
+                label = plusPlayerText(track.label,220)
+                if label = "" then label = "Subtítulos"
+                if track.language <> "" then detail = "  (" + track.language + ")"
+            end if
+            label += detail
         end if
-        if i = m.subtitleTrackIndex then output += "›  " else output += "   "
-        output += trackLabel + detail
-        if i < last then output += chr(10)
+        m.subtitleMenuRows[row].text = label
+        m.subtitleMenuRows[row].visible = label <> ""
     end for
-    output += chr(10) + "↑ ↓ Mover     OK Elegir     BACK"
     if m.subtitleMenuFocus <> invalid
         m.subtitleMenuFocus.visible = true
-        m.subtitleMenuFocus.translation = [10,48 + ((m.subtitleTrackIndex-first) * 36)]
+        m.subtitleMenuFocus.translation = [8,42 + ((m.subtitleTrackIndex-first) * 32)]
     end if
-    m.subtitleMenuItems.text = output
+    if m.subtitleMenuFooter <> invalid then m.subtitleMenuFooter.text = "↑ ↓  Mover     OK  Elegir     BACK  Cerrar"
 end sub
 
 sub closeSubtitleMenu()
@@ -1923,27 +1936,27 @@ sub drawDisplayMenu()
         end if
     end if
     if showSkip then total++
-    visibleRows = 4
+    visibleRows = m.displayMenuRows.count()
     first = plusPlayerWindowStart(m.displayMenuIndex,total,visibleRows)
-    last = first + visibleRows - 1
-    if last >= total then last = total - 1
-    output = "ZOOM" + chr(10)
-    for i = first to last
-        if i < m.zoomLabels.count()
-            trackLabel = plusPlayerText(m.zoomLabels[i],48)
-        else
-            trackLabel = "Saltar introducción"
+    if m.displayMenuTitle <> invalid then m.displayMenuTitle.text = "ZOOM / PANTALLA"
+    for row = 0 to visibleRows - 1
+        label = ""
+        index = first + row
+        if index < total
+            if index < m.zoomLabels.count()
+                label = plusPlayerText(m.zoomLabels[index],220)
+            else
+                label = "Saltar introducción"
+            end if
         end if
-        if i = m.displayMenuIndex then output += "›  " else output += "   "
-        output += trackLabel
-        if i < last then output += chr(10)
+        m.displayMenuRows[row].text = label
+        m.displayMenuRows[row].visible = label <> ""
     end for
-    output += chr(10) + "↑ ↓ Mover     OK Elegir     BACK"
     if m.displayMenuFocus <> invalid
         m.displayMenuFocus.visible = true
-        m.displayMenuFocus.translation = [10,48 + ((m.displayMenuIndex-first) * 36)]
+        m.displayMenuFocus.translation = [8,42 + ((m.displayMenuIndex-first) * 32)]
     end if
-    m.displayMenuItems.text = output
+    if m.displayMenuFooter <> invalid then m.displayMenuFooter.text = "↑ ↓  Mover     OK  Elegir     BACK  Cerrar"
 end sub
 
 sub closeDisplayMenu()
