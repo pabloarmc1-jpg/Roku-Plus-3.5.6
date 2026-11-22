@@ -1555,6 +1555,7 @@ sub playerProgress(event as object)
         return
     end if
     m.lastPlaybackProgress = sample
+    prefetchNextEpisodeAtNinetyPercent(sample,playbackItem)
     m.watchState = rpWatchUpdate(m.watchState,playbackItem,sample.position,sample.duration)
     updatePlaybackEndScreenAtMarker(sample,playbackItem)
     record = rpWatchGet(m.watchState,playbackItem.id)
@@ -1776,6 +1777,21 @@ sub cancelNextEpisodePrefetch()
     m.nextEpisodePrefetchAnswer = invalid
 end sub
 
+sub prefetchNextEpisodeAtNinetyPercent(sample as object, playbackItem as object)
+    if type(sample) <> "roAssociativeArray" or type(playbackItem) <> "roAssociativeArray" then return
+    if orbitText(playbackItem.kind,16) <> "episode" then return
+    duration = rpWatchNumber(sample.duration)
+    position = rpWatchNumber(sample.position)
+    if duration <= 0 or position <= 0 then return
+    if position < duration * 0.90 then return
+    if m.view <> "player" or m.detail = invalid then return
+    if orbitText(m.detail.id,180) <> orbitText(playbackItem.id,180) then return
+    nextItem = rpFindNextEpisode()
+    if type(nextItem) <> "roAssociativeArray" then return
+    print "[RokuPlus next-episode-prefetch] trigger=90-percent position="; position; " duration="; duration
+    startNextEpisodePrefetch(nextItem)
+end sub
+
 sub startNextEpisodePrefetch(item as object)
     if m.view <> "player" or type(item) <> "roAssociativeArray" then return
     if orbitText(item.kind,16) <> "episode" then return
@@ -1784,6 +1800,12 @@ sub startNextEpisodePrefetch(item as object)
     if orbitText(item.providerId,120) = "" and orbitText(item.providerSlug,200) = "" and orbitText(item.providerTmdbId,120) = ""
         print "[RokuPlus next-episode-prefetch] skipped=provider-identity-missing"
         return
+    end if
+    parentRequestId = m.activePlaybackRequestId
+    parentItemId = orbitText(m.detail.id,180)
+    nextItemId = orbitText(item.id,180)
+    if m.nextEpisodePrefetchParentRequestId = parentRequestId and m.nextEpisodePrefetchParentItemId = parentItemId and m.nextEpisodePrefetchItemId = nextItemId
+        if m.nextEpisodePrefetchTask <> invalid or type(m.nextEpisodePrefetchAnswer) = "roAssociativeArray" then return
     end if
     cancelNextEpisodePrefetch()
     requestId = CreateObject("roDeviceInfo").getRandomUUID()
