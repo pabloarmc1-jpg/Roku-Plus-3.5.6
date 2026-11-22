@@ -1423,21 +1423,50 @@ sub playerProgress(event as object)
     end if
     m.lastPlaybackProgress = sample
     m.watchState = rpWatchUpdate(m.watchState,playbackItem,sample.position,sample.duration)
-    ' Show the end card only when IntroDB gives a real credits marker.
-    ' Without a confirmed marker, wait for the decoder's finished event.
+    ' Without a post-credit marker, offer the next episode as soon as credits begin.
+    ' When IntroDB marks a post-credit scene, keep the end card hidden until that
+    ' scene ends; if its end is unavailable, the terminal finished event is the
+    ' safe fallback and prevents cutting off the extra footage.
     creditsStart = -1.0
-    if type(m.introDbSegments) = "roAssociativeArray" and type(m.introDbSegments.outro) = "roAssociativeArray"
-        outroStart = m.introDbSegments.outro.start_sec
-        if GetInterface(outroStart,"ifFloat") <> invalid or GetInterface(outroStart,"ifDouble") <> invalid or GetInterface(outroStart,"ifInt") <> invalid or GetInterface(outroStart,"ifLongInt") <> invalid
-            creditsStart = outroStart
-        else if m.introDbSegments.outro.start_ms <> invalid
-            creditsStart = m.introDbSegments.outro.start_ms / 1000.0
+    postCreditsPresent = false
+    postCreditsEnd = -1.0
+    if type(m.introDbSegments) = "roAssociativeArray"
+        if type(m.introDbSegments.outro) = "roAssociativeArray"
+            outroStart = m.introDbSegments.outro.start_sec
+            if GetInterface(outroStart,"ifFloat") <> invalid or GetInterface(outroStart,"ifDouble") <> invalid or GetInterface(outroStart,"ifInt") <> invalid or GetInterface(outroStart,"ifLongInt") <> invalid
+                creditsStart = outroStart
+            else if m.introDbSegments.outro.start_ms <> invalid
+                creditsStart = m.introDbSegments.outro.start_ms / 1000.0
+            end if
+        end if
+        if type(m.introDbSegments.post_credits) = "roAssociativeArray"
+            postStart = m.introDbSegments.post_credits.start_sec
+            if GetInterface(postStart,"ifFloat") <> invalid or GetInterface(postStart,"ifDouble") <> invalid or GetInterface(postStart,"ifInt") <> invalid or GetInterface(postStart,"ifLongInt") <> invalid
+                postCreditsPresent = postStart >= 0
+            else if m.introDbSegments.post_credits.start_ms <> invalid
+                postCreditsPresent = m.introDbSegments.post_credits.start_ms >= 0
+            end if
+            postEnd = m.introDbSegments.post_credits.end_sec
+            if GetInterface(postEnd,"ifFloat") <> invalid or GetInterface(postEnd,"ifDouble") <> invalid or GetInterface(postEnd,"ifInt") <> invalid or GetInterface(postEnd,"ifLongInt") <> invalid
+                postCreditsEnd = postEnd
+            else if m.introDbSegments.post_credits.end_ms <> invalid
+                postCreditsEnd = m.introDbSegments.post_credits.end_ms / 1000.0
+            end if
         end if
     end if
-    if creditsStart >= 0 and sample.state <> "finished" and sample.duration > 0 and sample.position >= creditsStart
+    endScreenThreshold = creditsStart
+    if postCreditsPresent
+        endScreenThreshold = -1.0
+        if postCreditsEnd >= 0 then endScreenThreshold = postCreditsEnd
+    end if
+    if endScreenThreshold >= 0 and sample.state <> "finished" and sample.duration > 0 and sample.position >= endScreenThreshold
         if m.endScreenRequestId <> sample.requestId
             m.endScreenRequestId = sample.requestId
-            print "[RokuPlus end-screen] credits-window position="; sample.position; " duration="; sample.duration
+            if postCreditsPresent
+                print "[RokuPlus end-screen] post-credits-ended position="; sample.position; " duration="; sample.duration
+            else
+                print "[RokuPlus end-screen] credits-started position="; sample.position; " duration="; sample.duration
+            end if
             preparePlaybackEndScreen()
         end if
     end if
