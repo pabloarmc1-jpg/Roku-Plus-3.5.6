@@ -778,6 +778,8 @@ sub openRequest()
     m.skipPromptDismissedTarget = invalid
     if m.skipPromptGroup <> invalid then m.skipPromptGroup.visible = false
     m.mediaNode = invalid
+    m.videoSourceWidth = 0
+    m.videoSourceHeight = 0
     m.hlsRetryCount = 0
     m.hlsPrebufferPending = false
     m.hlsRestartStage = 0
