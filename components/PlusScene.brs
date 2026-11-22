@@ -1293,9 +1293,103 @@ sub introDbResult(event as object)
         if resolvedCacheKey <> "" then rpStoreBoundedCache(m.introDbCache,m.introDbCacheOrder,resolvedCacheKey,cachedData,80)
         m.introDbSegments = answer
         m.player.introDbData = answer
-        print "[RokuPlus introdb] lookup_ok intro="; type(answer.intro); " recap="; type(answer.recap); " outro="; type(answer.outro); " postCredits="; type(answer.post_credits)
+        outroStartLog = invalid
+        outroEndLog = invalid
+        postStartLog = invalid
+        postEndLog = invalid
+        if type(answer.outro) = "roAssociativeArray"
+            outroStartLog = answer.outro.start_sec
+            outroEndLog = answer.outro.end_sec
+            if outroStartLog = invalid then outroStartLog = answer.outro.start_ms
+            if outroEndLog = invalid then outroEndLog = answer.outro.end_ms
+        end if
+        if type(answer.post_credits) = "roAssociativeArray"
+            postStartLog = answer.post_credits.start_sec
+            postEndLog = answer.post_credits.end_sec
+            if postStartLog = invalid then postStartLog = answer.post_credits.start_ms
+            if postEndLog = invalid then postEndLog = answer.post_credits.end_ms
+        end if
+        print "[RokuPlus introdb] lookup_ok intro="; type(answer.intro); " recap="; type(answer.recap); " outro="; type(answer.outro); " outroStart="; outroStartLog; " outroEnd="; outroEndLog; " postCredits="; type(answer.post_credits); " postStart="; postStartLog; " postEnd="; postEndLog
+        if type(m.lastPlaybackProgress) = "roAssociativeArray" and type(m.activePlaybackItem) = "roAssociativeArray"
+            if m.lastPlaybackProgress.requestId = answer.requestId and m.lastPlaybackProgress.itemId = m.activePlaybackItem.id
+                print "[RokuPlus end-screen-diag-ready] position="; m.lastPlaybackProgress.position; " duration="; m.lastPlaybackProgress.duration; " state="; orbitText(m.lastPlaybackProgress.state,20)
+                updatePlaybackEndScreenAtMarker(m.lastPlaybackProgress,m.activePlaybackItem)
+            end if
+        end if
     else
         print "[RokuPlus introdb] lookup_unavailable reason="; orbitText(answer.message,160)
+    end if
+end sub
+
+sub updatePlaybackEndScreenAtMarker(sample as object, playbackItem as object)
+    ' Without a post-credit marker, offer the next episode as soon as credits begin.
+    ' When IntroDB marks a post-credit scene, keep the end card hidden until that
+    ' scene ends; if its end is unavailable, the terminal finished event is the
+    ' safe fallback and prevents cutting off the extra footage.
+    creditsStart = -1.0
+    postCreditsPresent = false
+    postCreditsEnd = -1.0
+    if type(m.introDbSegments) = "roAssociativeArray"
+        if type(m.introDbSegments.outro) = "roAssociativeArray"
+            outroStart = m.introDbSegments.outro.start_sec
+            if GetInterface(outroStart,"ifFloat") <> invalid or GetInterface(outroStart,"ifDouble") <> invalid or GetInterface(outroStart,"ifInt") <> invalid or GetInterface(outroStart,"ifLongInt") <> invalid
+                creditsStart = outroStart
+            else if m.introDbSegments.outro.start_ms <> invalid
+                creditsStart = m.introDbSegments.outro.start_ms / 1000.0
+            end if
+        end if
+        if type(m.introDbSegments.post_credits) = "roAssociativeArray"
+            postStart = m.introDbSegments.post_credits.start_sec
+            if GetInterface(postStart,"ifFloat") <> invalid or GetInterface(postStart,"ifDouble") <> invalid or GetInterface(postStart,"ifInt") <> invalid or GetInterface(postStart,"ifLongInt") <> invalid
+                postCreditsPresent = postStart >= 0
+            else if m.introDbSegments.post_credits.start_ms <> invalid
+                postCreditsPresent = m.introDbSegments.post_credits.start_ms >= 0
+            end if
+            postEnd = m.introDbSegments.post_credits.end_sec
+            if GetInterface(postEnd,"ifFloat") <> invalid or GetInterface(postEnd,"ifDouble") <> invalid or GetInterface(postEnd,"ifInt") <> invalid or GetInterface(postEnd,"ifLongInt") <> invalid
+                postCreditsEnd = postEnd
+            else if m.introDbSegments.post_credits.end_ms <> invalid
+                postCreditsEnd = m.introDbSegments.post_credits.end_ms / 1000.0
+            end if
+        end if
+    end if
+    endScreenThreshold = creditsStart
+    if postCreditsPresent
+        endScreenThreshold = -1.0
+        if postCreditsEnd >= 0 then endScreenThreshold = postCreditsEnd
+    end if
+    if m.endScreenDiagRequestId <> sample.requestId
+        m.endScreenDiagRequestId = sample.requestId
+        print "[RokuPlus end-screen-diag] request="; orbitText(sample.requestId,80); " position="; sample.position; " duration="; sample.duration; " state="; orbitText(sample.state,20); " introdb="; type(m.introDbSegments); " creditsStart="; creditsStart; " postCredits="; postCreditsPresent; " postCreditsEnd="; postCreditsEnd; " threshold="; endScreenThreshold
+    end if
+    if endScreenThreshold >= 0 and sample.state <> "finished" and sample.duration > 0 and sample.position >= endScreenThreshold
+        if m.endScreenRequestId <> sample.requestId
+            m.endScreenRequestId = sample.requestId
+            if postCreditsPresent
+                print "[RokuPlus end-screen] post-credits-ended position="; sample.position; " duration="; sample.duration
+            else
+                print "[RokuPlus end-screen] credits-started position="; sample.position; " duration="; sample.duration
+            end if
+            preparePlaybackEndScreen()
+        end if
+    end if
+    if sample.state = "finished"
+        watchedRequest = false
+        if m.endScreenWatchedRequestId <> invalid
+            if m.endScreenWatchedRequestId = sample.requestId then watchedRequest = true
+        end if
+        if not watchedRequest
+            m.endScreenWatchedRequestId = sample.requestId
+            watchedAtEnd = rpWatchGet(m.watchState,playbackItem.id)
+            if watchedAtEnd = invalid or watchedAtEnd.watched <> true
+                m.watchState = rpWatchToggle(m.watchState,playbackItem,"watched")
+                rpWatchSave(m.watchState,m.profileId)
+            end if
+        end if
+        if m.endScreenRequestId <> sample.requestId
+            m.endScreenRequestId = sample.requestId
+            preparePlaybackEndScreen()
+        end if
     end if
 end sub
 
@@ -1425,75 +1519,7 @@ sub playerProgress(event as object)
     end if
     m.lastPlaybackProgress = sample
     m.watchState = rpWatchUpdate(m.watchState,playbackItem,sample.position,sample.duration)
-    ' Without a post-credit marker, offer the next episode as soon as credits begin.
-    ' When IntroDB marks a post-credit scene, keep the end card hidden until that
-    ' scene ends; if its end is unavailable, the terminal finished event is the
-    ' safe fallback and prevents cutting off the extra footage.
-    creditsStart = -1.0
-    postCreditsPresent = false
-    postCreditsEnd = -1.0
-    if type(m.introDbSegments) = "roAssociativeArray"
-        if type(m.introDbSegments.outro) = "roAssociativeArray"
-            outroStart = m.introDbSegments.outro.start_sec
-            if GetInterface(outroStart,"ifFloat") <> invalid or GetInterface(outroStart,"ifDouble") <> invalid or GetInterface(outroStart,"ifInt") <> invalid or GetInterface(outroStart,"ifLongInt") <> invalid
-                creditsStart = outroStart
-            else if m.introDbSegments.outro.start_ms <> invalid
-                creditsStart = m.introDbSegments.outro.start_ms / 1000.0
-            end if
-        end if
-        if type(m.introDbSegments.post_credits) = "roAssociativeArray"
-            postStart = m.introDbSegments.post_credits.start_sec
-            if GetInterface(postStart,"ifFloat") <> invalid or GetInterface(postStart,"ifDouble") <> invalid or GetInterface(postStart,"ifInt") <> invalid or GetInterface(postStart,"ifLongInt") <> invalid
-                postCreditsPresent = postStart >= 0
-            else if m.introDbSegments.post_credits.start_ms <> invalid
-                postCreditsPresent = m.introDbSegments.post_credits.start_ms >= 0
-            end if
-            postEnd = m.introDbSegments.post_credits.end_sec
-            if GetInterface(postEnd,"ifFloat") <> invalid or GetInterface(postEnd,"ifDouble") <> invalid or GetInterface(postEnd,"ifInt") <> invalid or GetInterface(postEnd,"ifLongInt") <> invalid
-                postCreditsEnd = postEnd
-            else if m.introDbSegments.post_credits.end_ms <> invalid
-                postCreditsEnd = m.introDbSegments.post_credits.end_ms / 1000.0
-            end if
-        end if
-    end if
-    endScreenThreshold = creditsStart
-    if postCreditsPresent
-        endScreenThreshold = -1.0
-        if postCreditsEnd >= 0 then endScreenThreshold = postCreditsEnd
-    end if
-    if m.endScreenDiagRequestId <> sample.requestId
-        m.endScreenDiagRequestId = sample.requestId
-        print "[RokuPlus end-screen-diag] request="; orbitText(sample.requestId,80); " position="; sample.position; " duration="; sample.duration; " state="; orbitText(sample.state,20); " introdb="; type(m.introDbSegments); " creditsStart="; creditsStart; " postCredits="; postCreditsPresent; " postCreditsEnd="; postCreditsEnd; " threshold="; endScreenThreshold
-    end if
-    if endScreenThreshold >= 0 and sample.state <> "finished" and sample.duration > 0 and sample.position >= endScreenThreshold
-        if m.endScreenRequestId <> sample.requestId
-            m.endScreenRequestId = sample.requestId
-            if postCreditsPresent
-                print "[RokuPlus end-screen] post-credits-ended position="; sample.position; " duration="; sample.duration
-            else
-                print "[RokuPlus end-screen] credits-started position="; sample.position; " duration="; sample.duration
-            end if
-            preparePlaybackEndScreen()
-        end if
-    end if
-    if sample.state = "finished"
-        watchedRequest = false
-        if m.endScreenWatchedRequestId <> invalid
-            if m.endScreenWatchedRequestId = sample.requestId then watchedRequest = true
-        end if
-        if not watchedRequest
-            m.endScreenWatchedRequestId = sample.requestId
-            watchedAtEnd = rpWatchGet(m.watchState,playbackItem.id)
-            if watchedAtEnd = invalid or watchedAtEnd.watched <> true
-                m.watchState = rpWatchToggle(m.watchState,playbackItem,"watched")
-                rpWatchSave(m.watchState,m.profileId)
-            end if
-        end if
-        if m.endScreenRequestId <> sample.requestId
-            m.endScreenRequestId = sample.requestId
-            preparePlaybackEndScreen()
-        end if
-    end if
+    updatePlaybackEndScreenAtMarker(sample,playbackItem)
     record = rpWatchGet(m.watchState,playbackItem.id)
     refreshWatchLists = sample.state = "finished"
     if m.watchSaveClock = invalid
