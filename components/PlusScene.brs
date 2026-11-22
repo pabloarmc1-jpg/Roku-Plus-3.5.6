@@ -1017,6 +1017,8 @@ end sub
 
 sub launchVideo(item as object, url as string, format as string)
     cancelNextEpisodePrefetch()
+    m.nextEpisodePrefetch90ParentRequestId = ""
+    m.nextEpisodePrefetch90ParentItemId = ""
     m.sourceLaunchPending = false
     targetPlayer = m.standardPlayer
     targetEngine = "standard"
@@ -1776,8 +1778,6 @@ sub cancelNextEpisodePrefetch()
     m.nextEpisodePrefetchParentRequestId = ""
     m.nextEpisodePrefetchParentItemId = ""
     m.nextEpisodePrefetchItemId = ""
-    m.nextEpisodePrefetch90ParentRequestId = ""
-    m.nextEpisodePrefetch90ParentItemId = ""
     m.nextEpisodePrefetchAnswer = invalid
 end sub
 
