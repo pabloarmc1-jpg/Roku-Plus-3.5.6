@@ -711,20 +711,12 @@ sub startPlaybackEndCountdownIfReady()
     if not m.endScreenOpen or m.endCountdownActive or m.endCountdownManual then return
     if type(m.endScreenItems) <> "roArray" or m.endScreenItems.count() = 0 then return
 
-    ready = m.playbackFinished
-    if not ready and type(m.introDbData) = "roAssociativeArray"
-        position = playerPosition()
-        creditsStart = -1.0
-        outro = m.introDbData.outro
-        if type(outro) = "roAssociativeArray"
-            if GetInterface(outro.start_sec,"ifFloat") <> invalid or GetInterface(outro.start_sec,"ifDouble") <> invalid or GetInterface(outro.start_sec,"ifInt") <> invalid or GetInterface(outro.start_sec,"ifLongInt") <> invalid then creditsStart = outro.start_sec
-            if creditsStart < 0 and outro.start_ms <> invalid then creditsStart = outro.start_ms / 1000.0
-        end if
-        ' Begin the next-episode countdown as soon as the outro/credits start.
-        ' Keep the current decoder running; this only displays the overlay.
-        if position <> invalid and creditsStart >= 0 and position >= creditsStart then ready = true
-    end if
-    if not ready then return
+    ' IntroDB outro.start_sec marks the beginning of credits, not the end of
+    ' the episode. Some shows (for example Rick and Morty) place extra scenes
+    ' after the credits, so never start the next-episode countdown from that
+    ' marker. Wait for Roku's terminal "finished" state, which lets all encoded
+    ' credits and post-credit footage play before offering the next episode.
+    if not m.playbackFinished then return
 
     m.endCountdownRemaining = 10
     m.endCountdownLastAt = m.monotonic.totalMilliseconds()
