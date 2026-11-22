@@ -148,6 +148,13 @@ sub init()
     m.seekPreviewImage = m.top.findNode("seekPreviewImage")
     m.seekPreviewTime = m.top.findNode("seekPreviewTime")
     m.thumbnailData = invalid
+    m.bifDisplay = invalid
+    m.bifPreviewLastTarget = -1
+    m.bifPreviewLastRequestAt = 0
+    if m.decoder.hasField("bifDisplay") then m.bifDisplay = m.decoder.bifDisplay
+    if m.bifDisplay <> invalid
+        if m.bifDisplay.hasField("nearestFrame") then m.bifDisplay.observeField("nearestFrame", "onBifNearestFrameChanged")
+    end if
     if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = false
     m.playGlyph = m.top.findNode("playGlyph")
     m.pauseGlyph = m.top.findNode("pauseGlyph")
@@ -828,6 +835,8 @@ sub openRequest()
     m.monotonic.mark()
     m.current = supplied
     m.thumbnailData = invalid
+    m.bifPreviewLastTarget = -1
+    m.bifPreviewLastRequestAt = 0
     if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = false
     m.sourceSubtitleTracks = []
     if type(supplied.subtitleTracks) = "roArray"
@@ -1103,6 +1112,7 @@ sub openRequest()
         end if
     end if
     media.httpHeaders = requestHeaders
+    applyBifMetadata(media, supplied)
 
     if m.tsRelayMode
         m.tsStreamServer.segments = m.tsRelaySegments
@@ -1167,6 +1177,7 @@ sub openRequest()
                 child.live = false
                 child.httpCertificatesFile = "common:/certs/ca-bundle.crt"
                 child.httpHeaders = requestHeaders
+                applyBifMetadata(child, supplied)
                 playlist.appendChild(child)
                 playlistCount++
             end if
@@ -2857,12 +2868,11 @@ end sub
 ' Each tile entry is [image URI, presentation start time], as documented by Roku.
 function renderSeekThumbnail(position as dynamic) as boolean
     if m.seekPreviewGroup = invalid or m.seekPreviewImage = invalid or m.seekPreviewViewport = invalid then return false
-    if type(m.thumbnailData) <> "roArray" or m.thumbnailData.count() = 0 then
-        hideSeekThumbnail()
-        return false
-    end if
     target = plusClockValue(position)
     if target = invalid or target < 0 then return false
+    if type(m.thumbnailData) <> "roArray" or m.thumbnailData.count() = 0
+        return renderBifSeekThumbnail(target)
+    end if
 
     selectedSet = invalid
     selectedTiles = invalid
@@ -2942,6 +2952,67 @@ function renderSeekThumbnail(position as dynamic) as boolean
     if m.seekPreviewImage.uri <> spriteUri then m.seekPreviewImage.uri = spriteUri
     if m.seekPreviewTime <> invalid then m.seekPreviewTime.text = plusClockText(target)
     m.seekPreviewGroup.visible = true
+    return true
+end function
+
+' BIF archives can provide scene thumbnails for TS streams when the
+' provider supplies a matching BIF URL in ContentNode metadata.
+sub applyBifMetadata(content as object, supplied as object)
+    if content = invalid or type(supplied) <> "roAssociativeArray" then return
+    bifFields = [
+        {source:"sdBifUrl", target:"SDBifUrl"},
+        {source:"hdBifUrl", target:"HDBifUrl"},
+        {source:"fhdBifUrl", target:"FHDBifUrl"}
+    ]
+    applied = 0
+    for each entry in bifFields
+        value = supplied[entry.source]
+        if GetInterface(value, "ifString") <> invalid and len(value) <= 4096
+            if left(value,8) = "https://" or left(value,7) = "http://"
+                content[entry.target] = value
+                applied++
+            end if
+        end if
+    end for
+    if applied > 0
+        print "[RokuPlus thumbnails-bif] metadata=attached count="; applied; " format="; m.effectiveStreamFormat
+    end if
+end sub
+
+sub onBifNearestFrameChanged(event as object)
+    if not m.mediaOpen or m.closing then return
+    frameUri = event.getData()
+    if GetInterface(frameUri, "ifString") = invalid or frameUri = "" then return
+    if m.seekPreviewImage = invalid then return
+    m.seekPreviewImage.width = 320
+    m.seekPreviewImage.height = 180
+    m.seekPreviewImage.loadWidth = 320
+    m.seekPreviewImage.loadHeight = 180
+    m.seekPreviewImage.translation = [0,0]
+    if m.seekPreviewImage.uri <> frameUri then m.seekPreviewImage.uri = frameUri
+    if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = true
+    print "[RokuPlus thumbnails-bif] frame=ready"
+end sub
+
+function renderBifSeekThumbnail(position as dynamic) as boolean
+    if m.bifDisplay = invalid or m.seekPreviewImage = invalid
+        hideSeekThumbnail()
+        return false
+    end if
+    if not m.bifDisplay.hasField("getNearestFrame") or not m.bifDisplay.hasField("nearestFrame")
+        hideSeekThumbnail()
+        return false
+    end if
+    target = plusClockValue(position)
+    if target = invalid or target < 0 then return false
+    roundedTarget = int(target)
+    now = m.monotonic.totalMilliseconds()
+    if roundedTarget <> m.bifPreviewLastTarget or now - m.bifPreviewLastRequestAt >= 900
+        m.bifPreviewLastTarget = roundedTarget
+        m.bifPreviewLastRequestAt = now
+        m.bifDisplay.getNearestFrame = target
+        print "[RokuPlus thumbnails-bif] request=nearest_frame target="; roundedTarget
+    end if
     return true
 end function
 
@@ -3252,6 +3323,7 @@ sub onPulse()
             relayMedia.streamFormat = "ts"
             relayMedia.live = false
             relayMedia.httpHeaders = CreateObject("roArray",0,true)
+            applyBifMetadata(relayMedia, m.current)
             m.mediaNode = relayMedia
             m.decoder.contentIsPlaylist = false
             m.decoder.content = relayMedia
@@ -3563,6 +3635,7 @@ sub advanceTsRelayRestart(now as integer)
     relayMedia.streamFormat = "ts"
     relayMedia.live = false
     relayMedia.httpHeaders = CreateObject("roArray",0,true)
+    applyBifMetadata(relayMedia, m.current)
     m.mediaNode = relayMedia
     m.decoder.contentIsPlaylist = false
     m.decoder.content = relayMedia
