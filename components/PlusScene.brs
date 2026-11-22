@@ -930,8 +930,17 @@ sub preloadStreamXImages(item as dynamic)
         mediaType = "series"
     else if orbitText(item.kind,20) = "episode"
         mediaType = "series"
-        if type(m.series) = "roAssociativeArray"
+        if type(m.series) = "roAssociativeArray" and orbitText(m.series.id,180) = orbitText(item.seriesId,180)
             lookupItem = m.series
+        else
+            ' A Continue Watching episode is a partial record. StreamX/Cinemeta
+            ' must use the parent series identity, never the episode title.
+            lookupItem = {
+                kind:"series"
+                title:orbitText(item.seriesTitle,160)
+                imdbId:orbitImdb(item.seriesImdbId)
+                year:orbitText(item.year,4)
+            }
         end if
     end if
 
@@ -1032,34 +1041,50 @@ sub launchVideo(item as object, url as string, format as string)
         if preserveEpisodeBrowser
             print "[RokuPlus series] preserve-episode-browser id="; orbitText(m.series.id,180); " seasonIndex="; m.season
         else
-            parentSlug = orbitText(item.seriesProviderSlug,200)
-        parentId = orbitText(item.seriesId,180)
-        if parentId = "" and itemProvider = "seriesmetro" then parentId = "hdo-seriesmetro-"+orbitInteger(item.providerId,999999999).toStr()
-        parentProviderId = item.providerId
-        if item.doesExist("seriesProviderId") then parentProviderId = item.seriesProviderId
-        parentProviderTmdbId = orbitText(item.seriesProviderTmdbId,40)
-        parentProviderKind = orbitText(item.seriesProviderKind,16)
-        if parentSlug <> "" and parentId <> ""
-            if m.series = invalid or m.series.id <> parentId
-                seasonNumber = orbitInteger(item.season,999,0)
-                parentSeasons = []
-                if type(item.seriesSeasonNumbers) = "roArray"
-                    for each parentSeasonNumber in item.seriesSeasonNumbers
-                        safeSeasonNumber = orbitInteger(parentSeasonNumber,999,-1)
-                        if safeSeasonNumber >= 0 then parentSeasons.push({number:safeSeasonNumber,episodes:[],loaded:false})
-                    end for
+            parentId = orbitText(item.seriesId,180)
+            parentProviderId = 0
+            if item.doesExist("seriesProviderId") then parentProviderId = orbitInteger(item.seriesProviderId,999999999)
+            parentProviderTmdbId = orbitText(item.seriesProviderTmdbId,40)
+            parentProviderKind = orbitText(item.seriesProviderKind,16)
+            if parentProviderId < 1 and parentId <> ""
+                parentPrefix = "hdo-"+itemProvider+"-"
+                if left(parentId,len(parentPrefix)) = parentPrefix
+                    parentProviderId = orbitInteger(mid(parentId,len(parentPrefix)+1),999999999)
                 end if
-                hasCurrentSeason = false
-                for each parentSeason in parentSeasons
-                    if parentSeason.number = seasonNumber then hasCurrentSeason = true
-                end for
-                if not hasCurrentSeason then parentSeasons.push({number:seasonNumber,episodes:[],loaded:false})
-                parentSeasons.sortBy("number")
-                m.series = {id:parentId,imdbId:"",kind:"series",library:"hd-online",provider:itemProvider,providerId:parentProviderId,providerSlug:parentSlug,providerTmdbId:parentProviderTmdbId,providerKind:parentProviderKind,title:orbitText(item.seriesTitle,180),poster:orbitText(item.poster,2048),background:orbitText(item.background,2048),description:orbitText(item.description),year:orbitText(item.year,4),runtime:0,language:"",seasons:parentSeasons}
-                m.seriesOrigin = "home"
-                print "[RokuPlus series] restored-parent provider="; itemProvider; " id="; parentId; " season="; seasonNumber
             end if
-        end if
+            ' The online episode endpoint uses the numeric parent ID; a slug is
+            ' not required for AllCalidad/LaMovie season retrieval.
+            if parentId = "" and parentProviderId > 0 then parentId = "hdo-"+itemProvider+"-"+parentProviderId.toStr()
+            if parentProviderId > 0 and parentId <> ""
+                if m.series = invalid or m.series.id <> parentId or type(m.series.seasons) <> "roArray" or m.series.seasons.count() = 0
+                    seasonNumber = orbitInteger(item.season,999,0)
+                    parentSeasons = []
+                    if type(item.seriesSeasonNumbers) = "roArray"
+                        for each parentSeasonNumber in item.seriesSeasonNumbers
+                            safeSeasonNumber = orbitInteger(parentSeasonNumber,999,-1)
+                            if safeSeasonNumber >= 0 then parentSeasons.push({number:safeSeasonNumber,episodes:[],loaded:false})
+                        end for
+                    end if
+                    hasCurrentSeason = false
+                    for each parentSeason in parentSeasons
+                        if parentSeason.number = seasonNumber then hasCurrentSeason = true
+                    end for
+                    if not hasCurrentSeason then parentSeasons.push({number:seasonNumber,episodes:[],loaded:false})
+                    parentSeasons.sortBy("number")
+                    m.series = {
+                        id:parentId,imdbId:orbitImdb(item.seriesImdbId),kind:"series",library:"hd-online"
+                        provider:itemProvider,providerId:parentProviderId,providerSlug:orbitText(item.seriesProviderSlug,200)
+                        providerTmdbId:parentProviderTmdbId,providerKind:parentProviderKind
+                        title:orbitText(item.seriesTitle,180),poster:orbitText(item.poster,2048)
+                        background:orbitText(item.background,2048),description:orbitText(item.description)
+                        year:orbitText(item.year,4),runtime:0,language:"",seasons:parentSeasons
+                    }
+                    m.seriesOrigin = "home"
+                    print "[RokuPlus series] restored-parent provider="; itemProvider; " id="; parentId; " providerId="; parentProviderId; " imdb="; orbitImdb(item.seriesImdbId); " season="; seasonNumber
+                end if
+            else
+                print "[RokuPlus series] restore-parent-skipped provider="; itemProvider; " idPresent="; (parentId <> ""); " providerIdPresent="; (parentProviderId > 0)
+            end if
         end if
     end if
     if itemProvider = "lamovie"
@@ -1109,6 +1134,7 @@ sub launchVideo(item as object, url as string, format as string)
         print "[RokuPlus identity] launch id="; descriptor.itemId; " providerId="; orbitText(item.providerId,40); " slugPresent="; item.doesExist("providerSlug"); " slug="; orbitText(item.providerSlug,200)
     end if
     if item.doesExist("imdbId") then descriptor.imdbId = orbitText(item.imdbId,24)
+    if item.kind = "episode" and orbitImdb(item.seriesImdbId) <> "" then descriptor.imdbId = orbitImdb(item.seriesImdbId)
     if item.doesExist("seriesTitle") then descriptor.seriesTitle = orbitText(item.seriesTitle,200)
     if item.doesExist("season") then descriptor.season = item.season
     if item.doesExist("episode") then descriptor.episode = item.episode
