@@ -1246,6 +1246,14 @@ sub launchVideo(item as object, url as string, format as string)
         print "[RokuPlus resume] bookmark_missing itemId="; orbitText(item.id,180)
     end if
     if item.doesExist("mediaHeaders") then descriptor.mediaHeaders = item.mediaHeaders
+    for each bifField in ["sdBifUrl","hdBifUrl","fhdBifUrl"]
+        if item.doesExist(bifField)
+            bifValue = orbitText(item[bifField],4096)
+            if bifValue <> "" and (left(bifValue,8) = "https://" or left(bifValue,7) = "http://")
+                descriptor[bifField] = bifValue
+            end if
+        end if
+    end for
     if type(m.pendingFallbackSegmentUrls) = "roArray"
         descriptor.fallbackSegmentUrls = m.pendingFallbackSegmentUrls
         m.pendingFallbackSegmentUrls = invalid
