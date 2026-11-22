@@ -1758,6 +1758,8 @@ end sub
 
 sub preparePlaybackEndScreen()
     if m.view <> "player" or m.detail = invalid then return
+    ' Invoked at credits start without post-credits, or after the post-credit scene.
+    showAtMarker = true
     if m.detail.kind = "episode"
         nextItem = rpFindNextEpisode()
         items = []
@@ -1780,7 +1782,7 @@ sub preparePlaybackEndScreen()
                 m.player.endScreenData = {
                     kind:"episode",heading:heading
                     message:"No se pudo recuperar la lista de capítulos. Vuelve a abrir la serie desde el catálogo."
-                    items:[]
+                    items:[],showAtMarker:showAtMarker
                 }
                 print "[RokuPlus series] next-episode-unavailable reason=parent-metadata-missing item="; orbitText(m.detail.id,180)
                 return
@@ -1791,7 +1793,7 @@ sub preparePlaybackEndScreen()
                 if currentSeasonEntry.number = m.detail.season
                     if currentSeasonEntry.loaded <> true and not m.endScreenNextEpisodePending
                         m.endScreenNextEpisodePending = true
-                        m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[]}
+                        m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[],showAtMarker:showAtMarker}
                         print "[RokuPlus series] next-episode-load current-season="; currentSeasonEntry.number
                         fetch({operation:"episodes",item:m.series,season:currentSeasonEntry.number})
                         return
@@ -1805,7 +1807,7 @@ sub preparePlaybackEndScreen()
                         followingSeason = m.series.seasons[seasonIndex+1]
                         if followingSeason.loaded <> true and not m.endScreenNextEpisodePending
                             m.endScreenNextEpisodePending = true
-                            m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[]}
+                            m.player.endScreenData = {kind:"episode",heading:"SIGUIENTE EPISODIO",message:"Buscando el siguiente episodio...",items:[],showAtMarker:showAtMarker}
                             print "[RokuPlus series] next-episode-load following-season="; followingSeason.number
                             fetch({operation:"episodes",item:m.series,season:followingSeason.number})
                             return
@@ -1815,7 +1817,7 @@ sub preparePlaybackEndScreen()
             end if
             print "[RokuPlus series] next-episode-search complete parent="; orbitText(m.series.id,180); " seasons="; m.series.seasons.count(); " result=none"
         end if
-        m.player.endScreenData = {kind:"episode",heading:heading,items:items}
+        m.player.endScreenData = {kind:"episode",heading:heading,items:items,showAtMarker:showAtMarker}
     else if m.detail.kind = "movie"
         similar = rpSimilarMovies(m.detail)
         heading = "PELÍCULAS SIMILARES"
