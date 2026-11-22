@@ -257,8 +257,17 @@ function rpWatchSave(items as object, profileId = "p1" as string) as boolean
     section = rpWatchSection(profileId)
     if GetInterface(section, "ifRegistrySection") = invalid then return false
     previousPrimary = section.read("stateV1")
-    if section.write("stateV1", payload) <> true then return false
-    if section.flush() <> true
+    registry = CreateObject("roRegistry")
+    if GetInterface(registry,"ifRegistry") <> invalid
+        print "[RokuPlus watch-persist] registrySpaceBefore="; registry.GetSpaceAvailable()
+    end if
+    print "[RokuPlus watch-persist] payloadChars="; len(payload); " providerIdToken="; instr(1,payload,"providerId")
+    writeOk = section.write("stateV1", payload)
+    print "[RokuPlus watch-persist] primaryWriteOk="; writeOk
+    if writeOk <> true then return false
+    flushOk = section.flush()
+    print "[RokuPlus watch-persist] primaryFlushOk="; flushOk
+    if flushOk <> true
         ' A failed flush may leave the new value staged in this RegistrySection.
         ' Restore the last known primary so a later read cannot mistake it for
         ' a durable save; the backup remains untouched.
@@ -270,7 +279,9 @@ function rpWatchSave(items as object, profileId = "p1" as string) as boolean
         section.flush()
         return false
     end if
-    verifyItems = rpWatchParse(section.read("stateV1"))
+    readbackRaw = section.read("stateV1")
+    print "[RokuPlus watch-persist] readbackChars="; len(readbackRaw); " providerIdToken="; instr(1,readbackRaw,"providerId")
+    verifyItems = rpWatchParse(readbackRaw)
     rpWatchLogCinehax(verifyItems,"save-readback",profileId,"stateV1")
     ' Save the backup only after the new primary state has been flushed.
     ' If backup flush fails, restore its previous staged value. The primary
