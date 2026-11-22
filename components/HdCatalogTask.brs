@@ -1328,7 +1328,14 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                 videoAudit = rpHdTaskAuditAudioSegment(sample.bytes)
                                 audioAudit = rpHdTaskAuditExternalAudio(master,selected,fetcher,mediaReferer,videoAudit,child.body)
                                 spanishVerified = rpHdTaskHasSpanishValidatedAudio(audioAudit.tracks)
-                                if rpHdTaskNativeAudioMasterSafe(master,selected,decoderAccept) and audioAudit.tracks.count() >= 2
+                                nativeAudioVariant = invalid
+                                if audioAudit.tracks.count() >= 2
+                                    nativeAudioVariant = rpHdTaskFindNativeAudioVariant(master,selected,decoderAccept)
+                                end if
+                                if nativeAudioVariant <> invalid
+                                    ' Keep the original HLS master so Roku can expose its alternate audio
+                                    ' renditions. A lower, decoder-safe variant may be used as the gate
+                                    ' when the preferred TS candidate exceeds the native width ceiling.
                                     answer.url = masterUrl
                                     answer.streamFormat = "hls"
                                     answer.fallbackSegmentUrls = relaySegments
@@ -1338,13 +1345,13 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                                     answer.segmentDurations = []
                                     answer.tsRelayEnabled = false
                                     answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
-                                    answer.description = "Multiaudio · preferencia español · H.264 · "+selected.height.toStr()+"p"
+                                    answer.description = "Multiaudio · preferencia español · H.264 · "+nativeAudioVariant.height.toStr()+"p"
                                     answer.language = embed.language
-                                    answer.width = selected.width
-                                    answer.height = selected.height
-                                    answer.codecs = selected.codecs
+                                    answer.width = nativeAudioVariant.width
+                                    answer.height = nativeAudioVariant.height
+                                    answer.codecs = nativeAudioVariant.codecs
                                     answer.seekSupport = "native-hls"
-                                    print "[RokuPlus resolve] provider="; provider; " format=hls mode=native-multiaudio spanishPreferred="; spanishVerified; " tracks="; audioAudit.tracks.count()
+                                    print "[RokuPlus resolve] provider="; provider; " format=hls mode=native-multiaudio spanishPreferred="; spanishVerified; " tracks="; audioAudit.tracks.count(); " safeVariant="; nativeAudioVariant.width; "x"; nativeAudioVariant.height
                                     answer.attemptUsed = embedIndex+variantIndex*count
                                     answer.ok = true
                                     answer.message = ""
@@ -3002,6 +3009,20 @@ function rpHdTaskNativeAudioMasterSafe(master as object, selected as object, dec
     end for
     if not rpHdTaskNativeRenditionSafe(selected,decoderAccept) then return false
     return true
+end function
+
+' Find a rendition within the decoder's native-HLS limits that shares the
+' validated alternate-audio group. This avoids falling back to a single-track
+' TS relay merely because the preferred video rendition is too wide.
+function rpHdTaskFindNativeAudioVariant(master as object, preferred as object, decoderAccept as dynamic) as dynamic
+    if rpHdTaskNativeAudioMasterSafe(master,preferred,decoderAccept) then return preferred
+    if type(master.variants) <> "roArray" then return invalid
+    for each candidate in master.variants
+        if candidate.audioGroup = preferred.audioGroup
+            if rpHdTaskNativeAudioMasterSafe(master,candidate,decoderAccept) then return candidate
+        end if
+    end for
+    return invalid
 end function
 
 ' Shared native-HLS capability gate for BOTH player instances and both audio modes.
