@@ -130,23 +130,23 @@
       <Rectangle width="4" height="58" color="0xE50914CC" />
       <Label id="skipSegmentText" translation="[14,7]" width="404" height="44" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" wrap="true" />
     </Group>
-    <Group id="displayMenu" translation="[1346,660]" visible="false">
-      <Rectangle width="340" height="250" color="0x10131BEF" />
-      <Rectangle translation="[0,0]" width="340" height="4" color="0xE50914FF" />
-      <Rectangle id="displayMenuFocus" translation="[10,16]" width="320" height="38" color="0xE5091450" />
-      <Label id="displayMenuItems" translation="[20,18]" width="304" height="218" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    <Group id="displayMenu" translation="[1300,570]" visible="false">
+      <Rectangle width="540" height="360" color="0x10131BEF" />
+      <Rectangle translation="[0,0]" width="540" height="5" color="0xE50914FF" />
+      <Rectangle id="displayMenuFocus" translation="[12,58]" width="516" height="42" color="0xE5091450" />
+      <Label id="displayMenuItems" translation="[24,50]" width="492" height="292" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="false" />
     </Group>
-    <Group id="audioMenu" translation="[1101,610]" visible="false">
-      <Rectangle width="390" height="300" color="0x10131BEF" />
-      <Rectangle translation="[0,0]" width="390" height="4" color="0xE50914FF" />
-      <Rectangle id="audioMenuFocus" translation="[10,16]" width="370" height="38" color="0xE5091450" />
-      <Label id="audioMenuItems" translation="[20,18]" width="350" height="270" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    <Group id="audioMenu" translation="[1120,520]" visible="false">
+      <Rectangle width="680" height="440" color="0x10131BEF" />
+      <Rectangle translation="[0,0]" width="680" height="5" color="0xE50914FF" />
+      <Rectangle id="audioMenuFocus" translation="[12,58]" width="656" height="42" color="0xE5091450" />
+      <Label id="audioMenuItems" translation="[24,50]" width="632" height="370" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="false" />
     </Group>
-    <Group id="subtitleMenu" translation="[1126,410]" visible="false">
-      <Rectangle width="560" height="500" color="0x10131BEF" />
-      <Rectangle translation="[0,0]" width="560" height="4" color="0xE50914FF" />
-      <Rectangle id="subtitleMenuFocus" translation="[10,16]" width="540" height="38" color="0xE5091450" />
-      <Label id="subtitleMenuItems" translation="[20,18]" width="520" height="468" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="true" />
+    <Group id="subtitleMenu" translation="[1080,340]" visible="false">
+      <Rectangle width="740" height="620" color="0x10131BEF" />
+      <Rectangle translation="[0,0]" width="740" height="5" color="0xE50914FF" />
+      <Rectangle id="subtitleMenuFocus" translation="[12,58]" width="716" height="42" color="0xE5091450" />
+      <Label id="subtitleMenuItems" translation="[24,50]" width="692" height="540" font="font:MediumSystemFont" color="0xFFFFFFFF" wrap="false" />
     </Group>
 undefined
 undefined
