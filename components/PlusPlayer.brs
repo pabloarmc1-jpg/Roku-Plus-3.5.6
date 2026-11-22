@@ -575,6 +575,7 @@ sub onEndScreenDataChanged(event as object)
     m.endScreenAtMarker = data.showAtMarker = true
     m.endScreenOpen = m.playbackFinished or m.endScreenAtMarker
     if m.endScreenGroup <> invalid then m.endScreenGroup.visible = m.endScreenOpen
+    print "[RokuPlus player-end-screen] marker="; m.endScreenAtMarker; " finished="; m.playbackFinished; " visible="; m.endScreenOpen; " items="; m.endScreenItems.count()
     drawPlaybackEndScreen()
 end sub
 
