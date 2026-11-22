@@ -143,6 +143,12 @@ sub init()
     m.track = m.top.findNode("timeTrack")
     m.fill = m.top.findNode("timeFill")
     m.thumb = m.top.findNode("timeThumb")
+    m.seekPreviewGroup = m.top.findNode("seekPreviewGroup")
+    m.seekPreviewViewport = m.top.findNode("seekPreviewViewport")
+    m.seekPreviewImage = m.top.findNode("seekPreviewImage")
+    m.seekPreviewTime = m.top.findNode("seekPreviewTime")
+    m.thumbnailData = invalid
+    if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = false
     m.playGlyph = m.top.findNode("playGlyph")
     m.pauseGlyph = m.top.findNode("pauseGlyph")
     m.rewindControl = m.top.findNode("rewindControl")
@@ -158,6 +164,7 @@ sub init()
     m.decoder.observeField("position", "onNativePosition")
     m.decoder.observeField("positionInfo", "onRenderedPosition")
     m.decoder.observeField("bufferingStatus", "onBufferDetails")
+    if m.decoder.hasField("thumbnailTiles") then m.decoder.observeField("thumbnailTiles", "onThumbnailTilesChanged")
     if m.decoder.hasField("availableAudioTracks") then m.decoder.observeField("availableAudioTracks", "onNativeAudioTrackDetails")
     if m.decoder.hasField("currentAudioTrack") then m.decoder.observeField("currentAudioTrack", "onNativeAudioTrackDetails")
     if m.decoder.hasField("availableSubtitleTracks") then m.decoder.observeField("availableSubtitleTracks", "onNativeSubtitleTrackDetails")
@@ -820,6 +827,8 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    m.thumbnailData = invalid
+    if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = false
     m.sourceSubtitleTracks = []
     if type(supplied.subtitleTracks) = "roArray"
         selectedGroup = plusPlayerText(supplied.selectedSubtitleGroup,100)
@@ -1256,6 +1265,8 @@ sub closePlayback()
     m.pulse.control = "stop"
     m.decoder.control = "stop"
     m.decoder.content = invalid
+    m.thumbnailData = invalid
+    if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = false
     cancelSubtitleSearchTask()
     if m.externalSubtitleGroup <> invalid then m.externalSubtitleGroup.visible = false
     m.externalSubtitleCues = []
@@ -2800,6 +2811,140 @@ sub revealTransport()
     m.panelUntil = m.monotonic.totalMilliseconds() + 6000
 end sub
 
+
+' HLS/DASH standard thumbnail tiles are discovered by Roku's Video node.
+' Keep a single representation whose sprite sheet fits the device texture budget.
+sub onThumbnailTilesChanged(event as object)
+    data = event.getData()
+    m.thumbnailData = invalid
+    bestScore = -1
+    if type(data) = "roAssociativeArray"
+        for each representation in data
+            collection = data[representation]
+            if type(collection) = "roArray" and collection.count() > 0
+                firstSet = collection[0]
+                if type(firstSet) = "roAssociativeArray" and type(firstSet.tiles) = "roArray" and firstSet.tiles.count() > 0
+                    tileWidth = plusClockValue(firstSet.width)
+                    tileHeight = plusClockValue(firstSet.height)
+                    horizontal = plusClockValue(firstSet.htiles)
+                    vertical = plusClockValue(firstSet.vtiles)
+                    if tileWidth <> invalid and tileHeight <> invalid and horizontal <> invalid and vertical <> invalid
+                        sheetWidth = tileWidth * horizontal
+                        sheetHeight = tileHeight * vertical
+                        if tileWidth > 0 and tileHeight > 0 and horizontal > 0 and vertical > 0 and sheetWidth <= 4096 and sheetHeight <= 4096
+                            score = tileWidth * tileHeight
+                            if score > bestScore
+                                bestScore = score
+                                m.thumbnailData = collection
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end for
+    end if
+    setCount = 0
+    if type(m.thumbnailData) = "roArray" then setCount = m.thumbnailData.count()
+    print "[RokuPlus thumbnails] available="; (setCount > 0); " discontinuities="; setCount
+    if m.mediaOpen then drawTransport()
+end sub
+
+sub hideSeekThumbnail()
+    if m.seekPreviewGroup <> invalid then m.seekPreviewGroup.visible = false
+end sub
+
+' Render one frame from the sprite sheet closest to the requested seek target.
+' Each tile entry is [image URI, presentation start time], as documented by Roku.
+function renderSeekThumbnail(position as dynamic) as boolean
+    if m.seekPreviewGroup = invalid or m.seekPreviewImage = invalid or m.seekPreviewViewport = invalid then return false
+    if type(m.thumbnailData) <> "roArray" or m.thumbnailData.count() = 0 then
+        hideSeekThumbnail()
+        return false
+    end if
+    target = plusClockValue(position)
+    if target = invalid or target < 0 then return false
+
+    selectedSet = invalid
+    selectedTiles = invalid
+    for each tileSet in m.thumbnailData
+        if type(tileSet) = "roAssociativeArray" and type(tileSet.tiles) = "roArray" and tileSet.tiles.count() > 0
+            firstTile = tileSet.tiles[0]
+            if type(firstTile) = "roArray" and firstTile.count() >= 2
+                firstTime = plusClockValue(firstTile[1])
+                finalTime = plusClockValue(tileSet.final_time)
+                if firstTime <> invalid and target >= firstTime
+                    if finalTime = invalid or finalTime <= firstTime or target < finalTime
+                        selectedSet = tileSet
+                        selectedTiles = tileSet.tiles
+                        exit for
+                    end if
+                end if
+            end if
+        end if
+    end for
+    if selectedSet = invalid
+        hideSeekThumbnail()
+        return false
+    end if
+
+    tileWidth = plusClockValue(selectedSet.width)
+    tileHeight = plusClockValue(selectedSet.height)
+    horizontal = plusClockValue(selectedSet.htiles)
+    vertical = plusClockValue(selectedSet.vtiles)
+    tileDuration = plusClockValue(selectedSet.duration)
+    if tileWidth = invalid or tileHeight = invalid or horizontal = invalid or vertical = invalid or tileDuration = invalid then return false
+    if tileWidth <= 0 or tileHeight <= 0 or horizontal <= 0 or vertical <= 0 or tileDuration <= 0 then return false
+    tileDuration = tileDuration / (horizontal * vertical)
+    if tileDuration <= 0 then return false
+
+    spriteIndex = -1
+    for i = 0 to selectedTiles.count()-1
+        sprite = selectedTiles[i]
+        if type(sprite) = "roArray" and sprite.count() >= 2
+            spriteStart = plusClockValue(sprite[1])
+            if spriteStart <> invalid and target >= spriteStart
+                if i = selectedTiles.count()-1
+                    spriteIndex = i
+                else
+                    nextSprite = selectedTiles[i+1]
+                    nextStart = invalid
+                    if type(nextSprite) = "roArray" and nextSprite.count() >= 2 then nextStart = plusClockValue(nextSprite[1])
+                    if nextStart = invalid or target < nextStart
+                        spriteIndex = i
+                        exit for
+                    end if
+                end if
+            end if
+        end if
+    end for
+    if spriteIndex < 0 then return false
+
+    currentSprite = selectedTiles[spriteIndex]
+    spriteUri = ""
+    spriteStart = plusClockValue(currentSprite[1])
+    if GetInterface(currentSprite[0],"ifString") <> invalid then spriteUri = currentSprite[0]
+    if spriteUri = "" or spriteStart = invalid then return false
+
+    tileOffset = Fix((target-spriteStart)/tileDuration)
+    maxTiles = horizontal * vertical
+    if tileOffset < 0 then tileOffset = 0
+    if tileOffset >= maxTiles then tileOffset = maxTiles-1
+    rowIndex = Fix(tileOffset/horizontal)
+    columnIndex = tileOffset-(rowIndex*horizontal)
+
+    sheetWidth = tileWidth * horizontal
+    sheetHeight = tileHeight * vertical
+    m.seekPreviewImage.width = sheetWidth
+    m.seekPreviewImage.height = sheetHeight
+    m.seekPreviewImage.loadWidth = sheetWidth
+    m.seekPreviewImage.loadHeight = sheetHeight
+    m.seekPreviewImage.translation = [-(columnIndex*tileWidth),-(rowIndex*tileHeight)]
+    if m.seekPreviewImage.uri <> spriteUri then m.seekPreviewImage.uri = spriteUri
+    if m.seekPreviewTime <> invalid then m.seekPreviewTime.text = plusClockText(target)
+    m.seekPreviewGroup.visible = true
+    return true
+end function
+
 sub drawTransport()
     if not m.mediaOpen then return
     m.lastTransportDrawAt = m.monotonic.totalMilliseconds()
@@ -2814,10 +2959,22 @@ sub drawTransport()
     p = playerPosition()
     ' Show the last requested destination while a command is queued; this is
     ' a preview only and is never substituted for the decoder's media clock.
+    seekPreviewTarget = invalid
     if m.pendingSeek <> invalid
         clock = plusClockText(m.pendingSeek.target)
+        isResumePreview = false
+        if m.pendingSeek.doesExist("isResume") then isResumePreview = m.pendingSeek.isResume = true
+        if not isResumePreview then seekPreviewTarget = plusClockValue(m.pendingSeek.target)
     else if m.ticket <> invalid
         clock = plusClockText(m.ticket.target)
+        isResumePreview = false
+        if m.ticket.doesExist("isResume") then isResumePreview = m.ticket.isResume = true
+        if not isResumePreview then seekPreviewTarget = plusClockValue(m.ticket.target)
+    end if
+    if seekPreviewTarget <> invalid and p <> invalid and abs(seekPreviewTarget-p) > 1 and not m.live
+        renderSeekThumbnail(seekPreviewTarget)
+    else
+        hideSeekThumbnail()
     end if
     showBar = false
     if d <> invalid and p <> invalid then showBar = d > 0
