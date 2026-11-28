@@ -2516,11 +2516,16 @@ function rpHdTaskLatanimeVoeEmbed(html as string) as string
             valueEnd = instr(valueStart+1,html,quote)
             if valueEnd > valueStart and valueEnd-valueStart <= 4096
                 encodedText = mid(html,valueStart+1,valueEnd-valueStart-1)
-                decoded = CreateObject("roByteArray")
-                if decoded.FromBase64String(encodedText)
-                    candidateUrl = decoded.ToAsciiString().trim()
-                    if CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(candidateUrl)
-                        return candidateUrl
+                if encodedText <> "" and CreateObject("roRegex","^[A-Za-z0-9+/=_-]+$","").isMatch(encodedText)
+                    decoded = CreateObject("roByteArray")
+                    if type(decoded) = "roByteArray"
+                        decoded.FromBase64String(encodedText)
+                        if decoded.Count() > 0
+                            candidateUrl = decoded.ToAsciiString().trim()
+                            if CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(candidateUrl)
+                                return candidateUrl
+                            end if
+                        end if
                     end if
                 end if
             end if
