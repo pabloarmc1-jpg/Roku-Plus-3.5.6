@@ -216,6 +216,7 @@ sub init()
     m.compatBase = rpLoadCompatBase()
     m.theme = rpLoadTheme()
     m.animeLanguage = rpLoadAnimeLanguage()
+    m.animeLanguagePromptPending = not rpHasAnimeLanguagePreference()
     m.themeCursor = 0
     m.hdSourceCursor = 0
     ' Local file access and JSON parsing run in a Task, never on the Render thread.
@@ -253,6 +254,7 @@ sub ActivatePlusExperience()
             print "[RokuPlus startup] home screen begin"
             drawScreen()
             print "[RokuPlus startup] home screen complete"
+            if m.animeLanguagePromptPending then showAnimeLanguagePrompt()
         end if
         if m.hdDataTask <> invalid
             print "[RokuPlus startup] local data task begin"
@@ -3450,6 +3452,48 @@ sub commitSetup()
     m.note = ""
     if not saved then m.note = "La selección funciona en esta sesión, pero no se pudo guardar en la Roku."
     refreshHome()
+    drawScreen()
+    if not m.setupFromSettings and m.animeLanguagePromptPending then showAnimeLanguagePrompt()
+    m.top.setFocus(true)
+end sub
+
+sub showAnimeLanguagePrompt()
+    if not m.animeLanguagePromptPending or m.dialogBox <> invalid then return
+    dialog = CreateObject("roSGNode","StandardMessageDialog")
+    dialog.title = "Idioma del Anime"
+    dialog.message = "Elige el idioma preferido para buscar y reproducir Anime. Puedes cambiarlo después en Ajustes."
+    dialog.buttons = ["Español","Idioma original"]
+    dialog.observeField("buttonSelected","animeLanguagePromptChosen")
+    dialog.observeField("wasClosed","animeLanguagePromptDismissed")
+    m.dialogBox = dialog
+    m.dialogPurpose = "anime-language-first-run"
+    m.top.dialog = dialog
+end sub
+
+sub animeLanguagePromptChosen(event as object)
+    if m.dialogBox = invalid or not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    choice = event.getData()
+    language = "spanish"
+    if choice = 1 then language = "original"
+    releaseDialog()
+    if rpSaveAnimeLanguage(language)
+        m.animeLanguage = language
+        m.animeLanguagePromptPending = false
+    else
+        m.note = "No se pudo guardar el idioma. Se usará Español por ahora."
+        m.animeLanguage = "spanish"
+    end if
+    drawScreen()
+    m.top.setFocus(true)
+end sub
+
+sub animeLanguagePromptDismissed(event as object)
+    if m.dialogBox = invalid or not m.dialogBox.isSameNode(event.getRoSGNode()) then return
+    releaseDialog(true)
+    if rpSaveAnimeLanguage("spanish")
+        m.animeLanguage = "spanish"
+        m.animeLanguagePromptPending = false
+    end if
     drawScreen()
     m.top.setFocus(true)
 end sub
