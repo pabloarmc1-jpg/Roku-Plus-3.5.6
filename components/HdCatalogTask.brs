@@ -2415,9 +2415,17 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             end if
         end if
     end if
+    if isAnimeItem and isEpisode
+        ' These anime sources are known candidates but are not yet ported into
+        ' the native BrightScript pipeline. Report them explicitly, not as failures.
+        for each pendingAnimeProvider in ["megaplay","anikoto","anineko"]
+            print "[RokuPlus provider-registry] provider="; pendingAnimeProvider; " stage=integration status=not_integrated"
+        end for
+    end if
     if isAnimeItem and isEpisode and bestAnimeAnswer <> invalid
         bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:animeProviderSuccesses,complete:not rpHdTaskSliceExpired()}
         print "[RokuPlus anime-provider-test] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " complete="; not rpHdTaskSliceExpired()
+        print "[RokuPlus anime-provider-test] pending=megaplay,anikoto,anineko"
         print "[RokuPlus source-search] finish result=matched provider="; bestAnimeAnswer.sourceProvider
         return bestAnimeAnswer
     end if
