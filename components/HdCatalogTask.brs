@@ -1729,7 +1729,7 @@ function rpHdTaskTranslateAnimeTitle(query as string, fetcher as dynamic) as str
 end function
 
 function rpHdTaskAniListCatalog(request as object, answer as object, fetcher as dynamic) as object
-    page = (orbitInteger(request.skip,200000) \\ 20) + 1
+    page = (orbitInteger(request.skip,200000) \ 20) + 1
     sortValue = "POPULARITY_DESC"
     if orbitInteger(request.attempt,9) = 1 then sortValue = "START_DATE_DESC"
     genreValue = ""
