@@ -2530,7 +2530,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         answer.alternativeKind = kind
         print "[RokuPlus source-search] alternatives count="; answer.alternatives.count(); " kind="; kind; " discovery=cinemeta"
     end if
-    if isAnimeItem and isEpisode then print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_total="; providers.count()+1; " pending=megaplay,anikoto,anineko; " complete="; not rpHdTaskSliceExpired()
+    if isAnimeItem and isEpisode then print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_total="; providers.count()+1; " pending=megaplay,anikoto,anineko; complete="; not rpHdTaskSliceExpired()
     print "[RokuPlus provider-registry] operation=anime-source-search result=no-source providers_tested="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
