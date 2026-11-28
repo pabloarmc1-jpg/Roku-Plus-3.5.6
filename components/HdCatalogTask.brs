@@ -1273,8 +1273,8 @@ function rpHdTaskLatanimeIframeUrl(html as dynamic) as string
     quotes = chr(34)+"'"
     iframeMatch = CreateObject("roRegex","<iframe[^>]*>","i").match(page)
     if iframeMatch.count() < 1 then return ""
-    pattern = "src\\s*=\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]"
-    match = CreateObject("roRegex",pattern,"i").match(page)
+    pattern = "src\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]"
+    match = CreateObject("roRegex",pattern,"i").match(iframeMatch[0])
     if match.count() < 2 then return ""
     url = orbitText(match[1],4096).trim()
     url = CreateObject("roRegex","&amp;","i").Replace(url,"&")
