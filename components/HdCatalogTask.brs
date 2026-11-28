@@ -2800,6 +2800,8 @@ function rpHdTaskLatanimeTitleKey(value as dynamic) as string
     title = lcase(orbitText(value,240).trim())
     title = CreateObject("roRegex","\s*(latino|castellano|español|espanol|spanish|dub|dublado|doblado|subtitulado|sub español|sub esp|sub|720p|1080p|hd|cr)\s*","i").replaceAll(title," ")
     title = CreateObject("roRegex","\s*(temporada|season|s)[ ._-]*[0-9]+.*$","i").replace(title,"")
+    ' Normalize release years in parentheses, e.g. "(2011) Latino".
+    title = CreateObject("roRegex","\\s*[\\(\\[]?(19|20)[0-9]{2}[\\)\\]]?\\s*$","i").replace(title,"")
     title = CreateObject("roRegex","\s*[-:·]?\s*[0-9]+$","").replace(title,"")
     return rpHdTaskCinemetaTitleKey(title)
 end function
