@@ -2180,9 +2180,17 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,originalQuery)
     searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,cinemetaTitle)
     if type(discovery.aliases) = "roArray"
-        for each alternateTitle in discovery.aliases
-            searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,alternateTitle)
-        end for
+        if isAnimeItem
+            ' AniList aliases may be localized in unrelated languages (e.g. Indonesian).
+            ' Searching every alias creates false matches; anime discovery uses the
+            ' canonical title and explicit searchQuery until language-tagged aliases
+            ' are available in the metadata model.
+            print "[RokuPlus anime-alias] policy=canonical-only aliases-skipped="; discovery.aliases.count()
+        else
+            for each alternateTitle in discovery.aliases
+                searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,alternateTitle)
+            end for
+        end if
     end if
     discoveryYear = rpHdTaskCinemetaYear(discovery.year)
     if cinemetaTitle <> "" and discoveryYear <> ""
