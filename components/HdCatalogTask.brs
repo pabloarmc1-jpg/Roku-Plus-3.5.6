@@ -270,8 +270,12 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         return rpHdTaskAniListCatalog(request,answer,fetcher)
     end if
     if operation = "meta" and type(request.item) = "roAssociativeArray"
-        if orbitText(request.item.discoverySource,32) = "anilist"
+        itemIsAnime = (request.item.doesExist("isAnime") and request.item.isAnime = true) or (request.item.doesExist("catalogCategory") and lcase(orbitText(request.item.catalogCategory,24)) = "anime")
+        if itemIsAnime or orbitText(request.item.discoverySource,32) = "anilist"
             answer.item = request.item
+            answer.item.discoverySource = "anilist"
+            answer.item.catalogCategory = "anime"
+            answer.item.isAnime = true
             answer.ok = true
             answer.message = ""
             answer.item.seasons = [{number:1,episodes:[],loaded:false}]
