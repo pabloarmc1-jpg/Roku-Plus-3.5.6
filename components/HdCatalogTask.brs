@@ -1264,29 +1264,55 @@ sub rpHdTaskAnimeServerPreflight(embeds as object, provider as string, fetcher a
     print "[RokuPlus anime-diagnostic] provider="; provider; " stage=server-summary discovered="; count; " tested="; tested; " reachable="; reachable; " media_candidates="; mediaCandidates; " failed="; failed; " complete="; tested=count
 end sub
 
-function rpHdTaskLatanimeIframeUrl(html as dynamic) as string
+function rpHdTaskLatanimeIframeUrl(html as dynamic, currentUrl as dynamic) as string
     page = orbitText(html,524288)
     if page = "" then return ""
     lowerPage = lcase(page)
     ' Do not follow challenge, CAPTCHA or human-verification documents.
     if instr(1,lowerPage,"captcha") > 0 or instr(1,lowerPage,"verify you are human") > 0 or instr(1,lowerPage,"checking your browser") > 0 or instr(1,lowerPage,"challenge-platform") > 0 then return ""
     quotes = chr(34)+"'"
-    iframeMatch = CreateObject("roRegex","<iframe[^>]*>","i").match(page)
-    if iframeMatch.count() < 1 then return ""
-    pattern = "src\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]"
-    match = CreateObject("roRegex",pattern,"i").match(iframeMatch[0])
-    if match.count() < 2 then return ""
-    url = orbitText(match[1],4096).trim()
-    url = CreateObject("roRegex","&amp;","i").Replace(url,"&")
-    url = CreateObject("roRegex","\\/","i").Replace(url,"/")
-    if left(url,2) = "//" then url = "https:"+url
-    if left(lcase(url),7) = "http://" then url = "https://"+mid(url,8)
-    if left(lcase(url),8) <> "https://" then return ""
-    host = rpHdTaskSafeHost(url)
-    if left(host,4) = "www." then host = mid(host,5)
+    iframeRegex = CreateObject("roRegex","<iframe[^>]*>","i")
+    srcRegex = CreateObject("roRegex","src\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]","i")
+    searchPage = page
+    current = lcase(orbitText(currentUrl,4096).trim())
     allowedHosts = "|filemoon.sx|filemoon.to|filemoon.in|mixdrop.co|mixdrop.to|mixdrop.ag|mixdrop.bz|doodstream.com|doodstream.co|doodstream.net|yourupload.com|mp4upload.com|mp4upload.net|streamwish.to|vidhidepro.com|ok.ru|"
-    if instr(1,allowedHosts,"|"+host+"|") = 0 then return ""
-    return url
+    attempts = 0
+    while searchPage <> "" and attempts < 16
+        iframeMatch = iframeRegex.match(searchPage)
+        if iframeMatch.count() < 1 then exit while
+        tag = iframeMatch[0]
+        tagPosition = instr(1,searchPage,tag)
+        if tagPosition < 1 then exit while
+        searchPage = mid(searchPage,tagPosition+len(tag))
+        attempts++
+        srcMatch = srcRegex.match(tag)
+        if srcMatch.count() >= 2
+            url = orbitText(srcMatch[1],4096).trim()
+            url = CreateObject("roRegex","&amp;","i").Replace(url,"&")
+            url = CreateObject("roRegex","\\/","i").Replace(url,"/")
+            if left(url,2) = "//" then url = "https:"+url
+            if left(lcase(url),7) = "http://" then url = "https://"+mid(url,8)
+            if left(lcase(url),8) = "https://"
+                host = rpHdTaskSafeHost(url)
+                if left(host,4) = "www." then host = mid(host,5)
+                if instr(1,allowedHosts,"|"+host+"|") > 0
+                    if lcase(url) <> current
+                        print "[RokuPlus anime-iframe] candidate host="; host; " status=accepted"
+                        return url
+                    else
+                        print "[RokuPlus anime-iframe] candidate host="; host; " status=skipped_self"
+                    end if
+                else
+                    print "[RokuPlus anime-iframe] candidate host="; host; " status=skipped_untrusted"
+                end if
+            else
+                print "[RokuPlus anime-iframe] candidate status=skipped_non_https"
+            end if
+        else
+            print "[RokuPlus anime-iframe] candidate status=missing_src"
+        end if
+    end while
+    return ""
 end function
 
 function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string, animeLanguage = "" as string, animeDiagnostic = false as boolean) as object
@@ -1341,7 +1367,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
             ' Latanime mirrors may wrap the player in one additional iframe.
             ' Follow only a known video-host iframe, and never a verification/ad challenge.
             if masterUrl = "" and provider = "latanime"
-                nestedIframeUrl = rpHdTaskLatanimeIframeUrl(response.body)
+                nestedIframeUrl = rpHdTaskLatanimeIframeUrl(response.body,embed.url)
                 if nestedIframeUrl <> ""
                     nestedHost = rpHdTaskSafeHost(nestedIframeUrl)
                     print "[RokuPlus anime-iframe] provider=latanime action=follow host="; nestedHost
