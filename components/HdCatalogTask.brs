@@ -3135,6 +3135,9 @@ function rpHdTaskResolveAlternateEpisode(series as dynamic, originalEpisode as o
     if not episodeAnswer.ok
         answer.message = orbitText(episodeAnswer.message,240)
         if answer.message = "" then answer.message = "No se pudo cargar la temporada de la fuente alternativa."
+        if (originalEpisode.doesExist("isAnime") and originalEpisode.isAnime = true) or (originalEpisode.doesExist("catalogCategory") and lcase(orbitText(originalEpisode.catalogCategory,24)) = "anime")
+            print "[RokuPlus anime-diagnostic] provider="; provider; " stage=episode status=lookup_error message="; left(answer.message,120)
+        end if
         answer.cancelled = episodeAnswer.cancelled
         return answer
     end if
@@ -3152,6 +3155,9 @@ function rpHdTaskResolveAlternateEpisode(series as dynamic, originalEpisode as o
     end for
     if matchingEpisode = invalid
         answer.message = "La fuente alternativa no contiene el episodio "+seasonNumber.toStr()+"x"+episodeNumber.toStr()+"."
+        if (originalEpisode.doesExist("isAnime") and originalEpisode.isAnime = true) or (originalEpisode.doesExist("catalogCategory") and lcase(orbitText(originalEpisode.catalogCategory,24)) = "anime")
+            print "[RokuPlus anime-diagnostic] provider="; provider; " stage=episode status=not_listed season="; seasonNumber; " episode="; episodeNumber
+        end if
         return answer
     end if
     print "[RokuPlus source-fallback] episode-match provider="; provider; " season="; seasonNumber; " episode="; episodeNumber; " id="; orbitText(matchingEpisode.id,160)
