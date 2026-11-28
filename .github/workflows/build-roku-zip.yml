@@ -2,6 +2,7 @@ name: Build Roku Plus ZIP
 on:
   push:
     branches:
+      - feature/anime-section
       - ts-segment-seek-integration
       - feature/invidious-from-ts-stable
       - fix/hls-native-startup-diagnostics-3.5.20
