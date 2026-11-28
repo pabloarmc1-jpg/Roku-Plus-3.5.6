@@ -878,6 +878,7 @@ sub openCatalog(kind as string)
     m.kind = kind
     m.nav = 1
     if kind = "series" then m.nav = 2
+    if kind = "anime" then m.nav = 3
     m.query = ""
     m.genreFilter = "Todos"
     m.pageTitles = []
@@ -3165,6 +3166,7 @@ sub activateNav()
     if m.nav = 0 then goHome()
     if m.nav = 1 then openCatalog("movie")
     if m.nav = 2 then openCatalog("series")
+    if m.nav = 3 then openCatalog("anime")
     if m.nav = 3
         m.view = "live"
         selectLiveFilter(m.liveFilter)
@@ -4831,7 +4833,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if m.busy and m.view <> "live" then return true
     if m.zone = "nav"
         if key = "up" and m.nav > 0 then m.nav--
-        if key = "down" and m.nav < 8 then m.nav++
+        if key = "down" and m.nav < 9 then m.nav++
         if key = "OK" then activateNav(): return true
         if key = "right"
             if m.view = "home" then m.zone = "hero"
