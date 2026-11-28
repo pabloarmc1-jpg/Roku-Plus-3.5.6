@@ -1306,10 +1306,12 @@ function rpHdTaskAnimeLiteralMediaUrl(html as dynamic, baseUrl as string) as str
     patterns = [
         "<meta[^>]+(?:property|name)\s*=\s*["+quotes+"]og:video(?:(?!>).)*content\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"][^>]*>",
         "<meta[^>]+content\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"][^>]+(?:property|name)\s*=\s*["+quotes+"]og:video["+quotes+"][^>]*>",
-        "<video[^>]+src\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
-        "<source[^>]+src\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
-        "(?:file|source)\s*:\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
-        "["+quotes+"](?:file|src|url)["+quotes+"]\s*:\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]"
+        "<video[^>]+(?:src|data-src)\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
+        "<source[^>]+(?:src|data-src)\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
+        "data-(?:src|source|video|file)\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
+        "(?:file|source|video)\s*:\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
+        "["+quotes+"](?:file|src|url|video)["+quotes+"]\s*:\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
+        "(https://[^\s"+quotes+"<>]+\.(?:mp4|m3u8)(?:\?[^\s"+quotes+"<>]*)?)"
     ]
     for each pattern in patterns
         match = CreateObject("roRegex",pattern,"i").match(page)
@@ -1471,6 +1473,9 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         if orbitText(response.httpFinalUrl,4096) <> "" then mediaReferer = response.httpFinalUrl
                         masterUrl = rpHdOnlineMediaUrl(response.body)
                         if masterUrl = "" then masterUrl = rpHdOnlineHostMediaUrl(response.body)
+                        if masterUrl = "" and (instr(1,nestedHost,"yourupload.com") > 0 or instr(1,nestedHost,"mp4upload.com") > 0)
+                            masterUrl = rpHdTaskAnimeLiteralMediaUrl(response.body,nestedIframeUrl)
+                        end if
                         print "[RokuPlus anime-iframe] host="; nestedHost; " status=loaded media="; (masterUrl <> "")
                         if animeDiagnostic then rpHdTaskAnimePageProbe(response.body,nestedHost)
                     else
