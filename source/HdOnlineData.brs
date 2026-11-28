@@ -621,7 +621,7 @@ end function
 
 function rpHdOnlineCdn(value as dynamic) as string
     url = orbitHttpsUrl(value)
-    if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com|([a-z0-9-]+\.)?mixdrop\.(co|to|ag|bz)|([a-z0-9-]+\.)?mxdrop\.to|([a-z0-9-]+\.)?doodstream\.(com|co|net)|([a-z0-9-]+\.)?dood\.(to|so|la|li|ws|pm)|([a-z0-9-]+\.)?mp4upload\.(com|net)|([a-z0-9-]+\.)?filemoon\.(sx|to|in)|([a-z0-9-]+\.)?yourupload\.com|([a-z0-9-]+\.)?okcdn\.ru|([a-z0-9-]+\.)?ok\.ru|([a-z0-9-]+\.)?fembed2?\.com|([a-z0-9-]+\.)?feurl\.com|([a-z0-9-]+\.)?femax20\.com|([a-z0-9-]+\.)?byse\.(su|to|sx)|cdn\.imgnex\.top)/","i").isMatch(url) then return ""
+    if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com|([a-z0-9-]+\.)?mixdrop\.(co|to|ag|bz)|([a-z0-9-]+\.)?mxdrop\.to|([a-z0-9-]+\.)?doodstream\.(com|co|net)|([a-z0-9-]+\.)?dood\.(to|so|la|li|ws|pm)|([a-z0-9-]+\.)?mp4upload\.(com|net)|([a-z0-9-]+\.)?filemoon\.(sx|to|in)|([a-z0-9-]+\.)?yourupload\.com|([a-z0-9-]+\.)?okcdn\.ru|([a-z0-9-]+\.)?ok\.ru|([a-z0-9-]+\.)?fembed2?\.com|([a-z0-9-]+\.)?feurl\.com|([a-z0-9-]+\.)?femax20\.com|([a-z0-9-]+\.)?byse\.(su|to|sx)|cdn\.imgnex\.top|([a-z0-9-]+\.)?(kotocdn\.site|mewstream\.buzz|lostproject\.club|voltara\.click|shiora\.top|akirax\.buzz))/","i").isMatch(url) then return ""
     return url
 end function
 
