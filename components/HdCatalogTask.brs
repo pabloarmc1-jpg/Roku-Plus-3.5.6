@@ -2751,6 +2751,8 @@ end function
 
 ' Resolve Anikoto by the exact AniList ID and obtain the requested episode embed.
 ' One recent-catalog request plus one series request; no aggressive retries.
+' Resolve Anikoto by AniList ID. Search a bounded number of recent pages so
+' older entries are not missed by the first page alone. Stop at the first match.
 function rpHdTaskAnimeAnikotoLookup(discovery as object, episodeNumber as integer, answer as object, fetcher as dynamic) as object
     result = {ok:false,cancelled:false,embedUrl:"",embedId:"",seriesId:"",reason:"not-found"}
     anilistId = orbitInteger(discovery.anilistId,99999999)
@@ -2758,47 +2760,59 @@ function rpHdTaskAnimeAnikotoLookup(discovery as object, episodeNumber as intege
         result.reason = "missing-identity"
         return result
     end if
-    recentUrl = "https://anikotoapi.site/recent-anime?page=1&per_page=40"
-    rpHdTaskBeginSlice(3)
-    recent = fetcher(recentUrl,"anime-anikoto-api","")
-    if recent.cancelled then return rpHdTaskFailure(result,recent)
-    if not recent.ok
-        result.reason = "catalog-http-"+orbitInteger(recent.httpStatus,9999).toStr()
-        print "[RokuPlus anime-anikoto] stage=recent status=failed http="; orbitInteger(recent.httpStatus,9999)
-        return result
-    end if
-    catalog = ParseJson(recent.body)
-    rows = invalid
-    if type(catalog) = "roArray"
-        rows = catalog
-    else if type(catalog) = "roAssociativeArray"
-        if type(catalog.data) = "roArray" then rows = catalog.data
-        if type(catalog.data) = "roAssociativeArray"
-            if type(catalog.data.data) = "roArray" then rows = catalog.data.data
-            if type(catalog.data.items) = "roArray" then rows = catalog.data.items
-        end if
-        if type(catalog.items) = "roArray" then rows = catalog.items
-    end if
-    if type(rows) <> "roArray"
-        result.reason = "catalog-shape"
-        print "[RokuPlus anime-anikoto] stage=recent result=invalid-shape"
-        return result
-    end if
     seriesId = ""
-    for each row in rows
-        if type(row) = "roAssociativeArray"
-            rowAniId = orbitInteger(row.ani_id,99999999)
-            if rowAniId = 0 then rowAniId = orbitInteger(row.anilist_id,99999999)
-            if rowAniId = 0 then rowAniId = orbitInteger(row.anilistId,99999999)
-            if rowAniId = anilistId
-                seriesId = orbitText(row.id,24)
-                exit for
-            end if
+    pagesScanned = 0
+    for catalogPage = 1 to 8
+        if m.top.cancelRequested or rpHdTaskSliceExpired()
+            result.cancelled = m.top.cancelRequested
+            result.reason = "lookup-budget-exhausted"
+            return result
         end if
+        recentUrl = "https://anikotoapi.site/recent-anime?page="+catalogPage.toStr()+"&per_page=40"
+        rpHdTaskBeginSlice(3)
+        recent = fetcher(recentUrl,"anime-anikoto-api","")
+        if recent.cancelled then return rpHdTaskFailure(result,recent)
+        if not recent.ok
+            result.reason = "catalog-http-"+orbitInteger(recent.httpStatus,9999).toStr()
+            print "[RokuPlus anime-anikoto] stage=recent status=failed page="; catalogPage; " http="; orbitInteger(recent.httpStatus,9999)
+            return result
+        end if
+        catalog = ParseJson(recent.body)
+        rows = invalid
+        if type(catalog) = "roArray"
+            rows = catalog
+        else if type(catalog) = "roAssociativeArray"
+            if type(catalog.data) = "roArray" then rows = catalog.data
+            if type(catalog.data) = "roAssociativeArray"
+                if type(catalog.data.data) = "roArray" then rows = catalog.data.data
+                if type(catalog.data.items) = "roArray" then rows = catalog.data.items
+            end if
+            if type(catalog.items) = "roArray" then rows = catalog.items
+        end if
+        if type(rows) <> "roArray"
+            result.reason = "catalog-shape"
+            print "[RokuPlus anime-anikoto] stage=recent result=invalid-shape page="; catalogPage
+            return result
+        end if
+        pagesScanned++
+        print "[RokuPlus anime-anikoto] stage=recent page="; catalogPage; " rows="; rows.count()
+        if rows.count() = 0 then exit for
+        for each row in rows
+            if type(row) = "roAssociativeArray"
+                rowAniId = orbitInteger(row.ani_id,99999999)
+                if rowAniId = 0 then rowAniId = orbitInteger(row.anilist_id,99999999)
+                if rowAniId = 0 then rowAniId = orbitInteger(row.anilistId,99999999)
+                if rowAniId = anilistId
+                    seriesId = orbitText(row.id,24)
+                    exit for
+                end if
+            end if
+        end for
+        if seriesId <> "" then exit for
     end for
     if not CreateObject("roRegex","^[0-9]{1,12}$","").isMatch(seriesId)
         result.reason = "no-anikoto-series-match"
-        print "[RokuPlus anime-anikoto] stage=recent result=no-series-match rows="; rows.count()
+        print "[RokuPlus anime-anikoto] stage=recent result=no-series-match pages="; pagesScanned; " anilistId="; anilistId
         return result
     end if
     result.seriesId = seriesId
@@ -2854,7 +2868,6 @@ function rpHdTaskAnimeAnikotoLookup(discovery as object, episodeNumber as intege
     print "[RokuPlus anime-anikoto] stage=series result=episode-not-found requested="; episodeNumber; " count="; episodeRows.count()
     return result
 end function
-
 
 ' MegaPlay is the primary native Anime resolver. The AniList ID is carried
 ' from AniList catalog records; only MegaPlay's documented public player/API flow is used.
