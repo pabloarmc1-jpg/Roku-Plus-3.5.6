@@ -174,27 +174,28 @@ function modeName() as string
 end function
 
 sub topBar()
-    labels = ["Inicio","Películas","Series","TV en vivo","Buscar","Mi lista","Historial","Ajustes","Perfiles"]
+    labels = ["Inicio","Películas","Series","Anime","TV en vivo","Buscar","Mi lista","Historial","Ajustes","Perfiles"]
     active = 0
     if m.view = "browse" or m.view = "detail" or m.view = "episodes"
         active = 1
         if m.kind = "series" then active = 2
+        if m.kind = "anime" then active = 3
         if m.query <> "" then active = 4
     else if m.view = "live"
-        active = 3
+        active = 4
     else if m.view = "library"
-        active = 6
-        if m.libraryMode = "list" then active = 5
-    else if m.view = "settings" or m.view = "credits" or m.view = "hd-source" or m.view = "appearance"
         active = 7
-    else if m.view = "profiles"
+        if m.libraryMode = "list" then active = 6
+    else if m.view = "settings" or m.view = "credits" or m.view = "hd-source" or m.view = "appearance"
         active = 8
+    else if m.view = "profiles"
+        active = 9
     end if
     if m.view = "live"
         panel(0,0,1920,52,"0x080808F2")
         art("pkg:/images/ui/logo.png",18,8,34,34)
         words("ROKU PLUS",60,8,145,35,21,"0xFFFFFFFF")
-        words(labels[3],220,7,135,38,17,"0xFFFFFFFF")
+        words(labels[4],220,7,135,38,17,"0xFFFFFFFF")
         panel(1548,7,308,38,"0xFFFFFF12")
         words(rpProfileName(m.profileId),1560,10,280,30,18,"0xFFFFFFFF").horizAlign = "right"
         return
@@ -210,9 +211,9 @@ sub topBar()
         words("ROKU PLUS",91,34,174,34,21,"0xFFFFFFFF")
     end if
     panel(18,94,56,2,"0xFFFFFF30")
-    iconFiles = ["nav-home.png","nav-movies.png","nav-series.png","nav-live.png","nav-search.png","nav-favorites.png","nav-history.png","nav-settings.png","nav-profile.png"]
-    for i = 0 to 8
-        y = 132+i*91
+    iconFiles = ["nav-home.png","nav-movies.png","nav-series.png","nav-series.png","nav-live.png","nav-search.png","nav-favorites.png","nav-history.png","nav-settings.png","nav-profile.png"]
+    for i = 0 to 9
+        y = 110+i*84
         isSelected = (active = i)
         if m.zone = "nav" and m.nav = i then isSelected = true
         if isSelected
