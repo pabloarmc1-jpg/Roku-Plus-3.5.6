@@ -317,7 +317,7 @@ sub fetch(context as object)
     cancelRequest()
     m.pending = context
     m.request = CreateObject("roDeviceInfo").getRandomUUID()
-    online = (usesOnlineHd() or (context.doesExist("item") and rpIsOnlineHdItem(context.item))) and context.operation <> "country" and context.operation <> "latam"
+    online = (usesOnlineHd() or (context.doesExist("item") and rpIsOnlineHdItem(context.item))) and context.operation <> "country" and context.operation <> "latam" and context.operation <> "anime-catalog"
     taskName = "CatalogTask"
     if online then taskName = "HdCatalogTask"
     task = CreateObject("roSGNode",taskName)
@@ -349,7 +349,7 @@ sub fetch(context as object)
         task.attempt = 0
         if m.catalogSort = "recent" then task.attempt = 1
     end if
-    if context.operation = "catalog" or context.operation = "cinemeta-catalog" then task.skip = context.offset
+    if context.operation = "catalog" or context.operation = "cinemeta-catalog" or context.operation = "anime-catalog" then task.skip = context.offset
     if context.doesExist("item")
         if online then task.item = context.item else task.imdbId = context.item.imdbId
         if context.item.kind = "episode"
@@ -2891,7 +2891,7 @@ sub submitGlobalSearch()
     if query = ""
         m.kind = "movie"
         loadBrowsePage(0)
-    else if m.catalogMode = "hd" and not usesOnlineHd()
+    else if m.catalogMode = "hd" and not usesOnlineHd() and m.kind <> "anime"
         m.kind = "all"
         loadBrowsePage(0)
     else
@@ -3162,20 +3162,20 @@ sub returnOneStep()
 end sub
 
 sub activateNav()
-    if m.nav <> 3 then stopLivePreview()
+    if m.nav <> 4 then stopLivePreview()
     if m.nav = 0 then goHome()
     if m.nav = 1 then openCatalog("movie")
     if m.nav = 2 then openCatalog("series")
     if m.nav = 3 then openCatalog("anime")
-    if m.nav = 3
+    if m.nav = 4
         m.view = "live"
         selectLiveFilter(m.liveFilter)
     end if
-    if m.nav = 4 then openSearch()
-    if m.nav = 5 then openLibrary("list")
-    if m.nav = 6 then openLibrary("history")
-    if m.nav = 7 then openSettings()
-    if m.nav = 8 then openProfiles()
+    if m.nav = 5 then openSearch()
+    if m.nav = 6 then openLibrary("list")
+    if m.nav = 7 then openLibrary("history")
+    if m.nav = 8 then openSettings()
+    if m.nav = 9 then openProfiles()
 end sub
 
 sub selectLiveFilter(filter as integer)
@@ -3504,7 +3504,7 @@ sub openProfiles()
     cancelRequest()
     m.view = "profiles"
     m.zone = "profiles"
-    m.nav = 8
+    m.nav = 9
     m.profileCursor = 0
     if m.profileId = "p2" then m.profileCursor = 1
     if m.profileId = "p3" then m.profileCursor = 2
@@ -3618,7 +3618,7 @@ sub openSettings()
     cancelRequest()
     m.view = "settings"
     m.zone = "settings"
-    m.nav = 7
+    m.nav = 8
     m.settingsCursor = 0
     m.note = ""
     drawScreen()
@@ -4136,7 +4136,8 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
         drawScreen()
     else
         browseOperation = "catalog"
-        if m.catalogMode = "hd" and usesOnlineHd() then browseOperation = "cinemeta-catalog"
+        if m.kind = "anime" then browseOperation = "anime-catalog"
+        if m.catalogMode = "hd" and usesOnlineHd() and m.kind <> "anime" then browseOperation = "cinemeta-catalog"
         pageKey = m.catalogMode + "|" + m.hdProvider + "|" + m.kind + "|" + orbitText(m.query,120) + "|" + m.genreFilter + "|" + m.catalogSort + "|" + browseOperation + "|" + offset.toStr()
         if type(m.catalogPageCache) = "roAssociativeArray" and m.catalogPageCache.key = pageKey and m.catalogPageCache.clock <> invalid
             pageAge = m.catalogPageCache.clock.totalMilliseconds()
