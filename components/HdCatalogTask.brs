@@ -1754,6 +1754,8 @@ function rpHdTaskAniListSearch(query as string, fetcher as dynamic) as object
                 if displayTitle = "" then displayTitle = orbitText(titles.userPreferred,200).trim()
                 if displayTitle = "" then displayTitle = orbitText(titles.native,200).trim()
                 if displayTitle <> ""
+                    animeKind = "series"
+                    if lcase(orbitText(media.format,20)) = "movie" then animeKind = "movie"
                     year = ""
                     if media.seasonYear <> invalid then year = orbitText(media.seasonYear,4)
                     genres = []
@@ -1778,7 +1780,7 @@ function rpHdTaskAniListSearch(query as string, fetcher as dynamic) as object
                     if type(media.coverImage) = "roAssociativeArray" then poster = orbitText(media.coverImage.large,2048)
                     episodeCount = orbitInteger(media.episodes,9999)
                     item = {
-                        id:"anilist-"+animeId.toStr(), anilistId:animeId, kind:"series"
+                        id:"anilist-"+animeId.toStr(), anilistId:animeId, kind:animeKind
                         provider:"all", discoverySource:"anilist", library:"hd-online"
                         catalogCategory:"anime", isAnime:true, title:displayTitle
                         searchQuery:query, year:year, description:orbitText(media.description,4000)
