@@ -2490,13 +2490,17 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
         end for
     end if
     if selected = invalid then return failed
+    print "[RokuPlus latanime] selected title="; selected.title; " language="; selected.language; " slug="; selected.slug
     if selected.language = "subtitulado" then originalEpisode.animeSubtitleOnly = true
 
     seriesUrl = "https://latanime.org/anime/"+selected.slug
     rpHdTaskBeginSlice(2)
     seriesPage = fetcher(seriesUrl,"latanime-page","https://latanime.org/")
     if seriesPage.cancelled then return rpHdTaskFailure(failed,seriesPage)
-    if not seriesPage.ok then return failed
+    if not seriesPage.ok
+        print "[RokuPlus latanime] series-page-failed slug="; selected.slug; " status="; seriesPage.status
+        return failed
+    end if
     seriesHtml = orbitText(seriesPage.body,2097152)
     seriesLower = lcase(seriesHtml)
     episodePath = ""
@@ -2527,9 +2531,15 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     rpHdTaskBeginSlice(2)
     episodePage = fetcher(episodeUrl,"latanime-page",seriesUrl)
     if episodePage.cancelled then return rpHdTaskFailure(failed,episodePage)
-    if not episodePage.ok then return failed
+    if not episodePage.ok
+        print "[RokuPlus latanime] episode-page-failed path="; episodePath; " status="; episodePage.status
+        return failed
+    end if
     embedUrl = rpHdTaskLatanimeVoeEmbed(orbitText(episodePage.body,2097152))
-    if embedUrl = "" then return failed
+    if embedUrl = ""
+        print "[RokuPlus latanime] embed-not-found episode="; episodePath
+        return failed
+    end if
     if not CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(embedUrl)
         print "[RokuPlus latanime] server=unsupported host="; rpHdTaskSafeHost(embedUrl)
         return failed
