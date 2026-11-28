@@ -1217,7 +1217,11 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         finalEmbedHost = embedHost
         if orbitText(response.httpFinalUrl,4096) <> "" then finalEmbedHost = rpHdTaskSafeHost(response.httpFinalUrl)
         embedBytes = len(orbitText(response.body,2097152))
-        print "[RokuPlus anime-embed] provider="; provider; " index="; embedIndex+1; " host="; embedHost; " ok="; response.ok; " status="; orbitInteger(response.httpStatus,9999); " finished="; response.httpFinished; " bytes="; embedBytes; " finalHost="; finalEmbedHost
+        embedFinished = "unknown"
+        if response.doesExist("httpFinished") then embedFinished = response.httpFinished
+        embedStatus = 0
+        if response.doesExist("httpStatus") then embedStatus = orbitInteger(response.httpStatus,9999)
+        print "[RokuPlus anime-embed] provider="; provider; " index="; embedIndex+1; " host="; embedHost; " ok="; response.ok; " status="; embedStatus; " finished="; embedFinished; " bytes="; embedBytes; " finalHost="; finalEmbedHost
         if response.ok
             if orbitText(response.httpFinalUrl,4096) <> "" then mediaReferer = response.httpFinalUrl
             masterUrl = rpHdOnlineMediaUrl(response.body)
