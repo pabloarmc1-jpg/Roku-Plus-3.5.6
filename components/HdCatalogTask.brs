@@ -2384,7 +2384,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         print "[RokuPlus anime-diagnostic] spanish-providers=latanime original-providers=latanime pending=megaplay,anikoto,anineko"
         print "[RokuPlus anime-diagnostic] movie-series-provider-isolation=true"
     end if
-    if providers.count() = 0
+    if providers.count() = 0 and not (isAnimeItem and isEpisode)
         answer.message = "No hay proveedores compatibles para este tipo de contenido."
         print "[RokuPlus source-search] result=no-providers kind="; kind
         return answer
