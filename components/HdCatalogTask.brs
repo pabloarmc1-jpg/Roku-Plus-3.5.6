@@ -426,7 +426,11 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         return rpHdTvmazeEnrichAnswer(answer,request,fetcher)
     else if operation = "resolve"
         if item.kind <> "movie" and item.kind <> "episode" then return answer
-        return rpHdTaskResolveItem(item,provider,answer,fetcher,decoderAccept,orbitInteger(request.attempt,999),orbitText(request.animeLanguage,16),request.doesExist("animeDiagnostic") and request.animeDiagnostic = true)
+        animeDiagnostic = false
+        if request.doesExist("animeDiagnostic")
+            animeDiagnostic = request.animeDiagnostic = true
+        end if
+        return rpHdTaskResolveItem(item,provider,answer,fetcher,decoderAccept,orbitInteger(request.attempt,999),orbitText(request.animeLanguage,16),animeDiagnostic)
     end if
     answer.message = "La consulta HD no es válida."
     return answer
