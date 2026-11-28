@@ -2370,49 +2370,86 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     title = orbitText(discovery.title,200).trim()
     if title = "" then return failed
     transfer = CreateObject("roUrlTransfer")
-    searchUrl = "https://latanime.org/buscar?q="+transfer.escape(title)
-    rpHdTaskBeginSlice(2)
-    search = fetcher(searchUrl,"latanime-page","https://latanime.org/")
-    if search.cancelled then return rpHdTaskFailure(failed,search)
-    if not search.ok then return failed
 
-    candidates = []
-    html = orbitText(search.body,2097152)
-    lowerHtml = lcase(html)
-    offset = 1
-    while offset < len(html)
-        found = instr(offset,lowerHtml,"/anime/")
-        if found = 0 then exit while
-        quoteEnd = instr(found,html,chr(34))
-        singleEnd = instr(found,html,"'")
-        if quoteEnd = 0 or (singleEnd > 0 and singleEnd < quoteEnd) then quoteEnd = singleEnd
-        if quoteEnd = 0 then exit while
-        slug = mid(html,found+7,quoteEnd-found-7)
-        slug = CreateObject("roRegex","[^a-zA-Z0-9-].*$","").replace(slug,"")
-        offset = quoteEnd+1
-        if slug <> "" and instr(1,slug,"/") = 0
-            cardEnd = instr(found,lowerHtml,"</a>")
-            if cardEnd = 0 or cardEnd-found > 5000 then cardEnd = found+2500
-            card = mid(html,found,cardEnd-found)
-            h3Start = instr(1,lcase(card),"<h3")
-            if h3Start > 0
-                tagEnd = instr(h3Start,card,">")
-                h3End = instr(tagEnd+1,lcase(card),"</h3>")
-                if tagEnd > 0 and h3End > tagEnd
-                    cardTitle = rpHdTvmazeText(mid(card,tagEnd+1,h3End-tagEnd-1))
-                    titleKey = rpHdTaskLatanimeTitleKey(cardTitle)
-                    wantedKey = rpHdTaskLatanimeTitleKey(title)
-                    if titleKey <> "" and titleKey = wantedKey
-                        language = rpHdTaskLatanimeLanguage(cardTitle+" "+slug+" "+rpHdTvmazeText(card))
-                        candidateSeason = rpHdTaskLatanimeSeason(cardTitle+" "+slug)
-                        seasonOk = candidateSeason = seasonNumber
-                        if seasonNumber = 1 and candidateSeason = 0 then seasonOk = true
-                        if seasonOk then candidates.push({slug:slug,title:cardTitle,language:language})
-                    end if
+    ' AniList can expose the English, romaji, native and alternate titles.
+    ' Search a few aliases because Latanime commonly indexes the romaji title.
+    wantedKeys = []
+    searchTerms = []
+    titleKey = rpHdTaskLatanimeTitleKey(title)
+    if titleKey <> "" then wantedKeys.push(titleKey)
+    searchTerms.push(title)
+    if type(discovery.aliases) = "roArray"
+        for each aliasValue in discovery.aliases
+            aliasText = orbitText(aliasValue,200).trim()
+            aliasKey = rpHdTaskLatanimeTitleKey(aliasText)
+            if aliasText <> "" and aliasKey <> ""
+                keyExists = false
+                for each savedKey in wantedKeys
+                    if savedKey = aliasKey then keyExists = true
+                end for
+                if not keyExists then wantedKeys.push(aliasKey)
+                if searchTerms.count() < 5
+                    termExists = false
+                    for each savedTerm in searchTerms
+                        if lcase(savedTerm) = lcase(aliasText) then termExists = true
+                    end for
+                    if not termExists then searchTerms.push(aliasText)
                 end if
             end if
+        end for
+    end if
+
+    candidates = []
+    for each searchTerm in searchTerms
+        searchUrl = "https://latanime.org/buscar?q="+transfer.escape(searchTerm)
+        rpHdTaskBeginSlice(2)
+        search = fetcher(searchUrl,"latanime-page","https://latanime.org/")
+        if search.cancelled then return rpHdTaskFailure(failed,search)
+        if not search.ok then
+            print "[RokuPlus latanime] search-query-failed title="; left(searchTerm,80)
+        else
+            html = orbitText(search.body,2097152)
+            lowerHtml = lcase(html)
+            offset = 1
+            while offset < len(html)
+                found = instr(offset,lowerHtml,"/anime/")
+                if found = 0 then exit while
+                quoteEnd = instr(found,html,chr(34))
+                singleEnd = instr(found,html,"'")
+                if quoteEnd = 0 or (singleEnd > 0 and singleEnd < quoteEnd) then quoteEnd = singleEnd
+                if quoteEnd = 0 then exit while
+                slug = mid(html,found+7,quoteEnd-found-7)
+                slug = CreateObject("roRegex","[^a-zA-Z0-9-].*$","").replace(slug,"")
+                offset = quoteEnd+1
+                if slug <> "" and instr(1,slug,"/") = 0
+                    cardEnd = instr(found,lowerHtml,"</a>")
+                    if cardEnd = 0 or cardEnd-found > 5000 then cardEnd = found+2500
+                    card = mid(html,found,cardEnd-found)
+                    h3Start = instr(1,lcase(card),"<h3")
+                    if h3Start > 0
+                        tagEnd = instr(h3Start,card,">")
+                        h3End = instr(tagEnd+1,lcase(card),"</h3>")
+                        if tagEnd > 0 and h3End > tagEnd
+                            cardTitle = rpHdTvmazeText(mid(card,tagEnd+1,h3End-tagEnd-1))
+                            candidateKey = rpHdTaskLatanimeTitleKey(cardTitle)
+                            titleMatches = false
+                            for each wantedKey in wantedKeys
+                                if candidateKey <> "" and candidateKey = wantedKey then titleMatches = true
+                            end for
+                            if titleMatches
+                                language = rpHdTaskLatanimeLanguage(cardTitle+" "+slug+" "+rpHdTvmazeText(card))
+                                candidateSeason = rpHdTaskLatanimeSeason(cardTitle+" "+slug)
+                                seasonOk = candidateSeason = seasonNumber
+                                if seasonNumber = 1 and candidateSeason = 0 then seasonOk = true
+                                if seasonOk then candidates.push({slug:slug,title:cardTitle,language:language})
+                            end if
+                        end if
+                    end if
+                end if
+            end while
         end if
-    end while
+        if candidates.count() > 0 then exit for
+    end for
     if candidates.count() = 0
         print "[RokuPlus latanime] search=no-exact-title title="; left(title,100)
         return failed
