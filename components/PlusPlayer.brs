@@ -17,7 +17,7 @@ sub init()
     if m.decoder.hasField("audioSelectionPreferences")
         m.decoder.audioSelectionPreferences = {values:[{language:["es-MX","es-419","es-ES","es","es-*","spa"]}],overrideSystem:true}
         m.audioSelectionPreferenceSet = true
-        print "[RokuPlus decoder] audioSelectionPreferences=Spanish es-MX,es-419,es,es-*,spa overrideSystem=true"
+        print "[RokuPlus decoder] audioSelectionPreferences=Spanish LATAM es-MX,es-419 then Spain es-ES then generic es,spa overrideSystem=true"
     else
         print "[RokuPlus decoder] audioSelectionPreferences=unsupported"
     end if
@@ -1738,13 +1738,15 @@ sub notifyAnimeSubtitleOnly()
     if m.animeSubtitleNoticeShown or type(m.current) <> "roAssociativeArray" then return
     isAnime = (m.current.doesExist("isAnime") and m.current.isAnime = true) or lcase(plusPlayerText(m.current.catalogCategory,32)) = "anime"
     if not isAnime then return
+    taggedSubtitleOnly = m.current.doesExist("animeSubtitleOnly") and m.current.animeSubtitleOnly = true
     hasSpanishAudio = false
     for each audioTrack in m.audioTracks
         language = lcase(plusPlayerText(audioTrack.language,32))
         if language = "spa" or language = "es" or left(language,3) = "es-" then hasSpanishAudio = true
     end for
-    if hasSpanishAudio or m.audioTracks.count() = 0 then return
-    hasSpanishSubtitles = false
+    if hasSpanishAudio then return
+    if m.audioTracks.count() = 0 and not taggedSubtitleOnly then return
+    hasSpanishSubtitles = taggedSubtitleOnly
     for each subtitleTrack in m.sourceSubtitleTracks
         language = lcase(plusPlayerText(subtitleTrack.language,32))
         if language = "spa" or language = "es" or left(language,3) = "es-" then hasSpanishSubtitles = true
