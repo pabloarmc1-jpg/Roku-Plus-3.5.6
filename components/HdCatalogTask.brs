@@ -4725,7 +4725,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
         return CreateObject("roRegex","^https://(www\.)?latanime\.org/(buscar\?q=[A-Za-z0-9%._~!*'()+-]+|anime/[a-z0-9-]+/?|ver/[a-z0-9-]+/?)$","i").isMatch(endpoint)
     end if
     if role = "anime-anikoto-api"
-        return CreateObject("roRegex","^https://anikotoapi\\.site/(recent-anime\\?page=1&per_page=40|series/[0-9]{1,12})$","i").isMatch(endpoint)
+        return CreateObject("roRegex","^https://anikotoapi\.site/(recent-anime\?page=1&per_page=40|series/[0-9]{1,12})$","i").isMatch(endpoint)
     end if
     if role = "anime-megaplay-page"
         return CreateObject("roRegex","^https://(www\.)?megaplay\.buzz/stream/(ani/[0-9]{1,10}/[0-9]{1,4}|s-2/[0-9]{1,12})/sub$","i").isMatch(endpoint)
