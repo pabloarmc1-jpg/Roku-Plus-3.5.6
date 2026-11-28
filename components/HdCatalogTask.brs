@@ -300,7 +300,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         for episodeIndex = 1 to totalEpisodes
             animeEpisodes.push({
                 id:"anilist-"+orbitText(animeItem.anilistId,20)+"-S1E"+episodeIndex.toStr()
-                kind:"episode", provider:"all", discoverySource:"anilist", anilistId:orbitText(animeItem.anilistId,20)
+                kind:"episode", provider:"all", discoverySource:"anilist", anilistId:orbitText(animeItem.anilistId,20), anilistId:orbitText(animeItem.anilistId,20)
                 catalogCategory:"anime", isAnime:true
                 title:"Episodio "+episodeIndex.toStr(), seriesTitle:animeItem.title
                 seriesSearchQuery:orbitText(animeItem.searchQuery,200), seriesAliases:animeItem.aliases, season:1
@@ -396,7 +396,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
             for episodeIndex = 1 to totalEpisodes
                 animeEpisodes.push({
                     id:"anilist-"+orbitText(item.anilistId,20)+"-S1E"+episodeIndex.toStr()
-                    kind:"episode", provider:"all", discoverySource:"anilist"
+                    kind:"episode", provider:"all", discoverySource:"anilist", anilistId:orbitText(animeItem.anilistId,20)
                     catalogCategory:"anime", isAnime:true
                     title:"Episodio "+episodeIndex.toStr(), seriesTitle:item.title
                     seriesSearchQuery:orbitText(item.searchQuery,200), season:1
@@ -2731,7 +2731,7 @@ end function
 ' MegaPlay is the primary native Anime resolver. The AniList ID is carried
 ' from AniList catalog records; only MegaPlay's documented public player/API flow is used.
 function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as object, seasonNumber as integer, episodeNumber as integer, answer as object, fetcher as dynamic, decoderAccept as dynamic) as object
-    failed = {ok:false,cancelled:false,message:"MegaPlay no devolvió una fuente reproducible."}
+    failed = {ok:false,cancelled:false,requestId:orbitText(answer.requestId,120),subtitleTracks:[],selectedSubtitleGroup:"",message:"MegaPlay no devolvió una fuente reproducible."}
     anilistId = orbitInteger(discovery.anilistId,99999999)
     if anilistId < 1 or episodeNumber < 1
         failed.message = "Falta el identificador AniList o el número de episodio."
@@ -2809,9 +2809,14 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
         return failed
     end if
     payload = ParseJson(sourceResponse.body)
-    if type(payload) <> "roAssociativeArray" or type(payload.sources) <> "roAssociativeArray"
+    if type(payload) <> "roAssociativeArray"
         failed.message = "MegaPlay devolvió datos de video con formato inesperado."
         print "[RokuPlus anime-megaplay] stage=getSources result=invalid-json-shape"
+        return failed
+    end if
+    if type(payload.sources) <> "roAssociativeArray"
+        failed.message = "MegaPlay devolvió datos de video con formato inesperado."
+        print "[RokuPlus anime-megaplay] stage=getSources result=sources-missing"
         return failed
     end if
     rawMediaUrl = orbitText(payload.sources.file,4096)
@@ -2831,6 +2836,7 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
         failed.fallbackTsRelayEnabled = false
         failed.mediaHeaders = {Referer:pageFinalUrl,"User-Agent":rpHdTaskUserAgent()}
         failed.description = "MP4 directo · MegaPlay"
+        failed.item = originalEpisode
         failed.language = "sub"
         failed.width = 0
         failed.height = 0
@@ -2887,6 +2893,7 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
         failed.fallbackTsRelayEnabled = false
         failed.mediaHeaders = {Referer:pageFinalUrl,"User-Agent":rpHdTaskUserAgent()}
         failed.description = "HLS compatible · MegaPlay · H.264 · "+selected.height.toStr()+"p"
+        failed.item = originalEpisode
         failed.language = "sub"
         failed.width = selected.width
         failed.height = selected.height
