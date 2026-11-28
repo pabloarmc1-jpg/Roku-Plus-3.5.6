@@ -2496,8 +2496,8 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         end if
         if bestAnimeAnswer <> invalid
             bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:animeProviderSuccesses,complete:not rpHdTaskSliceExpired()}
-            print "[RokuPlus anime-provider-test] finish tested="; animeProviderTested; " playable_candidates=1 complete="; not rpHdTaskSliceExpired()
-            print "[RokuPlus source-search] finish result=matched provider=latanime language="; orbitText(bestAnimeAnswer.sourceLanguage,16)
+            print "[RokuPlus anime-provider-test] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " complete="; not rpHdTaskSliceExpired()
+            print "[RokuPlus source-search] finish result=matched provider="; orbitText(bestAnimeAnswer.sourceProvider,32); " language="; orbitText(bestAnimeAnswer.sourceLanguage,16)
             return bestAnimeAnswer
         end if
         answer.message = "No se encontró una fuente reproducible en español ni en idioma original para este episodio."
@@ -2722,7 +2722,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         print "[RokuPlus source-search] alternatives count="; answer.alternatives.count(); " kind="; kind; " discovery=cinemeta"
     end if
     if isAnimeItem and isEpisode then print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_total="; providers.count()+1; " pending=anikoto,anineko; complete="; not rpHdTaskSliceExpired()
-    print "[RokuPlus provider-registry] operation=anime-source-search result=no-source providers_tested="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
+    print "[RokuPlus provider-registry] operation=anime-source-search result=no-source providers_tested="; animeProviderTested; " providers_failed="; animeProviderTested-animeProviderSuccesses.count(); " timed_out="; rpHdTaskSliceExpired()
     print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
 end function
