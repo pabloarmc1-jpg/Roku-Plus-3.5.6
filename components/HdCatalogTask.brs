@@ -2443,6 +2443,8 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
                             for each wantedKey in wantedKeys
                                 if candidateKey <> "" and candidateKey = wantedKey then titleMatches = true
                             end for
+                            ' Keep a compact audit trail while tuning AniList-to-Latanime title mapping.
+                            print "[RokuPlus latanime] candidate title="; left(cardTitle,100); " key="; left(candidateKey,100); " slug="; left(slug,100); " exact="; titleMatches
                             if titleMatches
                                 language = rpHdTaskLatanimeLanguage(cardTitle+" "+slug+" "+rpHdTvmazeText(card))
                                 candidateSeason = rpHdTaskLatanimeSeason(cardTitle+" "+slug)
