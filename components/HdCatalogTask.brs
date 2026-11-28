@@ -2624,10 +2624,11 @@ function rpHdTaskLatanimeEmbeds(html as string) as object
         while finish <= len(html)
             ch = mid(html,finish,1)
             if ch = chr(34) or ch = "'" or ch = " " or ch = chr(9) or ch = chr(10) or ch = chr(13) or ch = "<" or ch = ">" or ch = chr(92) then exit while
-            finish++
+            finish = finish+1
         end while
         if finish > found
-            candidateUrl = left(mid(html,found),finish-found).replaceAll("&amp;","&")
+            candidateUrl = left(mid(html,found),finish-found)
+            candidateUrl = candidateUrl.replaceAll("&amp;","&")
             rpHdTaskLatanimeAddEmbed(embeds,candidateUrl)
         end if
         offset = finish+1
@@ -2638,7 +2639,7 @@ end function
 sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
     url = orbitText(candidateUrl,2048).trim()
     if url = "" then return
-    if not CreateObject("roRegex","^https://(www\\.)?(voe\\.sx|arianathankspecial\\.com|mixdrop\\.(co|to|ag|bz)|dsvplay\\.com|byse\\.su|hexload\\.com|savefiles\\.com|mp4upload\\.com|filemoon\\.sx|lulu\\.to|mxdrop\\.to|pixeldrain\\.com|gofile\\.io|mega\\.nz)/","i").isMatch(url) then return
+    if not CreateObject("roRegex","^https://(www\.)?(voe\.sx|arianathankspecial\.com|mixdrop\.(co|to|ag|bz)|dsvplay\.com|byse\.su|hexload\.com|savefiles\.com|mp4upload\.com|filemoon\.sx|lulu\.to|mxdrop\.to|pixeldrain\.com|gofile\.io|mega\.nz)/","i").isMatch(url) then return
     for each existing in embeds
         if lcase(existing.url) = lcase(url) then return
     end for
