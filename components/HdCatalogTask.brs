@@ -1213,10 +1213,21 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         rpHdTaskBeginResolveSlice(count-i)
         response = fetcher(embed.url,"embed",embedReferer)
         if response.cancelled then return rpHdTaskFailure(answer,response)
+        embedHost = rpHdTaskSafeHost(embed.url)
+        finalEmbedHost = embedHost
+        if orbitText(response.httpFinalUrl,4096) <> "" then finalEmbedHost = rpHdTaskSafeHost(response.httpFinalUrl)
+        embedBytes = len(orbitText(response.body,2097152))
+        print "[RokuPlus anime-embed] provider="; provider; " index="; embedIndex+1; " host="; embedHost; " ok="; response.ok; " status="; orbitInteger(response.httpStatus,9999); " finished="; response.httpFinished; " bytes="; embedBytes; " finalHost="; finalEmbedHost
         if response.ok
             if orbitText(response.httpFinalUrl,4096) <> "" then mediaReferer = response.httpFinalUrl
             masterUrl = rpHdOnlineMediaUrl(response.body)
             voeEmbedPage = instr(1,lcase(embed.url),"voe.sx") > 0 or instr(1,lcase(embed.url),"arianathankspecial.com") > 0
+            if masterUrl <> ""
+                print "[RokuPlus anime-embed] host="; embedHost; " extraction=direct-media-found"
+            else
+                probeBody = lcase(orbitText(response.body,65536))
+                print "[RokuPlus anime-embed] host="; embedHost; " extraction=missing html="; instr(1,probeBody,"<html") > 0; " iframe="; instr(1,probeBody,"<iframe") > 0; " m3u8="; instr(1,probeBody,".m3u8") > 0; " mp4="; instr(1,probeBody,".mp4") > 0; " script="; instr(1,probeBody,"<script") > 0; " bytes="; embedBytes
+            end if
             if masterUrl = "" and voeEmbedPage
                 masterUrl = rpHdOnlineVoeMediaUrl(response.body)
                 if masterUrl <> "" then print "[RokuPlus voe] extractor=obfuscated-json result=hls"
@@ -1273,6 +1284,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 end if
             end if
             if masterUrl <> ""
+                print "[RokuPlus anime-embed] host="; embedHost; " next=manifest-fetch"
                 response = fetcher(masterUrl,"media",mediaReferer)
                 if response.cancelled then return rpHdTaskFailure(answer,response)
                 if response.ok
