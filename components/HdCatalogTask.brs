@@ -300,7 +300,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         for episodeIndex = 1 to totalEpisodes
             animeEpisodes.push({
                 id:"anilist-"+orbitText(animeItem.anilistId,20)+"-S1E"+episodeIndex.toStr()
-                kind:"episode", provider:"all", discoverySource:"anilist"
+                kind:"episode", provider:"all", discoverySource:"anilist", anilistId:orbitText(animeItem.anilistId,20)
                 catalogCategory:"anime", isAnime:true
                 title:"Episodio "+episodeIndex.toStr(), seriesTitle:animeItem.title
                 seriesSearchQuery:orbitText(animeItem.searchQuery,200), seriesAliases:animeItem.aliases, season:1
@@ -2313,7 +2313,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         discovery = {
             kind:"series",title:seriesTitle,year:orbitText(item.year,32)
             imdbId:orbitText(item.seriesImdbId,40),searchQuery:orbitText(item.seriesSearchQuery,200)
-            genres:discoveryGenres
+            genres:discoveryGenres, anilistId:orbitText(item.anilistId,20)
         }
         if type(item.seriesAliases) = "roArray" then discovery.aliases = item.seriesAliases
     end if
@@ -2381,7 +2381,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         ' Anime source discovery is isolated: the generic provider list must never be consulted or counted.
         providers = []
         print "[RokuPlus anime-diagnostic] begin title="; left(orbitText(discovery.title,100),100); " season="; seasonNumber; " episode="; episodeNumber; " language="; orbitText(request.animeLanguage,16)
-        print "[RokuPlus anime-diagnostic] spanish-providers=latanime original-providers=latanime pending=megaplay,anikoto,anineko"
+        print "[RokuPlus anime-diagnostic] primary=megaplay audio=sub fallback=latanime pending=anikoto,anineko"
         print "[RokuPlus anime-diagnostic] movie-series-provider-isolation=true"
     end if
     if providers.count() = 0 and not (isAnimeItem and isEpisode)
@@ -2440,7 +2440,25 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     bestAnimeAnswer = invalid
     animeProviderSuccesses = []
     animeProviderTested = 0
-    if isEpisode and not latanimeAlreadyTried and lcase(orbitText(request.animeLanguage,16)) = "spanish" and lcase(orbitText(item.catalogCategory,40)) = "anime"
+    if isAnimeItem and isEpisode
+        animeProviderTested++
+        print "[RokuPlus anime-diagnostic] provider=megaplay stage=resolve status=started anilistId="; orbitText(discovery.anilistId,20); " episode="; episodeNumber; " audio=sub"
+        megaPlayAnswer = rpHdTaskAnimeMegaPlayResolve(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept)
+        if megaPlayAnswer.ok
+            megaPlayAnswer.operation = "find-source"
+            megaPlayAnswer.requestId = answer.requestId
+            megaPlayAnswer.sourceProvider = "megaplay"
+            megaPlayAnswer.sourceLanguage = "sub"
+            megaPlayAnswer.sourceFallback = false
+            megaPlayAnswer.item = item
+            bestAnimeAnswer = megaPlayAnswer
+            animeProviderSuccesses.push("megaplay")
+            print "[RokuPlus provider-registry] provider=megaplay stage=resolve status=playable-candidate"
+        else
+            print "[RokuPlus provider-registry] provider=megaplay stage=resolve status=failed message="; left(orbitText(megaPlayAnswer.message,140),140)
+        end if
+    end if
+    if bestAnimeAnswer = invalid and isEpisode and not latanimeAlreadyTried and lcase(orbitText(request.animeLanguage,16)) = "spanish" and lcase(orbitText(item.catalogCategory,40)) = "anime"
         print "[RokuPlus anime-diagnostic] provider=latanime stage=search status=started language=spanish"
         animeProviderTested++
         latanimeAnswer = rpHdTaskLatanimeFindEpisode(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,request)
@@ -2477,7 +2495,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             print "[RokuPlus anime-language] fallback=deferred reason=playback-priority"
         end if
         if bestAnimeAnswer <> invalid
-            bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:["latanime"],complete:not rpHdTaskSliceExpired()}
+            bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:animeProviderSuccesses,complete:not rpHdTaskSliceExpired()}
             print "[RokuPlus anime-provider-test] finish tested="; animeProviderTested; " playable_candidates=1 complete="; not rpHdTaskSliceExpired()
             print "[RokuPlus source-search] finish result=matched provider=latanime language="; orbitText(bestAnimeAnswer.sourceLanguage,16)
             return bestAnimeAnswer
@@ -2679,7 +2697,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     if isAnimeItem and isEpisode
         ' These anime sources are known candidates but are not yet ported into
         ' the native BrightScript pipeline. Report them explicitly, not as failures.
-        for each pendingAnimeProvider in ["megaplay","anikoto","anineko"]
+        for each pendingAnimeProvider in ["anikoto","anineko"]
             print "[RokuPlus provider-registry] provider="; pendingAnimeProvider; " stage=integration status=not_integrated"
             print "[RokuPlus anime-diagnostic] provider="; pendingAnimeProvider; " stage=integration status=not_integrated reason=no-native-adapter"
         end for
@@ -2688,7 +2706,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:animeProviderSuccesses,complete:not rpHdTaskSliceExpired()}
         print "[RokuPlus anime-provider-test] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " complete="; not rpHdTaskSliceExpired()
         print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_remaining="; providers.count()+1-animeProviderTested; " complete="; not rpHdTaskSliceExpired()
-        print "[RokuPlus anime-provider-test] pending=megaplay,anikoto,anineko"
+        print "[RokuPlus anime-provider-test] pending=anikoto,anineko"
         print "[RokuPlus source-search] finish result=matched provider="; bestAnimeAnswer.sourceProvider
         return bestAnimeAnswer
     end if
@@ -2703,10 +2721,217 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         answer.alternativeKind = kind
         print "[RokuPlus source-search] alternatives count="; answer.alternatives.count(); " kind="; kind; " discovery=cinemeta"
     end if
-    if isAnimeItem and isEpisode then print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_total="; providers.count()+1; " pending=megaplay,anikoto,anineko; complete="; not rpHdTaskSliceExpired()
+    if isAnimeItem and isEpisode then print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_total="; providers.count()+1; " pending=anikoto,anineko; complete="; not rpHdTaskSliceExpired()
     print "[RokuPlus provider-registry] operation=anime-source-search result=no-source providers_tested="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
+end function
+
+
+' MegaPlay is the primary native Anime resolver. The AniList ID is carried
+' from AniList catalog records; only MegaPlay's documented public player/API flow is used.
+function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as object, seasonNumber as integer, episodeNumber as integer, answer as object, fetcher as dynamic, decoderAccept as dynamic) as object
+    failed = {ok:false,cancelled:false,message:"MegaPlay no devolvió una fuente reproducible."}
+    anilistId = orbitInteger(discovery.anilistId,99999999)
+    if anilistId < 1 or episodeNumber < 1
+        failed.message = "Falta el identificador AniList o el número de episodio."
+        print "[RokuPlus anime-megaplay] result=skipped reason=missing-anilist-identity"
+        return failed
+    end if
+    if seasonNumber > 1
+        failed.message = "MegaPlay directo no admite temporadas divididas en este registro."
+        print "[RokuPlus anime-megaplay] result=skipped reason=unsupported-season season="; seasonNumber
+        return failed
+    end if
+    transfer = CreateObject("roUrlTransfer")
+    pageUrl = "https://megaplay.buzz/stream/ani/"+anilistId.toStr()+"/"+episodeNumber.toStr()+"/sub"
+    rpHdTaskBeginSlice(3)
+    page = fetcher(pageUrl,"anime-megaplay-page","https://megaplay.buzz/")
+    if page.cancelled then return rpHdTaskFailure(failed,page)
+    if not page.ok
+        failed.message = "MegaPlay no respondió al solicitar el episodio."
+        print "[RokuPlus anime-megaplay] stage=player-page status=failed http="; orbitInteger(page.httpStatus,9999)
+        return failed
+    end if
+    pageBody = orbitText(page.body,2097152)
+    pageFinalUrl = orbitText(page.httpFinalUrl,4096)
+    if pageFinalUrl = "" then pageFinalUrl = pageUrl
+    dataIdMatch = CreateObject("roRegex","data-id\s*=\s*["+chr(34)+"']([^"+chr(34)+"']+)["+chr(34)+"']","i").match(pageBody)
+    if dataIdMatch.count() < 2
+        frameMatch = CreateObject("roRegex","<iframe[^>]+src\s*=\s*["+chr(34)+"']([^"+chr(34)+"']+)["+chr(34)+"']","i").match(pageBody)
+        if frameMatch.count() >= 2
+            frameUrl = frameMatch[1]
+            if left(frameUrl,2) = "//" then frameUrl = "https:"+frameUrl
+            if left(frameUrl,8) <> "https://"
+                if left(frameUrl,1) = "/"
+                    frameUrl = "https://megaplay.buzz"+frameUrl
+                else
+                    frameUrl = "https://megaplay.buzz/"+frameUrl
+                end if
+            end if
+            if rpHdTaskAllowedUrl(frameUrl,"anime-megaplay-page")
+                print "[RokuPlus anime-megaplay] stage=iframe action=follow host=megaplay.buzz"
+                rpHdTaskBeginSlice(2)
+                frame = fetcher(frameUrl,"anime-megaplay-page",pageUrl)
+                if frame.cancelled then return rpHdTaskFailure(failed,frame)
+                if frame.ok
+                    pageBody = orbitText(frame.body,2097152)
+                    pageFinalUrl = orbitText(frame.httpFinalUrl,4096)
+                    if pageFinalUrl = "" then pageFinalUrl = frameUrl
+                    dataIdMatch = CreateObject("roRegex","data-id\s*=\s*["+chr(34)+"']([^"+chr(34)+"']+)["+chr(34)+"']","i").match(pageBody)
+                else
+                    print "[RokuPlus anime-megaplay] stage=iframe status=failed http="; orbitInteger(frame.httpStatus,9999)
+                end if
+            else
+                print "[RokuPlus anime-megaplay] stage=iframe status=skipped_untrusted"
+            end if
+        end if
+    end if
+    if dataIdMatch.count() < 2
+        failed.message = "MegaPlay no publicó el identificador de su reproductor."
+        print "[RokuPlus anime-megaplay] stage=player-page result=data-id-missing bytes="; len(pageBody)
+        return failed
+    end if
+    fileId = dataIdMatch[1].trim()
+    if len(fileId) < 1 or len(fileId) > 256 or not CreateObject("roRegex","^[A-Za-z0-9_+=/-]+$","").isMatch(fileId)
+        failed.message = "MegaPlay devolvió un identificador de reproductor no válido."
+        print "[RokuPlus anime-megaplay] stage=player-page result=data-id-rejected"
+        return failed
+    end if
+    apiUrl = "https://megaplay.buzz/stream/getSources?id="+transfer.escape(fileId)+"&id="+transfer.escape(fileId)
+    print "[RokuPlus anime-megaplay] stage=player-page result=data-id-found"
+    rpHdTaskBeginSlice(2)
+    sourceResponse = fetcher(apiUrl,"anime-megaplay-api",pageFinalUrl)
+    if sourceResponse.cancelled then return rpHdTaskFailure(failed,sourceResponse)
+    if not sourceResponse.ok
+        failed.message = "MegaPlay no pudo entregar los datos de video."
+        print "[RokuPlus anime-megaplay] stage=getSources status=failed http="; orbitInteger(sourceResponse.httpStatus,9999)
+        return failed
+    end if
+    payload = ParseJson(sourceResponse.body)
+    if type(payload) <> "roAssociativeArray" or type(payload.sources) <> "roAssociativeArray"
+        failed.message = "MegaPlay devolvió datos de video con formato inesperado."
+        print "[RokuPlus anime-megaplay] stage=getSources result=invalid-json-shape"
+        return failed
+    end if
+    rawMediaUrl = orbitText(payload.sources.file,4096)
+    mediaUrl = rpHdOnlineCdn(rawMediaUrl)
+    if mediaUrl = ""
+        failed.message = "MegaPlay devolvió un CDN que no está en la lista permitida."
+        print "[RokuPlus anime-megaplay] stage=source result=untrusted-host host="; rpHdTaskSafeHost(rawMediaUrl)
+        return failed
+    end if
+    mediaLower = lcase(mediaUrl)
+    if CreateObject("roRegex","\.mp4(\?|$)","i").isMatch(mediaUrl)
+        failed.url = mediaUrl
+        failed.streamFormat = "mp4"
+        failed.segmentUrls = []
+        failed.segmentDurations = []
+        failed.tsRelayEnabled = false
+        failed.fallbackTsRelayEnabled = false
+        failed.mediaHeaders = {Referer:pageFinalUrl,"User-Agent":rpHdTaskUserAgent()}
+        failed.description = "MP4 directo · MegaPlay"
+        failed.language = "sub"
+        failed.width = 0
+        failed.height = 0
+        failed.codecs = ""
+        failed.seekSupport = "native-mp4"
+        failed.sourceHost = "megaplay"
+        failed.ok = true
+        failed.message = ""
+        print "[RokuPlus anime-megaplay] result=accepted format=mp4 host="; rpHdTaskSafeHost(mediaUrl)
+        m.hdProviderDeadline = 0
+        return failed
+    end if
+    if instr(1,mediaLower,".m3u8") = 0
+        failed.message = "MegaPlay no devolvió una lista HLS reconocible."
+        print "[RokuPlus anime-megaplay] stage=source result=unsupported-format"
+        return failed
+    end if
+    rpHdTaskBeginSlice(2)
+    masterResponse = fetcher(mediaUrl,"media",pageFinalUrl)
+    if masterResponse.cancelled then return rpHdTaskFailure(failed,masterResponse)
+    if not masterResponse.ok
+        failed.message = "No se pudo leer la lista HLS de MegaPlay."
+        print "[RokuPlus anime-megaplay] stage=manifest status=failed http="; orbitInteger(masterResponse.httpStatus,9999)
+        return failed
+    end if
+    master = rpHdOnlineMaster(masterResponse.body,mediaUrl)
+    if master.variants.count() > 0
+        choices = rpHdTaskStableVariants(master,decoderAccept)
+        if choices.count() = 0
+            failed.message = "El HLS de MegaPlay no contiene una variante compatible con Roku."
+            print "[RokuPlus anime-megaplay] stage=manifest result=no-compatible-variant variants="; master.variants.count()
+            return failed
+        end if
+        selected = choices[0]
+        rpHdTaskBeginSlice(2)
+        child = fetcher(selected.url,"media",pageFinalUrl)
+        if child.cancelled then return rpHdTaskFailure(failed,child)
+        if not child.ok or not rpHdTaskMediaManifest(child.body,selected.url)
+            failed.message = "La variante HLS de MegaPlay no contiene segmentos reproducibles."
+            print "[RokuPlus anime-megaplay] stage=variant result=manifest-rejected"
+            return failed
+        end if
+        if not rpHdTaskNativeDefaultAudioSafe(master,selected,decoderAccept)
+            failed.message = "La variante HLS de MegaPlay no pasó la validación del decodificador Roku."
+            print "[RokuPlus anime-megaplay] stage=variant result=decoder-rejected"
+            return failed
+        end if
+        failed.subtitleTracks = master.subtitleTracks
+        failed.url = mediaUrl
+        failed.streamFormat = "hls"
+        failed.segmentUrls = []
+        failed.segmentDurations = []
+        failed.tsRelayEnabled = false
+        failed.fallbackTsRelayEnabled = false
+        failed.mediaHeaders = {Referer:pageFinalUrl,"User-Agent":rpHdTaskUserAgent()}
+        failed.description = "HLS compatible · MegaPlay · H.264 · "+selected.height.toStr()+"p"
+        failed.language = "sub"
+        failed.width = selected.width
+        failed.height = selected.height
+        failed.codecs = selected.codecs
+        failed.seekSupport = "native-hls"
+        failed.sourceHost = "megaplay"
+        failed.ok = true
+        failed.message = ""
+        print "[RokuPlus anime-megaplay] result=accepted format=hls height="; selected.height; " subtitles="; failed.subtitleTracks.count()
+        m.hdProviderDeadline = 0
+        return failed
+    end if
+    if rpHdTaskMediaManifest(masterResponse.body,mediaUrl)
+        segmentUrl = rpHdTaskFirstSegment(masterResponse.body,mediaUrl)
+        if rpHdTaskTsSegment(segmentUrl)
+            rpHdTaskBeginSlice(2)
+            sample = fetcher(segmentUrl,"sample",pageFinalUrl)
+            if sample.cancelled then return rpHdTaskFailure(failed,sample)
+            if sample.ok and rpHdOnlineMuxedAvcAac(sample.bytes)
+                failed.subtitleTracks = master.subtitleTracks
+                failed.url = mediaUrl
+                failed.streamFormat = "hls"
+                failed.segmentUrls = []
+                failed.segmentDurations = []
+                failed.tsRelayEnabled = false
+                failed.fallbackTsRelayEnabled = false
+                failed.mediaHeaders = {Referer:pageFinalUrl,"User-Agent":rpHdTaskUserAgent()}
+                failed.description = "HLS validado · MegaPlay · H.264/AAC"
+                failed.language = "sub"
+                failed.width = 0
+                failed.height = 0
+                failed.codecs = "avc-aac-ts"
+                failed.seekSupport = "native-hls"
+                failed.sourceHost = "megaplay"
+                failed.ok = true
+                failed.message = ""
+                print "[RokuPlus anime-megaplay] result=accepted format=hls mode=validated-media-playlist"
+                m.hdProviderDeadline = 0
+                return failed
+            end if
+        end if
+    end if
+    failed.message = "La lista HLS de MegaPlay no pasó la validación de reproducción."
+    print "[RokuPlus anime-megaplay] stage=manifest result=not-playable variants="; master.variants.count()
+    return failed
 end function
 
 
@@ -4358,6 +4583,12 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if role = "latanime-page"
         return CreateObject("roRegex","^https://(www\.)?latanime\.org/(buscar\?q=[A-Za-z0-9%._~!*'()+-]+|anime/[a-z0-9-]+/?|ver/[a-z0-9-]+/?)$","i").isMatch(endpoint)
     end if
+    if role = "anime-megaplay-page"
+        return CreateObject("roRegex","^https://(www\.)?megaplay\.buzz/stream/(ani/[0-9]{1,10}/[0-9]{1,4}|s-2/[0-9]{1,12})/sub$","i").isMatch(endpoint)
+    end if
+    if role = "anime-megaplay-api"
+        return CreateObject("roRegex","^https://megaplay\.buzz/stream/getSources\?id=[A-Za-z0-9%._~!+*/=-]{1,768}(&id=[A-Za-z0-9%._~!+*/=-]{1,768})?$","i").isMatch(endpoint)
+    end if
     if role = "embed"
         if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","i").isMatch(endpoint) then return true
         if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","i").isMatch(endpoint) then return true
@@ -4399,9 +4630,13 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     transfer.enablePeerVerification(true)
     transfer.enableHostVerification(true)
     transfer.addHeader("User-Agent",rpHdTaskUserAgent())
-    if role = "api" or role = "tvmaze" or role = "cinemeta" or role = "anilist" or role = "translate"
+    if role = "api" or role = "tvmaze" or role = "cinemeta" or role = "anilist" or role = "translate" or role = "anime-megaplay-api"
         transfer.addHeader("Accept","application/json")
         if referer = "" and instr(1,endpoint,"https://cinehax.org/api/rest/v1/") = 1 then referer = "https://cinehax.org/"
+    end if
+    if role = "anime-megaplay-api"
+        transfer.addHeader("Accept","application/json,text/plain,*/*")
+        transfer.addHeader("Origin","https://megaplay.buzz")
     end if
     if referer <> "" then transfer.addHeader("Referer",referer)
     limit = 2097152
@@ -4516,6 +4751,16 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         redirectAllowed = false
         answer.message = "Latanime redirigió a un dominio no permitido."
         print "[RokuPlus latanime] redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
+    end if
+    if role = "anime-megaplay-page" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"anime-megaplay-page")
+        redirectAllowed = false
+        answer.message = "MegaPlay redirigió la página a un dominio no permitido."
+        print "[RokuPlus anime-megaplay] page_redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
+    end if
+    if role = "anime-megaplay-api" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"anime-megaplay-api")
+        redirectAllowed = false
+        answer.message = "MegaPlay redirigió la API a un dominio no permitido."
+        print "[RokuPlus anime-megaplay] api_redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
     end if
     if role = "embed" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"embed")
         redirectAllowed = false
