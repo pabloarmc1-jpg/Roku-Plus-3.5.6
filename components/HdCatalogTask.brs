@@ -1288,7 +1288,10 @@ sub rpHdTaskAnimePageProbe(body as dynamic, host as string)
     hasXhr = instr(1,lowerPage,"xmlhttprequest") > 0
     hasFetch = instr(1,lowerPage,"fetch(") > 0
     hasChallenge = instr(1,lowerPage,"captcha") > 0 or instr(1,lowerPage,"verify you are human") > 0 or instr(1,lowerPage,"challenge-platform") > 0
-    print "[RokuPlus anime-page-probe] host="; host; " bytes="; len(orbitText(body,2097152)); " scripts="; scriptCount; " scriptSrc="; hasScriptSrc; " jwplayer="; hasJwplayer; " playerjs="; hasPlayerjs; " sources="; hasSources; " fileKey="; hasFileKey; " mp4="; hasMp4; " m3u8="; hasM3u8; " eval="; hasEval; " atob="; hasAtob; " xhr="; hasXhr; " fetch="; hasFetch; " challenge="; hasChallenge
+    print "[RokuPlus anime-page-probe] host="; host; " bytes="; len(orbitText(body,2097152)); " scripts="; scriptCount
+    print "[RokuPlus anime-page-probe] scriptSrc="; hasScriptSrc; " jwplayer="; hasJwplayer; " playerjs="; hasPlayerjs; " sources="; hasSources; " fileKey="; hasFileKey
+    print "[RokuPlus anime-page-probe] mp4="; hasMp4; " m3u8="; hasM3u8; " eval="; hasEval; " atob="; hasAtob
+    print "[RokuPlus anime-page-probe] xhr="; hasXhr; " fetch="; hasFetch; " challenge="; hasChallenge
 end sub
 
 function rpHdTaskLatanimeIframeUrl(html as dynamic, currentUrl as dynamic) as string
