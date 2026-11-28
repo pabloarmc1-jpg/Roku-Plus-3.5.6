@@ -2212,8 +2212,16 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     ' provider; the strict title/year and episode-number checks remain unchanged.
     if isEpisode
         episodeQueries = []
+        ' AniList anime records carry romaji, English, native and user-preferred
+        ' aliases. Try a small bounded set against each compatible anime source
+        ' instead of searching only the primary display title.
         rpHdTaskAppendUniqueSearchQuery(episodeQueries,cinemetaTitle)
         if episodeQueries.count() = 0 then rpHdTaskAppendUniqueSearchQuery(episodeQueries,originalQuery)
+        if isAnimeItem and type(discovery.aliases) = "roArray"
+            for each animeAlias in discovery.aliases
+                if episodeQueries.count() < 4 then rpHdTaskAppendUniqueSearchQuery(episodeQueries,animeAlias)
+            end for
+        end if
         searchQueries = episodeQueries
     end if
     failures = 0
