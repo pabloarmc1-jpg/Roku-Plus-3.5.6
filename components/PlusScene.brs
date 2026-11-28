@@ -606,7 +606,7 @@ sub fetched(event as object)
         loadEpisodeSeason()
         m.top.setFocus(true)
         return
-    else if context.operation = "catalog" or context.operation = "cinemeta-catalog" or context.operation = "search"
+    else if context.operation = "catalog" or context.operation = "cinemeta-catalog" or context.operation = "anime-catalog" or context.operation = "search"
         if context.operation = "search"
             if answer.partial <> true and answer.items.count() > 0
                 cacheQuery = lcase(orbitText(context.query,120))
