@@ -2152,7 +2152,8 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     if triedProvider = source then skipProvider = true
                 end for
             end if
-            if not skipProvider and (source <> "cinecalidad" or kind <> "series") then providers.push(source)
+            allowSeriesProvider = (source <> "cinecalidad" or kind <> "series" or isAnimeItem)
+            if not skipProvider and allowSeriesProvider then providers.push(source)
         end if
     end for
     ' For automatic source discovery, prefer providers that expose Vimeos first,
@@ -2166,6 +2167,11 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         end for
     end for
     providers = orderedProviders
+    if isAnimeItem and isEpisode
+        print "[RokuPlus anime-diagnostic] begin title="; left(cinemetaTitle,100); " season="; seasonNumber; " episode="; episodeNumber; " language="; orbitText(request.animeLanguage,16)
+        print "[RokuPlus anime-diagnostic] integrated=latanime,cinehax,cinecalidad,allcalidad,lamovie,seriesmetro pending=megaplay,anikoto,anineko"
+        print "[RokuPlus anime-diagnostic] test-plan integrated-count="; providers.count()+1; " pending-count=3"
+    end if
     if providers.count() = 0
         answer.message = "No hay proveedores compatibles para este tipo de contenido."
         print "[RokuPlus source-search] result=no-providers kind="; kind
@@ -2301,6 +2307,13 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
             providerQueries++
             catalog = rpHdTaskCatalogPage(source,kind,1,searchQuery,fetcher)
+            if isAnimeItem and isEpisode
+                catalogStatus = "ok"
+                if not catalog.ok then catalogStatus = "http-error"
+                catalogCount = 0
+                if type(catalog.items) = "roArray" then catalogCount = catalog.items.count()
+                print "[RokuPlus anime-diagnostic] provider="; source; " stage=search status="; catalogStatus; " query="; left(searchQuery,100); " candidates="; catalogCount; " http="; orbitInteger(catalog.httpStatus,9999); " message="; left(orbitText(catalog.message,100),100)
+            end if
             if catalog.cancelled and m.top.cancelRequested then return rpHdTaskFailure(answer,catalog)
             if not catalog.ok
                 providerFailed = true
@@ -2323,6 +2336,11 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     if kind = "series" then operation = "meta"
                     sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99),animeLanguage:orbitText(request.animeLanguage,16)}
                     sourceAnswer = rpHdTaskExecute(sourceRequest,fetcher,decoderAccept,sources)
+                    if isAnimeItem and isEpisode
+                        resolveStatus = "failed"
+                        if sourceAnswer.ok then resolveStatus = "candidate"
+                        print "[RokuPlus anime-diagnostic] provider="; source; " stage=resolve status="; resolveStatus; " message="; left(orbitText(sourceAnswer.message,120),120); " sourceHost="; orbitText(sourceAnswer.sourceHost,40); " media="; orbitText(sourceAnswer.mediaUrl,180)
+                    end if
                     if sourceAnswer.ok and isEpisode
                         sourceSeries = sourceAnswer.item
                         sourceAnswer = rpHdTaskResolveAlternateEpisode(sourceSeries,item,source,answer.requestId,request,fetcher,decoderAccept,sources)
@@ -2376,6 +2394,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             end if
         end for
         print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
+        if isAnimeItem and isEpisode then print "[RokuPlus anime-diagnostic] provider="; source; " stage=summary queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " resolve_failed="; providerUnavailable; " matched="; providerMatched
         if isAnimeItem and isEpisode
             animeProviderTested++
             if not providerMatched
@@ -2429,11 +2448,13 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         ' the native BrightScript pipeline. Report them explicitly, not as failures.
         for each pendingAnimeProvider in ["megaplay","anikoto","anineko"]
             print "[RokuPlus provider-registry] provider="; pendingAnimeProvider; " stage=integration status=not_integrated"
+            print "[RokuPlus anime-diagnostic] provider="; pendingAnimeProvider; " stage=integration status=not_integrated reason=no-native-adapter"
         end for
     end if
     if isAnimeItem and isEpisode and bestAnimeAnswer <> invalid
         bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:animeProviderSuccesses,complete:not rpHdTaskSliceExpired()}
         print "[RokuPlus anime-provider-test] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " complete="; not rpHdTaskSliceExpired()
+        print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_remaining="; max(0,providers.count()+1-animeProviderTested); " complete="; not rpHdTaskSliceExpired()
         print "[RokuPlus anime-provider-test] pending=megaplay,anikoto,anineko"
         print "[RokuPlus source-search] finish result=matched provider="; bestAnimeAnswer.sourceProvider
         return bestAnimeAnswer
@@ -2449,6 +2470,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         answer.alternativeKind = kind
         print "[RokuPlus source-search] alternatives count="; answer.alternatives.count(); " kind="; kind; " discovery=cinemeta"
     end if
+    if isAnimeItem and isEpisode then print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_total="; providers.count()+1; " pending=megaplay,anikoto,anineko; " complete="; not rpHdTaskSliceExpired()
     print "[RokuPlus provider-registry] operation=anime-source-search result=no-source providers_tested="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
