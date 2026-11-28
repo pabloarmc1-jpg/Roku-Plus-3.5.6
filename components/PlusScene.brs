@@ -618,9 +618,9 @@ sub fetched(event as object)
         loadEpisodeSeason()
         m.top.setFocus(true)
         return
-    else if context.operation = "catalog" or context.operation = "cinemeta-catalog" or context.operation = "anime-catalog" or context.operation = "search"
-        if context.operation = "search"
-            if answer.partial <> true and answer.items.count() > 0
+    else if context.operation = "catalog" or context.operation = "cinemeta-catalog" or context.operation = "anime-catalog" or context.operation = "search" or context.operation = "anime-search"
+        if context.operation = "search" or context.operation = "anime-search"
+            if context.operation = "search" and answer.partial <> true and answer.items.count() > 0
                 cacheQuery = lcase(orbitText(context.query,120))
                 if cacheQuery <> ""
                     m.searchCache = {key:m.catalogMode + "|" + m.hdProvider + "|all|" + cacheQuery,items:answer.items,clock:CreateObject("roTimespan")}
@@ -4364,7 +4364,9 @@ sub playDetail()
     end if
     ' The resolving screen is temporary and must never become viewBeforePlayer.
     if not keepActiveEpisode then m.view = "source-resolving"
-    if orbitText(m.detail.discoverySource,32) = "cinemeta" or orbitText(m.detail.discoverySource,32) = "anilist"
+    detailIsAnime = (m.detail.doesExist("isAnime") and m.detail.isAnime = true) or (m.detail.doesExist("catalogCategory") and lcase(orbitText(m.detail.catalogCategory,24)) = "anime")
+    if detailIsAnime then m.detail.discoverySource = "anilist"
+    if detailIsAnime or orbitText(m.detail.discoverySource,32) = "cinemeta" or orbitText(m.detail.discoverySource,32) = "anilist"
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
     end if
