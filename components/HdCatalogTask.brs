@@ -247,6 +247,9 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
     if operation = "cinemeta-catalog"
         return rpHdTaskCinemetaBrowseCatalog(request,answer,fetcher)
     end if
+    if operation = "anime-catalog"
+        return rpHdTaskAniListCatalog(request,answer,fetcher)
+    end if
     if operation = "meta" and type(request.item) = "roAssociativeArray"
         if orbitText(request.item.discoverySource,32) = "anilist"
             answer.item = request.item
@@ -255,37 +258,36 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
             answer.item.seasons = [{number:1,episodes:[],loaded:false}]
             answer.item.seasonNumbers = [1]
             return answer
-        end if
-    if operation = "episodes" and type(request.item) = "roAssociativeArray"
-        if orbitText(request.item.discoverySource,32) = "anilist"
-            animeItem = request.item
-            animeEpisodes = []
-            totalEpisodes = orbitInteger(animeItem.episodeCount,9999)
-            for episodeIndex = 1 to totalEpisodes
-                animeEpisodes.push({
-                    id:"anilist-"+orbitText(animeItem.anilistId,20)+"-S1E"+episodeIndex.toStr()
-                    kind:"episode", provider:"all", discoverySource:"anilist"
-                    catalogCategory:"anime", isAnime:true
-                    title:"Episodio "+episodeIndex.toStr(), seriesTitle:animeItem.title
-                    seriesSearchQuery:orbitText(animeItem.searchQuery,200), seriesAliases:animeItem.aliases, season:1
-                    episode:episodeIndex, year:orbitText(animeItem.year,12)
-                    seriesImdbId:"", genres:animeItem.genres
-                })
-            end for
-            answer.seasons = [{number:1,episodes:animeEpisodes,loaded:true}]
-            answer.seasonNumbers = [1]
-            answer.season = 1
-            answer.ok = true
-            answer.message = ""
-            return answer
-        end if
-    end if
-        if orbitText(request.item.discoverySource,32) = "cinemeta"
+        else if orbitText(request.item.discoverySource,32) = "cinemeta"
             answer.item = request.item
             answer.ok = true
             answer.message = ""
             return rpHdCinemetaEnrichAnswer(answer,request,fetcher)
         end if
+    end if
+    if operation = "episodes" and type(request.item) = "roAssociativeArray" and orbitText(request.item.discoverySource,32) = "anilist"
+        animeItem = request.item
+        animeEpisodes = []
+        totalEpisodes = orbitInteger(animeItem.episodeCount,9999)
+        if totalEpisodes < 1 then totalEpisodes = 12
+        for episodeIndex = 1 to totalEpisodes
+            animeEpisodes.push({
+                id:"anilist-"+orbitText(animeItem.anilistId,20)+"-S1E"+episodeIndex.toStr()
+                kind:"episode", provider:"all", discoverySource:"anilist"
+                catalogCategory:"anime", isAnime:true
+                title:"Episodio "+episodeIndex.toStr(), seriesTitle:animeItem.title
+                seriesSearchQuery:orbitText(animeItem.searchQuery,200), seriesAliases:animeItem.aliases, season:1
+                episode:episodeIndex, year:orbitText(animeItem.year,12)
+                seriesImdbId:"", genres:animeItem.genres
+            })
+        end for
+        answer.seasons = [{number:1,episodes:animeEpisodes,loaded:true}]
+        answer.seasonNumbers = [1]
+        answer.season = 1
+        answer.ok = true
+        answer.message = ""
+        print "[RokuPlus anime-episodes] source=anilist title="; left(orbitText(animeItem.title,120),120); " episodes="; totalEpisodes
+        return answer
     end if
     if operation = "catalog"
         if kind <> "movie" and kind <> "series" then return answer
@@ -1724,6 +1726,100 @@ function rpHdTaskTranslateAnimeTitle(query as string, fetcher as dynamic) as str
     if translated = "" or lcase(translated) = lcase(query.trim()) then return ""
     print "[RokuPlus anime-id] source=translation original="; query; " translated="; translated
     return translated
+end function
+
+function rpHdTaskAniListCatalog(request as object, answer as object, fetcher as dynamic) as object
+    page = (orbitInteger(request.offset,200000) \\ 20) + 1
+    sortValue = "POPULARITY_DESC"
+    if lcase(orbitText(request.sort,20)) = "recent" then sortValue = "START_DATE_DESC"
+    genreValue = ""
+    genreLabel = orbitText(request.genre,80)
+    if genreLabel = "Acción" then genreValue = "Action"
+    if genreLabel = "Comedia" then genreValue = "Comedy"
+    if genreLabel = "Drama" then genreValue = "Drama"
+    if genreLabel = "Terror" then genreValue = "Horror"
+    if genreLabel = "Ciencia ficción" then genreValue = "Sci-Fi"
+    if genreLabel = "Animación" then genreValue = "Action"
+    genreClause = ""
+    if genreValue <> "" then genreClause = ", genre:" + chr(34) + genreValue + chr(34)
+    graphQuery = "query ($page: Int) { Page(page: $page, perPage: 20) { pageInfo { hasNextPage } media(type: ANIME, sort: "+sortValue+genreClause+") { id format seasonYear episodes title { romaji english native userPreferred } synonyms coverImage { large } description(asHtml: false) genres } } }"
+    payload = {query:graphQuery,variables:{page:page}}
+    transfer = CreateObject("roUrlTransfer")
+    endpoint = "https://graphql.anilist.co/?payload=" + transfer.escape(FormatJson(payload))
+    response = fetcher(endpoint,"anilist","")
+    if response.cancelled then return rpHdTaskFailure(answer,response)
+    if not response.ok
+        answer.message = "AniList no pudo cargar el catálogo de anime."
+        print "[RokuPlus anime-catalog] result=error page="; page
+        return answer
+    end if
+    data = ParseJson(response.body)
+    if type(data) <> "roAssociativeArray" or type(data.data) <> "roAssociativeArray" or type(data.data.Page) <> "roAssociativeArray"
+        answer.message = "AniList devolvió un catálogo no válido."
+        print "[RokuPlus anime-catalog] result=invalid-json page="; page
+        return answer
+    end if
+    pageData = data.data.Page
+    mediaList = pageData.media
+    items = []
+    if type(mediaList) = "roArray"
+        for each media in mediaList
+            if type(media) = "roAssociativeArray"
+                animeId = orbitInteger(media.id,2147483647)
+                titles = media.title
+                if animeId > 0 and type(titles) = "roAssociativeArray"
+                    displayTitle = orbitText(titles.english,200).trim()
+                    if displayTitle = "" then displayTitle = orbitText(titles.romaji,200).trim()
+                    if displayTitle = "" then displayTitle = orbitText(titles.userPreferred,200).trim()
+                    if displayTitle = "" then displayTitle = orbitText(titles.native,200).trim()
+                    if displayTitle <> ""
+                        animeKind = "series"
+                        if lcase(orbitText(media.format,20)) = "movie" then animeKind = "movie"
+                        aliases = []
+                        for each titleKey in ["romaji","english","native","userPreferred"]
+                            aliasTitle = orbitText(titles[titleKey],200).trim()
+                            if aliasTitle <> "" and aliasTitle <> displayTitle then aliases.push(aliasTitle)
+                        end for
+                        if type(media.synonyms) = "roArray"
+                            for each synonym in media.synonyms
+                                synonymText = orbitText(synonym,200).trim()
+                                if synonymText <> "" then aliases.push(synonymText)
+                            end for
+                        end if
+                        genres = []
+                        if type(media.genres) = "roArray"
+                            for each genre in media.genres
+                                genreText = orbitText(genre,60).trim()
+                                if genreText <> "" then genres.push(lcase(genreText))
+                            end for
+                        end if
+                        poster = ""
+                        if type(media.coverImage) = "roAssociativeArray" then poster = orbitText(media.coverImage.large,2048)
+                        items.push({
+                            id:"anilist-"+animeId.toStr(), anilistId:animeId, kind:animeKind
+                            provider:"all", discoverySource:"anilist", library:"hd-online"
+                            catalogCategory:"anime", isAnime:true, title:displayTitle
+                            searchQuery:displayTitle, year:orbitText(media.seasonYear,4)
+                            description:orbitText(media.description,4000)
+                            poster:poster, background:poster, genres:genres, aliases:aliases
+                            runtime:0, language:"", seasons:[], seasonNumbers:[1]
+                            episodeCount:orbitInteger(media.episodes,9999), source:"AniList"
+                        })
+                    end if
+                end if
+            end if
+        end for
+    end if
+    answer.items = items
+    answer.ok = true
+    answer.message = ""
+    answer.hasMore = false
+    if type(pageData.pageInfo) = "roAssociativeArray" then answer.hasMore = pageData.pageInfo.hasNextPage = true
+    answer.nextSkip = page * 20
+    answer.total = items.count()
+    answer.totalKnown = false
+    print "[RokuPlus anime-catalog] page="; page; " genre="; genreLabel; " results="; items.count(); " hasMore="; answer.hasMore
+    return answer
 end function
 
 function rpHdTaskAniListSearch(query as string, fetcher as dynamic) as object
