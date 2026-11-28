@@ -1265,11 +1265,11 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
     count = embeds.count()
     if count > 12 then count = 12
     answer.embedAttempts = 0
-    if animeDiagnostic then rpHdTaskAnimeServerPreflight(embeds,provider,fetcher,embedReferer,count)
     answer.variantAttempts = 0
     embedOffset = 0
     if count > 0 then embedOffset = retry mod count
     if embedReferer = "" then embedReferer = rpHdTaskProviderReferer(provider)
+    if animeDiagnostic and count > 0 then rpHdTaskAnimeServerPreflight(embeds,provider,fetcher,embedReferer,count)
     for i = 0 to count-1
         embedIndex = (i+embedOffset) mod count
         embed = embeds[embedIndex]
@@ -2439,7 +2439,8 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     candidate = matches[0]
                     operation = "resolve"
                     if kind = "series" then operation = "meta"
-                    sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99),animeLanguage:orbitText(request.animeLanguage,16),animeDiagnostic:isAnimeItem and isEpisode}
+                    sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99),animeLanguage:orbitText(request.animeLanguage,16),animeDiagnostic:false}
+                    if isAnimeItem and isEpisode then sourceRequest.animeDiagnostic = true
                     sourceAnswer = rpHdTaskExecute(sourceRequest,fetcher,decoderAccept,sources)
                     if isAnimeItem and isEpisode
                         resolveStatus = "failed"
