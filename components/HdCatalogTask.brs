@@ -248,6 +248,14 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         return rpHdTaskCinemetaBrowseCatalog(request,answer,fetcher)
     end if
     if operation = "meta" and type(request.item) = "roAssociativeArray"
+        if orbitText(request.item.discoverySource,32) = "anilist"
+            answer.item = request.item
+            answer.ok = true
+            answer.message = ""
+            answer.item.seasons = [{number:1,episodes:[],loaded:false}]
+            answer.item.seasonNumbers = [1]
+            return answer
+        end if
         if orbitText(request.item.discoverySource,32) = "cinemeta"
             answer.item = request.item
             answer.ok = true
@@ -328,6 +336,28 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         return rpHdTvmazeEnrichAnswer(answer,request,fetcher)
     else if operation = "episodes"
         if item.kind <> "series" then return answer
+        if orbitText(item.discoverySource,32) = "anilist"
+            answer.seasons = []
+            animeEpisodes = []
+            totalEpisodes = orbitInteger(item.episodeCount,9999)
+            for episodeIndex = 1 to totalEpisodes
+                animeEpisodes.push({
+                    id:"anilist-"+orbitText(item.anilistId,20)+"-S1E"+episodeIndex.toStr()
+                    kind:"episode", provider:"all", discoverySource:"anilist"
+                    catalogCategory:"anime", isAnime:true
+                    title:"Episodio "+episodeIndex.toStr(), seriesTitle:item.title
+                    seriesSearchQuery:orbitText(item.searchQuery,200), season:1
+                    episode:episodeIndex, year:orbitText(item.year,12)
+                    seriesImdbId:"", genres:item.genres
+                })
+            end for
+            answer.seasons = [{number:1,episodes:animeEpisodes,loaded:true}]
+            answer.seasonNumbers = [1]
+            answer.season = 1
+            answer.ok = true
+            answer.message = ""
+            return answer
+        end if
         season = orbitInteger(request.season,999,1)
         if season < 0 then season = 1
         loaded = rpHdTaskLoadEpisodes(item,season,fetcher)
@@ -1656,6 +1686,76 @@ end function
 
 ' Global discovery is independent from the playback providers. Cinemeta supplies
 ' searchable movie/series metadata; provider catalogs are queried only after Play.
+' AniList adds anime-specific titles and alternate-language metadata to global search.
+' Results keep their AniList identity; playback still resolves through installed providers.
+function rpHdTaskAniListSearch(query as string, fetcher as dynamic) as object
+    results = []
+    transfer = CreateObject("roUrlTransfer")
+    graphQuery = "query ($search: String) { Page(page: 1, perPage: 15) { media(search: $search, type: ANIME, sort: SEARCH_MATCH) { id format seasonYear episodes title { romaji english native userPreferred } synonyms coverImage { large } description(asHtml: false) genres } } }"
+    variables = {search:query}
+    endpoint = "https://graphql.anilist.co/?query=" + transfer.escape(graphQuery) + "&variables=" + transfer.escape(FormatJson(variables))
+    response = fetcher(endpoint,"anilist","")
+    if not response.ok
+        print "[RokuPlus anime-id] source=anilist result=error query="; query
+        return results
+    end if
+    payload = ParseJson(response.body)
+    if type(payload) <> "roAssociativeArray" then return results
+    if type(payload.data) <> "roAssociativeArray" then return results
+    if type(payload.data.Page) <> "roAssociativeArray" then return results
+    mediaList = payload.data.Page.media
+    if type(mediaList) <> "roArray" then return results
+    for each media in mediaList
+        if type(media) = "roAssociativeArray"
+            animeId = orbitInteger(media.id,2147483647)
+            titles = media.title
+            if animeId > 0 and type(titles) = "roAssociativeArray"
+                displayTitle = orbitText(titles.english,200).trim()
+                if displayTitle = "" then displayTitle = orbitText(titles.romaji,200).trim()
+                if displayTitle = "" then displayTitle = orbitText(titles.userPreferred,200).trim()
+                if displayTitle = "" then displayTitle = orbitText(titles.native,200).trim()
+                if displayTitle <> ""
+                    year = ""
+                    if media.seasonYear <> invalid then year = orbitText(media.seasonYear,4)
+                    genres = []
+                    if type(media.genres) = "roArray"
+                        for each genre in media.genres
+                            genreText = orbitText(genre,60).trim()
+                            if genreText <> "" then genres.push(lcase(genreText))
+                        end for
+                    end if
+                    aliases = []
+                    for each titleKey in ["romaji","english","native","userPreferred"]
+                        aliasTitle = orbitText(titles[titleKey],200).trim()
+                        if aliasTitle <> "" and aliasTitle <> displayTitle then aliases.push(aliasTitle)
+                    end for
+                    if type(media.synonyms) = "roArray"
+                        for each synonym in media.synonyms
+                            synonymText = orbitText(synonym,200).trim()
+                            if synonymText <> "" then aliases.push(synonymText)
+                        end for
+                    end if
+                    poster = ""
+                    if type(media.coverImage) = "roAssociativeArray" then poster = orbitText(media.coverImage.large,2048)
+                    episodeCount = orbitInteger(media.episodes,9999)
+                    item = {
+                        id:"anilist-"+animeId.toStr(), anilistId:animeId, kind:"series"
+                        provider:"all", discoverySource:"anilist", library:"hd-online"
+                        catalogCategory:"anime", isAnime:true, title:displayTitle
+                        searchQuery:query, year:year, description:orbitText(media.description,4000)
+                        poster:poster, background:poster, genres:genres, aliases:aliases
+                        runtime:0, language:"", seasons:[], seasonNumbers:[1]
+                        episodeCount:episodeCount, source:"AniList"
+                    }
+                    results.push(item)
+                end if
+            end if
+        end if
+    end for
+    print "[RokuPlus anime-id] source=anilist query="; query; " results="; results.count()
+    return results
+end function
+
 function rpHdTaskCinemetaGlobalSearch(request as object, answer as object, fetcher as dynamic) as object
     query = rpHdOnlineSearchQuery(request.query)
     if query = "" then return answer
@@ -1665,6 +1765,16 @@ function rpHdTaskCinemetaGlobalSearch(request as object, answer as object, fetch
     failures = 0
     merged = []
     seen = {}
+    animeResults = rpHdTaskAniListSearch(query,fetcher)
+    for each animeItem in animeResults
+        if type(animeItem) = "roAssociativeArray"
+            animeKey = "anilist-" + orbitText(animeItem.anilistId,20)
+            if not seen.doesExist(animeKey)
+                merged.push(animeItem)
+                seen[animeKey] = true
+            end if
+        end if
+    end for
     for each searchKind in ["movie","series"]
         if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
         rpHdTaskBeginSlice(2)
@@ -3449,6 +3559,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if len(endpoint) > 4096 then return false
     if CreateObject("roRegex","[\x00-\x20\x7F\\]","").isMatch(endpoint) then return false
     if role = "api" then return CreateObject("roRegex","^https://(lamovie\.org/wp-api/v1/|allcalidad\.re/api/rest/|cinehax\.org/api/rest/v1/)[^#]*$","").isMatch(endpoint)
+    if role = "anilist" then return CreateObject("roRegex","^https://graphql\\.anilist\\.co/\\?query=[^#]+&variables=[^#]+$","").isMatch(endpoint)
     if role = "cinemeta" then return CreateObject("roRegex","^https://v3-cinemeta\.strem\.io/(catalog/(movie|series)/(top(/search=[A-Za-z0-9%._~!*'()+-]+|/genre=[A-Za-z0-9%._~!*'()+-]+(&skip=[0-9]+)?|/skip=[0-9]+)?|year/genre=[0-9]{4}(/skip=[0-9]+)?)|meta/(movie|series)/tt[0-9]{6,12})\.json$","").isMatch(endpoint)
     if role = "tvmaze" then return CreateObject("roRegex","^https://api\.tvmaze\.com/(search/shows\?q=[^#]+|shows/[0-9]+/episodes)$","").isMatch(endpoint)
     if role = "player" then return CreateObject("roRegex","^https://videoapp\.mov/e/(movie/[0-9]+|tv/[0-9]+/[0-9]+/[0-9]+)$","").isMatch(endpoint)
@@ -3502,7 +3613,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     transfer.enablePeerVerification(true)
     transfer.enableHostVerification(true)
     transfer.addHeader("User-Agent",rpHdTaskUserAgent())
-    if role = "api" or role = "tvmaze" or role = "cinemeta"
+    if role = "api" or role = "tvmaze" or role = "cinemeta" or role = "anilist"
         transfer.addHeader("Accept","application/json")
         if referer = "" and instr(1,endpoint,"https://cinehax.org/api/rest/v1/") = 1 then referer = "https://cinehax.org/"
     end if
