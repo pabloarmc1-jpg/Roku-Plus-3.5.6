@@ -2286,6 +2286,8 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     isEpisode = requestedKind = "episode"
     kind = requestedKind
     isAnimeItem = (item.doesExist("isAnime") and item.isAnime = true) or (item.doesExist("catalogCategory") and lcase(orbitText(item.catalogCategory,24)) = "anime")
+    ' discoverySource is the durable AniList marker; details/episode cards may not carry the UI-only flags.
+    if item.doesExist("discoverySource") and lcase(orbitText(item.discoverySource,32)) = "anilist" then isAnimeItem = true
     discoveryGenres = []
     if type(item.genres) = "roArray"
         for each itemGenre in item.genres
@@ -2376,6 +2378,8 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     end for
     providers = orderedProviders
     if isAnimeItem and isEpisode
+        ' Anime source discovery is isolated: the generic provider list must never be consulted or counted.
+        providers = []
         print "[RokuPlus anime-diagnostic] begin title="; left(orbitText(discovery.title,100),100); " season="; seasonNumber; " episode="; episodeNumber; " language="; orbitText(request.animeLanguage,16)
         print "[RokuPlus anime-diagnostic] spanish-providers=latanime original-providers=latanime pending=megaplay,anikoto,anineko"
         print "[RokuPlus anime-diagnostic] movie-series-provider-isolation=true"
