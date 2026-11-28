@@ -341,6 +341,14 @@ sub fetch(context as object)
     end if
     if online and type(m.tvmazeCache) = "roAssociativeArray" then task.tvmazeCache = m.tvmazeCache
     if online and (context.operation = "resolve" or context.operation = "resume-episode") then task.attempt = orbitInteger(context.item.hdAttempt,99)
+    if online and context.operation = "find-source" and context.doesExist("item")
+        if type(context.item) = "roAssociativeArray"
+            isAnimeItem = false
+            if context.item.doesExist("catalogCategory") and lcase(orbitText(context.item.catalogCategory,24)) = "anime" then isAnimeItem = true
+            if context.item.doesExist("isAnime") and context.item.isAnime = true then isAnimeItem = true
+            if isAnimeItem then task.animeLanguage = m.animeLanguage
+        end if
+    end if
     task.operation = context.operation
     task.kind = m.kind
     if context.doesExist("kind") then task.kind = context.kind
