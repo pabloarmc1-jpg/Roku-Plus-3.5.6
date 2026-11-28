@@ -4895,7 +4895,7 @@ if m.view = "profiles"
             if m.settingsCursor = 6 then openCompatSettings()
             if m.settingsCursor = 7 then openApiKeySettings("tmdb")
             if m.settingsCursor = 8 then openApiKeySettings("subtitle")
-            if m.settingsCursor = 9
+            if m.settingsCursor = 10
                 nextLanguage = "original"
                 if m.animeLanguage = "original" then nextLanguage = "spanish"
                 if rpSaveAnimeLanguage(nextLanguage)
