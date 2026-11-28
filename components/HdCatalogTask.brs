@@ -1186,6 +1186,37 @@ function rpHdTaskReadPts(payload as object, offset as integer) as dynamic
     return ((b0 mod 16) \ 2)*1073741824+b1*4194304+(b2 \ 2)*32768+b3*128+(b4 \ 2)
 end function
 
+function rpHdTaskDoodMediaUrl(embedUrl as string, html as string, fetcher as dynamic) as string
+    page = orbitText(html,524288)
+    if page = "" then return ""
+    match = CreateObject("roRegex","/pass_md5/[^'"+chr(34)+"\\s<>]+","i").match(page)
+    if match.count() < 1 then return ""
+    path = match[0]
+    hostMatch = CreateObject("roRegex","^(https://[^/]+)","i").match(embedUrl)
+    if hostMatch.count() < 2 then return ""
+    origin = hostMatch[1]
+    tokenSlash = 0
+    for i = 1 to len(path)
+        if mid(path,i,1) = "/" then tokenSlash = i
+    end for
+    if tokenSlash <= 0 or tokenSlash >= len(path) then return ""
+    token = mid(path,tokenSlash+1)
+    if instr(1,token,"?") > 0 then token = left(token,instr(1,token,"?")-1)
+    if token = "" then return ""
+    md5 = fetcher(origin+path,"embed",embedUrl)
+    if md5.cancelled or not md5.ok then return ""
+    base = orbitText(md5.body,2048).trim()
+    if left(base,8) <> "https://" then return ""
+    randomId = CreateObject("roDeviceInfo").getRandomUUID()
+    randomId = CreateObject("roRegex","[^A-Za-z0-9]","").replaceAll(randomId,"")
+    if len(randomId) < 10 then return ""
+    clock = CreateObject("roDateTime")
+    expiry = clock.asSeconds()*1000
+    candidate = base+left(randomId,10)+"?token="+token+"&expiry="+expiry.toStr()
+    print "[RokuPlus anime-host] host=doodstream extraction=pass-md5"
+    return rpHdOnlineCdn(candidate)
+end function
+
 function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string, animeLanguage = "" as string) as object
     count = embeds.count()
     if count > 6 then count = 6
@@ -1229,6 +1260,10 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         if response.ok
             if orbitText(response.httpFinalUrl,4096) <> "" then mediaReferer = response.httpFinalUrl
             masterUrl = rpHdOnlineMediaUrl(response.body)
+            if masterUrl = "" then masterUrl = rpHdOnlineHostMediaUrl(response.body)
+            if masterUrl = "" and instr(1,lcase(embed.url),"dood") > 0
+                masterUrl = rpHdTaskDoodMediaUrl(embed.url,response.body,fetcher)
+            end if
             voeEmbedPage = instr(1,lcase(embed.url),"voe.sx") > 0 or instr(1,lcase(embed.url),"arianathankspecial.com") > 0
             if masterUrl <> ""
                 print "[RokuPlus anime-embed] host="; embedHost; " extraction=direct-media-found"
@@ -1292,6 +1327,27 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 end if
             end if
             if masterUrl <> ""
+                if CreateObject("roRegex","\\.mp4(\\?|$)","i").isMatch(masterUrl)
+                    answer.url = masterUrl
+                    answer.streamFormat = "mp4"
+                    answer.segmentUrls = []
+                    answer.segmentDurations = []
+                    answer.tsRelayEnabled = false
+                    answer.fallbackTsRelayEnabled = false
+                    answer.mediaHeaders = {Referer:mediaReferer, "User-Agent":rpHdTaskUserAgent()}
+                    answer.description = "MP4 directo · fuente " + embedHost
+                    answer.language = embed.language
+                    answer.width = 0
+                    answer.height = 0
+                    answer.codecs = ""
+                    answer.seekSupport = "native-mp4"
+                    answer.ok = true
+                    answer.message = ""
+                    answer.attemptUsed = embedIndex
+                    print "[RokuPlus anime-host] provider="; provider; " host="; embedHost; " extraction=direct-mp4 accepted=1"
+                    m.hdProviderDeadline = 0
+                    return answer
+                end if
                 print "[RokuPlus anime-embed] host="; embedHost; " next=manifest-fetch"
                 response = fetcher(masterUrl,"media",mediaReferer)
                 if response.cancelled then return rpHdTaskFailure(answer,response)
@@ -2168,7 +2224,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     end for
     providers = orderedProviders
     if isAnimeItem and isEpisode
-        print "[RokuPlus anime-diagnostic] begin title="; left(cinemetaTitle,100); " season="; seasonNumber; " episode="; episodeNumber; " language="; orbitText(request.animeLanguage,16)
+        print "[RokuPlus anime-diagnostic] begin title="; left(orbitText(discovery.title,100),100); " season="; seasonNumber; " episode="; episodeNumber; " language="; orbitText(request.animeLanguage,16)
         print "[RokuPlus anime-diagnostic] integrated=latanime,cinehax,cinecalidad,allcalidad,lamovie,seriesmetro pending=megaplay,anikoto,anineko"
         print "[RokuPlus anime-diagnostic] test-plan integrated-count="; providers.count()+1; " pending-count=3"
     end if
@@ -2735,7 +2791,7 @@ end function
 sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
     url = orbitText(candidateUrl,2048).trim()
     if url = "" then return
-    if not CreateObject("roRegex","^https://(www\.)?(voe\.sx|arianathankspecial\.com|mixdrop\.(co|to|ag|bz)|dsvplay\.com|byse\.su|hexload\.com|savefiles\.com|mp4upload\.com|filemoon\.sx|lulu\.to|mxdrop\.to|pixeldrain\.com|gofile\.io|mega\.nz)/","i").isMatch(url) then return
+    if not CreateObject("roRegex","^https://(www\\.)?(voe\\.sx|arianathankspecial\\.com|mixdrop\\.(co|to|ag|bz)|mxdrop\\.to|doodstream\\.(com|co|net)|dood\\.(to|so|la|li|ws|pm)|dsvplay\\.com|byse\\.(su|to|sx)|hexload\\.com|savefiles\\.com|mp4upload\\.(com|net)|filemoon\\.(sx|to|in)|lulu\\.to|yourupload\\.com|ok\\.ru|fembed2?\\.com|feurl\\.com|femax20\\.com|pixeldrain\\.com|gofile\\.io|mega\\.nz)/","i").isMatch(url) then return
     for each existing in embeds
         if lcase(existing.url) = lcase(url) then return
     end for
@@ -3968,10 +4024,11 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
         return CreateObject("roRegex","^https://(www\.)?latanime\.org/(buscar\?q=[A-Za-z0-9%._~!*'()+-]+|anime/[a-z0-9-]+/?|ver/[a-z0-9-]+/?)$","i").isMatch(endpoint)
     end if
     if role = "embed"
-        if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","").isMatch(endpoint) then return true
-        if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","").isMatch(endpoint) then return true
+        if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","i").isMatch(endpoint) then return true
+        if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","i").isMatch(endpoint) then return true
         if CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(endpoint) then return true
-        return CreateObject("roRegex","^https://arianathankspecial\.com/e/[a-z0-9]{8,20}/?$","i").isMatch(endpoint)
+        if CreateObject("roRegex","^https://arianathankspecial\.com/e/[a-z0-9]{8,20}/?$","i").isMatch(endpoint) then return true
+        return CreateObject("roRegex","^https://([a-z0-9-]+\.)*(mixdrop\.(co|to|ag|bz)|mxdrop\.to|doodstream\.(com|co|net)|dood\.(to|so|la|li|ws|pm)|mp4upload\.(com|net)|filemoon\.(sx|to|in)|yourupload\.com|ok\.ru|fembed2?\.com|feurl\.com|femax20\.com|byse\.(su|to|sx))(:[0-9]+)?/[^#]*$","i").isMatch(endpoint)
     end if
     if role = "media" or role = "sample" or role = "audio-sample" or role = "sample-tail" or role = "sample-full" then return rpHdOnlineCdn(endpoint) <> ""
     return false
