@@ -180,7 +180,7 @@ sub topBar()
         active = 1
         if m.kind = "series" then active = 2
         if m.kind = "anime" then active = 3
-        if m.query <> "" then active = 4
+        if m.query <> "" then active = 5
     else if m.view = "live"
         active = 4
     else if m.view = "library"
