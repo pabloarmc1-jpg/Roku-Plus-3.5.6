@@ -2472,6 +2472,17 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     ' to the movie/series providers. Spanish is tried first; only after every
     ' Latanime server fails do we retry the same episode in original/subtitled audio.
     if isAnimeItem and isEpisode
+        if bestAnimeAnswer = invalid and lcase(orbitText(request.animeLanguage,16)) = "original"
+            print "[RokuPlus anime-language] requested=original provider=latanime"
+            originalRequest = {animeLanguage:"original",attempt:orbitInteger(request.attempt,99)}
+            originalAnswer = rpHdTaskLatanimeFindEpisode(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,originalRequest)
+            if originalAnswer.ok
+                bestAnimeAnswer = rpHdTaskAnimeMarkSource(originalAnswer,item,answer.requestId,"original")
+                print "[RokuPlus anime-language] result=playable provider=latanime language=original"
+            else
+                print "[RokuPlus anime-language] result=failed provider=latanime language=original message="; left(orbitText(originalAnswer.message,120),120)
+            end if
+        end if
         if bestAnimeAnswer = invalid and lcase(orbitText(request.animeLanguage,16)) = "spanish"
             print "[RokuPlus anime-language-fallback] from=spanish to=original reason=no-playable-spanish-source"
             originalRequest = {animeLanguage:"original",attempt:orbitInteger(request.attempt,99)}
