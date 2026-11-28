@@ -4191,7 +4191,7 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
         drawScreen()
     else
         browseOperation = "catalog"
-        if m.kind = "anime" then browseOperation = "anime-catalog"
+        if m.catalogMode = "hd" and usesOnlineHd() and m.kind = "anime" then browseOperation = "anime-catalog"
         if m.catalogMode = "hd" and usesOnlineHd() and m.kind <> "anime" then browseOperation = "cinemeta-catalog"
         pageKey = m.catalogMode + "|" + m.hdProvider + "|" + m.kind + "|" + orbitText(m.query,120) + "|" + m.genreFilter + "|" + m.catalogSort + "|" + browseOperation + "|" + offset.toStr()
         if type(m.catalogPageCache) = "roAssociativeArray" and m.catalogPageCache.key = pageKey and m.catalogPageCache.clock <> invalid
@@ -4240,7 +4240,7 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
                 return
             end if
         end if
-        fetch({operation:browseOperation,offset:offset,last:last})
+        fetch({operation:browseOperation,offset:offset,last:last,sort:m.catalogSort,genre:m.genreFilter})
     end if
 end sub
 
@@ -4359,7 +4359,7 @@ sub playDetail()
     end if
     ' The resolving screen is temporary and must never become viewBeforePlayer.
     if not keepActiveEpisode then m.view = "source-resolving"
-    if orbitText(m.detail.discoverySource,32) = "cinemeta"
+    if orbitText(m.detail.discoverySource,32) = "cinemeta" or orbitText(m.detail.discoverySource,32) = "anilist"
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
     end if
@@ -4386,7 +4386,7 @@ sub playDetail()
 end sub
 
 sub enterEpisodes()
-    if orbitText(m.detail.discoverySource,32) = "cinemeta"
+    if orbitText(m.detail.discoverySource,32) = "cinemeta" or orbitText(m.detail.discoverySource,32) = "anilist"
         m.note = ""
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
