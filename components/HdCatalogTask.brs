@@ -2861,19 +2861,31 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
             end for
         end if
     else
+        ' Prefer an explicitly subtitled/original edition. Some Latanime entries
+        ' expose the Japanese source without a language badge; accept an unmarked
+        ' exact-title edition only after those explicit options are exhausted.
         for each candidate in candidates
             if candidate.language = "subtitulado" or candidate.language = "original"
                 selected = candidate
                 exit for
             end if
         end for
+        if selected = invalid
+            for each candidate in candidates
+                if candidate.language = "other"
+                    selected = candidate
+                    print "[RokuPlus latanime] original-edition=unmarked-exact-title accepted=true"
+                    exit for
+                end if
+            end for
+        end if
     end if
     if selected = invalid
         print "[RokuPlus latanime] result=no-edition-for-language requested="; requestedLanguage
         return failed
     end if
     print "[RokuPlus latanime] selected title="; selected.title; " language="; selected.language; " requested="; requestedLanguage; " slug="; selected.slug
-    if selected.language = "subtitulado" then originalEpisode.animeSubtitleOnly = true
+    if selected.language = "subtitulado" or selected.language = "original" or (requestedLanguage = "original" and selected.language = "other") then originalEpisode.animeSubtitleOnly = true
 
     seriesUrl = "https://latanime.org/anime/"+selected.slug
     rpHdTaskBeginSlice(2)
