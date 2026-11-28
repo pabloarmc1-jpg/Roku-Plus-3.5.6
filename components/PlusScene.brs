@@ -357,8 +357,11 @@ sub fetch(context as object)
             isAnimeItem = false
             if context.item.doesExist("catalogCategory") and lcase(orbitText(context.item.catalogCategory,24)) = "anime" then isAnimeItem = true
             if context.item.doesExist("isAnime") and context.item.isAnime = true then isAnimeItem = true
+            if context.item.doesExist("discoverySource") and lcase(orbitText(context.item.discoverySource,32)) = "anilist" then isAnimeItem = true
             if type(m.series) = "roAssociativeArray" and m.series.doesExist("catalogCategory") and lcase(orbitText(m.series.catalogCategory,24)) = "anime" then isAnimeItem = true
+            if type(m.series) = "roAssociativeArray" and lcase(orbitText(m.series.discoverySource,32)) = "anilist" then isAnimeItem = true
             if type(m.detail) = "roAssociativeArray" and m.detail.doesExist("catalogCategory") and lcase(orbitText(m.detail.catalogCategory,24)) = "anime" then isAnimeItem = true
+            if type(m.detail) = "roAssociativeArray" and lcase(orbitText(m.detail.discoverySource,32)) = "anilist" then isAnimeItem = true
             if isAnimeItem then task.animeLanguage = m.animeLanguage
         end if
     end if
@@ -4399,7 +4402,7 @@ sub playDetail()
     end if
     ' The resolving screen is temporary and must never become viewBeforePlayer.
     if not keepActiveEpisode then m.view = "source-resolving"
-    detailIsAnime = (m.detail.doesExist("isAnime") and m.detail.isAnime = true) or (m.detail.doesExist("catalogCategory") and lcase(orbitText(m.detail.catalogCategory,24)) = "anime")
+    detailIsAnime = (m.detail.doesExist("isAnime") and m.detail.isAnime = true) or (m.detail.doesExist("catalogCategory") and lcase(orbitText(m.detail.catalogCategory,24)) = "anime") or lcase(orbitText(m.detail.discoverySource,32)) = "anilist"
     if detailIsAnime then m.detail.discoverySource = "anilist"
     if detailIsAnime or orbitText(m.detail.discoverySource,32) = "cinemeta" or orbitText(m.detail.discoverySource,32) = "anilist"
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
