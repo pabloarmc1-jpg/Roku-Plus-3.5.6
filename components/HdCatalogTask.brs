@@ -1232,6 +1232,8 @@ sub rpHdTaskAnimeServerPreflight(embeds as object, provider as string, fetcher a
         if m.top.cancelRequested then exit for
         rpHdTaskBeginResolveSlice(count-index)
         if rpHdTaskSliceExpired() then exit for
+        ' Keep the inventory pass bounded so it cannot consume the time needed for stream validation.
+        if m.hdElapsed <> invalid then m.hdProviderDeadline = m.hdElapsed.totalMilliseconds()+1200
         embed = embeds[index]
         embedUrl = orbitText(embed.url,2048)
         host = rpHdTaskSafeHost(embedUrl)
