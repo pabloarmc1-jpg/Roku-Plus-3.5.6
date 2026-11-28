@@ -23,6 +23,7 @@
       <Group id="canvas" />
       <PlusPlayer id="player" visible="false" />
       <PlusPlayer id="hostPlayer" visible="false" />
+      <PlusPlayer id="animePlayer" visible="false" />
       <Timer id="catalogDeadline" duration="25" repeat="false" />
       <Timer id="playbackLease" duration="30" repeat="true" />
       <Timer id="livePreviewDelay" duration="0.7" repeat="false" />
