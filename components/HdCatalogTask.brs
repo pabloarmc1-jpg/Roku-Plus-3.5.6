@@ -2878,7 +2878,7 @@ function rpHdTaskLatanimeEmbeds(html as string) as object
         end if
     end while
     offset = 1
-    while offset < len(html) and embeds.count() < 6
+    while offset < len(html) and embeds.count() < 12
         found = instr(offset,lowerHtml,"https://")
         if found = 0 then exit while
         finish = found
