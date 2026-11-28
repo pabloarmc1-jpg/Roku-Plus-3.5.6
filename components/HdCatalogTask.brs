@@ -2188,7 +2188,7 @@ function rpHdTaskLatanimeTitleKey(value as dynamic) as string
     title = lcase(orbitText(value,240).trim())
     title = CreateObject("roRegex","\s*(latino|castellano|español|espanol|subtitulado|sub español|sub esp|720p|1080p|hd|cr)\s*","i").replaceAll(title," ")
     title = CreateObject("roRegex","\s*(temporada|season|s)[ ._-]*[0-9]+.*$","i").replace(title,"")
-    title = CreateObject("roRegex","\s+[0-9]+$","").replace(title,"")
+    title = CreateObject("roRegex","\s*[-:·]?\s*[0-9]+$","").replace(title,"")
     return rpHdTaskCinemetaTitleKey(title)
 end function
 
