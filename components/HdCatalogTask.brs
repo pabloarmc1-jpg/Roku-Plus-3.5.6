@@ -2608,7 +2608,11 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
         for each aliasValue in discovery.aliases
             aliasText = orbitText(aliasValue,200).trim()
             aliasKey = rpHdTaskLatanimeTitleKey(aliasText)
-            if aliasText <> "" and aliasKey <> "" and not wantedKeys.DoesExist(aliasKey) and aliasCount < 5
+            aliasAlreadyUsed = false
+            for each existingAliasKey in wantedKeys
+                if existingAliasKey = aliasKey then aliasAlreadyUsed = true
+            end for
+            if aliasText <> "" and aliasKey <> "" and not aliasAlreadyUsed and aliasCount < 5
                 wantedKeys.push(aliasKey)
                 searchTerms.push(aliasText)
                 aliasCount++
