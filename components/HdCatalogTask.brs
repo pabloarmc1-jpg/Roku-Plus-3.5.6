@@ -2898,8 +2898,25 @@ function rpHdTaskLatanimeEmbeds(html as string) as object
 end function
 
 sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
-    url = orbitText(candidateUrl,2048).trim()
+    url = orbitText(candidateUrl,4096).trim()
     if url = "" then return
+    url = CreateObject("roRegex","&amp;","i").Replace(url,"&")
+    url = CreateObject("roRegex","\\\\/","i").Replace(url,"/")
+    ' Latanime/Kino can publish an intermediate wrapper instead of the actual player.
+    ' Unwrap only the two known site wrappers; never queue their advertising page.
+    wrapperOne = "https://monoschinos2.com/reproductor?url="
+    wrapperTwo = "https://mojon.latanime.org/aqua/fn?url="
+    if lcase(left(url,len(wrapperOne))) = wrapperOne or lcase(left(url,len(wrapperTwo))) = wrapperTwo
+        queryAt = instr(1,url,"?url=")
+        if queryAt > 0
+            transfer = CreateObject("roUrlTransfer")
+            url = transfer.Unescape(mid(url,queryAt+5))
+        end if
+    end if
+    ' Normalize known mirrors to the canonical Filemoon host before validation.
+    if lcase(left(url,len("https://filemoon.link"))) = "https://filemoon.link"
+        url = "https://filemoon.sx"+mid(url,len("https://filemoon.link")+1)
+    end if
     if not CreateObject("roRegex","^https://(www\\.)?(voe\\.sx|arianathankspecial\\.com|mixdrop\\.(co|to|ag|bz)|mxdrop\\.to|doodstream\\.(com|co|net)|dood\\.(to|so|la|li|ws|pm)|dsvplay\\.com|byse\\.(su|to|sx)|hexload\\.com|savefiles\\.com|mp4upload\\.(com|net)|filemoon\\.(sx|to|in)|lulu\\.to|yourupload\\.com|ok\\.ru|fembed2?\\.com|feurl\\.com|femax20\\.com|pixeldrain\\.com|gofile\\.io|mega\\.nz)/","i").isMatch(url) then return
     for each existing in embeds
         if lcase(existing.url) = lcase(url) then return
