@@ -346,6 +346,8 @@ sub fetch(context as object)
             isAnimeItem = false
             if context.item.doesExist("catalogCategory") and lcase(orbitText(context.item.catalogCategory,24)) = "anime" then isAnimeItem = true
             if context.item.doesExist("isAnime") and context.item.isAnime = true then isAnimeItem = true
+            if type(m.series) = "roAssociativeArray" and m.series.doesExist("catalogCategory") and lcase(orbitText(m.series.catalogCategory,24)) = "anime" then isAnimeItem = true
+            if type(m.detail) = "roAssociativeArray" and m.detail.doesExist("catalogCategory") and lcase(orbitText(m.detail.catalogCategory,24)) = "anime" then isAnimeItem = true
             if isAnimeItem then task.animeLanguage = m.animeLanguage
         end if
     end if
