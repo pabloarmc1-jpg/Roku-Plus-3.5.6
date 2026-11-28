@@ -256,6 +256,30 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
             answer.item.seasonNumbers = [1]
             return answer
         end if
+    if operation = "episodes" and type(request.item) = "roAssociativeArray"
+        if orbitText(request.item.discoverySource,32) = "anilist"
+            animeItem = request.item
+            animeEpisodes = []
+            totalEpisodes = orbitInteger(animeItem.episodeCount,9999)
+            for episodeIndex = 1 to totalEpisodes
+                animeEpisodes.push({
+                    id:"anilist-"+orbitText(animeItem.anilistId,20)+"-S1E"+episodeIndex.toStr()
+                    kind:"episode", provider:"all", discoverySource:"anilist"
+                    catalogCategory:"anime", isAnime:true
+                    title:"Episodio "+episodeIndex.toStr(), seriesTitle:animeItem.title
+                    seriesSearchQuery:orbitText(animeItem.searchQuery,200), season:1
+                    episode:episodeIndex, year:orbitText(animeItem.year,12)
+                    seriesImdbId:"", genres:animeItem.genres
+                })
+            end for
+            answer.seasons = [{number:1,episodes:animeEpisodes,loaded:true}]
+            answer.seasonNumbers = [1]
+            answer.season = 1
+            answer.ok = true
+            answer.message = ""
+            return answer
+        end if
+    end if
         if orbitText(request.item.discoverySource,32) = "cinemeta"
             answer.item = request.item
             answer.ok = true
@@ -1766,6 +1790,7 @@ function rpHdTaskCinemetaGlobalSearch(request as object, answer as object, fetch
     merged = []
     seen = {}
     animeResults = rpHdTaskAniListSearch(query,fetcher)
+    if animeResults.count() > 0 then successes++
     for each animeItem in animeResults
         if type(animeItem) = "roAssociativeArray"
             animeKey = "anilist-" + orbitText(animeItem.anilistId,20)
