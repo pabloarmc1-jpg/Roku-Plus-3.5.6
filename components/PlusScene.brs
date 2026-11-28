@@ -5124,6 +5124,7 @@ if m.view = "profiles"
                 m.zone = "nav"
                 m.nav = 1
                 if m.kind = "series" then m.nav = 2
+                if m.kind = "anime" then m.nav = 3
             end if
             if key = "OK"
                 categoryOptions = ["Más populares","Más recientes","Acción","Comedia","Drama","Terror","Ciencia ficción","Animación","Todos"]
@@ -5330,7 +5331,7 @@ if m.view = "profiles"
                     m.liveSearchCursor = 0
                 else
                     m.zone = "nav"
-                    m.nav = 3
+                    m.nav = 4
                     drawScreen()
                     return true
                 end if
@@ -5373,7 +5374,7 @@ if m.view = "profiles"
         if m.zone = "live-actions"
             if key = "left"
                 m.zone = "nav"
-                m.nav = 3
+                m.nav = 4
                 drawScreen()
                 return true
             end if
