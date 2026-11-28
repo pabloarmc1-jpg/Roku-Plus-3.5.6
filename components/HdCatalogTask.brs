@@ -2110,7 +2110,7 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
                     titleKey = rpHdTaskLatanimeTitleKey(cardTitle)
                     wantedKey = rpHdTaskLatanimeTitleKey(title)
                     if titleKey <> "" and titleKey = wantedKey
-                        language = rpHdTaskLatanimeLanguage(cardTitle+" "+slug)
+                        language = rpHdTaskLatanimeLanguage(cardTitle+" "+slug+" "+rpHdTvmazeText(card))
                         candidateSeason = rpHdTaskLatanimeSeason(cardTitle+" "+slug)
                         seasonOk = candidateSeason = seasonNumber
                         if seasonNumber = 1 and candidateSeason = 0 then seasonOk = true
@@ -2187,7 +2187,7 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     end if
     embeds = [{url:embedUrl,language:"es"}]
     print "[RokuPlus latanime] resolve language="; selected.language; " season="; seasonNumber; " episode="; episodeNumber; " server=voe"
-    return rpHdTaskResolveEmbeds(embeds,"latanime",failed,fetcher,decoderAccept,orbitInteger(request.attempt,99),"https://latanime.org/","https://latanime.org/",orbitText(request.animeLanguage,16))
+    return rpHdTaskResolveEmbeds(embeds,"latanime",failed,fetcher,decoderAccept,orbitInteger(request.attempt,99),episodeUrl,episodeUrl,orbitText(request.animeLanguage,16))
 end function
 
 function rpHdTaskLatanimeTitleKey(value as dynamic) as string
