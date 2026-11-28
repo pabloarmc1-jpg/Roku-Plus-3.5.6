@@ -10,6 +10,7 @@
         <field id="tvmazeCache" type="assocarray" />
         <field id="season" type="integer" value="1" />
         <field id="attempt" type="integer" value="0" />
+        <field id="animeLanguage" type="string" value="" />
         <field id="requestId" type="string" value="" />
         <field id="cancelRequested" type="boolean" value="false" />
         <field id="result" type="assocarray" alwaysNotify="true" />
