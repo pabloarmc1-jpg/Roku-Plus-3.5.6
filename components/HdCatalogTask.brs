@@ -2173,11 +2173,8 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     episodePage = fetcher(episodeUrl,"latanime-page",seriesUrl)
     if episodePage.cancelled then return rpHdTaskFailure(failed,episodePage)
     if not episodePage.ok then return failed
-    playerData = rpHdTaskLatanimeAttribute(orbitText(episodePage.body,2097152),"data-player")
-    if playerData = "" then return failed
-    encoded = CreateObject("roByteArray")
-    if not encoded.FromBase64String(playerData) then return failed
-    embedUrl = encoded.ToAsciiString().trim()
+    embedUrl = rpHdTaskLatanimeVoeEmbed(orbitText(episodePage.body,2097152))
+    if embedUrl = "" then return failed
     if not CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(embedUrl)
         print "[RokuPlus latanime] server=unsupported host="; rpHdTaskSafeHost(embedUrl)
         return failed
@@ -2208,18 +2205,32 @@ function rpHdTaskLatanimeSeason(value as dynamic) as integer
     return 1
 end function
 
-function rpHdTaskLatanimeAttribute(html as string, attribute as string) as string
+function rpHdTaskLatanimeVoeEmbed(html as string) as string
     lowerHtml = lcase(html)
-    needle = lcase(attribute)+"="
-    found = instr(1,lowerHtml,needle)
-    if found = 0 then return ""
-    valueStart = found+len(needle)
-    if valueStart > len(html) then return ""
-    quote = mid(html,valueStart,1)
-    if quote <> chr(34) and quote <> "'" then return ""
-    valueEnd = instr(valueStart+1,html,quote)
-    if valueEnd = 0 or valueEnd-valueStart > 4096 then return ""
-    return mid(html,valueStart+1,valueEnd-valueStart-1)
+    offset = 1
+    while offset < len(html)
+        found = instr(offset,lowerHtml,"data-player=")
+        if found = 0 then exit while
+        valueStart = found+len("data-player=")
+        quote = mid(html,valueStart,1)
+        if quote = chr(34) or quote = "'"
+            valueEnd = instr(valueStart+1,html,quote)
+            if valueEnd > valueStart and valueEnd-valueStart <= 4096
+                encodedText = mid(html,valueStart+1,valueEnd-valueStart-1)
+                decoded = CreateObject("roByteArray")
+                if decoded.FromBase64String(encodedText)
+                    candidateUrl = decoded.ToAsciiString().trim()
+                    if CreateObject("roRegex","^https://(www\\.)?voe\\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(candidateUrl)
+                        return candidateUrl
+                    end if
+                end if
+            end if
+            offset = valueStart+1
+        else
+            offset = valueStart
+        end if
+    end while
+    return ""
 end function
 
 function rpHdTaskSuggestionSearchQueries(title as dynamic) as object
