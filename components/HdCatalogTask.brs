@@ -1304,12 +1304,12 @@ function rpHdTaskAnimeLiteralMediaUrl(html as dynamic, baseUrl as string) as str
     if page = "" or len(page) > 524288 then return ""
     quotes = chr(34)+"'"
     patterns = [
-        "<meta[^>]+(?:property|name)\\s*=\\s*["+quotes+"]og:video(?:(?!>).)*content\\s*=\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"][^>]*>",
-        "<meta[^>]+content\\s*=\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"][^>]+(?:property|name)\\s*=\\s*["+quotes+"]og:video["+quotes+"][^>]*>",
-        "<video[^>]+src\\s*=\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
-        "<source[^>]+src\\s*=\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
-        "(?:file|source)\\s*:\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
-        "["+quotes+"](?:file|src|url)["+quotes+"]\\s*:\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]"
+        "<meta[^>]+(?:property|name)\s*=\s*["+quotes+"]og:video(?:(?!>).)*content\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"][^>]*>",
+        "<meta[^>]+content\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"][^>]+(?:property|name)\s*=\s*["+quotes+"]og:video["+quotes+"][^>]*>",
+        "<video[^>]+src\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
+        "<source[^>]+src\s*=\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
+        "(?:file|source)\s*:\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]",
+        "["+quotes+"](?:file|src|url)["+quotes+"]\s*:\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]"
     ]
     for each pattern in patterns
         match = CreateObject("roRegex",pattern,"i").match(page)
@@ -1321,7 +1321,7 @@ function rpHdTaskAnimeLiteralMediaUrl(html as dynamic, baseUrl as string) as str
             end if
         end if
     end for
-    encodedMatch = CreateObject("roRegex","atob\\s*\\(\\s*["+quotes+"]([A-Za-z0-9+/=]{16,4096})["+quotes+"]\\s*\\)","i").match(page)
+    encodedMatch = CreateObject("roRegex","atob\s*\(\s*["+quotes+"]([A-Za-z0-9+/=]{16,4096})["+quotes+"]\s*\)","i").match(page)
     if encodedMatch.count() >= 2
         decoded = CreateObject("roByteArray")
         decoded.FromBase64String(encodedMatch[1])
@@ -1343,11 +1343,11 @@ function rpHdTaskAnimeValidateLiteralMedia(rawValue as dynamic, baseUrl as strin
     raw = orbitText(rawValue,4096).trim()
     if raw = "" then return ""
     raw = CreateObject("roRegex","&amp;","i").Replace(raw,"&")
-    raw = CreateObject("roRegex","\\\\/","i").Replace(raw,"/")
+    raw = CreateObject("roRegex","\\/","i").Replace(raw,"/")
     if left(lcase(raw),7) = "http://" then return ""
     candidate = rpHdOnlineJoin(baseUrl,raw)
     if candidate = "" then return ""
-    if not CreateObject("roRegex","\\.(mp4|m3u8)(\\?[^#]*)?$","i").isMatch(candidate) then return ""
+    if not CreateObject("roRegex","\.(mp4|m3u8)(\?[^#]*)?$","i").isMatch(candidate) then return ""
     return rpHdOnlineCdn(candidate)
 end function
 
