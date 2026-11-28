@@ -426,13 +426,13 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         return rpHdTvmazeEnrichAnswer(answer,request,fetcher)
     else if operation = "resolve"
         if item.kind <> "movie" and item.kind <> "episode" then return answer
-        return rpHdTaskResolveItem(item,provider,answer,fetcher,decoderAccept,orbitInteger(request.attempt,999),orbitText(request.animeLanguage,16))
+        return rpHdTaskResolveItem(item,provider,answer,fetcher,decoderAccept,orbitInteger(request.attempt,999),orbitText(request.animeLanguage,16),request.doesExist("animeDiagnostic") and request.animeDiagnostic = true)
     end if
     answer.message = "La consulta HD no es válida."
     return answer
 end function
 
-function rpHdTaskResolveItem(item as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry as integer, animeLanguage = "" as string) as object
+function rpHdTaskResolveItem(item as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry as integer, animeLanguage = "" as string, animeDiagnostic = false as boolean) as object
     ' Bound the initial player API so it cannot consume the whole operation.
     rpHdTaskBeginSlice(4)
     endpoint = rpHdOnlineEndpoint(provider,"player",{id:item.providerId})
@@ -440,7 +440,7 @@ function rpHdTaskResolveItem(item as object, provider as string, answer as objec
     m.hdProviderDeadline = 0
     if not response.ok then return rpHdTaskFailure(answer,response)
     embeds = rpHdOnlineEmbeds(response.data)
-    resolved = rpHdTaskResolveEmbeds(embeds,provider,answer,fetcher,decoderAccept,retry,"","https://vimeos.net/",animeLanguage)
+    resolved = rpHdTaskResolveEmbeds(embeds,provider,answer,fetcher,decoderAccept,retry,"","https://vimeos.net/",animeLanguage,animeDiagnostic)
     if resolved.ok or resolved.cancelled or provider <> "allcalidad" or resolved.voeBlocked <> true then return resolved
 
     ' VOE may answer with an anti-bot interstitial instead of its public player.
@@ -1217,10 +1217,51 @@ function rpHdTaskDoodMediaUrl(embedUrl as string, html as string, fetcher as dyn
     return rpHdOnlineCdn(candidate)
 end function
 
-function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string, animeLanguage = "" as string) as object
+' Anime diagnostics preflight every discovered mirror before normal playback chooses its first validated stream.
+' This records server reachability and whether a direct media URL is exposed; it does not mark a stream playable.
+sub rpHdTaskAnimeServerPreflight(embeds as object, provider as string, fetcher as dynamic, referer as string, count as integer)
+    tested = 0
+    reachable = 0
+    mediaCandidates = 0
+    failed = 0
+    for index = 0 to count-1
+        if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
+        embed = embeds[index]
+        embedUrl = orbitText(embed.url,2048)
+        host = rpHdTaskSafeHost(embedUrl)
+        rpHdTaskBeginResolveSlice(count-index)
+        probe = fetcher(embedUrl,"embed",referer)
+        if probe.cancelled and m.top.cancelRequested then exit for
+        tested++
+        httpStatus = orbitInteger(probe.httpStatus,9999)
+        resultStatus = "request_failed"
+        extractionStatus = "not_checked"
+        if probe.ok
+            reachable++
+            resultStatus = "http_ok"
+            mediaUrl = rpHdOnlineMediaUrl(probe.body)
+            if mediaUrl = "" then mediaUrl = rpHdOnlineHostMediaUrl(probe.body)
+            if mediaUrl <> ""
+                mediaCandidates++
+                extractionStatus = "direct_media_candidate"
+            else
+                extractionStatus = "no_direct_media_in_html"
+            end if
+        else
+            failed++
+            if httpStatus = 404 then resultStatus = "http_404_possible_removed"
+            if httpStatus = 403 or httpStatus = 429 then resultStatus = "blocked_or_rate_limited"
+        end if
+        print "[RokuPlus anime-diagnostic] provider="; provider; " stage=server-preflight server="; tested; " host="; host; " status="; resultStatus; " http="; httpStatus; " extraction="; extractionStatus
+    end for
+    print "[RokuPlus anime-diagnostic] provider="; provider; " stage=server-summary discovered="; count; " tested="; tested; " reachable="; reachable; " media_candidates="; mediaCandidates; " failed="; failed; " complete="; tested=count
+end sub
+
+function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string, animeLanguage = "" as string, animeDiagnostic = false as boolean) as object
     count = embeds.count()
     if count > 12 then count = 12
     answer.embedAttempts = 0
+    if animeDiagnostic then rpHdTaskAnimeServerPreflight(embeds,provider,fetcher,embedReferer,count)
     answer.variantAttempts = 0
     embedOffset = 0
     if count > 0 then embedOffset = retry mod count
@@ -2394,7 +2435,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     candidate = matches[0]
                     operation = "resolve"
                     if kind = "series" then operation = "meta"
-                    sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99),animeLanguage:orbitText(request.animeLanguage,16)}
+                    sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99),animeLanguage:orbitText(request.animeLanguage,16),animeDiagnostic:isAnimeItem and isEpisode}
                     sourceAnswer = rpHdTaskExecute(sourceRequest,fetcher,decoderAccept,sources)
                     if isAnimeItem and isEpisode
                         resolveStatus = "failed"
@@ -2730,7 +2771,7 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
         print "[RokuPlus anime-diagnostic] provider=latanime server="; serverIndex; " host="; rpHdTaskSafeHost(discoveredEmbed.url); " status=queued"
     end for
     print "[RokuPlus latanime] resolve language="; selected.language; " season="; seasonNumber; " episode="; episodeNumber
-    return rpHdTaskResolveEmbeds(embeds,"latanime",failed,fetcher,decoderAccept,orbitInteger(request.attempt,99),episodeUrl,episodeUrl,orbitText(request.animeLanguage,16))
+    return rpHdTaskResolveEmbeds(embeds,"latanime",failed,fetcher,decoderAccept,orbitInteger(request.attempt,99),episodeUrl,episodeUrl,orbitText(request.animeLanguage,16),true)
 end function
 
 function rpHdTaskLatanimeTitleKey(value as dynamic) as string
