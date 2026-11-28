@@ -2602,9 +2602,19 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     if titleKey <> "" then wantedKeys.push(titleKey)
     searchTerms.push(title)
     if type(discovery.aliases) = "roArray"
-        ' Untagged AniList aliases can be unrelated-language titles; use only
-        ' the canonical title until aliases carry reliable language metadata.
-        print "[RokuPlus anime-alias] latanime-policy=canonical-only aliases-skipped="; discovery.aliases.count()
+        ' Search exact normalized alternate titles too. A candidate is accepted only
+        ' when its normalized title exactly matches one of these known aliases.
+        aliasCount = 0
+        for each aliasValue in discovery.aliases
+            aliasText = orbitText(aliasValue,200).trim()
+            aliasKey = rpHdTaskLatanimeTitleKey(aliasText)
+            if aliasText <> "" and aliasKey <> "" and not wantedKeys.DoesExist(aliasKey) and aliasCount < 5
+                wantedKeys.push(aliasKey)
+                searchTerms.push(aliasText)
+                aliasCount++
+            end if
+        end for
+        print "[RokuPlus anime-alias] latanime-policy=exact-normalized-aliases used="; aliasCount; " available="; discovery.aliases.count()
     end if
 
     candidates = []
@@ -2807,6 +2817,28 @@ function rpHdTaskLatanimeSeason(value as dynamic) as integer
     return 1
 end function
 
+sub rpHdTaskLatanimeExtractUrls(embeds as object, textValue as string)
+    lowerValue = lcase(textValue)
+    offset = 1
+    while offset < len(textValue) and embeds.count() < 12
+        found = instr(offset,lowerValue,"https://")
+        if found = 0 then exit while
+        finish = found
+        while finish <= len(textValue)
+            ch = mid(textValue,finish,1)
+            if ch = chr(34) or ch = "'" or ch = " " or ch = chr(9) or ch = chr(10) or ch = chr(13) or ch = "<" or ch = ">" or ch = chr(92) then exit while
+            finish = finish+1
+        end while
+        if finish > found
+            candidateUrl = left(mid(textValue,found),finish-found)
+            candidateUrl = CreateObject("roRegex","&amp;","i").Replace(candidateUrl,"&")
+            candidateUrl = CreateObject("roRegex","\\u0026","i").Replace(candidateUrl,"&")
+            rpHdTaskLatanimeAddEmbed(embeds,candidateUrl)
+        end if
+        offset = finish+1
+    end while
+end sub
+
 function rpHdTaskLatanimeEmbeds(html as string) as object
     embeds = []
     lowerHtml = lcase(html)
@@ -2825,7 +2857,12 @@ function rpHdTaskLatanimeEmbeds(html as string) as object
                     decoded = CreateObject("roByteArray")
                     if type(decoded) = "roByteArray"
                         decoded.FromBase64String(encodedText)
-                        if decoded.Count() > 0 then rpHdTaskLatanimeAddEmbed(embeds,decoded.ToAsciiString().trim())
+                        if decoded.Count() > 0
+                            decodedText = decoded.ToAsciiString().trim()
+                            rpHdTaskLatanimeAddEmbed(embeds,decodedText)
+                            ' data-player often contains base64-encoded JSON rather than a bare URL.
+                            rpHdTaskLatanimeExtractUrls(embeds,decodedText)
+                        end if
                     end if
                 end if
             end if
