@@ -2848,35 +2848,64 @@ end sub
 function rpHdTaskLatanimeEmbeds(html as string) as object
     embeds = []
     lowerHtml = lcase(html)
+    dataPlayerIndex = 0
     ' Collect known public video-host links and decoded data-player values.
     offset = 1
     while offset < len(html) and embeds.count() < 12
         found = instr(offset,lowerHtml,"data-player=")
         if found = 0 then exit while
+        dataPlayerIndex++
         valueStart = found+len("data-player=")
         quote = mid(html,valueStart,1)
         if quote = chr(34) or quote = "'"
             valueEnd = instr(valueStart+1,html,quote)
             if valueEnd > valueStart and valueEnd-valueStart <= 4096
                 encodedText = mid(html,valueStart+1,valueEnd-valueStart-1)
-                if encodedText <> "" and CreateObject("roRegex","^[A-Za-z0-9+/=_-]+$","").isMatch(encodedText)
+                isBase64 = encodedText <> "" and CreateObject("roRegex","^[A-Za-z0-9+/=_-]+$","").isMatch(encodedText)
+                if isBase64
                     decoded = CreateObject("roByteArray")
                     if type(decoded) = "roByteArray"
                         decoded.FromBase64String(encodedText)
                         if decoded.Count() > 0
                             decodedText = decoded.ToAsciiString().trim()
+                            decodedKind = "text"
+                            decodedHost = ""
+                            if left(decodedText,1) = "{" or left(decodedText,1) = "[" then decodedKind = "json"
+                            if left(lcase(decodedText),8) = "https://" or left(lcase(decodedText),7) = "http://"
+                                decodedKind = "url"
+                                decodedHost = rpHdTaskSafeHost(decodedText)
+                            end if
+                            print "[RokuPlus latanime] data-player index="; dataPlayerIndex; " encoding=base64 encoded-bytes="; len(encodedText); " decoded-bytes="; len(decodedText); " kind="; decodedKind; " host="; decodedHost
                             rpHdTaskLatanimeAddEmbed(embeds,decodedText)
                             ' data-player often contains base64-encoded JSON rather than a bare URL.
                             rpHdTaskLatanimeExtractUrls(embeds,decodedText)
+                        else
+                            print "[RokuPlus latanime] data-player index="; dataPlayerIndex; " encoding=base64 decode=empty encoded-bytes="; len(encodedText)
                         end if
+                    else
+                        print "[RokuPlus latanime] data-player index="; dataPlayerIndex; " encoding=base64 decoder=unavailable"
                     end if
+                else
+                    rawKind = "other"
+                    rawHost = ""
+                    if left(lcase(encodedText),8) = "https://" or left(lcase(encodedText),7) = "http://"
+                        rawKind = "url"
+                        rawHost = rpHdTaskSafeHost(encodedText)
+                    end if
+                    print "[RokuPlus latanime] data-player index="; dataPlayerIndex; " encoding=non-base64 bytes="; len(encodedText); " kind="; rawKind; " host="; rawHost
                 end if
+            else
+                print "[RokuPlus latanime] data-player index="; dataPlayerIndex; " attribute=missing-or-too-long"
             end if
             offset = valueStart+1
         else
+            print "[RokuPlus latanime] data-player index="; dataPlayerIndex; " attribute=unquoted"
             offset = valueStart
         end if
     end while
+    if dataPlayerIndex = 0 then print "[RokuPlus latanime] data-player count=0"
+    else print "[RokuPlus latanime] data-player count="; dataPlayerIndex; " extracted-servers="; embeds.count()
+    end if
     offset = 1
     while offset < len(html) and embeds.count() < 12
         found = instr(offset,lowerHtml,"https://")
