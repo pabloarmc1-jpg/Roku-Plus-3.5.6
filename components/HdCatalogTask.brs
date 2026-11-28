@@ -1264,6 +1264,21 @@ sub rpHdTaskAnimeServerPreflight(embeds as object, provider as string, fetcher a
     print "[RokuPlus anime-diagnostic] provider="; provider; " stage=server-summary discovered="; count; " tested="; tested; " reachable="; reachable; " media_candidates="; mediaCandidates; " failed="; failed; " complete="; tested=count
 end sub
 
+' Emit bounded, token-free diagnostics for static player pages. This does not execute JavaScript.
+sub rpHdTaskAnimePageProbe(body as dynamic, host as string)
+    page = orbitText(body,65536)
+    lowerPage = lcase(page)
+    scriptCount = 0
+    scriptOffset = 1
+    while scriptOffset <= len(lowerPage)
+        scriptAt = instr(scriptOffset,lowerPage,"<script")
+        if scriptAt = 0 then exit while
+        scriptCount++
+        scriptOffset = scriptAt+7
+    end while
+    print "[RokuPlus anime-page-probe] host="; host; " bytes="; len(orbitText(body,2097152)); " scripts="; scriptCount; " scriptSrc="; instr(1,lowerPage,"src=") > 0; " jwplayer="; instr(1,lowerPage,"jwplayer") > 0; " playerjs="; instr(1,lowerPage,"playerjs") > 0; " sources="; instr(1,lowerPage,"sources") > 0; " fileKey="; instr(1,lowerPage,"file:") > 0 or instr(1,lowerPage,"\"file\"") > 0; " mp4="; instr(1,lowerPage,".mp4") > 0; " m3u8="; instr(1,lowerPage,".m3u8") > 0; " eval="; instr(1,lowerPage,"eval(") > 0; " atob="; instr(1,lowerPage,"atob(") > 0; " xhr="; instr(1,lowerPage,"xmlhttprequest") > 0; " fetch="; instr(1,lowerPage,"fetch(") > 0; " challenge="; instr(1,lowerPage,"captcha") > 0 or instr(1,lowerPage,"verify you are human") > 0 or instr(1,lowerPage,"challenge-platform") > 0
+end sub
+
 function rpHdTaskLatanimeIframeUrl(html as dynamic, currentUrl as dynamic) as string
     page = orbitText(html,524288)
     if page = "" then return ""
@@ -1358,6 +1373,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
         print "[RokuPlus anime-embed] provider="; provider; " index="; embedIndex+1; " host="; embedHost; " ok="; response.ok; " status="; embedStatus; " finished="; embedFinished; " bytes="; embedBytes; " finalHost="; finalEmbedHost
         if response.ok
             if orbitText(response.httpFinalUrl,4096) <> "" then mediaReferer = response.httpFinalUrl
+            if animeDiagnostic and provider = "latanime" then rpHdTaskAnimePageProbe(response.body,embedHost)
             masterUrl = rpHdOnlineMediaUrl(response.body)
             if masterUrl = "" then masterUrl = rpHdOnlineHostMediaUrl(response.body)
             if masterUrl = "" and instr(1,lcase(embed.url),"dood") > 0
@@ -1380,6 +1396,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         masterUrl = rpHdOnlineMediaUrl(response.body)
                         if masterUrl = "" then masterUrl = rpHdOnlineHostMediaUrl(response.body)
                         print "[RokuPlus anime-iframe] host="; nestedHost; " status=loaded media="; (masterUrl <> "")
+                        if animeDiagnostic then rpHdTaskAnimePageProbe(response.body,nestedHost)
                     else
                         print "[RokuPlus anime-iframe] host="; nestedHost; " status=request-failed http="; orbitInteger(response.httpStatus,9999)
                     end if
