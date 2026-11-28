@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/anime-section
+      - feature/anime-player-isolated
       - ts-segment-seek-integration
       - feature/invidious-from-ts-stable
       - fix/hls-native-startup-diagnostics-3.5.20
