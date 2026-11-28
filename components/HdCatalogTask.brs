@@ -2903,8 +2903,10 @@ function rpHdTaskLatanimeEmbeds(html as string) as object
             offset = valueStart
         end if
     end while
-    if dataPlayerIndex = 0 then print "[RokuPlus latanime] data-player count=0"
-    else print "[RokuPlus latanime] data-player count="; dataPlayerIndex; " extracted-servers="; embeds.count()
+    if dataPlayerIndex = 0
+        print "[RokuPlus latanime] data-player count=0"
+    else
+        print "[RokuPlus latanime] data-player count="; dataPlayerIndex; " extracted-servers="; embeds.count()
     end if
     offset = 1
     while offset < len(html) and embeds.count() < 12
