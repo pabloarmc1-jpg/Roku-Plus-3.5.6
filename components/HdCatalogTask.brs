@@ -2841,7 +2841,7 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
         failed.segmentDurations = []
         failed.tsRelayEnabled = false
         failed.fallbackTsRelayEnabled = false
-        failed.mediaHeaders = {Referer:pageFinalUrl,"User-Agent":rpHdTaskUserAgent()}
+        failed.mediaHeaders = {Referer:pageFinalUrl,Origin:"https://megaplay.buzz","User-Agent":rpHdTaskUserAgent()}
         failed.description = "MP4 directo · MegaPlay"
         failed.item = originalEpisode
         failed.language = "sub"
@@ -2898,7 +2898,7 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
         failed.segmentDurations = []
         failed.tsRelayEnabled = false
         failed.fallbackTsRelayEnabled = false
-        failed.mediaHeaders = {Referer:pageFinalUrl,"User-Agent":rpHdTaskUserAgent()}
+        failed.mediaHeaders = {Referer:pageFinalUrl,Origin:"https://megaplay.buzz","User-Agent":rpHdTaskUserAgent()}
         failed.description = "HLS compatible · MegaPlay · H.264 · "+selected.height.toStr()+"p"
         failed.item = originalEpisode
         failed.language = "sub"
@@ -2927,7 +2927,7 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
                 failed.segmentDurations = []
                 failed.tsRelayEnabled = false
                 failed.fallbackTsRelayEnabled = false
-                failed.mediaHeaders = {Referer:pageFinalUrl,"User-Agent":rpHdTaskUserAgent()}
+                failed.mediaHeaders = {Referer:pageFinalUrl,Origin:"https://megaplay.buzz","User-Agent":rpHdTaskUserAgent()}
                 failed.description = "HLS validado · MegaPlay · H.264/AAC"
                 failed.language = "sub"
                 failed.width = 0
@@ -4653,6 +4653,9 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         transfer.addHeader("Origin","https://megaplay.buzz")
     end if
     if referer <> "" then transfer.addHeader("Referer",referer)
+    if (role = "media" or role = "sample" or role = "sample-tail" or role = "sample-full") and instr(1,lcase(referer),"https://megaplay.buzz/") = 1
+        transfer.addHeader("Origin","https://megaplay.buzz")
+    end if
     limit = 2097152
     if role = "sample" or role = "audio-sample"
         transfer.addHeader("Range","bytes=0-65535")
