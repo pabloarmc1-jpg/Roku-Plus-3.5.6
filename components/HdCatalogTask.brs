@@ -241,6 +241,25 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
     if operation = "search"
         return rpHdTaskGlobalSearch(request,answer,fetcher,catalogSources)
     end if
+    if operation = "anime-search"
+        animeQuery = rpHdOnlineSearchQuery(request.query)
+        if animeQuery = "" then return answer
+        animeResults = rpHdTaskAniListSearch(animeQuery,fetcher)
+        if animeResults.count() = 0
+            translatedAnimeQuery = rpHdTaskTranslateAnimeTitle(animeQuery,fetcher)
+            if translatedAnimeQuery <> "" then animeResults = rpHdTaskAniListSearch(translatedAnimeQuery,fetcher)
+        end if
+        answer.items = animeResults
+        answer.ok = animeResults.count() > 0
+        answer.hasMore = false
+        answer.nextSkip = 0
+        answer.total = animeResults.count()
+        answer.totalKnown = true
+        answer.message = ""
+        if not answer.ok then answer.message = "AniList no encontró resultados para este anime."
+        print "[RokuPlus anime-search] source=anilist query="; animeQuery; " results="; animeResults.count()
+        return answer
+    end if
     if operation = "find-source"
         return rpHdTaskFindSource(request,answer,fetcher,decoderAccept,catalogSources)
     end if
@@ -2034,6 +2053,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     requestedKind = orbitText(item.kind,16)
     isEpisode = requestedKind = "episode"
     kind = requestedKind
+    isAnimeItem = (item.doesExist("isAnime") and item.isAnime = true) or (item.doesExist("catalogCategory") and lcase(orbitText(item.catalogCategory,24)) = "anime")
     discoveryGenres = []
     if type(item.genres) = "roArray"
         for each itemGenre in item.genres
@@ -2295,8 +2315,8 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
         if providerFailed then failures++
     end for
-    if not isEpisode and not m.top.cancelRequested
-        ' Reserve a final fair time slice for the Cinemeta alternatives lookup.
+    if not isEpisode and not isAnimeItem and not m.top.cancelRequested
+        ' Cinemeta alternatives are reserved for non-anime discovery records.
         rpHdTaskBeginSlice(1)
         if not rpHdTaskSliceExpired()
             cinemetaSuggestions = rpHdTaskCinemetaSimilarTitles(cinemetaTitle,kind,discoveryYear,fetcher)
@@ -2329,7 +2349,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         answer.message = "No se encontró una fuente compatible para este título. Prueba otro título o inténtalo más tarde."
     end if
     if failures = providers.count() then answer.message = "Las fuentes no respondieron. Inténtalo de nuevo más tarde."
-    if not isEpisode and suggestions.count() > 0
+    if not isEpisode and not isAnimeItem and suggestions.count() > 0
         answer.alternatives = rpHdTaskSortSuggestions(suggestions)
         answer.alternativeKind = kind
         print "[RokuPlus source-search] alternatives count="; answer.alternatives.count(); " kind="; kind; " discovery=cinemeta"
