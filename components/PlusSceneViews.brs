@@ -1281,7 +1281,7 @@ sub settingsScreen()
     words("Puedes corregir tus elecciones cuando quieras.",324,218,1480,55,25,"0xB3B3B3FF")
     appearance = "Vidrio"
     if m.theme = "classic" then appearance = "Clásico"
-    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Resolución detectada"]
+    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia","Perfiles","Servidor de compatibilidad (PC)","TMDB API Key","Subtitle Search Engine API Key","Resolución detectada","Idioma de Anime"]
     helperValue = m.compatBase
     if helperValue = "" then helperValue = "No configurado"
     tmdbStatus = "No configurada"
@@ -1297,8 +1297,8 @@ sub settingsScreen()
         if display.videoMode <> "" then displayValue = displayValue+" · "+display.videoMode
         if display.uiName <> "" then displayValue = displayValue+" · interfaz "+display.uiName
     end if
-    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue]
-    for i = 0 to 9
+    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue,animeLanguageName(m.animeLanguage)]
+    for i = 0 to 10
         y = 250+i*63
         panel(320,y,1522,58,"0x181818FF")
         words(labels[i],352,y+4,900,29,23,"0xFFFFFFFF")
