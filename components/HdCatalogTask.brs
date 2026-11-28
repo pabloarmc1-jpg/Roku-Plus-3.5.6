@@ -2613,6 +2613,7 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     end for
     if candidates.count() = 0
         print "[RokuPlus latanime] search=no-exact-title title="; left(title,100)
+        print "[RokuPlus anime-diagnostic] provider=latanime stage=anime status=not_found_or_title_mismatch"
         return failed
     end if
 
@@ -2670,6 +2671,10 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     if seriesPage.cancelled then return rpHdTaskFailure(failed,seriesPage)
     if not seriesPage.ok
         print "[RokuPlus latanime] series-page-failed slug="; selected.slug; " status="; seriesPage.status
+        seriesHttpStatus = orbitInteger(seriesPage.httpStatus,9999)
+        seriesDiagnosticStatus = "page_unavailable"
+        if seriesHttpStatus = 404 then seriesDiagnosticStatus = "page_404_possible_removed"
+        print "[RokuPlus anime-diagnostic] provider=latanime stage=anime-page status="; seriesDiagnosticStatus; " http="; seriesHttpStatus
         return failed
     end if
     seriesHtml = orbitText(seriesPage.body,2097152)
@@ -2695,6 +2700,7 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     end while
     if episodePath = ""
         print "[RokuPlus latanime] episode=not-found season="; seasonNumber; " episode="; episodeNumber; " slug="; selected.slug
+        print "[RokuPlus anime-diagnostic] provider=latanime stage=episode status=not_listed_or_removed season="; seasonNumber; " episode="; episodeNumber
         return failed
     end if
 
@@ -2704,16 +2710,24 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     if episodePage.cancelled then return rpHdTaskFailure(failed,episodePage)
     if not episodePage.ok
         print "[RokuPlus latanime] episode-page-failed path="; episodePath; " status="; episodePage.status
+        episodeHttpStatus = orbitInteger(episodePage.httpStatus,9999)
+        episodeDiagnosticStatus = "page_unavailable"
+        if episodeHttpStatus = 404 then episodeDiagnosticStatus = "page_404_possible_removed"
+        print "[RokuPlus anime-diagnostic] provider=latanime stage=episode-page status="; episodeDiagnosticStatus; " http="; episodeHttpStatus; " season="; seasonNumber; " episode="; episodeNumber
         return failed
     end if
     embeds = rpHdTaskLatanimeEmbeds(orbitText(episodePage.body,2097152))
     if embeds.count() = 0
         print "[RokuPlus latanime] embed-not-found episode="; episodePath; " page-bytes="; len(orbitText(episodePage.body,2097152)); " iframe="; instr(1,lcase(episodePage.body),"<iframe") > 0; " data-player="; instr(1,lcase(episodePage.body),"data-player") > 0
+        print "[RokuPlus anime-diagnostic] provider=latanime stage=servers status=no_server_entries episode_page=found"
         return failed
     end if
     print "[RokuPlus latanime] server-candidates="; embeds.count()
+    print "[RokuPlus anime-diagnostic] provider=latanime stage=servers status=discovered count="; embeds.count()
+    serverIndex = 0
     for each discoveredEmbed in embeds
-        print "[RokuPlus anime-diagnostic] embed-host="; rpHdTaskSafeHost(discoveredEmbed.url); " status=queued"
+        serverIndex++
+        print "[RokuPlus anime-diagnostic] provider=latanime server="; serverIndex; " host="; rpHdTaskSafeHost(discoveredEmbed.url); " status=queued"
     end for
     print "[RokuPlus latanime] resolve language="; selected.language; " season="; seasonNumber; " episode="; episodeNumber
     return rpHdTaskResolveEmbeds(embeds,"latanime",failed,fetcher,decoderAccept,orbitInteger(request.attempt,99),episodeUrl,episodeUrl,orbitText(request.animeLanguage,16))
