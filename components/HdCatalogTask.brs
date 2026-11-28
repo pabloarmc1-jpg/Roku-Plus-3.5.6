@@ -2441,22 +2441,6 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         animeProviderTested++
         latanimeAnswer = rpHdTaskLatanimeFindEpisode(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,request)
         if latanimeAnswer.ok
-            latanimeAnswer.operation = "find-source"
-            latanimeAnswer.requestId = answer.requestId
-            latanimeAnswer.sourceProvider = "latanime"
-            latanimeAnswer.sourceFallback = true
-            latanimeAnswer.item = item
-            if type(latanimeAnswer.item.hdFallbackProviders) <> "roArray" then latanimeAnswer.item.hdFallbackProviders = []
-            alreadySaved = false
-            for each savedProvider in latanimeAnswer.item.hdFallbackProviders
-                if savedProvider = "latanime" then alreadySaved = true
-            end for
-            if not alreadySaved then latanimeAnswer.item.hdFallbackProviders.push("latanime")
-            alreadyTriedLatanime = false
-            for each savedTriedProvider in triedProviders
-                if savedTriedProvider = "latanime" then alreadyTriedLatanime = true
-            end for
-            if not alreadyTriedLatanime then triedProviders.push("latanime")
             bestAnimeAnswer = rpHdTaskAnimeMarkSource(latanimeAnswer,item,answer.requestId,"spanish")
             animeProviderSuccesses.push("latanime")
             print "[RokuPlus provider-registry] provider=latanime stage=resolve status=playable-candidate"
@@ -2868,7 +2852,7 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
         end if
     else
         for each candidate in candidates
-            if candidate.language = "subtitulado"
+            if candidate.language = "subtitulado" or candidate.language = "original"
                 selected = candidate
                 exit for
             end if
@@ -2964,6 +2948,7 @@ function rpHdTaskLatanimeLanguage(value as dynamic) as string
     if instr(1,textValue,"latino") > 0 or instr(1,textValue,"latam") > 0 then return "latino"
     if instr(1,textValue,"castellano") > 0 then return "castellano"
     if instr(1,textValue,"subtitulado") > 0 or instr(1,textValue,"sub español") > 0 or instr(1,textValue,"sub esp") > 0 or instr(1,textValue,"subtitles") > 0 or instr(1,textValue,"sub espanol") > 0 then return "subtitulado"
+    if instr(1,textValue,"japones") > 0 or instr(1,textValue,"japonés") > 0 or instr(1,textValue,"japanese") > 0 or instr(1,textValue,"original audio") > 0 or instr(1,textValue,"idioma original") > 0 then return "original"
     ' "Dub" means dubbed, but does not identify the target language by itself.
     if instr(1,textValue,"spanish dub") > 0 or instr(1,textValue,"dub español") > 0 or instr(1,textValue,"dub espanol") > 0 or instr(1,textValue,"español dub") > 0 or instr(1,textValue,"espanol dub") > 0 or instr(1,textValue,"dublado español") > 0 or instr(1,textValue,"doblado español") > 0 or instr(1,textValue,"es dub") > 0 or instr(1,textValue,"dub es") > 0 then return "spanish-dub"
     if instr(1,textValue,"dublado") > 0 or instr(1,textValue,"doblado") > 0 or instr(1,textValue,"-dub") > 0 or instr(1,textValue," dub") > 0 or right(textValue,3) = "dub" then return "dub"
