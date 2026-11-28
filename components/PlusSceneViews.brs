@@ -1297,7 +1297,9 @@ sub settingsScreen()
         if display.videoMode <> "" then displayValue = displayValue+" · "+display.videoMode
         if display.uiName <> "" then displayValue = displayValue+" · interfaz "+display.uiName
     end if
-    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue,animeLanguageName(m.animeLanguage)]
+    animeLanguageValue = "Español"
+    if m.animeLanguage = "original" then animeLanguageValue = "Idioma original"
+    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance,rpProfileName(m.profileId),helperValue,tmdbStatus,subtitleStatus,displayValue,animeLanguageValue]
     for i = 0 to 10
         y = 250+i*63
         panel(320,y,1522,58,"0x181818FF")
