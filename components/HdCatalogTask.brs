@@ -2932,9 +2932,12 @@ sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
     url = orbitText(candidateUrl,4096).trim()
     if url = "" then return
     url = CreateObject("roRegex","&amp;","i").Replace(url,"&")
-    url = CreateObject("roRegex","\\/","i").Replace(url,"/")
-    ' Latanime/Kino can publish an intermediate wrapper instead of the actual player.
-    ' Unwrap only the two known site wrappers; never queue their advertising page.
+    url = CreateObject("roRegex","\\\\/","i").Replace(url,"/")
+    if left(lcase(url),7) = "http://" then url = "https://"+mid(url,8)
+    if left(lcase(url),8) <> "https://" then return
+
+    ' Unwrap only known Latanime/Kino wrappers. Interactive ad and human-check
+    ' pages are not bypassed; only direct server URLs are accepted here.
     wrapperOne = "https://monoschinos2.com/reproductor?url="
     wrapperTwo = "https://mojon.latanime.org/aqua/fn?url="
     if lcase(left(url,len(wrapperOne))) = wrapperOne or lcase(left(url,len(wrapperTwo))) = wrapperTwo
@@ -2942,13 +2945,25 @@ sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
         if queryAt > 0
             transfer = CreateObject("roUrlTransfer")
             url = transfer.Unescape(mid(url,queryAt+5))
+            if left(lcase(url),7) = "http://" then url = "https://"+mid(url,8)
         end if
     end if
-    ' Normalize known mirrors to the canonical Filemoon host before validation.
+
+    ' Normalize mirrors used by Latanime/Kino.
     if lcase(left(url,len("https://filemoon.link"))) = "https://filemoon.link"
         url = "https://filemoon.sx"+mid(url,len("https://filemoon.link")+1)
+    else if lcase(left(url,len("https://hglink.to"))) = "https://hglink.to"
+        url = "https://streamwish.to"+mid(url,len("https://hglink.to")+len("https://hglink.to")+1)
+    else if lcase(left(url,len("https://swdyu.com"))) = "https://swdyu.com"
+        url = "https://streamwish.to"+mid(url,len("https://swdyu.com")+1)
+    else if lcase(left(url,len("https://mivalyo.com"))) = "https://mivalyo.com"
+        url = "https://vidhidepro.com"+mid(url,len("https://mivalyo.com")+1)
     end if
-    if not CreateObject("roRegex","^https://(www\\.)?(voe\\.sx|arianathankspecial\\.com|mixdrop\\.(co|to|ag|bz)|mxdrop\\.to|doodstream\\.(com|co|net)|dood\\.(to|so|la|li|ws|pm)|dsvplay\\.com|byse\\.(su|to|sx)|hexload\\.com|savefiles\\.com|mp4upload\\.(com|net)|filemoon\\.(sx|to|in)|lulu\\.to|yourupload\\.com|ok\\.ru|fembed2?\\.com|feurl\\.com|femax20\\.com|pixeldrain\\.com|gofile\\.io|mega\\.nz)/","i").isMatch(url) then return
+
+    host = rpHdTaskSafeHost(url)
+    if left(host,4) = "www." then host = mid(host,5)
+    allowedHosts = "|voe.sx|arianathankspecial.com|mixdrop.co|mixdrop.to|mixdrop.ag|mixdrop.bz|mxdrop.to|doodstream.com|doodstream.co|doodstream.net|dood.to|dood.so|dood.la|dood.li|dood.ws|dood.pm|dsvplay.com|byse.su|byse.to|byse.sx|hexload.com|savefiles.com|mp4upload.com|mp4upload.net|filemoon.sx|filemoon.to|filemoon.in|lulu.to|yourupload.com|ok.ru|fembed.com|fembed2.com|feurl.com|femax20.com|pixeldrain.com|gofile.io|mega.nz|streamwish.to|vidhidepro.com|"
+    if instr(1,allowedHosts,"|"+host+"|") = 0 then return
     for each existing in embeds
         if lcase(existing.url) = lcase(url) then return
     end for
