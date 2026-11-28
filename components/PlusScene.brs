@@ -320,7 +320,7 @@ sub fetch(context as object)
     cancelRequest()
     m.pending = context
     m.request = CreateObject("roDeviceInfo").getRandomUUID()
-    online = (usesOnlineHd() or (context.doesExist("item") and rpIsOnlineHdItem(context.item))) and context.operation <> "country" and context.operation <> "latam" and context.operation <> "anime-catalog"
+    online = (usesOnlineHd() or (context.doesExist("item") and rpIsOnlineHdItem(context.item))) and context.operation <> "country" and context.operation <> "latam"
     taskName = "CatalogTask"
     if online then taskName = "HdCatalogTask"
     task = CreateObject("roSGNode",taskName)
@@ -357,7 +357,7 @@ sub fetch(context as object)
     if context.operation = "country" then task.countryCode = m.countryCode
     task.requestId = m.request
     task.query = m.query
-    if online and context.operation = "cinemeta-catalog"
+    if online and (context.operation = "cinemeta-catalog" or context.operation = "anime-catalog")
         task.query = m.genreFilter
         task.attempt = 0
         if m.catalogSort = "recent" then task.attempt = 1
@@ -4386,7 +4386,24 @@ sub playDetail()
 end sub
 
 sub enterEpisodes()
-    if orbitText(m.detail.discoverySource,32) = "cinemeta" or orbitText(m.detail.discoverySource,32) = "anilist"
+    if orbitText(m.detail.discoverySource,32) = "anilist"
+        m.note = ""
+        m.series = m.detail
+        m.seriesOrigin = m.detailOrigin
+        if type(m.series.seasons) <> "roArray" or m.series.seasons.count() = 0
+            m.series.seasons = [{number:1,episodes:[],loaded:false}]
+            m.series.seasonNumbers = [1]
+        end if
+        m.season = 0
+        m.episode = 0
+        m.episodeMode = "episodes"
+        m.view = "episodes"
+        m.zone = "episodes"
+        drawScreen()
+        loadEpisodeSeason()
+        return
+    end if
+    if orbitText(m.detail.discoverySource,32) = "cinemeta"
         m.note = ""
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
