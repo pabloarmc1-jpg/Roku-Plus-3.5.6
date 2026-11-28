@@ -2478,7 +2478,17 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
             end if
         end for
     end if
+    ' Subtitled editions are the final fallback, only after both Spanish dubs.
+    if selected = invalid
+        for each candidate in candidates
+            if candidate.language = "subtitulado"
+                selected = candidate
+                exit for
+            end if
+        end for
+    end if
     if selected = invalid then return failed
+    if selected.language = "subtitulado" then originalEpisode.animeSubtitleOnly = true
 
     seriesUrl = "https://latanime.org/anime/"+selected.slug
     rpHdTaskBeginSlice(2)
@@ -2539,6 +2549,7 @@ function rpHdTaskLatanimeLanguage(value as dynamic) as string
     textValue = lcase(orbitText(value,300))
     if instr(1,textValue,"latino") > 0 then return "latino"
     if instr(1,textValue,"castellano") > 0 then return "castellano"
+    if instr(1,textValue,"subtitulado") > 0 or instr(1,textValue,"sub español") > 0 or instr(1,textValue,"sub esp") > 0 or instr(1,textValue,"subtitles") > 0 then return "subtitulado"
     return "other"
 end function
 
