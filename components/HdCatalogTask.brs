@@ -2628,7 +2628,7 @@ function rpHdTaskLatanimeEmbeds(html as string) as object
         end while
         if finish > found
             candidateUrl = left(mid(html,found),finish-found)
-            candidateUrl = candidateUrl.replaceAll("&amp;","&")
+            candidateUrl = CreateObject("roRegex","&amp;","i").Replace(candidateUrl,"&")
             rpHdTaskLatanimeAddEmbed(embeds,candidateUrl)
         end if
         offset = finish+1
