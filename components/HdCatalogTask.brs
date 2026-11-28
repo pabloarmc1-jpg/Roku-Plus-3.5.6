@@ -300,7 +300,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         for episodeIndex = 1 to totalEpisodes
             animeEpisodes.push({
                 id:"anilist-"+orbitText(animeItem.anilistId,20)+"-S1E"+episodeIndex.toStr()
-                kind:"episode", provider:"all", discoverySource:"anilist", anilistId:orbitText(animeItem.anilistId,20), anilistId:orbitText(animeItem.anilistId,20)
+                kind:"episode", provider:"all", discoverySource:"anilist", anilistId:orbitText(animeItem.anilistId,20)
                 catalogCategory:"anime", isAnime:true
                 title:"Episodio "+episodeIndex.toStr(), seriesTitle:animeItem.title
                 seriesSearchQuery:orbitText(animeItem.searchQuery,200), seriesAliases:animeItem.aliases, season:1
@@ -396,7 +396,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
             for episodeIndex = 1 to totalEpisodes
                 animeEpisodes.push({
                     id:"anilist-"+orbitText(item.anilistId,20)+"-S1E"+episodeIndex.toStr()
-                    kind:"episode", provider:"all", discoverySource:"anilist", anilistId:orbitText(animeItem.anilistId,20)
+                    kind:"episode", provider:"all", discoverySource:"anilist", anilistId:orbitText(item.anilistId,20)
                     catalogCategory:"anime", isAnime:true
                     title:"Episodio "+episodeIndex.toStr(), seriesTitle:item.title
                     seriesSearchQuery:orbitText(item.searchQuery,200), season:1
@@ -2315,6 +2315,13 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             imdbId:orbitText(item.seriesImdbId,40),searchQuery:orbitText(item.seriesSearchQuery,200)
             genres:discoveryGenres, anilistId:orbitText(item.anilistId,20)
         }
+        ' Recover AniList identity from the canonical episode ID if a UI copy dropped the field.
+        animeIdentity = orbitInteger(item.anilistId,99999999)
+        if animeIdentity < 1
+            identityMatch = CreateObject("roRegex","^anilist-([0-9]{1,10})(-S[0-9]+E[0-9]+)?$","i").match(orbitText(item.id,180))
+            if identityMatch.count() >= 2 then animeIdentity = orbitInteger(identityMatch[1],99999999)
+        end if
+        if animeIdentity > 0 then discovery.anilistId = animeIdentity.toStr()
         if type(item.seriesAliases) = "roArray" then discovery.aliases = item.seriesAliases
     end if
     if kind <> "movie" and kind <> "series"
@@ -2798,7 +2805,7 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
         print "[RokuPlus anime-megaplay] stage=player-page result=data-id-rejected"
         return failed
     end if
-    apiUrl = "https://megaplay.buzz/stream/getSources?id="+transfer.escape(fileId)+"&id="+transfer.escape(fileId)
+    apiUrl = "https://megaplay.buzz/stream/getSources?id="+transfer.escape(fileId)
     print "[RokuPlus anime-megaplay] stage=player-page result=data-id-found"
     rpHdTaskBeginSlice(2)
     sourceResponse = fetcher(apiUrl,"anime-megaplay-api",pageFinalUrl)
