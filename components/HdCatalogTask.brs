@@ -2480,7 +2480,26 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
             end if
         end for
     end if
-    ' Subtitled editions are the final fallback, only after both Spanish dubs.
+    ' Prefer a clearly identified Spanish dub after Latino and Castilian editions.
+    if selected = invalid
+        for each candidate in candidates
+            if candidate.language = "spanish-dub"
+                selected = candidate
+                exit for
+            end if
+        end for
+    end if
+    ' Some providers expose only a generic "Dub" tag. It confirms dubbed audio,
+    ' but not Spanish; keep it as a lower-confidence fallback and log that fact.
+    if selected = invalid
+        for each candidate in candidates
+            if candidate.language = "dub"
+                selected = candidate
+                exit for
+            end if
+        end for
+    end if
+    ' Subtitled editions are the final fallback, after dubbed editions.
     if selected = invalid
         for each candidate in candidates
             if candidate.language = "subtitulado"
@@ -2551,7 +2570,7 @@ end function
 
 function rpHdTaskLatanimeTitleKey(value as dynamic) as string
     title = lcase(orbitText(value,240).trim())
-    title = CreateObject("roRegex","\s*(latino|castellano|español|espanol|subtitulado|sub español|sub esp|720p|1080p|hd|cr)\s*","i").replaceAll(title," ")
+    title = CreateObject("roRegex","\s*(latino|castellano|español|espanol|spanish|dub|dublado|doblado|subtitulado|sub español|sub esp|sub|720p|1080p|hd|cr)\s*","i").replaceAll(title," ")
     title = CreateObject("roRegex","\s*(temporada|season|s)[ ._-]*[0-9]+.*$","i").replace(title,"")
     title = CreateObject("roRegex","\s*[-:·]?\s*[0-9]+$","").replace(title,"")
     return rpHdTaskCinemetaTitleKey(title)
@@ -2559,9 +2578,12 @@ end function
 
 function rpHdTaskLatanimeLanguage(value as dynamic) as string
     textValue = lcase(orbitText(value,300))
-    if instr(1,textValue,"latino") > 0 then return "latino"
+    if instr(1,textValue,"latino") > 0 or instr(1,textValue,"latam") > 0 then return "latino"
     if instr(1,textValue,"castellano") > 0 then return "castellano"
-    if instr(1,textValue,"subtitulado") > 0 or instr(1,textValue,"sub español") > 0 or instr(1,textValue,"sub esp") > 0 or instr(1,textValue,"subtitles") > 0 then return "subtitulado"
+    if instr(1,textValue,"subtitulado") > 0 or instr(1,textValue,"sub español") > 0 or instr(1,textValue,"sub esp") > 0 or instr(1,textValue,"subtitles") > 0 or instr(1,textValue,"sub espanol") > 0 then return "subtitulado"
+    ' "Dub" means dubbed, but does not identify the target language by itself.
+    if instr(1,textValue,"spanish dub") > 0 or instr(1,textValue,"dub español") > 0 or instr(1,textValue,"dub espanol") > 0 or instr(1,textValue,"español dub") > 0 or instr(1,textValue,"espanol dub") > 0 or instr(1,textValue,"dublado español") > 0 or instr(1,textValue,"doblado español") > 0 or instr(1,textValue,"es dub") > 0 or instr(1,textValue,"dub es") > 0 then return "spanish-dub"
+    if instr(1,textValue,"dublado") > 0 or instr(1,textValue,"doblado") > 0 or instr(1,textValue,"-dub") > 0 or instr(1,textValue," dub") > 0 or right(textValue,3) = "dub" then return "dub"
     return "other"
 end function
 
