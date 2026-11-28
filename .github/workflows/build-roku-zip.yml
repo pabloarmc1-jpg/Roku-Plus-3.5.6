@@ -96,6 +96,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+# Rebuild package after Anime provider isolation and language-edition fixes.
 # Package the native HLS reference-stream isolation test.
 
 # Rebuild package for localized title matching fix.
