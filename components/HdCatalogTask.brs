@@ -1731,7 +1731,8 @@ function rpHdTaskAniListSearch(query as string, fetcher as dynamic) as object
     transfer = CreateObject("roUrlTransfer")
     graphQuery = "query ($search: String) { Page(page: 1, perPage: 15) { media(search: $search, type: ANIME, sort: SEARCH_MATCH) { id format seasonYear episodes title { romaji english native userPreferred } synonyms coverImage { large } description(asHtml: false) genres } } }"
     variables = {search:query}
-    endpoint = "https://graphql.anilist.co/?query=" + transfer.escape(graphQuery) + "&variables=" + transfer.escape(FormatJson(variables))
+    payload = {query:graphQuery,variables:variables}
+    endpoint = "https://graphql.anilist.co/?payload=" + transfer.escape(FormatJson(payload))
     response = fetcher(endpoint,"anilist","")
     if not response.ok
         print "[RokuPlus anime-id] source=anilist result=error query="; query
@@ -3610,7 +3611,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if CreateObject("roRegex","[\x00-\x20\x7F\\]","").isMatch(endpoint) then return false
     if role = "api" then return CreateObject("roRegex","^https://(lamovie\.org/wp-api/v1/|allcalidad\.re/api/rest/|cinehax\.org/api/rest/v1/)[^#]*$","").isMatch(endpoint)
     if role = "translate" then return CreateObject("roRegex","^https://api\.mymemory\.translated\.net/get\?q=[^#]+&langpair=es%7Cen$","").isMatch(endpoint)
-    if role = "anilist" then return CreateObject("roRegex","^https://graphql\.anilist\.co/\?query=[^#]+&variables=[^#]+$","").isMatch(endpoint)
+    if role = "anilist" then return CreateObject("roRegex","^https://graphql\\.anilist\\.co/\\?payload=[^#]+$","").isMatch(endpoint)
     if role = "cinemeta" then return CreateObject("roRegex","^https://v3-cinemeta\.strem\.io/(catalog/(movie|series)/(top(/search=[A-Za-z0-9%._~!*'()+-]+|/genre=[A-Za-z0-9%._~!*'()+-]+(&skip=[0-9]+)?|/skip=[0-9]+)?|year/genre=[0-9]{4}(/skip=[0-9]+)?)|meta/(movie|series)/tt[0-9]{6,12})\.json$","").isMatch(endpoint)
     if role = "tvmaze" then return CreateObject("roRegex","^https://api\.tvmaze\.com/(search/shows\?q=[^#]+|shows/[0-9]+/episodes)$","").isMatch(endpoint)
     if role = "player" then return CreateObject("roRegex","^https://videoapp\.mov/e/(movie/[0-9]+|tv/[0-9]+/[0-9]+/[0-9]+)$","").isMatch(endpoint)
@@ -3685,7 +3686,21 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     files = CreateObject("roFileSystem")
     filename = "tmp:/rokuplus-hd-"+CreateObject("roDeviceInfo").getRandomUUID()+".txt"
     requestFile = ""
-    if role = "seriesmetro-season"
+    if role = "anilist"
+        payloadStart = instr(1,endpoint,"?payload=") + 9
+        postBody = transfer.unescape(mid(endpoint,payloadStart))
+        if postBody = "" or left(postBody,1) <> "{"
+            return answer
+        end if
+        transfer.setUrl("https://graphql.anilist.co/")
+        transfer.addHeader("Content-Type","application/json")
+        requestFile = filename+".request"
+        if not WriteAsciiFile(requestFile,postBody)
+            files.delete(requestFile)
+            return answer
+        end if
+        started = transfer.asyncPostFromFileToFile(requestFile,filename)
+    else if role = "seriesmetro-season"
         post = rpHdTaskSeasonPost(endpoint)
         transfer.setUrl(post.url)
         transfer.addHeader("Content-Type","application/x-www-form-urlencoded")
