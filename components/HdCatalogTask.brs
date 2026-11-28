@@ -1886,6 +1886,27 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         answer.message = "No hay un título válido para buscar en las fuentes."
         return answer
     end if
+    ' Anime en español: intenta Latanime primero (Latino antes que Castellano).
+    ' Si no hay episodio/servidor compatible, continúa con los proveedores existentes.
+    if isEpisode and lcase(orbitText(request.animeLanguage,16)) = "spanish" and lcase(orbitText(item.catalogCategory,40)) = "anime"
+        latanimeAnswer = rpHdTaskLatanimeFindEpisode(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,request)
+        if latanimeAnswer.ok
+            latanimeAnswer.operation = "find-source"
+            latanimeAnswer.requestId = answer.requestId
+            latanimeAnswer.sourceProvider = "latanime"
+            latanimeAnswer.sourceFallback = true
+            latanimeAnswer.item = item
+            if type(latanimeAnswer.item.hdFallbackProviders) <> "roArray" then latanimeAnswer.item.hdFallbackProviders = []
+            alreadySaved = false
+            for each savedProvider in latanimeAnswer.item.hdFallbackProviders
+                if savedProvider = "latanime" then alreadySaved = true
+            end for
+            if not alreadySaved then latanimeAnswer.item.hdFallbackProviders.push("latanime")
+            print "[RokuPlus latanime] source-search result=matched season="; seasonNumber; " episode="; episodeNumber
+            return latanimeAnswer
+        end if
+        print "[RokuPlus latanime] source-search result=fallback-to-existing-providers"
+    end if
     ' Episode fallback must reach every provider. Searching several title variants
     ' against one provider first can exhaust the shared deadline before the
     ' remaining providers are checked. Use the canonical series title once per
@@ -2040,6 +2061,165 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     end if
     print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
+end function
+
+
+' Latanime is a dedicated Anime-only fallback. Its HTML pages and slug identity
+' are kept separate from the numeric-ID HD providers.
+function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as object, seasonNumber as integer, episodeNumber as integer, answer as object, fetcher as dynamic, decoderAccept as dynamic, request as object) as object
+    failed = {ok:false,cancelled:false,message:"Latanime no encontró un episodio reproducible."}
+    title = orbitText(discovery.title,200).trim()
+    if title = "" then return failed
+    transfer = CreateObject("roUrlTransfer")
+    searchUrl = "https://latanime.org/buscar?q="+transfer.escape(title)
+    rpHdTaskBeginSlice(2)
+    search = fetcher(searchUrl,"latanime-page","https://latanime.org/")
+    if search.cancelled then return rpHdTaskFailure(failed,search)
+    if not search.ok then return failed
+
+    candidates = []
+    html = orbitText(search.body,2097152)
+    lowerHtml = lcase(html)
+    offset = 1
+    while offset < len(html)
+        found = instr(offset,lowerHtml,"/anime/")
+        if found = 0 then exit while
+        quoteEnd = instr(found,html,chr(34))
+        singleEnd = instr(found,html,"'")
+        if quoteEnd = 0 or (singleEnd > 0 and singleEnd < quoteEnd) then quoteEnd = singleEnd
+        if quoteEnd = 0 then exit while
+        slug = mid(html,found+7,quoteEnd-found-7)
+        slug = CreateObject("roRegex","[^a-zA-Z0-9-].*$","").replace(slug,"")
+        offset = quoteEnd+1
+        if slug <> "" and not slug.contains("/")
+            cardEnd = instr(found,lowerHtml,"</a>")
+            if cardEnd = 0 or cardEnd-found > 5000 then cardEnd = found+2500
+            card = mid(html,found,cardEnd-found)
+            h3Start = instr(1,lcase(card),"<h3")
+            if h3Start > 0
+                tagEnd = instr(h3Start,card,">")
+                h3End = instr(tagEnd+1,lcase(card),"</h3>")
+                if tagEnd > 0 and h3End > tagEnd
+                    cardTitle = rpHdTvmazeText(mid(card,tagEnd+1,h3End-tagEnd-1))
+                    titleKey = rpHdTaskLatanimeTitleKey(cardTitle)
+                    wantedKey = rpHdTaskLatanimeTitleKey(title)
+                    if titleKey <> "" and titleKey = wantedKey
+                        language = rpHdTaskLatanimeLanguage(cardTitle+" "+slug)
+                        candidateSeason = rpHdTaskLatanimeSeason(cardTitle+" "+slug)
+                        seasonOk = candidateSeason = seasonNumber
+                        if seasonNumber = 1 and candidateSeason = 0 then seasonOk = true
+                        if seasonOk then candidates.push({slug:slug,title:cardTitle,language:language})
+                    end if
+                end if
+            end if
+        end if
+    end while
+    if candidates.count() = 0
+        print "[RokuPlus latanime] search=no-exact-title title="; left(title,100)
+        return failed
+    end if
+
+    ' Latino is preferred; Castellano is used only when no Latino edition exists.
+    selected = invalid
+    for each candidate in candidates
+        if candidate.language = "latino"
+            selected = candidate
+            exit for
+        end if
+    end for
+    if selected = invalid
+        for each candidate in candidates
+            if candidate.language = "castellano"
+                selected = candidate
+                exit for
+            end if
+        end for
+    end if
+    if selected = invalid then return failed
+
+    seriesUrl = "https://latanime.org/anime/"+selected.slug
+    rpHdTaskBeginSlice(2)
+    seriesPage = fetcher(seriesUrl,"latanime-page","https://latanime.org/")
+    if seriesPage.cancelled then return rpHdTaskFailure(failed,seriesPage)
+    if not seriesPage.ok then return failed
+    seriesHtml = orbitText(seriesPage.body,2097152)
+    seriesLower = lcase(seriesHtml)
+    episodePath = ""
+    offset = 1
+    while offset < len(seriesHtml)
+        found = instr(offset,seriesLower,"/ver/")
+        if found = 0 then exit while
+        quoteEnd = instr(found,seriesHtml,chr(34))
+        singleEnd = instr(found,seriesHtml,"'")
+        if quoteEnd = 0 or (singleEnd > 0 and singleEnd < quoteEnd) then quoteEnd = singleEnd
+        if quoteEnd = 0 then exit while
+        path = mid(seriesHtml,found,quoteEnd-found)
+        offset = quoteEnd+1
+        if CreateObject("roRegex","^/ver/[a-z0-9-]+$","i").isMatch(path)
+            numberMatch = CreateObject("roRegex","-(episodio-)?([0-9]+)$","i").match(path)
+            if numberMatch.count() >= 3 and orbitInteger(numberMatch[2],9999) = episodeNumber
+                episodePath = path
+                exit while
+            end if
+        end if
+    end while
+    if episodePath = ""
+        print "[RokuPlus latanime] episode=not-found season="; seasonNumber; " episode="; episodeNumber; " slug="; selected.slug
+        return failed
+    end if
+
+    episodeUrl = "https://latanime.org"+episodePath
+    rpHdTaskBeginSlice(2)
+    episodePage = fetcher(episodeUrl,"latanime-page",seriesUrl)
+    if episodePage.cancelled then return rpHdTaskFailure(failed,episodePage)
+    if not episodePage.ok then return failed
+    playerData = rpHdTaskLatanimeAttribute(orbitText(episodePage.body,2097152),"data-player")
+    if playerData = "" then return failed
+    encoded = CreateObject("roByteArray")
+    if not encoded.FromBase64String(playerData) then return failed
+    embedUrl = encoded.ToAsciiString().trim()
+    if not CreateObject("roRegex","^https://(www\\.)?voe\\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(embedUrl)
+        print "[RokuPlus latanime] server=unsupported host="; rpHdTaskSafeHost(embedUrl)
+        return failed
+    end if
+    embeds = [{url:embedUrl,language:"es"}]
+    print "[RokuPlus latanime] resolve language="; selected.language; " season="; seasonNumber; " episode="; episodeNumber; " server=voe"
+    return rpHdTaskResolveEmbeds(embeds,"latanime",failed,fetcher,decoderAccept,orbitInteger(request.attempt,99),"https://latanime.org/","https://latanime.org/",orbitText(request.animeLanguage,16))
+end function
+
+function rpHdTaskLatanimeTitleKey(value as dynamic) as string
+    title = lcase(orbitText(value,240).trim())
+    title = CreateObject("roRegex","\\s*(latino|castellano|español|espanol|subtitulado|sub español|sub esp|720p|1080p|hd|cr)\\s*","i").replaceAll(title," ")
+    title = CreateObject("roRegex","\\s*(temporada|season|s)[ ._-]*[0-9]+.*$","i").replace(title,"")
+    title = CreateObject("roRegex","\\s+[0-9]+$","").replace(title,"")
+    return rpHdTaskCinemetaTitleKey(title)
+end function
+
+function rpHdTaskLatanimeLanguage(value as dynamic) as string
+    textValue = lcase(orbitText(value,300))
+    if instr(1,textValue,"latino") > 0 then return "latino"
+    if instr(1,textValue,"castellano") > 0 then return "castellano"
+    return "other"
+end function
+
+function rpHdTaskLatanimeSeason(value as dynamic) as integer
+    match = CreateObject("roRegex","(temporada|season|s)[ ._-]*([0-9]{1,2})","i").match(orbitText(value,400))
+    if match.count() >= 3 then return orbitInteger(match[2],99,0)
+    return 1
+end function
+
+function rpHdTaskLatanimeAttribute(html as string, attribute as string) as string
+    lowerHtml = lcase(html)
+    needle = lcase(attribute)+"="
+    found = instr(1,lowerHtml,needle)
+    if found = 0 then return ""
+    valueStart = found+len(needle)
+    if valueStart > len(html) then return ""
+    quote = mid(html,valueStart,1)
+    if quote <> chr(34) and quote <> "'" then return ""
+    valueEnd = instr(valueStart+1,html,quote)
+    if valueEnd = 0 or valueEnd-valueStart > 4096 then return ""
+    return mid(html,valueStart+1,valueEnd-valueStart-1)
 end function
 
 function rpHdTaskSuggestionSearchQueries(title as dynamic) as object
@@ -3262,6 +3442,9 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if role = "cinecalidad-page"
         return CreateObject("roRegex","^https://www\.cinecalidad\.vg/(page/[0-9]+/|pelicula/[a-z0-9-]+/)?(\?s=[^#]*)?$","").isMatch(endpoint)
     end if
+    if role = "latanime-page"
+        return CreateObject("roRegex","^https://(www\\.)?latanime\\.org/(buscar\\?q=[A-Za-z0-9%._~!*'()+-]+|anime/[a-z0-9-]+/?|ver/[a-z0-9-]+/?)$","i").isMatch(endpoint)
+    end if
     if role = "embed"
         if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","").isMatch(endpoint) then return true
         if CreateObject("roRegex","^https://vimeos\.net/embed-[a-zA-Z0-9_-]+(\.html)?(\?[^#]*)?$","").isMatch(endpoint) then return true
@@ -3400,6 +3583,11 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
         redirectAllowed = false
         answer.message = "TVmaze redirigió a un dominio no permitido."
         print "[RokuPlus tvmaze] redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
+    end if
+    if role = "latanime-page" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"latanime-page")
+        redirectAllowed = false
+        answer.message = "Latanime redirigió a un dominio no permitido."
+        print "[RokuPlus latanime] redirect_rejected=1 host="; rpHdTaskSafeHost(answer.httpFinalUrl)
     end if
     if role = "embed" and not rpHdTaskAllowedUrl(answer.httpFinalUrl,"embed")
         redirectAllowed = false
