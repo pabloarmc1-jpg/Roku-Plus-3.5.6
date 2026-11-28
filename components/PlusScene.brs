@@ -215,6 +215,7 @@ sub init()
     m.hdProvider = rpLoadHdProvider()
     m.compatBase = rpLoadCompatBase()
     m.theme = rpLoadTheme()
+    m.animeLanguage = rpLoadAnimeLanguage()
     m.themeCursor = 0
     m.hdSourceCursor = 0
     ' Local file access and JSON parsing run in a Task, never on the Render thread.
@@ -4883,7 +4884,7 @@ if m.view = "profiles"
     else if m.view = "settings"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up" and m.settingsCursor > 0 then m.settingsCursor--
-        if key = "down" and m.settingsCursor < 9 then m.settingsCursor++
+        if key = "down" and m.settingsCursor < 10 then m.settingsCursor++
         if key = "OK"
             if m.settingsCursor = 0 then beginSetup(true,false)
             if m.settingsCursor = 1 then beginSetup(true,true)
@@ -4894,6 +4895,17 @@ if m.view = "profiles"
             if m.settingsCursor = 6 then openCompatSettings()
             if m.settingsCursor = 7 then openApiKeySettings("tmdb")
             if m.settingsCursor = 8 then openApiKeySettings("subtitle")
+            if m.settingsCursor = 9
+                nextLanguage = "original"
+                if m.animeLanguage = "original" then nextLanguage = "spanish"
+                if rpSaveAnimeLanguage(nextLanguage)
+                    m.animeLanguage = nextLanguage
+                    m.note = "Idioma de Anime actualizado."
+                else
+                    m.note = "No se pudo guardar el idioma de Anime."
+                end if
+                drawScreen()
+            end if
             return true
         end if
         paintFocus()
