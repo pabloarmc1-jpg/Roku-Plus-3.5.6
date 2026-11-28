@@ -2229,6 +2229,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     animeProviderSuccesses = []
     animeProviderTested = 0
     if isEpisode and not latanimeAlreadyTried and lcase(orbitText(request.animeLanguage,16)) = "spanish" and lcase(orbitText(item.catalogCategory,40)) = "anime"
+        print "[RokuPlus anime-diagnostic] provider=latanime stage=search status=started language=spanish"
         animeProviderTested++
         latanimeAnswer = rpHdTaskLatanimeFindEpisode(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,request)
         if latanimeAnswer.ok
@@ -2253,7 +2254,10 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             print "[RokuPlus provider-registry] provider=latanime stage=resolve status=playable-candidate"
         else
             print "[RokuPlus provider-registry] provider=latanime stage=resolve status=failed message="; left(orbitText(latanimeAnswer.message,100),100)
+            print "[RokuPlus anime-diagnostic] provider=latanime stage=summary status=failed message="; left(orbitText(latanimeAnswer.message,140),140)
         end if
+    else if isAnimeItem and isEpisode and lcase(orbitText(request.animeLanguage,16)) <> "spanish"
+        print "[RokuPlus anime-diagnostic] provider=latanime stage=summary status=skipped reason=language-preference language="; orbitText(request.animeLanguage,16)
     end if
     ' Episode fallback visits every compatible provider in order. Anime may
     ' try a bounded set of AniList aliases at each provider; exact title/year
@@ -2339,7 +2343,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     if isAnimeItem and isEpisode
                         resolveStatus = "failed"
                         if sourceAnswer.ok then resolveStatus = "candidate"
-                        print "[RokuPlus anime-diagnostic] provider="; source; " stage=resolve status="; resolveStatus; " message="; left(orbitText(sourceAnswer.message,120),120); " sourceHost="; orbitText(sourceAnswer.sourceHost,40); " media="; orbitText(sourceAnswer.mediaUrl,180)
+                        print "[RokuPlus anime-diagnostic] provider="; source; " stage=resolve status="; resolveStatus; " message="; left(orbitText(sourceAnswer.message,120),120); " sourceHost="; orbitText(sourceAnswer.sourceHost,40)
                     end if
                     if sourceAnswer.ok and isEpisode
                         sourceSeries = sourceAnswer.item
@@ -2454,7 +2458,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     if isAnimeItem and isEpisode and bestAnimeAnswer <> invalid
         bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:animeProviderSuccesses,complete:not rpHdTaskSliceExpired()}
         print "[RokuPlus anime-provider-test] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " complete="; not rpHdTaskSliceExpired()
-        print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_remaining="; max(0,providers.count()+1-animeProviderTested); " complete="; not rpHdTaskSliceExpired()
+        print "[RokuPlus anime-diagnostic] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " providers_remaining="; providers.count()+1-animeProviderTested; " complete="; not rpHdTaskSliceExpired()
         print "[RokuPlus anime-provider-test] pending=megaplay,anikoto,anineko"
         print "[RokuPlus source-search] finish result=matched provider="; bestAnimeAnswer.sourceProvider
         return bestAnimeAnswer
