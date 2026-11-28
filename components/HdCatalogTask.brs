@@ -2131,6 +2131,9 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             end if
         end for
     end if
+    ' The consolidated anime test deliberately retests every source, even those
+    ' previously attempted during ordinary fallback.
+    if isAnimeItem and isEpisode then triedProviders = []
     currentProvider = rpHdOnlineProvider(item.provider)
     if isEpisode and currentProvider <> ""
         alreadyTried = false
@@ -2215,6 +2218,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             if lcase(orbitText(triedSource,32)) = "latanime" then latanimeAlreadyTried = true
         end for
     end if
+    if isAnimeItem and isEpisode then latanimeAlreadyTried = false
     bestAnimeAnswer = invalid
     animeProviderSuccesses = []
     animeProviderTested = 0
@@ -2233,6 +2237,11 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 if savedProvider = "latanime" then alreadySaved = true
             end for
             if not alreadySaved then latanimeAnswer.item.hdFallbackProviders.push("latanime")
+            alreadyTriedLatanime = false
+            for each savedTriedProvider in triedProviders
+                if savedTriedProvider = "latanime" then alreadyTriedLatanime = true
+            end for
+            if not alreadyTriedLatanime then triedProviders.push("latanime")
             bestAnimeAnswer = latanimeAnswer
             animeProviderSuccesses.push("latanime")
             print "[RokuPlus provider-registry] provider=latanime stage=resolve status=playable-candidate"
