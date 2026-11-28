@@ -621,7 +621,7 @@ end function
 
 function rpHdOnlineCdn(value as dynamic) as string
     url = orbitHttpsUrl(value)
-    if not CreateObject("roRegex","^https://(([a-z0-9-]+\.)?vimeos\.(net|zip)|([a-z0-9-]+\.)?fastream\.to|([a-z0-9-]+\.)?voe-network\.net|([a-z0-9-]+\.)?voe\.sx|([a-z0-9-]+\.)?cloudwindow-route\.com)/","i").isMatch(url) then return ""
+    if not CreateObject("roRegex","^https://(([a-z0-9-]+\\.)?vimeos\\.(net|zip)|([a-z0-9-]+\\.)?fastream\\.to|([a-z0-9-]+\\.)?voe-network\\.net|([a-z0-9-]+\\.)?voe\\.sx|([a-z0-9-]+\\.)?cloudwindow-route\\.com|([a-z0-9-]+\\.)?mixdrop\\.(co|to|ag|bz)|([a-z0-9-]+\\.)?mxdrop\\.to|([a-z0-9-]+\\.)?doodstream\\.(com|co|net)|([a-z0-9-]+\\.)?dood\\.(to|so|la|li|ws|pm)|([a-z0-9-]+\\.)?mp4upload\\.(com|net)|([a-z0-9-]+\\.)?filemoon\\.(sx|to|in)|([a-z0-9-]+\\.)?yourupload\\.com|([a-z0-9-]+\\.)?okcdn\\.ru|([a-z0-9-]+\\.)?ok\\.ru|([a-z0-9-]+\\.)?fembed2?\\.com|([a-z0-9-]+\\.)?feurl\\.com|([a-z0-9-]+\\.)?femax20\\.com|([a-z0-9-]+\\.)?byse\\.(su|to|sx))/","i").isMatch(url) then return ""
     return url
 end function
 
@@ -722,6 +722,44 @@ function rpHdOnlineMediaUrl(html as dynamic) as string
                 if url <> "" and instr(1,url,".m3u8") > 0 then return url
             end for
         end if
+    end if
+    ' MixDrop publishes Core.wurl after a Dean Edwards packed script.
+    coreMatch = CreateObject("roRegex","Core\\.wurl\\s*=\\s*"+chr(34)+"([^"+chr(34)+"]+)"+chr(34),"i").match(text)
+    if coreMatch.count() >= 2
+        raw = rpHdOnlineJsString(coreMatch[1])
+        if left(raw,2) = "//" then raw = "https:"+raw
+        url = rpHdOnlineCdn(raw)
+        if url <> "" then return url
+    end if
+    ' Some hosts expose an MP4 or HLS URL directly in their public embed HTML.
+    directMatch = CreateObject("roRegex","(https://[^"+chr(34)+"'\\s<>]+\\.(m3u8|mp4)(\\?[^"+chr(34)+"'\\s<>]*)?)","i").match(text)
+    if directMatch.count() >= 2
+        url = rpHdOnlineCdn(rpHdOnlineJsString(directMatch[1]))
+        if url <> "" then return url
+    end if
+    return ""
+end function
+
+function rpHdOnlineHostMediaUrl(html as dynamic) as string
+    text = rpHdOnlineUnpack(html)
+    if text = "" then return ""
+    quotes = chr(34)+"'"
+    pattern = "(file|source)\\s*:\\s*["+quotes+"]([^"+quotes+"]+\\.(m3u8|mp4)[^"+quotes+"]*)["+quotes+"]"
+    match = CreateObject("roRegex",pattern,"i").match(text)
+    if match.count() >= 3
+        url = rpHdOnlineCdn(rpHdOnlineJsString(match[2]))
+        if url <> "" then return url
+    end if
+    pattern = chr(34)+"(file|src|url)"+chr(34)+"\\s*:\\s*["+quotes+"]([^"+quotes+"]+\\.(m3u8|mp4)[^"+quotes+"]*)["+quotes+"]"
+    match = CreateObject("roRegex",pattern,"i").match(text)
+    if match.count() >= 3
+        url = rpHdOnlineCdn(rpHdOnlineJsString(match[2]))
+        if url <> "" then return url
+    end if
+    directMatch = CreateObject("roRegex","(https://[^"+chr(34)+"'\\s<>]+\\.mp4(\\?[^"+chr(34)+"'\\s<>]*)?)","i").match(text)
+    if directMatch.count() >= 2
+        url = rpHdOnlineCdn(rpHdOnlineJsString(directMatch[1]))
+        if url <> "" then return url
     end if
     return ""
 end function
