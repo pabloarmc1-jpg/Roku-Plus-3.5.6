@@ -744,7 +744,7 @@ sub fetched(event as object)
         if type(answer.item) = "roAssociativeArray" and context.doesExist("item") and type(context.item) = "roAssociativeArray"
             ' Keep legacy source fields only when the refreshed metadata omitted them.
             ' A validated replacement value must not be overwritten by stale history.
-            identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesImdbId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers"]
+            identityFields = ["provider", "providerId", "providerSlug", "providerTmdbId", "providerKind", "season", "episode", "seriesTitle", "seriesId", "seriesImdbId", "seriesProviderId", "seriesProviderSlug", "seriesProviderTmdbId", "seriesProviderKind", "seriesSeasonNumbers", "anilistId", "discoverySource", "catalogCategory", "isAnime"]
             for each identityField in identityFields
                 if context.item.doesExist(identityField)
                     sourceValue = context.item[identityField]
@@ -4403,7 +4403,24 @@ sub playDetail()
     ' The resolving screen is temporary and must never become viewBeforePlayer.
     if not keepActiveEpisode then m.view = "source-resolving"
     detailIsAnime = (m.detail.doesExist("isAnime") and m.detail.isAnime = true) or (m.detail.doesExist("catalogCategory") and lcase(orbitText(m.detail.catalogCategory,24)) = "anime") or lcase(orbitText(m.detail.discoverySource,32)) = "anilist"
-    if detailIsAnime then m.detail.discoverySource = "anilist"
+    if detailIsAnime
+        ' Episode detail cards can be reconstructed by the UI; restore AniList identity from the parent series.
+        parentAnimeId = 0
+        if type(m.series) = "roAssociativeArray"
+            parentAnimeId = orbitInteger(m.series.anilistId,99999999)
+            if parentAnimeId < 1
+                parentIdMatch = CreateObject("roRegex","^anilist-([0-9]{1,10})","i").match(orbitText(m.series.id,180))
+                if parentIdMatch.count() >= 2 then parentAnimeId = orbitInteger(parentIdMatch[1],99999999)
+            end if
+        end if
+        detailAnimeId = orbitInteger(m.detail.anilistId,99999999)
+        if detailAnimeId < 1 then detailAnimeId = parentAnimeId
+        if detailAnimeId > 0 then m.detail.anilistId = detailAnimeId.toStr()
+        m.detail.discoverySource = "anilist"
+        m.detail.catalogCategory = "anime"
+        m.detail.isAnime = true
+        print "[RokuPlus anime-identity] handoff anilistId="; detailAnimeId; " parentAvailable="; (parentAnimeId > 0); " episode="; orbitInteger(m.detail.episode,9999)
+    end if
     if detailIsAnime or orbitText(m.detail.discoverySource,32) = "cinemeta" or orbitText(m.detail.discoverySource,32) = "anilist"
         fetch({operation:"find-source",item:m.detail,returnView:"detail",origin:m.detailOrigin})
         return
