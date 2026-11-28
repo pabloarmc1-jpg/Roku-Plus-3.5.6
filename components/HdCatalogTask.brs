@@ -1754,9 +1754,19 @@ function rpHdTaskAniListCatalog(request as object, answer as object, fetcher as 
         return answer
     end if
     data = ParseJson(response.body)
-    if type(data) <> "roAssociativeArray" or type(data.data) <> "roAssociativeArray" or type(data.data.Page) <> "roAssociativeArray"
+    if type(data) <> "roAssociativeArray"
         answer.message = "AniList devolvió un catálogo no válido."
         print "[RokuPlus anime-catalog] result=invalid-json page="; page
+        return answer
+    end if
+    if type(data.data) <> "roAssociativeArray"
+        answer.message = "AniList devolvió un catálogo no válido."
+        print "[RokuPlus anime-catalog] result=invalid-data page="; page
+        return answer
+    end if
+    if type(data.data.Page) <> "roAssociativeArray"
+        answer.message = "AniList devolvió un catálogo no válido."
+        print "[RokuPlus anime-catalog] result=invalid-page page="; page
         return answer
     end if
     pageData = data.data.Page
@@ -1814,7 +1824,7 @@ function rpHdTaskAniListCatalog(request as object, answer as object, fetcher as 
     answer.ok = true
     answer.message = ""
     answer.hasMore = false
-    if type(pageData.pageInfo) = "roAssociativeArray" then answer.hasMore = pageData.pageInfo.hasNextPage = true
+    if type(pageData.pageInfo) = "roAssociativeArray" then answer.hasMore = pageData.pageInfo.hasNextPage
     answer.nextSkip = page * 20
     answer.total = items.count()
     answer.totalKnown = false
