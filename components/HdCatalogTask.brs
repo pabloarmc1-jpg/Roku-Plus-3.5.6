@@ -1712,6 +1712,20 @@ end function
 ' searchable movie/series metadata; provider catalogs are queried only after Play.
 ' AniList adds anime-specific titles and alternate-language metadata to global search.
 ' Results keep their AniList identity; playback still resolves through installed providers.
+function rpHdTaskTranslateAnimeTitle(query as string, fetcher as dynamic) as string
+    transfer = CreateObject("roUrlTransfer")
+    endpoint = "https://api.mymemory.translated.net/get?q=" + transfer.escape(query) + "&langpair=es|en"
+    response = fetcher(endpoint,"translate","")
+    if not response.ok then return ""
+    payload = ParseJson(response.body)
+    if type(payload) <> "roAssociativeArray" then return ""
+    if type(payload.responseData) <> "roAssociativeArray" then return ""
+    translated = orbitText(payload.responseData.translatedText,200).trim()
+    if translated = "" or lcase(translated) = lcase(query.trim()) then return ""
+    print "[RokuPlus anime-id] source=translation original="; query; " translated="; translated
+    return translated
+end function
+
 function rpHdTaskAniListSearch(query as string, fetcher as dynamic) as object
     results = []
     transfer = CreateObject("roUrlTransfer")
@@ -1790,6 +1804,10 @@ function rpHdTaskCinemetaGlobalSearch(request as object, answer as object, fetch
     merged = []
     seen = {}
     animeResults = rpHdTaskAniListSearch(query,fetcher)
+    if animeResults.count() = 0
+        translatedAnimeQuery = rpHdTaskTranslateAnimeTitle(query,fetcher)
+        if translatedAnimeQuery <> "" then animeResults = rpHdTaskAniListSearch(translatedAnimeQuery,fetcher)
+    end if
     if animeResults.count() > 0 then successes++
     for each animeItem in animeResults
         if type(animeItem) = "roAssociativeArray"
@@ -3584,6 +3602,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if len(endpoint) > 4096 then return false
     if CreateObject("roRegex","[\x00-\x20\x7F\\]","").isMatch(endpoint) then return false
     if role = "api" then return CreateObject("roRegex","^https://(lamovie\.org/wp-api/v1/|allcalidad\.re/api/rest/|cinehax\.org/api/rest/v1/)[^#]*$","").isMatch(endpoint)
+    if role = "translate" then return CreateObject("roRegex","^https://api\\.mymemory\\.translated\\.net/get\\?q=[^#]+&langpair=es%7Cen$","").isMatch(endpoint)
     if role = "anilist" then return CreateObject("roRegex","^https://graphql\\.anilist\\.co/\\?query=[^#]+&variables=[^#]+$","").isMatch(endpoint)
     if role = "cinemeta" then return CreateObject("roRegex","^https://v3-cinemeta\.strem\.io/(catalog/(movie|series)/(top(/search=[A-Za-z0-9%._~!*'()+-]+|/genre=[A-Za-z0-9%._~!*'()+-]+(&skip=[0-9]+)?|/skip=[0-9]+)?|year/genre=[0-9]{4}(/skip=[0-9]+)?)|meta/(movie|series)/tt[0-9]{6,12})\.json$","").isMatch(endpoint)
     if role = "tvmaze" then return CreateObject("roRegex","^https://api\.tvmaze\.com/(search/shows\?q=[^#]+|shows/[0-9]+/episodes)$","").isMatch(endpoint)
@@ -3638,7 +3657,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     transfer.enablePeerVerification(true)
     transfer.enableHostVerification(true)
     transfer.addHeader("User-Agent",rpHdTaskUserAgent())
-    if role = "api" or role = "tvmaze" or role = "cinemeta" or role = "anilist"
+    if role = "api" or role = "tvmaze" or role = "cinemeta" or role = "anilist" or role = "translate"
         transfer.addHeader("Accept","application/json")
         if referer = "" and instr(1,endpoint,"https://cinehax.org/api/rest/v1/") = 1 then referer = "https://cinehax.org/"
     end if
