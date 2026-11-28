@@ -52,6 +52,36 @@ sub runCatalogRequest()
             answer.message = ""
             if not answer.ok then answer.message = "No se pudo consultar el catálogo. Vuelve a intentar."
         end if
+    else if operation = "anime-catalog"
+        merged = []
+        failures = 0
+        for each animeKind in ["movie","series"]
+            animeEndpoint = "https://v3-cinemeta.strem.io/catalog/" + animeKind + "/top/genre=Animation"
+            if skip > 0 then animeEndpoint += "&skip=" + skip.toStr()
+            animeEndpoint += ".json"
+            animeResponse = orbitDownloadText(animeEndpoint)
+            if animeResponse.ok
+                animeData = ParseJson(animeResponse.body)
+                if type(animeData) = "roAssociativeArray"
+                    animePage = orbitCatalog(animeData,animeKind,skip)
+                    for each animeItem in animePage.items
+                        animeItem.catalogCategory = "anime"
+                        merged.push(animeItem)
+                    end for
+                else
+                    failures++
+                end if
+            else
+                failures++
+            end if
+            if m.top.cancelRequested then return
+        end for
+        answer.items = orbitUniqueCatalogItems(merged)
+        answer.hasMore = answer.items.count() >= 20
+        answer.nextSkip = skip + 20
+        answer.ok = failures < 2
+        answer.message = ""
+        if not answer.ok then answer.message = "No se pudo consultar el catálogo de animación."
     else if kind <> "movie" and kind <> "series"
         answer.message = "El tipo de catálogo no es válido."
     else if operation = "catalog"
