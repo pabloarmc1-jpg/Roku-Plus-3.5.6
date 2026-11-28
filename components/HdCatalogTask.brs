@@ -1276,7 +1276,19 @@ sub rpHdTaskAnimePageProbe(body as dynamic, host as string)
         scriptCount++
         scriptOffset = scriptAt+7
     end while
-    print "[RokuPlus anime-page-probe] host="; host; " bytes="; len(orbitText(body,2097152)); " scripts="; scriptCount; " scriptSrc="; instr(1,lowerPage,"src=") > 0; " jwplayer="; instr(1,lowerPage,"jwplayer") > 0; " playerjs="; instr(1,lowerPage,"playerjs") > 0; " sources="; instr(1,lowerPage,"sources") > 0; " fileKey="; instr(1,lowerPage,"file:") > 0 or instr(1,lowerPage,"\"file\"") > 0; " mp4="; instr(1,lowerPage,".mp4") > 0; " m3u8="; instr(1,lowerPage,".m3u8") > 0; " eval="; instr(1,lowerPage,"eval(") > 0; " atob="; instr(1,lowerPage,"atob(") > 0; " xhr="; instr(1,lowerPage,"xmlhttprequest") > 0; " fetch="; instr(1,lowerPage,"fetch(") > 0; " challenge="; instr(1,lowerPage,"captcha") > 0 or instr(1,lowerPage,"verify you are human") > 0 or instr(1,lowerPage,"challenge-platform") > 0
+    hasScriptSrc = instr(1,lowerPage,"src=") > 0
+    hasJwplayer = instr(1,lowerPage,"jwplayer") > 0
+    hasPlayerjs = instr(1,lowerPage,"playerjs") > 0
+    hasSources = instr(1,lowerPage,"sources") > 0
+    hasFileKey = instr(1,lowerPage,"file:") > 0 or instr(1,lowerPage,chr(34)+"file"+chr(34)) > 0
+    hasMp4 = instr(1,lowerPage,".mp4") > 0
+    hasM3u8 = instr(1,lowerPage,".m3u8") > 0
+    hasEval = instr(1,lowerPage,"eval(") > 0
+    hasAtob = instr(1,lowerPage,"atob(") > 0
+    hasXhr = instr(1,lowerPage,"xmlhttprequest") > 0
+    hasFetch = instr(1,lowerPage,"fetch(") > 0
+    hasChallenge = instr(1,lowerPage,"captcha") > 0 or instr(1,lowerPage,"verify you are human") > 0 or instr(1,lowerPage,"challenge-platform") > 0
+    print "[RokuPlus anime-page-probe] host="; host; " bytes="; len(orbitText(body,2097152)); " scripts="; scriptCount; " scriptSrc="; hasScriptSrc; " jwplayer="; hasJwplayer; " playerjs="; hasPlayerjs; " sources="; hasSources; " fileKey="; hasFileKey; " mp4="; hasMp4; " m3u8="; hasM3u8; " eval="; hasEval; " atob="; hasAtob; " xhr="; hasXhr; " fetch="; hasFetch; " challenge="; hasChallenge
 end sub
 
 function rpHdTaskLatanimeIframeUrl(html as dynamic, currentUrl as dynamic) as string
