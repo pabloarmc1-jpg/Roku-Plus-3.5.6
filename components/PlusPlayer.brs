@@ -15,7 +15,7 @@ sub init()
     ' Prefer Spanish audio when the stream exposes language metadata.
     ' Keep this before any Video control command, as required by Roku OS.
     if m.decoder.hasField("audioSelectionPreferences")
-        m.decoder.audioSelectionPreferences = {values:[{language:["es-MX","es-419","es","es-*","spa"]}],overrideSystem:true}
+        m.decoder.audioSelectionPreferences = {values:[{language:["es-MX","es-419","es-ES","es","es-*","spa"]}],overrideSystem:true}
         m.audioSelectionPreferenceSet = true
         print "[RokuPlus decoder] audioSelectionPreferences=Spanish es-MX,es-419,es,es-*,spa overrideSystem=true"
     else
@@ -846,6 +846,7 @@ sub openRequest()
     m.generation++
     m.monotonic.mark()
     m.current = supplied
+    m.animeSubtitleNoticeShown = false
     m.audioPreferenceRestorePending = GetInterface(supplied.preferredAudioLanguage,"ifString") <> invalid and supplied.preferredAudioLanguage <> ""
     m.subtitlePreferenceRestorePending = GetInterface(supplied.preferredSubtitleMode,"ifString") <> invalid and supplied.preferredSubtitleMode <> ""
     m.subtitleRestoreOnlinePending = false
@@ -1698,6 +1699,7 @@ sub refreshAudioTracks()
         m.audioTrackIndex = 0
     end if
     restorePreferredAudioTrack()
+    notifyAnimeSubtitleOnly()
     if m.audioMenuOpen then drawAudioMenu()
     verifyAudioTrackSelection()
 end sub
@@ -1730,6 +1732,28 @@ sub restorePreferredAudioTrack()
         m.audioPreferenceRestorePending = false
         print "[RokuPlus audio] preference_restore unavailable language="; preferred
     end if
+end sub
+
+sub notifyAnimeSubtitleOnly()
+    if m.animeSubtitleNoticeShown or type(m.current) <> "roAssociativeArray" then return
+    isAnime = (m.current.doesExist("isAnime") and m.current.isAnime = true) or lcase(plusPlayerText(m.current.catalogCategory,32)) = "anime"
+    if not isAnime then return
+    hasSpanishAudio = false
+    for each audioTrack in m.audioTracks
+        language = lcase(plusPlayerText(audioTrack.language,32))
+        if language = "spa" or language = "es" or left(language,3) = "es-" then hasSpanishAudio = true
+    end for
+    if hasSpanishAudio or m.audioTracks.count() = 0 then return
+    hasSpanishSubtitles = false
+    for each subtitleTrack in m.sourceSubtitleTracks
+        language = lcase(plusPlayerText(subtitleTrack.language,32))
+        if language = "spa" or language = "es" or left(language,3) = "es-" then hasSpanishSubtitles = true
+    end for
+    if not hasSpanishSubtitles then return
+    m.animeSubtitleNoticeShown = true
+    m.notice = "Aviso: esta fuente solo ofrece subtítulos en español; no se detectó doblaje latino ni castellano."
+    m.noticeUntil = m.monotonic.totalMilliseconds() + 9000
+    print "[RokuPlus anime-language] result=subtitle-only spanishAudio=false spanishSubtitles=true"
 end sub
 
 function plusAudioLanguageName(code as string) as string
