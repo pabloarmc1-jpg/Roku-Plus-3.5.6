@@ -2241,9 +2241,9 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         rpHdTaskAppendUniqueSearchQuery(episodeQueries,cinemetaTitle)
         if episodeQueries.count() = 0 then rpHdTaskAppendUniqueSearchQuery(episodeQueries,originalQuery)
         if isAnimeItem and type(discovery.aliases) = "roArray"
-            for each animeAlias in discovery.aliases
-                if episodeQueries.count() < 4 then rpHdTaskAppendUniqueSearchQuery(episodeQueries,animeAlias)
-            end for
+            ' Do not query untagged AniList aliases: they may belong to unrelated
+            ' languages and produce false positives (e.g. Indonesian aliases).
+            print "[RokuPlus anime-alias] episode-policy=canonical-only aliases-skipped="; discovery.aliases.count()
         end if
         searchQueries = episodeQueries
     end if
