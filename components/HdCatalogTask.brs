@@ -2449,8 +2449,22 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     animeProviderTested = 0
     if isAnimeItem and isEpisode
         animeProviderTested++
-        print "[RokuPlus anime-diagnostic] provider=megaplay stage=resolve status=started anilistId="; orbitText(discovery.anilistId,20); " episode="; episodeNumber; " audio=sub"
-        megaPlayAnswer = rpHdTaskAnimeMegaPlayResolve(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept)
+        print "[RokuPlus anime-diagnostic] provider=anikoto stage=lookup status=started anilistId="; orbitText(discovery.anilistId,20); " episode="; episodeNumber
+        anikoto = rpHdTaskAnimeAnikotoLookup(discovery,episodeNumber,answer,fetcher)
+        if anikoto.cancelled then return rpHdTaskFailure(answer,anikoto)
+        if anikoto.ok
+            print "[RokuPlus anime-diagnostic] provider=anikoto stage=episode status=matched seriesIdPresent=true embedIdPresent="; anikoto.embedId <> ""; " episode="; episodeNumber
+            megaPlayAnswer = rpHdTaskAnimeMegaPlayResolve(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,anikoto.embedUrl)
+        else
+            print "[RokuPlus anime-diagnostic] provider=anikoto stage=lookup status=unmatched reason="; orbitText(anikoto.reason,48); " direct=anilist-fallback"
+            megaPlayAnswer = rpHdTaskAnimeMegaPlayResolve(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,"")
+        end if
+        if not megaPlayAnswer.ok and anikoto.ok
+            print "[RokuPlus anime-diagnostic] provider=megaplay stage=anikoto-embed status=failed; trying=anilist-route"
+            directMegaPlayAnswer = rpHdTaskAnimeMegaPlayResolve(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,"")
+            if directMegaPlayAnswer.ok then megaPlayAnswer = directMegaPlayAnswer
+            if directMegaPlayAnswer.cancelled then return rpHdTaskFailure(answer,directMegaPlayAnswer)
+        end if
         if megaPlayAnswer.ok
             megaPlayAnswer.operation = "find-source"
             megaPlayAnswer.requestId = answer.requestId
@@ -2735,9 +2749,116 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
 end function
 
 
+' Resolve Anikoto by the exact AniList ID and obtain the requested episode embed.
+' One recent-catalog request plus one series request; no aggressive retries.
+function rpHdTaskAnimeAnikotoLookup(discovery as object, episodeNumber as integer, answer as object, fetcher as dynamic) as object
+    result = {ok:false,cancelled:false,embedUrl:"",embedId:"",seriesId:"",reason:"not-found"}
+    anilistId = orbitInteger(discovery.anilistId,99999999)
+    if anilistId < 1 or episodeNumber < 1
+        result.reason = "missing-identity"
+        return result
+    end if
+    recentUrl = "https://anikotoapi.site/recent-anime?page=1&per_page=40"
+    rpHdTaskBeginSlice(3)
+    recent = fetcher(recentUrl,"anime-anikoto-api","")
+    if recent.cancelled then return rpHdTaskFailure(result,recent)
+    if not recent.ok
+        result.reason = "catalog-http-"+orbitInteger(recent.httpStatus,9999).toStr()
+        print "[RokuPlus anime-anikoto] stage=recent status=failed http="; orbitInteger(recent.httpStatus,9999)
+        return result
+    end if
+    catalog = ParseJson(recent.body)
+    rows = invalid
+    if type(catalog) = "roArray"
+        rows = catalog
+    else if type(catalog) = "roAssociativeArray"
+        if type(catalog.data) = "roArray" then rows = catalog.data
+        if type(catalog.data) = "roAssociativeArray"
+            if type(catalog.data.data) = "roArray" then rows = catalog.data.data
+            if type(catalog.data.items) = "roArray" then rows = catalog.data.items
+        end if
+        if type(catalog.items) = "roArray" then rows = catalog.items
+    end if
+    if type(rows) <> "roArray"
+        result.reason = "catalog-shape"
+        print "[RokuPlus anime-anikoto] stage=recent result=invalid-shape"
+        return result
+    end if
+    seriesId = ""
+    for each row in rows
+        if type(row) = "roAssociativeArray"
+            rowAniId = orbitInteger(row.ani_id,99999999)
+            if rowAniId = 0 then rowAniId = orbitInteger(row.anilist_id,99999999)
+            if rowAniId = 0 then rowAniId = orbitInteger(row.anilistId,99999999)
+            if rowAniId = anilistId
+                seriesId = orbitText(row.id,24)
+                exit for
+            end if
+        end if
+    end for
+    if not CreateObject("roRegex","^[0-9]{1,12}$","").isMatch(seriesId)
+        result.reason = "no-anikoto-series-match"
+        print "[RokuPlus anime-anikoto] stage=recent result=no-series-match rows="; rows.count()
+        return result
+    end if
+    result.seriesId = seriesId
+    seriesUrl = "https://anikotoapi.site/series/"+seriesId
+    rpHdTaskBeginSlice(3)
+    seriesResponse = fetcher(seriesUrl,"anime-anikoto-api","")
+    if seriesResponse.cancelled then return rpHdTaskFailure(result,seriesResponse)
+    if not seriesResponse.ok
+        result.reason = "series-http-"+orbitInteger(seriesResponse.httpStatus,9999).toStr()
+        print "[RokuPlus anime-anikoto] stage=series status=failed http="; orbitInteger(seriesResponse.httpStatus,9999)
+        return result
+    end if
+    seriesPayload = ParseJson(seriesResponse.body)
+    episodeRows = invalid
+    if type(seriesPayload) = "roAssociativeArray"
+        if type(seriesPayload.episodes) = "roArray" then episodeRows = seriesPayload.episodes
+        if type(seriesPayload.data) = "roAssociativeArray" and type(seriesPayload.data.episodes) = "roArray" then episodeRows = seriesPayload.data.episodes
+    end if
+    if type(episodeRows) <> "roArray"
+        result.reason = "series-shape"
+        print "[RokuPlus anime-anikoto] stage=series result=episodes-missing"
+        return result
+    end if
+    for each episodeRow in episodeRows
+        if type(episodeRow) = "roAssociativeArray"
+            number = orbitInteger(episodeRow.number,9999)
+            if number = 0 then number = orbitInteger(episodeRow.episode,9999)
+            if number = 0 then number = orbitInteger(episodeRow.episode_number,9999)
+            if number = episodeNumber
+                embedId = orbitText(episodeRow.episode_embed_id,24)
+                embedUrl = ""
+                if type(episodeRow.embed_url) = "roAssociativeArray"
+                    embedUrl = orbitText(episodeRow.embed_url.sub,4096)
+                end if
+                if embedUrl = "" and CreateObject("roRegex","^[0-9]{1,12}$","").isMatch(embedId)
+                    embedUrl = "https://megaplay.buzz/stream/s-2/"+embedId+"/sub"
+                end if
+                if embedUrl <> "" and rpHdTaskAllowedUrl(embedUrl,"anime-megaplay-page")
+                    result.embedUrl = embedUrl
+                    result.embedId = embedId
+                    result.ok = true
+                    result.reason = ""
+                    print "[RokuPlus anime-anikoto] stage=episode result=matched embedIdPresent="; embedId <> ""
+                    return result
+                end if
+                result.reason = "episode-without-valid-megaplay-embed"
+                print "[RokuPlus anime-anikoto] stage=episode result=embed-missing episode="; episodeNumber
+                return result
+            end if
+        end if
+    end for
+    result.reason = "episode-not-listed"
+    print "[RokuPlus anime-anikoto] stage=series result=episode-not-found requested="; episodeNumber; " count="; episodeRows.count()
+    return result
+end function
+
+
 ' MegaPlay is the primary native Anime resolver. The AniList ID is carried
 ' from AniList catalog records; only MegaPlay's documented public player/API flow is used.
-function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as object, seasonNumber as integer, episodeNumber as integer, answer as object, fetcher as dynamic, decoderAccept as dynamic) as object
+function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as object, seasonNumber as integer, episodeNumber as integer, answer as object, fetcher as dynamic, decoderAccept as dynamic, requestedEmbedUrl as string) as object
     failed = {ok:false,cancelled:false,requestId:orbitText(answer.requestId,120),subtitleTracks:[],selectedSubtitleGroup:"",message:"MegaPlay no devolvió una fuente reproducible."}
     anilistId = orbitInteger(discovery.anilistId,99999999)
     if anilistId < 1 or episodeNumber < 1
@@ -2751,7 +2872,13 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
         return failed
     end if
     transfer = CreateObject("roUrlTransfer")
-    pageUrl = "https://megaplay.buzz/stream/ani/"+anilistId.toStr()+"/"+episodeNumber.toStr()+"/sub"
+    pageUrl = orbitText(requestedEmbedUrl,4096)
+    if pageUrl = "" then pageUrl = "https://megaplay.buzz/stream/ani/"+anilistId.toStr()+"/"+episodeNumber.toStr()+"/sub"
+    if not rpHdTaskAllowedUrl(pageUrl,"anime-megaplay-page")
+        failed.message = "MegaPlay devolvió una dirección de episodio no permitida."
+        print "[RokuPlus anime-megaplay] stage=embed-url result=rejected"
+        return failed
+    end if
     rpHdTaskBeginSlice(3)
     page = fetcher(pageUrl,"anime-megaplay-page","https://megaplay.buzz/")
     if page.cancelled then return rpHdTaskFailure(failed,page)
@@ -4597,6 +4724,9 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
     if role = "latanime-page"
         return CreateObject("roRegex","^https://(www\.)?latanime\.org/(buscar\?q=[A-Za-z0-9%._~!*'()+-]+|anime/[a-z0-9-]+/?|ver/[a-z0-9-]+/?)$","i").isMatch(endpoint)
     end if
+    if role = "anime-anikoto-api"
+        return CreateObject("roRegex","^https://anikotoapi\\.site/(recent-anime\\?page=1&per_page=40|series/[0-9]{1,12})$","i").isMatch(endpoint)
+    end if
     if role = "anime-megaplay-page"
         return CreateObject("roRegex","^https://(www\.)?megaplay\.buzz/stream/(ani/[0-9]{1,10}/[0-9]{1,4}|s-2/[0-9]{1,12})/sub$","i").isMatch(endpoint)
     end if
@@ -4644,7 +4774,7 @@ function rpHdTaskDownloadText(endpoint as string, role as string, referer as str
     transfer.enablePeerVerification(true)
     transfer.enableHostVerification(true)
     transfer.addHeader("User-Agent",rpHdTaskUserAgent())
-    if role = "api" or role = "tvmaze" or role = "cinemeta" or role = "anilist" or role = "translate" or role = "anime-megaplay-api"
+    if role = "api" or role = "tvmaze" or role = "cinemeta" or role = "anilist" or role = "translate" or role = "anime-megaplay-api" or role = "anime-anikoto-api"
         transfer.addHeader("Accept","application/json")
         if referer = "" and instr(1,endpoint,"https://cinehax.org/api/rest/v1/") = 1 then referer = "https://cinehax.org/"
     end if
