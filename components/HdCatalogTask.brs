@@ -2471,16 +2471,10 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 print "[RokuPlus anime-language] result=failed provider=latanime language=original message="; left(orbitText(originalAnswer.message,120),120)
             end if
         end if
+        ' Language fallback is deliberately deferred while playback reliability is being fixed.
+        ' Do not spend the remaining resolver budget repeating the same servers in another edition.
         if bestAnimeAnswer = invalid and lcase(orbitText(request.animeLanguage,16)) = "spanish"
-            print "[RokuPlus anime-language-fallback] from=spanish to=original reason=no-playable-spanish-source"
-            originalRequest = {animeLanguage:"original",attempt:orbitInteger(request.attempt,99)}
-            originalAnswer = rpHdTaskLatanimeFindEpisode(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,originalRequest)
-            if originalAnswer.ok
-                bestAnimeAnswer = rpHdTaskAnimeMarkSource(originalAnswer,item,answer.requestId,"original")
-                print "[RokuPlus anime-language-fallback] result=playable provider=latanime language=original"
-            else
-                print "[RokuPlus anime-language-fallback] result=failed provider=latanime language=original message="; left(orbitText(originalAnswer.message,120),120)
-            end if
+            print "[RokuPlus anime-language] fallback=deferred reason=playback-priority"
         end if
         if bestAnimeAnswer <> invalid
             bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:["latanime"],complete:not rpHdTaskSliceExpired()}
