@@ -1264,6 +1264,29 @@ sub rpHdTaskAnimeServerPreflight(embeds as object, provider as string, fetcher a
     print "[RokuPlus anime-diagnostic] provider="; provider; " stage=server-summary discovered="; count; " tested="; tested; " reachable="; reachable; " media_candidates="; mediaCandidates; " failed="; failed; " complete="; tested=count
 end sub
 
+function rpHdTaskLatanimeIframeUrl(html as dynamic) as string
+    page = orbitText(html,524288)
+    if page = "" then return ""
+    lowerPage = lcase(page)
+    ' Do not follow challenge, CAPTCHA or human-verification documents.
+    if instr(1,lowerPage,"captcha") > 0 or instr(1,lowerPage,"verify you are human") > 0 or instr(1,lowerPage,"checking your browser") > 0 or instr(1,lowerPage,"challenge-platform") > 0 then return ""
+    quotes = chr(34)+"'"
+    pattern = "<iframe[^>]+src\\s*=\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]"
+    match = CreateObject("roRegex",pattern,"i").match(page)
+    if match.count() < 2 then return ""
+    url = orbitText(match[1],4096).trim()
+    url = CreateObject("roRegex","&amp;","i").Replace(url,"&")
+    url = CreateObject("roRegex","\\/","i").Replace(url,"/")
+    if left(url,2) = "//" then url = "https:"+url
+    if left(lcase(url),7) = "http://" then url = "https://"+mid(url,8)
+    if left(lcase(url),8) <> "https://" then return ""
+    host = rpHdTaskSafeHost(url)
+    if left(host,4) = "www." then host = mid(host,5)
+    allowedHosts = "|filemoon.sx|filemoon.to|filemoon.in|mixdrop.co|mixdrop.to|mixdrop.ag|mixdrop.bz|doodstream.com|doodstream.co|doodstream.net|yourupload.com|mp4upload.com|mp4upload.net|streamwish.to|vidhidepro.com|ok.ru|"
+    if instr(1,allowedHosts,"|"+host+"|") = 0 then return ""
+    return url
+end function
+
 function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string, animeLanguage = "" as string, animeDiagnostic = false as boolean) as object
     count = embeds.count()
     if count > 12 then count = 12
@@ -1313,6 +1336,27 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                 masterUrl = rpHdTaskDoodMediaUrl(embed.url,response.body,fetcher)
             end if
             voeEmbedPage = instr(1,lcase(embed.url),"voe.sx") > 0 or instr(1,lcase(embed.url),"arianathankspecial.com") > 0
+            ' Latanime mirrors may wrap the player in one additional iframe.
+            ' Follow only a known video-host iframe, and never a verification/ad challenge.
+            if masterUrl = "" and provider = "latanime"
+                nestedIframeUrl = rpHdTaskLatanimeIframeUrl(response.body)
+                if nestedIframeUrl <> ""
+                    nestedHost = rpHdTaskSafeHost(nestedIframeUrl)
+                    print "[RokuPlus anime-iframe] provider=latanime action=follow host="; nestedHost
+                    nestedResponse = fetcher(nestedIframeUrl,"embed",embed.url)
+                    if nestedResponse.cancelled then return rpHdTaskFailure(answer,nestedResponse)
+                    if nestedResponse.ok
+                        response = nestedResponse
+                        mediaReferer = nestedIframeUrl
+                        if orbitText(response.httpFinalUrl,4096) <> "" then mediaReferer = response.httpFinalUrl
+                        masterUrl = rpHdOnlineMediaUrl(response.body)
+                        if masterUrl = "" then masterUrl = rpHdOnlineHostMediaUrl(response.body)
+                        print "[RokuPlus anime-iframe] host="; nestedHost; " status=loaded media="; (masterUrl <> "")
+                    else
+                        print "[RokuPlus anime-iframe] host="; nestedHost; " status=request-failed http="; orbitInteger(response.httpStatus,9999)
+                    end if
+                end if
+            end if
             if masterUrl <> ""
                 print "[RokuPlus anime-embed] host="; embedHost; " extraction=direct-media-found"
             else
