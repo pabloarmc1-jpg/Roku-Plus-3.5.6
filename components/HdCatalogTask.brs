@@ -1229,11 +1229,12 @@ sub rpHdTaskAnimeServerPreflight(embeds as object, provider as string, fetcher a
     mediaCandidates = 0
     failed = 0
     for index = 0 to count-1
-        if m.top.cancelRequested or rpHdTaskSliceExpired() then exit for
+        if m.top.cancelRequested then exit for
+        rpHdTaskBeginResolveSlice(count-index)
+        if rpHdTaskSliceExpired() then exit for
         embed = embeds[index]
         embedUrl = orbitText(embed.url,2048)
         host = rpHdTaskSafeHost(embedUrl)
-        rpHdTaskBeginResolveSlice(count-index)
         probe = fetcher(embedUrl,"embed",referer)
         if probe.cancelled and m.top.cancelRequested then exit for
         tested++
@@ -3155,7 +3156,10 @@ function rpHdTaskResolveAlternateEpisode(series as dynamic, originalEpisode as o
     end if
     print "[RokuPlus source-fallback] episode-match provider="; provider; " season="; seasonNumber; " episode="; episodeNumber; " id="; orbitText(matchingEpisode.id,160)
     rpHdTaskBeginSlice(2)
-    resolveRequest = {operation:"resolve",kind:"episode",provider:provider,item:matchingEpisode,requestId:requestId,attempt:orbitInteger(request.attempt,99),animeLanguage:orbitText(request.animeLanguage,16)}
+    resolveRequest = {operation:"resolve",kind:"episode",provider:provider,item:matchingEpisode,requestId:requestId,attempt:orbitInteger(request.attempt,99),animeLanguage:orbitText(request.animeLanguage,16),animeDiagnostic:false}
+    if (originalEpisode.doesExist("isAnime") and originalEpisode.isAnime = true) or (originalEpisode.doesExist("catalogCategory") and lcase(orbitText(originalEpisode.catalogCategory,24)) = "anime")
+        resolveRequest.animeDiagnostic = true
+    end if
     resolved = rpHdTaskExecute(resolveRequest,fetcher,decoderAccept,sources)
     if resolved.ok
         resolved.item = matchingEpisode
