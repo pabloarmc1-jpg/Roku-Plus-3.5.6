@@ -1219,7 +1219,7 @@ end function
 
 function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string, animeLanguage = "" as string) as object
     count = embeds.count()
-    if count > 6 then count = 6
+    if count > 12 then count = 12
     answer.embedAttempts = 0
     answer.variantAttempts = 0
     embedOffset = 0
@@ -2711,7 +2711,10 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
         print "[RokuPlus latanime] embed-not-found episode="; episodePath; " page-bytes="; len(orbitText(episodePage.body,2097152)); " iframe="; instr(1,lcase(episodePage.body),"<iframe") > 0; " data-player="; instr(1,lcase(episodePage.body),"data-player") > 0
         return failed
     end if
-    print "[RokuPlus latanime] server-candidates="; embeds.count(); " first-host="; rpHdTaskSafeHost(embeds[0].url)
+    print "[RokuPlus latanime] server-candidates="; embeds.count()
+    for each discoveredEmbed in embeds
+        print "[RokuPlus anime-diagnostic] embed-host="; rpHdTaskSafeHost(discoveredEmbed.url); " status=queued"
+    end for
     print "[RokuPlus latanime] resolve language="; selected.language; " season="; seasonNumber; " episode="; episodeNumber
     return rpHdTaskResolveEmbeds(embeds,"latanime",failed,fetcher,decoderAccept,orbitInteger(request.attempt,99),episodeUrl,episodeUrl,orbitText(request.animeLanguage,16))
 end function
@@ -2746,7 +2749,7 @@ function rpHdTaskLatanimeEmbeds(html as string) as object
     lowerHtml = lcase(html)
     ' Collect known public video-host links and decoded data-player values.
     offset = 1
-    while offset < len(html) and embeds.count() < 6
+    while offset < len(html) and embeds.count() < 12
         found = instr(offset,lowerHtml,"data-player=")
         if found = 0 then exit while
         valueStart = found+len("data-player=")
@@ -2795,7 +2798,7 @@ sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
     for each existing in embeds
         if lcase(existing.url) = lcase(url) then return
     end for
-    if embeds.count() < 6 then embeds.push({url:url,language:"es"})
+    if embeds.count() < 12 then embeds.push({url:url,language:"es"})
 end sub
 
 function rpHdTaskSuggestionSearchQueries(title as dynamic) as object
