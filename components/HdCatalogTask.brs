@@ -1729,17 +1729,17 @@ function rpHdTaskTranslateAnimeTitle(query as string, fetcher as dynamic) as str
 end function
 
 function rpHdTaskAniListCatalog(request as object, answer as object, fetcher as dynamic) as object
-    page = (orbitInteger(request.offset,200000) \\ 20) + 1
+    page = (orbitInteger(request.skip,200000) \\ 20) + 1
     sortValue = "POPULARITY_DESC"
-    if lcase(orbitText(request.sort,20)) = "recent" then sortValue = "START_DATE_DESC"
+    if orbitInteger(request.attempt,9) = 1 then sortValue = "START_DATE_DESC"
     genreValue = ""
-    genreLabel = orbitText(request.genre,80)
+    genreLabel = orbitText(request.query,80)
     if genreLabel = "Acción" then genreValue = "Action"
     if genreLabel = "Comedia" then genreValue = "Comedy"
     if genreLabel = "Drama" then genreValue = "Drama"
     if genreLabel = "Terror" then genreValue = "Horror"
     if genreLabel = "Ciencia ficción" then genreValue = "Sci-Fi"
-    if genreLabel = "Animación" then genreValue = "Action"
+    if genreLabel = "Animación" then genreValue = ""
     genreClause = ""
     if genreValue <> "" then genreClause = ", genre:" + chr(34) + genreValue + chr(34)
     graphQuery = "query ($page: Int) { Page(page: $page, perPage: 20) { pageInfo { hasNextPage } media(type: ANIME, sort: "+sortValue+genreClause+") { id format seasonYear episodes title { romaji english native userPreferred } synonyms coverImage { large } description(asHtml: false) genres } } }"
