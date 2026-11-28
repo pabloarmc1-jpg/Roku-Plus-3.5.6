@@ -2811,14 +2811,20 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
                                 candidateSeason = rpHdTaskLatanimeSeason(cardTitle+" "+slug)
                                 seasonOk = candidateSeason = seasonNumber
                                 if seasonNumber = 1 and candidateSeason = 0 then seasonOk = true
-                                if seasonOk then candidates.push({slug:slug,title:cardTitle,language:language})
+                                if seasonOk
+                                    duplicateCandidate = false
+                                    for each savedCandidate in candidates
+                                        if orbitText(savedCandidate.slug,200) = slug then duplicateCandidate = true
+                                    end for
+                                    if not duplicateCandidate then candidates.push({slug:slug,title:cardTitle,language:language})
+                                end if
                             end if
                         end if
                     end if
                 end if
             end while
         end if
-        if candidates.count() > 0 then exit for
+        ' Continue through all known AniList title variants so a localized edition on a later query is not missed.
     end for
     if candidates.count() = 0
         print "[RokuPlus latanime] search=no-exact-title title="; left(title,100)
