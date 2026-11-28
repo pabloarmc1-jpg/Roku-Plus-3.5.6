@@ -2340,6 +2340,13 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             end if
         end for
         print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
+        registryStatus = "partial"
+        if providerQueries > 0 and providerErrors = providerQueries then registryStatus = "error"
+        if providerQueries > 0 and providerNoMatches = providerQueries then registryStatus = "no_match"
+        if providerUnavailable > 0 then registryStatus = "resolve_failed"
+        if providerAmbiguous > 0 then registryStatus = "ambiguous"
+        if providerQueries = 0 then registryStatus = "not_tested"
+        print "[RokuPlus provider-registry] provider="; source; " stage=search status="; registryStatus; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " resolve_failed="; providerUnavailable
         if providerFailed then failures++
     end for
     if not isEpisode and not isAnimeItem and not m.top.cancelRequested
@@ -2381,6 +2388,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         answer.alternativeKind = kind
         print "[RokuPlus source-search] alternatives count="; answer.alternatives.count(); " kind="; kind; " discovery=cinemeta"
     end if
+    print "[RokuPlus provider-registry] operation=anime-source-search result=no-source providers_tested="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     print "[RokuPlus source-search] finish result=no-source providers="; providers.count(); " providers_failed="; failures; " timed_out="; rpHdTaskSliceExpired()
     return answer
 end function
