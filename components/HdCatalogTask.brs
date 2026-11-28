@@ -9,6 +9,10 @@ sub runHdCatalogRequest()
     m.hdElapsed.mark()
     m.hdTotalBudgetMs = 40000
     if m.top.operation = "resolve" or m.top.operation = "find-source" then m.hdTotalBudgetMs = 70000
+    if m.top.operation = "find-source" and type(m.top.item) = "roAssociativeArray"
+        if m.top.item.doesExist("isAnime") and m.top.item.isAnime = true then m.hdTotalBudgetMs = 110000
+        if m.top.item.doesExist("catalogCategory") and lcase(orbitText(m.top.item.catalogCategory,24)) = "anime" then m.hdTotalBudgetMs = 110000
+    end if
     request = {
         operation:m.top.operation, kind:m.top.kind, provider:m.top.provider
         query:m.top.query, skip:m.top.skip, item:m.top.item, season:m.top.season
@@ -2211,7 +2215,11 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             if lcase(orbitText(triedSource,32)) = "latanime" then latanimeAlreadyTried = true
         end for
     end if
+    bestAnimeAnswer = invalid
+    animeProviderSuccesses = []
+    animeProviderTested = 0
     if isEpisode and not latanimeAlreadyTried and lcase(orbitText(request.animeLanguage,16)) = "spanish" and lcase(orbitText(item.catalogCategory,40)) = "anime"
+        animeProviderTested++
         latanimeAnswer = rpHdTaskLatanimeFindEpisode(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,request)
         if latanimeAnswer.ok
             latanimeAnswer.operation = "find-source"
@@ -2225,10 +2233,12 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 if savedProvider = "latanime" then alreadySaved = true
             end for
             if not alreadySaved then latanimeAnswer.item.hdFallbackProviders.push("latanime")
-            print "[RokuPlus latanime] source-search result=matched season="; seasonNumber; " episode="; episodeNumber
-            return latanimeAnswer
+            bestAnimeAnswer = latanimeAnswer
+            animeProviderSuccesses.push("latanime")
+            print "[RokuPlus provider-registry] provider=latanime stage=resolve status=playable-candidate"
+        else
+            print "[RokuPlus provider-registry] provider=latanime stage=resolve status=failed message="; left(orbitText(latanimeAnswer.message,100),100)
         end if
-        print "[RokuPlus latanime] source-search result=fallback-to-existing-providers"
     end if
     ' Episode fallback visits every compatible provider in order. Anime may
     ' try a bounded set of AniList aliases at each provider; exact title/year
@@ -2261,6 +2271,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         providerNoMatches = 0
         providerAmbiguous = 0
         providerUnavailable = 0
+        providerMatched = false
         providerSearchQueries = []
         for each baseSearchQuery in searchQueries
             rpHdTaskAppendUniqueSearchQuery(providerSearchQueries,baseSearchQuery)
@@ -2323,8 +2334,16 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                             sourceAnswer.item.catalogCategory = item.catalogCategory
                         end if
                         print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=matched kind="; kind; " episode="; isEpisode
-                        print "[RokuPlus source-search] finish result=matched provider="; source
-                        return sourceAnswer
+                        if isAnimeItem and isEpisode
+                            providerMatched = true
+                            animeProviderSuccesses.push(source)
+                            if bestAnimeAnswer = invalid then bestAnimeAnswer = sourceAnswer
+                            print "[RokuPlus provider-registry] provider="; source; " stage=resolve status=playable-candidate"
+                            exit for
+                        else
+                            print "[RokuPlus source-search] finish result=matched provider="; source
+                            return sourceAnswer
+                        end if
                     end if
                     if sourceAnswer.cancelled and m.top.cancelRequested then return sourceAnswer
                     providerFailed = true
@@ -2348,6 +2367,17 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             end if
         end for
         print "[RokuPlus source-search] provider-summary provider="; source; " queries="; providerQueries; " errors="; providerErrors; " no_match="; providerNoMatches; " ambiguous="; providerAmbiguous; " unavailable="; providerUnavailable
+        if isAnimeItem and isEpisode
+            animeProviderTested++
+            if not providerMatched
+                registryStatus = "not_tested"
+                if providerQueries > 0 and providerErrors = providerQueries then registryStatus = "error"
+                if providerQueries > 0 and providerNoMatches = providerQueries then registryStatus = "no_match"
+                if providerUnavailable > 0 then registryStatus = "resolve_failed"
+                if providerAmbiguous > 0 then registryStatus = "ambiguous"
+                print "[RokuPlus provider-registry] provider="; source; " stage=resolve status="; registryStatus
+            end if
+        end if
         registryStatus = "partial"
         if providerQueries > 0 and providerErrors = providerQueries then registryStatus = "error"
         if providerQueries > 0 and providerNoMatches = providerQueries then registryStatus = "no_match"
@@ -2385,6 +2415,12 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             end if
         end if
     end if
+    if isAnimeItem and isEpisode and bestAnimeAnswer <> invalid
+        bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:animeProviderSuccesses,complete:not rpHdTaskSliceExpired()}
+        print "[RokuPlus anime-provider-test] finish tested="; animeProviderTested; " playable_candidates="; animeProviderSuccesses.count(); " complete="; not rpHdTaskSliceExpired()
+        print "[RokuPlus source-search] finish result=matched provider="; bestAnimeAnswer.sourceProvider
+        return bestAnimeAnswer
+    end if
     if isEpisode
         answer.message = "No se encontró otra fuente para el episodio "+seasonNumber.toStr()+"x"+episodeNumber.toStr()+"."
     else
@@ -2418,24 +2454,9 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     if titleKey <> "" then wantedKeys.push(titleKey)
     searchTerms.push(title)
     if type(discovery.aliases) = "roArray"
-        for each aliasValue in discovery.aliases
-            aliasText = orbitText(aliasValue,200).trim()
-            aliasKey = rpHdTaskLatanimeTitleKey(aliasText)
-            if aliasText <> "" and aliasKey <> ""
-                keyExists = false
-                for each savedKey in wantedKeys
-                    if savedKey = aliasKey then keyExists = true
-                end for
-                if not keyExists then wantedKeys.push(aliasKey)
-                if searchTerms.count() < 5
-                    termExists = false
-                    for each savedTerm in searchTerms
-                        if lcase(savedTerm) = lcase(aliasText) then termExists = true
-                    end for
-                    if not termExists then searchTerms.push(aliasText)
-                end if
-            end if
-        end for
+        ' Untagged AniList aliases can be unrelated-language titles; use only
+        ' the canonical title until aliases carry reliable language metadata.
+        print "[RokuPlus anime-alias] latanime-policy=canonical-only aliases-skipped="; discovery.aliases.count()
     end if
 
     candidates = []
