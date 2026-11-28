@@ -2763,7 +2763,7 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
     pageBody = orbitText(page.body,2097152)
     pageFinalUrl = orbitText(page.httpFinalUrl,4096)
     if pageFinalUrl = "" then pageFinalUrl = pageUrl
-    dataIdMatch = CreateObject("roRegex","data-id\s*=\s*["+chr(34)+"']([^"+chr(34)+"']+)["+chr(34)+"']","i").match(pageBody)
+    dataIdMatch = CreateObject("roRegex","data-id\s*=\s*["+chr(34)+"']([0-9]{1,12})["+chr(34)+"']","i").match(pageBody)
     if dataIdMatch.count() < 2
         frameMatch = CreateObject("roRegex","<iframe[^>]+src\s*=\s*["+chr(34)+"']([^"+chr(34)+"']+)["+chr(34)+"']","i").match(pageBody)
         if frameMatch.count() >= 2
@@ -2800,7 +2800,7 @@ function rpHdTaskAnimeMegaPlayResolve(discovery as object, originalEpisode as ob
         return failed
     end if
     fileId = dataIdMatch[1].trim()
-    if len(fileId) < 1 or len(fileId) > 256 or not CreateObject("roRegex","^[A-Za-z0-9_+=/-]+$","").isMatch(fileId)
+    if not CreateObject("roRegex","^[0-9]{1,12}$","").isMatch(fileId)
         failed.message = "MegaPlay devolvió un identificador de reproductor no válido."
         print "[RokuPlus anime-megaplay] stage=player-page result=data-id-rejected"
         return failed
