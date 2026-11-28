@@ -2206,10 +2206,9 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         end if
         print "[RokuPlus latanime] source-search result=fallback-to-existing-providers"
     end if
-    ' Episode fallback must reach every provider. Searching several title variants
-    ' against one provider first can exhaust the shared deadline before the
-    ' remaining providers are checked. Use the canonical series title once per
-    ' provider; the strict title/year and episode-number checks remain unchanged.
+    ' Episode fallback visits every compatible provider in order. Anime may
+    ' try a bounded set of AniList aliases at each provider; exact title/year
+    ' and season/episode checks still decide whether a match is accepted.
     if isEpisode
         episodeQueries = []
         ' AniList anime records carry romaji, English, native and user-preferred
