@@ -1888,7 +1888,13 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     end if
     ' Anime en español: intenta Latanime primero (Latino antes que Castellano).
     ' Si no hay episodio/servidor compatible, continúa con los proveedores existentes.
-    if isEpisode and lcase(orbitText(request.animeLanguage,16)) = "spanish" and lcase(orbitText(item.catalogCategory,40)) = "anime"
+    latanimeAlreadyTried = false
+    if isEpisode and type(item.hdFallbackProviders) = "roArray"
+        for each triedSource in item.hdFallbackProviders
+            if lcase(orbitText(triedSource,32)) = "latanime" then latanimeAlreadyTried = true
+        end for
+    end if
+    if isEpisode and not latanimeAlreadyTried and lcase(orbitText(request.animeLanguage,16)) = "spanish" and lcase(orbitText(item.catalogCategory,40)) = "anime"
         latanimeAnswer = rpHdTaskLatanimeFindEpisode(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,request)
         if latanimeAnswer.ok
             latanimeAnswer.operation = "find-source"
