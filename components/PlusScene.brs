@@ -633,7 +633,13 @@ sub fetched(event as object)
             m.nextOffset = 0
             m.more = false
             m.cursor = 0
-            if m.titles.count() = 0 then m.note = "No se encontraron películas ni series con ese título."
+            if m.titles.count() = 0
+                if context.operation = "anime-search"
+                    m.note = "AniList no encontró animes con ese título."
+                else
+                    m.note = "No se encontraron películas ni series con ese título."
+                end if
+            end if
             if answer.partial = true then m.note = "Una fuente no respondió. Se muestran los resultados disponibles."
         else if answer.items.count() = 0 and context.offset > 0 and not answer.hasMore
             ' Keep the already displayed titles: reaching the end must not clear the continuous list.
