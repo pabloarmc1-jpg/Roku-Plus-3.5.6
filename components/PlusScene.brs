@@ -4391,7 +4391,11 @@ sub playDetail()
 end sub
 
 sub enterEpisodes()
-    if orbitText(m.detail.discoverySource,32) = "anilist"
+    detailIsAnime = orbitText(m.detail.discoverySource,32) = "anilist" or (m.detail.doesExist("isAnime") and m.detail.isAnime = true) or (m.detail.doesExist("catalogCategory") and lcase(orbitText(m.detail.catalogCategory,24)) = "anime")
+    if detailIsAnime
+        m.detail.discoverySource = "anilist"
+        m.detail.catalogCategory = "anime"
+        m.detail.isAnime = true
         m.note = ""
         m.series = m.detail
         m.seriesOrigin = m.detailOrigin
