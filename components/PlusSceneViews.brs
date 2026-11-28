@@ -652,6 +652,7 @@ sub browseScreen()
         if usesOnlineHd()
             title = "Películas · "+hdProviderName()
             if m.kind = "series" then title = "Series · "+hdProviderName()
+            if m.kind = "anime" then title = "Anime · "+hdProviderName()
         else
             title = "Cortos y cine abierto"
             if m.kind = "series" then title = "Documentales en español"
