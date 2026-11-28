@@ -13,6 +13,7 @@ sub runHdCatalogRequest()
         operation:m.top.operation, kind:m.top.kind, provider:m.top.provider
         query:m.top.query, skip:m.top.skip, item:m.top.item, season:m.top.season
         requestId:m.top.requestId, attempt:m.top.attempt, tvmazeCache:m.top.tvmazeCache
+        animeLanguage:m.top.animeLanguage
     }
     answer = rpHdTaskExecute(request)
     if not m.top.cancelRequested then m.top.result = answer
@@ -342,13 +343,13 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
         return rpHdTvmazeEnrichAnswer(answer,request,fetcher)
     else if operation = "resolve"
         if item.kind <> "movie" and item.kind <> "episode" then return answer
-        return rpHdTaskResolveItem(item,provider,answer,fetcher,decoderAccept,orbitInteger(request.attempt,999))
+        return rpHdTaskResolveItem(item,provider,answer,fetcher,decoderAccept,orbitInteger(request.attempt,999),orbitText(request.animeLanguage,16))
     end if
     answer.message = "La consulta HD no es válida."
     return answer
 end function
 
-function rpHdTaskResolveItem(item as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry as integer) as object
+function rpHdTaskResolveItem(item as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry as integer, animeLanguage = "" as string) as object
     ' Bound the initial player API so it cannot consume the whole operation.
     rpHdTaskBeginSlice(4)
     endpoint = rpHdOnlineEndpoint(provider,"player",{id:item.providerId})
@@ -356,7 +357,7 @@ function rpHdTaskResolveItem(item as object, provider as string, answer as objec
     m.hdProviderDeadline = 0
     if not response.ok then return rpHdTaskFailure(answer,response)
     embeds = rpHdOnlineEmbeds(response.data)
-    resolved = rpHdTaskResolveEmbeds(embeds,provider,answer,fetcher,decoderAccept,retry)
+    resolved = rpHdTaskResolveEmbeds(embeds,provider,answer,fetcher,decoderAccept,retry,"","https://vimeos.net/",animeLanguage)
     if resolved.ok or resolved.cancelled or provider <> "allcalidad" or resolved.voeBlocked <> true then return resolved
 
     ' VOE may answer with an anti-bot interstitial instead of its public player.
@@ -394,7 +395,7 @@ function rpHdTaskResolveItem(item as object, provider as string, answer as objec
                     else if fallbackProvider = "cinecalidad"
                         candidateAnswer = rpHdCinecalidadTask(fallbackRequest,candidateAnswer,fetcher,decoderAccept)
                     else
-                        candidateAnswer = rpHdTaskResolveItem(candidate,fallbackProvider,candidateAnswer,fetcher,decoderAccept,retry)
+                        candidateAnswer = rpHdTaskResolveItem(candidate,fallbackProvider,candidateAnswer,fetcher,decoderAccept,retry,animeLanguage)
                     end if
                     if candidateAnswer.ok
                         candidateAnswer.sourceFallback = true
@@ -1102,7 +1103,7 @@ function rpHdTaskReadPts(payload as object, offset as integer) as dynamic
     return ((b0 mod 16) \ 2)*1073741824+b1*4194304+(b2 \ 2)*32768+b3*128+(b4 \ 2)
 end function
 
-function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string) as object
+function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as object, fetcher as dynamic, decoderAccept as dynamic, retry = 0 as integer, embedReferer = "" as string, mediaReferer = "https://vimeos.net/" as string, animeLanguage = "" as string) as object
     count = embeds.count()
     if count > 6 then count = 6
     answer.embedAttempts = 0
@@ -1235,6 +1236,7 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         print "[RokuPlus hls] audio group="; "cont"; audioTrack.default; " uri="; uriState
                     end for
                     spanishCandidates = []
+                    originalCandidates = []
                     fallbackCandidates = []
                     for each variant in master.variants
                         print "[RokuPlus hls] variant group="; variant.audioGroup; " resolution="; variant.width; "x"; variant.height; " fps="; variant.fps
@@ -1242,17 +1244,27 @@ function rpHdTaskResolveEmbeds(embeds as object, provider as string, answer as o
                         print "[RokuPlus hls] variant group="; "cont"; variant.codecs; " videoRange="; variant.videoRange; " hdcp="; variant.hdcpLevel
                         fallbackCandidates.push(variant)
                         if rpHdTaskSpanishAudio(master,variant) then spanishCandidates.push(variant)
+                        if rpHdTaskOriginalAudio(master,variant) then originalCandidates.push(variant)
                     end for
                     candidates = {variants:spanishCandidates,audioTracks:master.audioTracks,encrypted:master.encrypted}
-                    if spanishCandidates.count() = 0
+                    if animeLanguage = "original"
+                        candidates.variants = originalCandidates
+                        if originalCandidates.count() = 0 then candidates.variants = fallbackCandidates
+                        print "[RokuPlus anime-audio] preference=original identified="; originalCandidates.count(); " fallback="; originalCandidates.count() = 0
+                    else if animeLanguage = "spanish"
+                        candidates.variants = spanishCandidates
+                    end if
+                    if candidates.variants.count() = 0
                         ' No Spanish language was identified: keep playback available
                         ' and let Roku use the stream's declared/default audio track.
                         candidates.variants = fallbackCandidates
                         print "[RokuPlus hls] spanish-compatible variants=0 fallback=all-playable"
+                    else if animeLanguage = "original"
+                        print "[RokuPlus anime-audio] original-language variants="; originalCandidates.count()
                     else
                         print "[RokuPlus hls] spanish-compatible variants="; spanishCandidates.count()
                     end if
-                    ' Try Spanish-compatible renditions first; use all valid variants only when Spanish is absent.
+                    ' Keep all validated variants as fallback when the preferred language is not positively identified.
                     choices = rpHdTaskStableVariants(candidates,decoderAccept)
                     print "[RokuPlus hls-test] eligibleVariants="; choices.count()
                     variantOffset = 0
@@ -1938,7 +1950,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                     candidate = matches[0]
                     operation = "resolve"
                     if kind = "series" then operation = "meta"
-                    sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99)}
+                    sourceRequest = {operation:operation,kind:kind,provider:source,item:candidate,requestId:answer.requestId,attempt:orbitInteger(request.attempt,99),animeLanguage:orbitText(request.animeLanguage,16)}
                     sourceAnswer = rpHdTaskExecute(sourceRequest,fetcher,decoderAccept,sources)
                     if sourceAnswer.ok and isEpisode
                         sourceSeries = sourceAnswer.item
@@ -2321,7 +2333,7 @@ function rpHdTaskResolveAlternateEpisode(series as dynamic, originalEpisode as o
     end if
     print "[RokuPlus source-fallback] episode-match provider="; provider; " season="; seasonNumber; " episode="; episodeNumber; " id="; orbitText(matchingEpisode.id,160)
     rpHdTaskBeginSlice(2)
-    resolveRequest = {operation:"resolve",kind:"episode",provider:provider,item:matchingEpisode,requestId:requestId,attempt:orbitInteger(request.attempt,99)}
+    resolveRequest = {operation:"resolve",kind:"episode",provider:provider,item:matchingEpisode,requestId:requestId,attempt:orbitInteger(request.attempt,99),animeLanguage:orbitText(request.animeLanguage,16)}
     resolved = rpHdTaskExecute(resolveRequest,fetcher,decoderAccept,sources)
     if resolved.ok
         resolved.item = matchingEpisode
@@ -3053,6 +3065,19 @@ function rpHdTaskSpanishAudio(master as object, variant as object) as boolean
             name = lcase(orbitText(track.name,120))
             if language = "es" or language = "spa" or left(language,3) = "es-" then return true
             if instr(1,name,"español") > 0 or instr(1,name,"espanol") > 0 or instr(1,name,"spanish") > 0 or instr(1,name,"latino") > 0 or instr(1,name,"castellano") > 0 then return true
+        end if
+    end for
+    return false
+end function
+
+function rpHdTaskOriginalAudio(master as object, variant as object) as boolean
+    if variant.audioGroup = "" or type(master.audioTracks) <> "roArray" then return false
+    for each track in master.audioTracks
+        if track.group = variant.audioGroup
+            language = lcase(orbitText(track.language,40))
+            name = lcase(orbitText(track.name,120))
+            if language = "ja" or language = "jpn" or left(language,3) = "ja-" then return true
+            if instr(1,name,"japanese") > 0 or instr(1,name,"nihongo") > 0 or instr(1,name,"日本語") > 0 then return true
         end if
     end for
     return false
