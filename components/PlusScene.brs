@@ -930,8 +930,15 @@ sub openDetails(item as object, origin as string, playNow = false as boolean)
     m.action = 0
     m.view = "detail"
     m.zone = "action"
+    previousCatalogKind = m.kind
     m.kind = "movie"
     if item.kind = "series" or item.kind = "episode" then m.kind = "series"
+    isAnimeDetail = orbitText(item.discoverySource,32) = "anilist"
+    if item.doesExist("isAnime") and item.isAnime = true then isAnimeDetail = true
+    if item.doesExist("catalogCategory") and lcase(orbitText(item.catalogCategory,24)) = "anime" then isAnimeDetail = true
+    ' Preserve the Anime catalog context when opening its series detail. Without
+    ' this, Back returns to browse with kind="series" and shows the series catalog.
+    if isAnimeDetail or (origin = "browse" and previousCatalogKind = "anime") then m.kind = "anime"
     if item.kind = "episode" or (m.catalogMode = "hd" and not usesOnlineHd() and not rpIsOnlineHdItem(item))
         if playNow
             m.autoplay = false
