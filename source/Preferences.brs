@@ -334,6 +334,14 @@ function rpNormalizeAnimeLanguage(value as dynamic) as string
     return "spanish"
 end function
 
+function rpHasAnimeLanguagePreference() as boolean
+    section = CreateObject("roRegistrySection","RokuPlusPreferences")
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    value = section.read("animeLanguageV1")
+    if GetInterface(value,"ifString") = invalid then return false
+    return value = "spanish" or value = "original"
+end function
+
 function rpLoadAnimeLanguage() as string
     section = CreateObject("roRegistrySection","RokuPlusPreferences")
     if GetInterface(section,"ifRegistrySection") = invalid then return "spanish"
