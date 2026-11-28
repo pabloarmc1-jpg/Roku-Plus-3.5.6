@@ -1271,7 +1271,9 @@ function rpHdTaskLatanimeIframeUrl(html as dynamic) as string
     ' Do not follow challenge, CAPTCHA or human-verification documents.
     if instr(1,lowerPage,"captcha") > 0 or instr(1,lowerPage,"verify you are human") > 0 or instr(1,lowerPage,"checking your browser") > 0 or instr(1,lowerPage,"challenge-platform") > 0 then return ""
     quotes = chr(34)+"'"
-    pattern = "<iframe[^>]+src\\s*=\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]"
+    iframeMatch = CreateObject("roRegex","<iframe[^>]*>","i").match(page)
+    if iframeMatch.count() < 1 then return ""
+    pattern = "src\\s*=\\s*["+quotes+"]([^"+quotes+"]+)["+quotes+"]"
     match = CreateObject("roRegex",pattern,"i").match(page)
     if match.count() < 2 then return ""
     url = orbitText(match[1],4096).trim()
