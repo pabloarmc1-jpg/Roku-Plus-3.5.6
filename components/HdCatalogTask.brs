@@ -2901,7 +2901,7 @@ sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
     url = orbitText(candidateUrl,4096).trim()
     if url = "" then return
     url = CreateObject("roRegex","&amp;","i").Replace(url,"&")
-    url = CreateObject("roRegex","\\\\/","i").Replace(url,"/")
+    url = CreateObject("roRegex","\\/","i").Replace(url,"/")
     ' Latanime/Kino can publish an intermediate wrapper instead of the actual player.
     ' Unwrap only the two known site wrappers; never queue their advertising page.
     wrapperOne = "https://monoschinos2.com/reproductor?url="
