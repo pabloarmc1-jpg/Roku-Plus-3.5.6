@@ -2377,8 +2377,8 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     providers = orderedProviders
     if isAnimeItem and isEpisode
         print "[RokuPlus anime-diagnostic] begin title="; left(orbitText(discovery.title,100),100); " season="; seasonNumber; " episode="; episodeNumber; " language="; orbitText(request.animeLanguage,16)
-        print "[RokuPlus anime-diagnostic] integrated=latanime,cinehax,cinecalidad,allcalidad,lamovie,seriesmetro pending=megaplay,anikoto,anineko"
-        print "[RokuPlus anime-diagnostic] test-plan integrated-count="; providers.count()+1; " pending-count=3"
+        print "[RokuPlus anime-diagnostic] spanish-providers=latanime original-providers=latanime pending=megaplay,anikoto,anineko"
+        print "[RokuPlus anime-diagnostic] movie-series-provider-isolation=true"
     end if
     if providers.count() = 0
         answer.message = "No hay proveedores compatibles para este tipo de contenido."
@@ -2457,7 +2457,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                 if savedTriedProvider = "latanime" then alreadyTriedLatanime = true
             end for
             if not alreadyTriedLatanime then triedProviders.push("latanime")
-            bestAnimeAnswer = latanimeAnswer
+            bestAnimeAnswer = rpHdTaskAnimeMarkSource(latanimeAnswer,item,answer.requestId,"spanish")
             animeProviderSuccesses.push("latanime")
             print "[RokuPlus provider-registry] provider=latanime stage=resolve status=playable-candidate"
         else
@@ -2467,7 +2467,34 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     else if isAnimeItem and isEpisode and lcase(orbitText(request.animeLanguage,16)) <> "spanish"
         print "[RokuPlus anime-diagnostic] provider=latanime stage=summary status=skipped reason=language-preference language="; orbitText(request.animeLanguage,16)
     end if
-    ' Episode fallback visits every compatible provider in order. Anime may
+
+    ' Anime is a completely separate source family. Never send an anime episode
+    ' to the movie/series providers. Spanish is tried first; only after every
+    ' Latanime server fails do we retry the same episode in original/subtitled audio.
+    if isAnimeItem and isEpisode
+        if bestAnimeAnswer = invalid and lcase(orbitText(request.animeLanguage,16)) = "spanish"
+            print "[RokuPlus anime-language-fallback] from=spanish to=original reason=no-playable-spanish-source"
+            originalRequest = {animeLanguage:"original",attempt:orbitInteger(request.attempt,99)}
+            originalAnswer = rpHdTaskLatanimeFindEpisode(discovery,item,seasonNumber,episodeNumber,answer,fetcher,decoderAccept,originalRequest)
+            if originalAnswer.ok
+                bestAnimeAnswer = rpHdTaskAnimeMarkSource(originalAnswer,item,answer.requestId,"original")
+                print "[RokuPlus anime-language-fallback] result=playable provider=latanime language=original"
+            else
+                print "[RokuPlus anime-language-fallback] result=failed provider=latanime language=original message="; left(orbitText(originalAnswer.message,120),120)
+            end if
+        end if
+        if bestAnimeAnswer <> invalid
+            bestAnimeAnswer.animeProviderTest = {tested:animeProviderTested,successes:["latanime"],complete:not rpHdTaskSliceExpired()}
+            print "[RokuPlus anime-provider-test] finish tested="; animeProviderTested; " playable_candidates=1 complete="; not rpHdTaskSliceExpired()
+            print "[RokuPlus source-search] finish result=matched provider=latanime language="; orbitText(bestAnimeAnswer.sourceLanguage,16)
+            return bestAnimeAnswer
+        end if
+        answer.message = "No se encontró una fuente reproducible en español ni en idioma original para este episodio."
+        print "[RokuPlus anime-diagnostic] finish result=no-source provider=latanime language-flow="; orbitText(request.animeLanguage,16); " complete="; not rpHdTaskSliceExpired()
+        return answer
+    end if
+
+    ' Non-anime episodes continue through the established movie/series provider list.
     ' try a bounded set of AniList aliases at each provider; exact title/year
     ' and season/episode checks still decide whether a match is accepted.
     if isEpisode
@@ -2692,6 +2719,22 @@ end function
 
 ' Latanime is a dedicated Anime-only fallback. Its HTML pages and slug identity
 ' are kept separate from the numeric-ID HD providers.
+function rpHdTaskAnimeMarkSource(sourceAnswer as object, item as object, requestId as string, language as string) as object
+    sourceAnswer.operation = "find-source"
+    sourceAnswer.requestId = requestId
+    sourceAnswer.sourceProvider = "latanime"
+    sourceAnswer.sourceLanguage = language
+    sourceAnswer.sourceFallback = true
+    sourceAnswer.item = item
+    if type(sourceAnswer.item.hdFallbackProviders) <> "roArray" then sourceAnswer.item.hdFallbackProviders = []
+    alreadySaved = false
+    for each savedProvider in sourceAnswer.item.hdFallbackProviders
+        if savedProvider = "latanime" then alreadySaved = true
+    end for
+    if not alreadySaved then sourceAnswer.item.hdFallbackProviders.push("latanime")
+    return sourceAnswer
+end function
+
 function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as object, seasonNumber as integer, episodeNumber as integer, answer as object, fetcher as dynamic, decoderAccept as dynamic, request as object) as object
     failed = {ok:false,cancelled:false,message:"Latanime no encontró un episodio reproducible."}
     title = orbitText(discovery.title,200).trim()
@@ -2784,43 +2827,35 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
         return failed
     end if
 
-    ' Latino is preferred; Castellano is used only when no Latino edition exists.
+    ' The preference is strict: Spanish mode accepts only known Spanish dubs;
+    ' original mode accepts subtitled/original editions. Unknown or generic "dub"
+    ' labels are not guessed as Spanish.
     selected = invalid
-    for each candidate in candidates
-        if candidate.language = "latino"
-            selected = candidate
-            exit for
+    requestedLanguage = lcase(orbitText(request.animeLanguage,16))
+    if requestedLanguage = "spanish"
+        for each candidate in candidates
+            if candidate.language = "latino"
+                selected = candidate
+                exit for
+            end if
+        end for
+        if selected = invalid
+            for each candidate in candidates
+                if candidate.language = "castellano"
+                    selected = candidate
+                    exit for
+                end if
+            end for
         end if
-    end for
-    if selected = invalid
-        for each candidate in candidates
-            if candidate.language = "castellano"
-                selected = candidate
-                exit for
-            end if
-        end for
-    end if
-    ' Prefer a clearly identified Spanish dub after Latino and Castilian editions.
-    if selected = invalid
-        for each candidate in candidates
-            if candidate.language = "spanish-dub"
-                selected = candidate
-                exit for
-            end if
-        end for
-    end if
-    ' Some providers expose only a generic "Dub" tag. It confirms dubbed audio,
-    ' but not Spanish; keep it as a lower-confidence fallback and log that fact.
-    if selected = invalid
-        for each candidate in candidates
-            if candidate.language = "dub"
-                selected = candidate
-                exit for
-            end if
-        end for
-    end if
-    ' Subtitled editions are the final fallback, after dubbed editions.
-    if selected = invalid
+        if selected = invalid
+            for each candidate in candidates
+                if candidate.language = "spanish-dub"
+                    selected = candidate
+                    exit for
+                end if
+            end for
+        end if
+    else
         for each candidate in candidates
             if candidate.language = "subtitulado"
                 selected = candidate
@@ -2828,8 +2863,11 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
             end if
         end for
     end if
-    if selected = invalid then return failed
-    print "[RokuPlus latanime] selected title="; selected.title; " language="; selected.language; " slug="; selected.slug
+    if selected = invalid
+        print "[RokuPlus latanime] result=no-edition-for-language requested="; requestedLanguage
+        return failed
+    end if
+    print "[RokuPlus latanime] selected title="; selected.title; " language="; selected.language; " requested="; requestedLanguage; " slug="; selected.slug
     if selected.language = "subtitulado" then originalEpisode.animeSubtitleOnly = true
 
     seriesUrl = "https://latanime.org/anime/"+selected.slug
