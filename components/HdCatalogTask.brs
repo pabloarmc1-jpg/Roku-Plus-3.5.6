@@ -2091,7 +2091,7 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
         slug = mid(html,found+7,quoteEnd-found-7)
         slug = CreateObject("roRegex","[^a-zA-Z0-9-].*$","").replace(slug,"")
         offset = quoteEnd+1
-        if slug <> "" and not slug.contains("/")
+        if slug <> "" and instr(1,slug,"/") = 0
             cardEnd = instr(found,lowerHtml,"</a>")
             if cardEnd = 0 or cardEnd-found > 5000 then cardEnd = found+2500
             card = mid(html,found,cardEnd-found)
@@ -2178,7 +2178,7 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
     encoded = CreateObject("roByteArray")
     if not encoded.FromBase64String(playerData) then return failed
     embedUrl = encoded.ToAsciiString().trim()
-    if not CreateObject("roRegex","^https://(www\\.)?voe\\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(embedUrl)
+    if not CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(embedUrl)
         print "[RokuPlus latanime] server=unsupported host="; rpHdTaskSafeHost(embedUrl)
         return failed
     end if
@@ -2189,9 +2189,9 @@ end function
 
 function rpHdTaskLatanimeTitleKey(value as dynamic) as string
     title = lcase(orbitText(value,240).trim())
-    title = CreateObject("roRegex","\\s*(latino|castellano|español|espanol|subtitulado|sub español|sub esp|720p|1080p|hd|cr)\\s*","i").replaceAll(title," ")
-    title = CreateObject("roRegex","\\s*(temporada|season|s)[ ._-]*[0-9]+.*$","i").replace(title,"")
-    title = CreateObject("roRegex","\\s+[0-9]+$","").replace(title,"")
+    title = CreateObject("roRegex","\s*(latino|castellano|español|espanol|subtitulado|sub español|sub esp|720p|1080p|hd|cr)\s*","i").replaceAll(title," ")
+    title = CreateObject("roRegex","\s*(temporada|season|s)[ ._-]*[0-9]+.*$","i").replace(title,"")
+    title = CreateObject("roRegex","\s+[0-9]+$","").replace(title,"")
     return rpHdTaskCinemetaTitleKey(title)
 end function
 
@@ -3443,7 +3443,7 @@ function rpHdTaskAllowedUrl(endpoint as string, role as string) as boolean
         return CreateObject("roRegex","^https://www\.cinecalidad\.vg/(page/[0-9]+/|pelicula/[a-z0-9-]+/)?(\?s=[^#]*)?$","").isMatch(endpoint)
     end if
     if role = "latanime-page"
-        return CreateObject("roRegex","^https://(www\\.)?latanime\\.org/(buscar\\?q=[A-Za-z0-9%._~!*'()+-]+|anime/[a-z0-9-]+/?|ver/[a-z0-9-]+/?)$","i").isMatch(endpoint)
+        return CreateObject("roRegex","^https://(www\.)?latanime\.org/(buscar\?q=[A-Za-z0-9%._~!*'()+-]+|anime/[a-z0-9-]+/?|ver/[a-z0-9-]+/?)$","i").isMatch(endpoint)
     end if
     if role = "embed"
         if CreateObject("roRegex","^https://fastream\.to/(embed-)?[a-zA-Z0-9_-]+(\.html)?$","").isMatch(endpoint) then return true
