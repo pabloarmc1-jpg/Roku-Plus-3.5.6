@@ -1123,12 +1123,14 @@ sub launchVideo(item as object, url as string, format as string)
         if item.doesExist("isAnime") and item.isAnime = true then isAnimePlayback = true
         if item.doesExist("catalogCategory") and lcase(orbitText(item.catalogCategory,24)) = "anime" then isAnimePlayback = true
         if orbitText(item.discoverySource,24) = "anilist" then isAnimePlayback = true
-        if isAnimePlayback
-            targetPlayer = m.animePlayer
-            targetEngine = "anime"
-        else if item.doesExist("playbackEngine") and lcase(orbitText(item.playbackEngine,20)) = "host"
+        ' Keep the separately validated VOE decoder route intact. Every other
+        ' Anime source uses the isolated Anime player instance.
+        if item.doesExist("playbackEngine") and lcase(orbitText(item.playbackEngine,20)) = "host"
             targetPlayer = m.hostPlayer
             targetEngine = "host"
+        else if isAnimePlayback
+            targetPlayer = m.animePlayer
+            targetEngine = "anime"
         end if
     end if
     ' Switch decoder instances only after the current native pipeline has stopped.
