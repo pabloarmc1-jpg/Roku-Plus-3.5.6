@@ -324,3 +324,34 @@ function rpSaveCompatBase(value as dynamic) as boolean
     section.flush()
     return false
 end function
+
+
+' Anime playback language preference is independent from catalog/provider settings.
+function rpNormalizeAnimeLanguage(value as dynamic) as string
+    if GetInterface(value,"ifString") <> invalid
+        if value = "original" then return "original"
+    end if
+    return "spanish"
+end function
+
+function rpLoadAnimeLanguage() as string
+    section = CreateObject("roRegistrySection","RokuPlusPreferences")
+    if GetInterface(section,"ifRegistrySection") = invalid then return "spanish"
+    return rpNormalizeAnimeLanguage(section.read("animeLanguageV1"))
+end function
+
+function rpSaveAnimeLanguage(value as dynamic) as boolean
+    language = rpNormalizeAnimeLanguage(value)
+    section = CreateObject("roRegistrySection","RokuPlusPreferences")
+    if GetInterface(section,"ifRegistrySection") = invalid then return false
+    previous = section.read("animeLanguageV1")
+    if section.write("animeLanguageV1",language) <> true then return false
+    if section.flush() = true then return true
+    if GetInterface(previous,"ifString") <> invalid
+        section.write("animeLanguageV1",previous)
+    else
+        section.delete("animeLanguageV1")
+    end if
+    section.flush()
+    return false
+end function
