@@ -2220,7 +2220,7 @@ function rpHdTaskLatanimeVoeEmbed(html as string) as string
                 decoded = CreateObject("roByteArray")
                 if decoded.FromBase64String(encodedText)
                     candidateUrl = decoded.ToAsciiString().trim()
-                    if CreateObject("roRegex","^https://(www\\.)?voe\\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(candidateUrl)
+                    if CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(candidateUrl)
                         return candidateUrl
                     end if
                 end if
