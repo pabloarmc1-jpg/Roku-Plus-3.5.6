@@ -267,7 +267,7 @@ function rpHdTaskExecute(request as object, fetcher = invalid as dynamic, decode
                     kind:"episode", provider:"all", discoverySource:"anilist"
                     catalogCategory:"anime", isAnime:true
                     title:"Episodio "+episodeIndex.toStr(), seriesTitle:animeItem.title
-                    seriesSearchQuery:orbitText(animeItem.searchQuery,200), season:1
+                    seriesSearchQuery:orbitText(animeItem.searchQuery,200), seriesAliases:animeItem.aliases, season:1
                     episode:episodeIndex, year:orbitText(animeItem.year,12)
                     seriesImdbId:"", genres:animeItem.genres
                 })
@@ -1939,6 +1939,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
         year:orbitText(item.year,32),imdbId:orbitText(item.imdbId,40)
         searchQuery:orbitText(item.searchQuery,200),genres:discoveryGenres
     }
+    if type(item.aliases) = "roArray" then discovery.aliases = item.aliases
     if isEpisode
         kind = "series"
         seriesTitle = orbitText(item.seriesTitle,200).trim()
@@ -1951,6 +1952,7 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
             imdbId:orbitText(item.seriesImdbId,40),searchQuery:orbitText(item.seriesSearchQuery,200)
             genres:discoveryGenres
         }
+        if type(item.seriesAliases) = "roArray" then discovery.aliases = item.seriesAliases
     end if
     if kind <> "movie" and kind <> "series"
         answer.message = "No se puede buscar una fuente para este contenido."
@@ -2028,6 +2030,11 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
     end if
     searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,originalQuery)
     searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,cinemetaTitle)
+    if type(discovery.aliases) = "roArray"
+        for each alternateTitle in discovery.aliases
+            searchQueries = rpHdTaskAppendUniqueSearchQuery(searchQueries,alternateTitle)
+        end for
+    end if
     discoveryYear = rpHdTaskCinemetaYear(discovery.year)
     if cinemetaTitle <> "" and discoveryYear <> ""
         yearQuery = cinemetaTitle+" "+discoveryYear
