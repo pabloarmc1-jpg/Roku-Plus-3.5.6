@@ -889,6 +889,14 @@ sub fetched(event as object)
         end if
     end if
     drawScreen()
+    ' Anime catalog: keep requesting AniList pages in the background until
+    ' pageInfo.hasNextPage is false. Each batch is merged and drawn first so
+    ' the Roku remains responsive while the full catalog is accumulated.
+    if context.operation = "anime-catalog" and m.view = "browse" and m.kind = "anime" and m.more and m.nextOffset > context.offset and not m.busy
+        print "[RokuPlus anime-catalog] auto-next offset="; m.nextOffset
+        loadBrowsePage(m.nextOffset)
+        return
+    end if
     if context.operation = "meta" and m.view = "episodes" then loadEpisodeSeason()
     if not m.liveFullscreen and m.dialogBox = invalid then m.top.setFocus(true)
 end sub
