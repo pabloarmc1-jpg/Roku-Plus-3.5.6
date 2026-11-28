@@ -2554,17 +2554,13 @@ function rpHdTaskLatanimeFindEpisode(discovery as object, originalEpisode as obj
         print "[RokuPlus latanime] episode-page-failed path="; episodePath; " status="; episodePage.status
         return failed
     end if
-    embedUrl = rpHdTaskLatanimeVoeEmbed(orbitText(episodePage.body,2097152))
-    if embedUrl = ""
-        print "[RokuPlus latanime] embed-not-found episode="; episodePath
+    embeds = rpHdTaskLatanimeEmbeds(orbitText(episodePage.body,2097152))
+    if embeds.count() = 0
+        print "[RokuPlus latanime] embed-not-found episode="; episodePath; " page-bytes="; len(orbitText(episodePage.body,2097152)); " iframe="; instr(1,lcase(episodePage.body),"<iframe") > 0; " data-player="; instr(1,lcase(episodePage.body),"data-player") > 0
         return failed
     end if
-    if not CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(embedUrl)
-        print "[RokuPlus latanime] server=unsupported host="; rpHdTaskSafeHost(embedUrl)
-        return failed
-    end if
-    embeds = [{url:embedUrl,language:"es"}]
-    print "[RokuPlus latanime] resolve language="; selected.language; " season="; seasonNumber; " episode="; episodeNumber; " server=voe"
+    print "[RokuPlus latanime] server-candidates="; embeds.count(); " first-host="; rpHdTaskSafeHost(embeds[0].url)
+    print "[RokuPlus latanime] resolve language="; selected.language; " season="; seasonNumber; " episode="; episodeNumber
     return rpHdTaskResolveEmbeds(embeds,"latanime",failed,fetcher,decoderAccept,orbitInteger(request.attempt,99),episodeUrl,episodeUrl,orbitText(request.animeLanguage,16))
 end function
 
@@ -2593,10 +2589,12 @@ function rpHdTaskLatanimeSeason(value as dynamic) as integer
     return 1
 end function
 
-function rpHdTaskLatanimeVoeEmbed(html as string) as string
+function rpHdTaskLatanimeEmbeds(html as string) as object
+    embeds = []
     lowerHtml = lcase(html)
+    ' Collect known public video-host links and decoded data-player values.
     offset = 1
-    while offset < len(html)
+    while offset < len(html) and embeds.count() < 6
         found = instr(offset,lowerHtml,"data-player=")
         if found = 0 then exit while
         valueStart = found+len("data-player=")
@@ -2609,12 +2607,7 @@ function rpHdTaskLatanimeVoeEmbed(html as string) as string
                     decoded = CreateObject("roByteArray")
                     if type(decoded) = "roByteArray"
                         decoded.FromBase64String(encodedText)
-                        if decoded.Count() > 0
-                            candidateUrl = decoded.ToAsciiString().trim()
-                            if CreateObject("roRegex","^https://(www\.)?voe\.sx/(e/)?[a-z0-9]{8,20}/?$","i").isMatch(candidateUrl)
-                                return candidateUrl
-                            end if
-                        end if
+                        if decoded.Count() > 0 then rpHdTaskLatanimeAddEmbed(embeds,decoded.ToAsciiString().trim())
                     end if
                 end if
             end if
@@ -2623,8 +2616,34 @@ function rpHdTaskLatanimeVoeEmbed(html as string) as string
             offset = valueStart
         end if
     end while
-    return ""
+    offset = 1
+    while offset < len(html) and embeds.count() < 6
+        found = instr(offset,lowerHtml,"https://")
+        if found = 0 then exit while
+        finish = found
+        while finish <= len(html)
+            ch = mid(html,finish,1)
+            if ch = chr(34) or ch = "'" or ch = " " or ch = chr(9) or ch = chr(10) or ch = chr(13) or ch = "<" or ch = ">" or ch = chr(92) then exit while
+            finish++
+        end while
+        if finish > found
+            candidateUrl = left(mid(html,found),finish-found).replaceAll("&amp;","&")
+            rpHdTaskLatanimeAddEmbed(embeds,candidateUrl)
+        end if
+        offset = finish+1
+    end while
+    return embeds
 end function
+
+sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
+    url = orbitText(candidateUrl,2048).trim()
+    if url = "" then return
+    if not CreateObject("roRegex","^https://(www\\.)?(voe\\.sx|arianathankspecial\\.com|mixdrop\\.(co|to|ag|bz)|dsvplay\\.com|byse\\.su|hexload\\.com|savefiles\\.com|mp4upload\\.com|filemoon\\.sx|lulu\\.to|mxdrop\\.to|pixeldrain\\.com|gofile\\.io|mega\\.nz)/","i").isMatch(url) then return
+    for each existing in embeds
+        if lcase(existing.url) = lcase(url) then return
+    end for
+    if embeds.count() < 6 then embeds.push({url:url,language:"es"})
+end sub
 
 function rpHdTaskSuggestionSearchQueries(title as dynamic) as object
     words = CreateObject("roRegex","[^a-z0-9]+","").replaceAll(lcase(orbitText(title,240))," ").trim().split(" ")
