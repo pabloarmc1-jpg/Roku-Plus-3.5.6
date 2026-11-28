@@ -29,6 +29,25 @@ The Latanime page scan now accepts up to 12 embed candidates, so it can inspect 
 - The consolidated diagnostic log prefix: `[RokuPlus anime-diagnostic]`.
 - Per-embed host diagnostics: `[RokuPlus anime-embed]` and `[RokuPlus anime-host]`.
 
+
+## Automatic anime playback diagnostics
+
+When an anime episode is played, the source-discovery task emits a structured audit to the Roku debugger:
+
+- `[RokuPlus anime-diagnostic] provider=... stage=search`: catalog lookup result and candidate count for each integrated provider.
+- `stage=episode`: whether the requested season/episode is listed by an alternate provider.
+- `stage=server-preflight`: each discovered embed host, HTTP result, and whether its page exposes a direct media URL candidate.
+- `stage=server-summary`: discovered/tested/reachable counts for the provider's mirrors.
+- `stage=resolve` and `[RokuPlus candidate]`: actual media/manifest/segment validation during the normal resolver.
+
+Interpretation:
+- `not_listed` means the provider's episode list did not contain that chapter.
+- `http_404_possible_removed` / `page_404_possible_removed` are clues that a page may have been removed, not proof; a provider can also return 404 temporarily or for routing reasons.
+- `http_ok` only means the embed page responded. `direct_media_candidate` means a URL was extracted from its HTML; neither alone proves Roku playback.
+- `not_integrated` means that provider has no native Roku adapter yet and was not tested.
+
+The mirror preflight is time-bounded and runs before the normal resolver. It does not replace final HLS/MP4 manifest, segment, and codec validation, and playback continues to use the existing player.
+
 ## Not reliably integrable as a native Roku adapter
 
 These cases cannot be promised as playable merely because a host is discoverable:
