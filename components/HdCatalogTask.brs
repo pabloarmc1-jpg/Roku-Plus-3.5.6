@@ -1968,6 +1968,9 @@ function rpHdTaskFindSource(request as object, answer as object, fetcher as dyna
                             sourceAnswer.item.hdFallbackProviders.push(source)
                         end if
                         if not isEpisode and (kind = "movie" or type(sourceAnswer.item) <> "roAssociativeArray") then sourceAnswer.item = candidate
+                        if not isEpisode and type(sourceAnswer.item) = "roAssociativeArray" and item.doesExist("catalogCategory")
+                            sourceAnswer.item.catalogCategory = item.catalogCategory
+                        end if
                         print "[RokuPlus source-search] provider="; source; " query="; searchQuery; " result=matched kind="; kind; " episode="; isEpisode
                         print "[RokuPlus source-search] finish result=matched provider="; source
                         return sourceAnswer
