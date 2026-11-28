@@ -2891,6 +2891,7 @@ end sub
 sub submitGlobalSearch()
     query = left(m.searchText.trim(),120)
     searchQuery = lcase(query)
+    animeOnlySearch = m.catalogMode = "hd" and usesOnlineHd() and m.kind = "anime"
     m.query = query
     m.genreFilter = "Todos"
     m.pageTitles = []
@@ -2907,6 +2908,10 @@ sub submitGlobalSearch()
     else if m.catalogMode = "hd" and not usesOnlineHd() and m.kind <> "anime"
         m.kind = "all"
         loadBrowsePage(0)
+    else if animeOnlySearch
+        m.kind = "anime"
+        cacheKey = m.catalogMode + "|" + m.hdProvider + "|anime|" + searchQuery
+        fetch({operation:"anime-search",kind:"anime",query:searchQuery,offset:0})
     else
         m.kind = "movie"
         cacheKey = m.catalogMode + "|" + m.hdProvider + "|all|" + searchQuery
