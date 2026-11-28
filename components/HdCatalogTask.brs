@@ -2932,7 +2932,7 @@ sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
     url = orbitText(candidateUrl,4096).trim()
     if url = "" then return
     url = CreateObject("roRegex","&amp;","i").Replace(url,"&")
-    url = CreateObject("roRegex","\\\\/","i").Replace(url,"/")
+    url = CreateObject("roRegex","\\/","i").Replace(url,"/")
     if left(lcase(url),7) = "http://" then url = "https://"+mid(url,8)
     if left(lcase(url),8) <> "https://" then return
 
@@ -2953,7 +2953,7 @@ sub rpHdTaskLatanimeAddEmbed(embeds as object, candidateUrl as string)
     if lcase(left(url,len("https://filemoon.link"))) = "https://filemoon.link"
         url = "https://filemoon.sx"+mid(url,len("https://filemoon.link")+1)
     else if lcase(left(url,len("https://hglink.to"))) = "https://hglink.to"
-        url = "https://streamwish.to"+mid(url,len("https://hglink.to")+len("https://hglink.to")+1)
+        url = "https://streamwish.to"+mid(url,len("https://hglink.to")+1)
     else if lcase(left(url,len("https://swdyu.com"))) = "https://swdyu.com"
         url = "https://streamwish.to"+mid(url,len("https://swdyu.com")+1)
     else if lcase(left(url,len("https://mivalyo.com"))) = "https://mivalyo.com"
