@@ -7,6 +7,7 @@ sub init()
     m.canvas = m.top.findNode("canvas")
     m.standardPlayer = m.top.findNode("player")
     m.hostPlayer = m.top.findNode("hostPlayer")
+    m.animePlayer = m.top.findNode("animePlayer")
     ' Keep m.player as the active-player alias so existing controls, watch state,
     ' TS relay, seek and close handling are shared without changing the main player.
     m.player = m.standardPlayer
@@ -44,6 +45,16 @@ sub init()
     m.hostPlayer.observeField("progress","livePreviewProgress")
     m.hostPlayer.observeField("previewReturned","livePreviewReturned")
     m.hostPlayer.observeField("closedRequest","livePreviewClosed")
+    ' Anime has its own decoder/player instance. It shares the proven controls
+    ' but never shares decoder state with Movies, Series or the VOE host player.
+    m.animePlayer.observeField("closed","playerClosed")
+    m.animePlayer.observeField("diagnostics","playerDiagnostic")
+    m.animePlayer.observeField("retryRequested","retryVideo")
+    m.animePlayer.observeField("progress","playerProgress")
+    m.animePlayer.observeField("endSelection","playerEndSelection")
+    m.animePlayer.observeField("progress","livePreviewProgress")
+    m.animePlayer.observeField("previewReturned","livePreviewReturned")
+    m.animePlayer.observeField("closedRequest","livePreviewClosed")
     m.previewTimer = m.top.findNode("livePreviewDelay")
     m.previewTimer.observeField("fire","startLivePreview")
     m.noteTimer = m.top.findNode("liveNoticeTimer")
@@ -1107,8 +1118,15 @@ sub launchVideo(item as object, url as string, format as string)
     m.sourceLaunchPending = false
     targetPlayer = m.standardPlayer
     targetEngine = "standard"
-    if type(item) = "roAssociativeArray" and item.doesExist("playbackEngine")
-        if lcase(orbitText(item.playbackEngine,20)) = "host"
+    isAnimePlayback = false
+    if type(item) = "roAssociativeArray"
+        if item.doesExist("isAnime") and item.isAnime = true then isAnimePlayback = true
+        if item.doesExist("catalogCategory") and lcase(orbitText(item.catalogCategory,24)) = "anime" then isAnimePlayback = true
+        if orbitText(item.discoverySource,24) = "anilist" then isAnimePlayback = true
+        if isAnimePlayback
+            targetPlayer = m.animePlayer
+            targetEngine = "anime"
+        else if item.doesExist("playbackEngine") and lcase(orbitText(item.playbackEngine,20)) = "host"
             targetPlayer = m.hostPlayer
             targetEngine = "host"
         end if
@@ -1821,6 +1839,8 @@ sub playerClosed(event as object)
         m.player.visible = false
         if pendingSwitch.target = "host"
             m.player = m.hostPlayer
+        else if pendingSwitch.target = "anime"
+            m.player = m.animePlayer
         else
             m.player = m.standardPlayer
         end if
